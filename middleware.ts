@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { routePath } from '@/config/route-path'
 
-const AUTH_PATHS = [routePath.login]
+const AUTH_PATHS = [routePath.login, routePath.register, routePath.forgotPassword, routePath.resetPassword]
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -12,7 +12,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Đã login mà vào /login → về dashboard
+  // Đã login mà vào trang auth → về dashboard
   if (AUTH_PATHS.some((p) => pathname.startsWith(p))) {
     return token ? NextResponse.redirect(new URL(routePath.dashboard, request.url)) : NextResponse.next()
   }

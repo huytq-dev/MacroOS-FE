@@ -1,0 +1,8 @@
+import type { Metadata } from 'next'
+import { ProfilePage } from '@/features/users/pages/ProfilePage'
+
+export const metadata: Metadata = { title: 'Hồ sơ' }
+
+export default function ProfileRoute() {
+  return <ProfilePage />
+}

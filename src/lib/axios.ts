@@ -2,6 +2,7 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { toast } from 'sonner'
 import { logger } from './logger'
 import { routePath } from '@/config/route-path'
+import { apiRoutes } from '@/config/api-routes'
 
 const API_BASE_URL = '/api' // next.config.ts rewrite → BE
 const DEFAULT_TIMEOUT_MS = 30_000
@@ -40,19 +41,56 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config
 })
 
-// ponytail: 401 → về login. BE giữ refresh token trong HttpOnly cookie nhưng endpoint refresh lại đòi token trong body,
-// FE không đọc được → chưa làm silent refresh; sửa BE contract rồi thêm sau.
+// Silent refresh: 401 → gọi refresh-token một lần (refresh token nằm trong HttpOnly cookie), các request 401 khác chờ chung
+let refreshPromise: Promise<string> | null = null
+
+const refreshAccessToken = (): Promise<string> => {
+  refreshPromise ??= axios
+    .post<{ data: { accessToken: string } }>(
+      `${API_BASE_URL}${apiRoutes.auth.refresh}`,
+      { expiredAccessToken: getAccessToken() ?? '', refreshToken: null },
+      { withCredentials: true }
+    )
+    .then((response) => {
+      const token = response.data.data.accessToken
+      setAccessToken(token)
+      return token
+    })
+    .finally(() => {
+      refreshPromise = null
+    })
+  return refreshPromise
+}
+
+type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean }
+
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     if (axios.isCancel(error)) return Promise.reject(error)
 
+    const config = error.config as RetriableConfig | undefined
+    const isAuthEndpoint = config?.url?.startsWith('/auth/') ?? false
+
+    if (error.response?.status === 401 && config && !config._retried && !isAuthEndpoint && getAccessToken()) {
+      config._retried = true
+      try {
+        const token = await refreshAccessToken()
+        config.headers.Authorization = `Bearer ${token}`
+        return api(config)
+      } catch (refreshError) {
+        logger.error('Silent refresh failed:', refreshError)
+        redirectToLogin()
+        return Promise.reject(error)
+      }
+    }
+
     if (error.response?.status === 401) {
-      redirectToLogin()
+      if (!isAuthEndpoint) redirectToLogin()
       return Promise.reject(error)
     }
 
-    const method = error.config?.method?.toLowerCase() ?? ''
+    const method = config?.method?.toLowerCase() ?? ''
     const isLoadRequest = ['get', 'head'].includes(method)
 
     if (!error.response) {

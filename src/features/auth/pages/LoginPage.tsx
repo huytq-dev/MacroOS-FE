@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, Suspense } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/use-auth'
 import { LoginForm } from '@/features/auth/components/login/LoginForm'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Logo } from '@/components/shared/Logo'
+import { AuthShell } from '@/features/auth/components/AuthShell'
 import { routePath } from '@/config/route-path'
 
 function LoginPageInner() {
@@ -28,22 +28,22 @@ function LoginPageInner() {
   }
 
   return (
-    <div className="bg-muted/30 flex min-h-screen items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <Logo height={28} />
-        <Card className="shadow-none">
-          <CardHeader className="space-y-1">
-            <CardTitle className="font-sans text-base font-semibold">Đăng nhập</CardTitle>
-            <CardDescription>Nhập email và mật khẩu để tiếp tục</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={null}>
-              <LoginForm />
-            </Suspense>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <AuthShell
+      title="Đăng nhập"
+      description="Nhập email và mật khẩu để tiếp tục"
+      footer={
+        <>
+          Chưa có tài khoản?{' '}
+          <Link href={routePath.register} className="text-primary hover:underline">
+            Đăng ký
+          </Link>
+        </>
+      }
+    >
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
+    </AuthShell>
   )
 }
 

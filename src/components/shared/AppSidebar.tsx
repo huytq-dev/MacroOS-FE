@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronLeft, LayoutDashboard, type LucideIcon } from 'lucide-react'
+import { ChevronLeft, LayoutDashboard, Scale, Target, UserRound, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { routePath } from '@/config/route-path'
@@ -15,7 +15,12 @@ interface NavItem {
 }
 
 // Thêm mục menu ở đây khi có trang mới (đồng bộ với config/route-path.ts)
-const NAV_ITEMS: readonly NavItem[] = [{ icon: LayoutDashboard, label: 'Dashboard', href: routePath.dashboard }]
+const NAV_ITEMS: readonly NavItem[] = [
+  { icon: LayoutDashboard, label: 'Dashboard', href: routePath.dashboard },
+  { icon: Target, label: 'Program', href: routePath.program },
+  { icon: Scale, label: 'Cân nặng', href: routePath.weight },
+  { icon: UserRound, label: 'Hồ sơ', href: routePath.profile },
+]
 
 interface AppSidebarProps {
   isCollapsed: boolean
@@ -28,7 +33,7 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
   return (
     <aside
       className={cn(
-        'border-sidebar-border bg-sidebar text-sidebar-foreground fixed top-12 left-0 z-50 flex h-[calc(100vh-3rem)] shrink-0 flex-col overflow-hidden border-r transition-[width] duration-200',
+        'border-sidebar-border bg-sidebar text-sidebar-foreground fixed top-12 left-0 z-50 hidden h-[calc(100vh-3rem)] shrink-0 flex-col overflow-hidden border-r transition-[width] duration-200 md:flex',
         isCollapsed ? 'w-14' : 'w-60'
       )}
       aria-label="Main navigation"

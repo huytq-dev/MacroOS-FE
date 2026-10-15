@@ -25,6 +25,15 @@
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
+  --color-mf-orange: var(--mf-orange);
+  --color-mf-blue: var(--mf-blue);
+  --color-mf-purple: var(--mf-purple);
+  --color-mf-green: var(--mf-green);
+  --color-mf-calories: var(--mf-calories);
+  --color-mf-protein: var(--mf-protein);
+  --color-mf-carbs: var(--mf-carbs);
+  --color-mf-fat: var(--mf-fat);
+  --color-mf-trend: var(--mf-trend);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);

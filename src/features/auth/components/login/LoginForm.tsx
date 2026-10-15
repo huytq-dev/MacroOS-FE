@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuth } from '@/features/auth/hooks/use-auth'
 import { loginSchema, type LoginFormValues } from '@/features/auth/schemas/login.schema'
+import { FieldError } from '@/features/auth/components/FieldError'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -41,11 +43,16 @@ export function LoginForm() {
       <div className="space-y-1.5">
         <Label htmlFor="email">Email</Label>
         <Input id="email" type="email" autoComplete="email" placeholder="you@example.com" {...register('email')} />
-        {errors.email && <p className="text-destructive text-[11px]">{errors.email.message}</p>}
+        <FieldError message={errors.email?.message} />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="password">Mật khẩu</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Mật khẩu</Label>
+          <Link href={routePath.forgotPassword} className="text-primary text-[11px] hover:underline">
+            Quên mật khẩu?
+          </Link>
+        </div>
         <div className="relative">
           <Input
             id="password"
@@ -66,7 +73,7 @@ export function LoginForm() {
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </Button>
         </div>
-        {errors.password && <p className="text-destructive text-[11px]">{errors.password.message}</p>}
+        <FieldError message={errors.password?.message} />
       </div>
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>

@@ -2,6 +2,7 @@
 
 import { AppHeader } from '@/components/shared/AppHeader'
 import { AppSidebar } from '@/components/shared/AppSidebar'
+import { MobileTabBar } from '@/components/shared/MobileTabBar'
 import { AuthGuard } from '@/features/auth/components/AuthGuard'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
@@ -11,19 +12,21 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
 
   return (
     <AuthGuard>
-      <div className="bg-background text-foreground flex h-screen flex-col overflow-clip">
+      <div className="bg-background text-foreground flex min-h-screen flex-col md:h-screen md:overflow-clip">
         <AppHeader />
         <div className="flex min-h-0 flex-1">
           <AppSidebar isCollapsed={isCollapsed} onToggleCollapse={() => setIsCollapsed((v) => !v)} />
+          {/* Mobile: không sidebar, chừa chỗ cho tab bar dưới; desktop: cuộn trong main */}
           <main
             className={cn(
-              'bg-muted/10 relative flex min-h-0 flex-1 flex-col overflow-clip p-4 transition-[margin] duration-200 md:p-5',
-              isCollapsed ? 'ml-14' : 'ml-60'
+              'relative flex min-h-0 flex-1 flex-col p-4 pb-20 transition-[margin] duration-200 md:overflow-y-auto md:p-5 md:pb-5',
+              isCollapsed ? 'md:ml-14' : 'md:ml-60'
             )}
           >
-            <div className="flex h-full min-h-0 w-full flex-1 flex-col">{children}</div>
+            <div className="flex w-full flex-1 flex-col">{children}</div>
           </main>
         </div>
+        <MobileTabBar />
       </div>
     </AuthGuard>
   )
