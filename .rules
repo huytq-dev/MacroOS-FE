@@ -1,0 +1,343 @@
+# Next.js Coding Rules (App Router)
+
+## General
+- Correctness and clarity over speed. Accessibility is required.
+- Comments only explain *why*, never *what*.
+- Add to existing files before creating new ones.
+- No generic names at the feature root — use explicit names. Exception: `page.tsx`, `layout.tsx`, `loading.tsx` are Next.js conventions.
+- No abbreviated variable names (`error` not `err`, `button` not `btn`).
+
+## File Naming
+| Type | Convention |
+|------|-----------|
+| Route page | `page.tsx` (Next.js convention, default export) |
+| Route layout | `layout.tsx` (Next.js convention, default export) |
+| Component | `PascalCase.tsx` |
+| Hook | `use-kebab-case.ts` |
+| Service | `kebab-case.service.ts` |
+| Store | `kebab-case.store.ts` |
+| Schema | `kebab-case.schema.ts` |
+| Types | `kebab-case.types.ts` |
+
+## Server vs Client Components
+- **Default**: Server Component (no directive needed).
+- **`'use client'`**: required when using hooks (`useState`, `useEffect`, React Query, Zustand), event handlers, or browser APIs.
+- **`'use server'`**: for Server Actions only.
+- Keep `'use client'` boundary as deep as possible — push it down to the leaf that actually needs it, not the whole page.
+- Never import server-only code into a Client Component.
+
+## Exports
+- **`page.tsx` / `layout.tsx`**: Default Export (Next.js requirement).
+- **Everything else**: Named Export.
+- **Component subdirectories** (`components/<PageName>/`): must have an `index.ts` barrel that re-exports all named exports. Pages import from the barrel (`../components/RolesPage`), not individual files.
+
+## Folder Structure
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── (auth)/             # Route group: auth pages (login, etc.)
+│   ├── (protected)/        # Route group: requires authentication (middleware guards)
+│   │   ├── layout.tsx      # Protected layout (sidebar, header)
+│   │   ├── admin/
+│   │   ├── hrm/
+│   │   └── lms/
+│   └── (public)/           # Route group: public pages
+├── features/<feature>/
+│   ├── pages/              # Page components — own all hooks, server state, and callbacks
+│   │   └── <category>/     # Grouped by domain (e.g. recruitment/, employee/)
+│   │       └── <Name>Page.tsx
+│   ├── components/         # Pure UI components — NO hooks, NO API calls, props-only
+│   │   └── <PageName>/     # Sub-components for a specific page
+│   │       └── <ViewName>/ # Nested subfolder when sub-view > ~150 lines
+│   │           ├── index.tsx
+│   │           ├── types.ts
+│   │           └── *.tsx
+│   ├── hooks/              # React Query hooks (must be Client-side)
+│   ├── services/           # Axios wrappers (plain objects, can run server/client)
+│   ├── schemas/            # Zod schemas
+│   └── types/              # TypeScript types
+├── components/ui/          # Shared primitives (shadcn/ui)
+├── stores/                 # Zustand stores (client-only)
+├── lib/                    # Shared utilities (axios, logger, utils)
+├── hooks/                  # Global hooks
+└── config/                 # Route paths, constants
+```
+
+## No God-Class Pages
+- `page.tsx` (Next.js route entry) must only render the corresponding `<Name>Page` from `features/<feature>/pages/`. No logic, no hooks.
+- `<Name>Page.tsx` in `pages/` is the single data-orchestration layer: calls hooks, derives computed values, passes data + callbacks as props to components.
+- Components in `components/<PageName>/` must NOT call React Query hooks or make API calls — they receive everything via props.
+- Orchestrator components (e.g., `RolesTab`) may own local UI state (dialogs, filters) and pass callbacks to children. They must NOT call server-state hooks.
+- Internal imports within the same `<PageName>/` folder stay relative. Siblings import each other directly (`./MembersPanel`), not through the barrel.
+- Types shared only within a `<ViewName>/` folder go in `types.ts` inside that folder.
+
+## Data Flow (bắt buộc)
+```
+app/.../page.tsx          → thin shell, renders <NamePage /> only
+  └── pages/<Name>Page    → owns ALL React Query hooks + server state
+        └── components/   → display only, receives data and callbacks via props
+```
+- **`app/.../page.tsx`** (Next.js route file): default export, renders the corresponding `<Name>Page` component only. Zero logic.
+- **`pages/<Name>Page.tsx`**: calls all React Query hooks, derives computed values, passes `data`, `isLoading`, `isPending`, and callbacks (`onSubmit`, `onDelete`) as props down.
+- **Components** (`components/<PageName>/`) must NOT import or call React Query hooks. Pure UI only.
+- **Exception**: Orchestrator components managing a distinct sub-domain may own local UI state (e.g. open/close dialogs) but must NOT call server-state hooks.
+
+## Routing
+- Route groups `(auth)`, `(protected)`, `(public)` — parentheses excluded from URL.
+- Auth protection handled by `middleware.ts` (checks `access_token` cookie) — no `ProtectedRoute` component needed.
+- Navigation: `useRouter` from `next/navigation`, `<Link>` from `next/link`. Never `useNavigate`.
+- Route paths defined in `src/config/route-path.ts` — import from there, never hardcode strings.
+- `loading.tsx` provides automatic Suspense boundary per route segment.
+- **`<Link>` for pure navigation** — buttons/anchors that only navigate (back, detail, edit, add) must use `<Button asChild><Link href={...}>` or `<Link>` directly. Never `onClick={() => router.push(...)}` for these.
+- **`router.push` only after an async action** — use it exclusively in the success/failure path of a form submit, delete, or other mutation (e.g. after `await save()` → `router.push(detailHref)`).
+- **Pass `href` as props, not callbacks** — components that navigate receive `backHref: string`, `editHref: string`, `getDetailHref: (id: string) => string` etc. Never `onBack: () => void` that internally calls `router.push`.
+
+## Validation (Zod schemas)
+- All Zod schemas live in `features/<feature>/schemas/<name>.schema.ts`.
+- Schema file exports: the `z.object(...)` schema and inferred type (`type Foo = z.infer<typeof fooSchema>`).
+- Pages import schema to wire `useForm({ resolver: zodResolver(schema) })`.
+- Components receive `form` (from `useForm`) as a prop — they do NOT call `useForm` themselves.
+- Separate schemas per BE Command (Create vs Update use different schema files when commands differ).
+
+## Error Handling
+- Never swallow errors silently.
+- Always: `logger.error(error)` (from `@/lib/logger`) + `toast.error('...')` via Sonner. Never `console.error` or `console.log` directly.
+- `logger` strips stack traces in prod automatically.
+- All async operations handle 3 states: `loading`, `error`, `success`.
+- Use early returns for loading/error to keep render clean.
+
+### Hiển thị lỗi tải dữ liệu (bắt buộc dùng `ErrorState`)
+- Mọi lỗi khi TẢI dữ liệu (page, block, bảng, card) phải hiển thị bằng `ErrorState` từ `@/components/shared/ErrorState`. KHÔNG tự viết chữ đỏ (`text-destructive`), không hiển thị thô `error.message`/`getErrorMessage(error)` ra giao diện.
+- Truyền nguyên `error` (kiểu `unknown`) vào `ErrorState`; component tự phân loại bằng `getErrorKind` (`@/lib/api`): 403, 401, 404, mất mạng, 5xx, khác → tự chọn biểu tượng, câu chữ thân thiện, nút hành động và phần "Chi tiết kỹ thuật" thu gọn.
+- Chọn `variant` theo mức độ:
+  - `page` — lỗi chặn cả trang/route: không có quyền (403), hết phiên (401), không tìm thấy (404). Trang dừng render phần còn lại (early return), chỉ hiện một khối lỗi.
+  - `banner` — lỗi của dữ liệu phụ (tổng quan, bộ lọc, thống kê) khi nội dung chính vẫn dùng được. Gom các lỗi phụ thành MỘT banner, không lặp lại cùng một câu ở nhiều nơi.
+  - `inline` — lỗi của một khối/bảng/card cụ thể (mất mạng, 5xx) ngay trong khung của khối đó.
+- Chỉ truyền `onRetry` khi lỗi có thể tự hết (mạng, 5xx); `ErrorState` tự ẩn nút "Thử lại" với 403/401/404. Truyền `backHref` (Link) cho `variant="page"` khi có nơi để quay lại.
+- Một nguyên nhân chỉ hiển thị MỘT lần: nếu nhiều request cùng trả 403/401, dùng `variant="page"` thay cho cả trang, không để mỗi khối tự báo lỗi.
+- Với lỗi từ HÀNH ĐỘNG của người dùng (lưu, xóa, mutation): vẫn `logger.error(error)` + `toast.error('...')` như trên. Không dùng toast cho lỗi tải dữ liệu đã có `ErrorState` (tránh báo trùng).
+- Components trong `components/` không tự gọi API nên chỉ nhận `error: unknown` qua props rồi truyền vào `ErrorState`; không chuyển lỗi thành chuỗi trước khi truyền.
+
+## Loading UX
+- Always use skeleton loading for route transitions, data fetching, and async content areas. Never render blank screens for loading states.
+- Route segments that can wait on data must include `loading.tsx` with layout-matching skeletons.
+- Components with `isLoading` / `isPending` must render skeleton placeholders sized like the final UI, not generic spinners unless the action is inline and under 1 second.
+
+## Lazy Loading (bắt buộc — mở cái gì gọi cái đó)
+- Vào trang chỉ gọi dữ liệu trang cần để hiển thị NGAY (thường 2–3 request). Dữ liệu của tab, hộp thoại, ngăn kéo, popover, mục form thu gọn chỉ tải KHI người dùng mở nó: `useQuery({ enabled: isOpen })`. Không gọi trước "cho tiện".
+- Mỗi request tốn một lượt khứ hồi tới DB ở xa và một kết nối trong pool nhỏ; reload một trang phát 8–10 request cùng lúc làm cả loạt chậm dần.
+- Hook danh mục tách theo mức dùng: bộ **lõi** (dùng ở hầu hết màn hình) và các hook **nặng** riêng (mẫu email, mẫu đánh giá, trường tùy chỉnh...). Không gộp nhiều request vào một hàm kiểu `getLookups` rồi bắt mọi trang gọi cả bộ.
+- Số hiển thị trên nhãn tab không được là lý do tải trước cả danh sách. Lấy số từ trường đếm đi kèm đối tượng cha (`scheduleCount`, `autoEmailCount`...) hoặc ẩn số tới khi tab mở; cần số thì xin BE thêm trường đếm.
+- Bộ lọc theo đối tượng cha (theo `jobId`...) gửi lên BE bằng tham số; không kéo dữ liệu của tất cả đối tượng về rồi lọc ở FE.
+- Danh sách phân trang theo cấu hình `config/pagination.ts` (10/25/50). Không đặt PageSize lớn để "lấy hết một lần".
+- Dữ liệu ít đổi dùng `staleTime` để lần mở sau không gọi lại. Phần chưa tải xong phải có Skeleton/spinner (UI.md mục 16), không để ô trống.
+- Trước khi giao trang mới: mở tab Network, reload và đếm request lúc mở trang; mỗi request thừa phải có lý do.
+
+## State
+- Never mutate state directly — use immutable setter patterns.
+- Minimize `useEffect`. Derive state during render when possible.
+- `useEffect` with subscriptions/timers must return a cleanup function.
+
+## State Management
+- **Client/UI state** (auth, preferences, UI flags) → Zustand in `src/stores/`. Zustand stores are client-only.
+- **Server state** (API data) → React Query. Never store server data in Zustand.
+- React Query hooks live in `features/<feature>/hooks/`.
+- Query keys must be arrays: `['resource', params]`.
+- Always handle `onError` in mutations.
+
+## Service Layer
+- Services are plain objects, not classes.
+- Import Axios instance from `src/lib/axios.ts` as `api`.
+- Return unwrapped `r.data`, not the full Axios response.
+- Do not catch errors in services — let React Query handle them.
+- API calls hit `/api/:path*` which Next.js rewrites to the backend (configured in `next.config.ts`).
+
+## Forms
+- Use React Hook Form + Zod. Define Zod schema first, infer TS type from it.
+- No manual validation logic when Zod can express it.
+- Field errors from `form.formState.errors`, not global state.
+
+## Environment Variables
+- Client-accessible vars must be prefixed `NEXT_PUBLIC_`.
+- Server-only vars (no prefix) are never exposed to the browser.
+- All vars declared in `.env.local` (gitignored). Commit `.env.local.example` with placeholder values.
+
+## Styling
+- Tailwind CSS **v4** (CSS-first config in `src/app/index.css` via `@theme`; uses `@tailwindcss/postcss`).
+- When copying components from shadcn/ui, use the Tailwind v4 versions. v4 syntax like `w-(--var)` is valid here.
+- Tailwind CSS only. Class order: layout → spacing → typography → colors → states.
+- Conditional/merged classes always use `cn()` from `@/lib/utils`.
+- Component variants use CVA (`class-variance-authority`).
+- Do not manually reorder Tailwind classes — `prettier-plugin-tailwindcss` handles it.
+- Cỡ chữ, kích thước control, khoảng cách, màu: bắt buộc tuân `docs/TIEU-CHUAN-UI.md` khi viết hoặc chỉnh giao diện (chữ nhỏ, gọn; h1 `text-base`, nội dung `text-xs`).
+
+## Focus Ring (bắt buộc — đồng bộ toàn app)
+- Tất cả input, select trigger, textarea, combobox trigger đều dùng **`ring-1 ring-ring/50`** khi focus — KHÔNG dùng `ring-2`, `ring-3`, hay giá trị nào khác.
+- Pattern chuẩn: `focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50`
+- Với `aria-invalid`: `aria-invalid:ring-1 aria-invalid:ring-destructive/20`
+- Với wrapper div (`focus-within`): `focus-within:ring-1 focus-within:ring-ring/50`
+- Khi thêm/sửa shadcn component, kiểm tra và đổi `ring-2`/`ring-3` → `ring-1`.
+
+## Animation (bắt buộc)
+
+Animation library: `tw-animate-css` (imported in `src/app/index.css`). Use `data-[state=open]:` / `data-[state=closed]:` syntax — NOT `data-open:` / `data-closed:`.
+
+### Overlay / Modal / Dialog
+```
+data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-4
+data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-bottom-2
+animation-duration-250
+```
+
+### Dropdown / Popover / Select content
+```
+data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95
+data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95
+data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2
+data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2
+animation-duration-200
+```
+
+### Sheet / Drawer
+```
+data-[state=open]:animate-in data-[state=open]:slide-in-from-right
+data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right
+animation-duration-300
+```
+
+### Duration chuẩn
+| Loại | Duration |
+|------|----------|
+| Dropdown / Select / Tooltip | 200ms |
+| Dialog / Modal | 250ms |
+| Sheet / Drawer | 300ms |
+| Micro-interaction (button, badge) | 150ms |
+
+- Dùng `animation-duration-*` — KHÔNG dùng `duration-*`.
+- Easing mặc định: `ease` (enter). Sheet dùng `ease-out`.
+
+## Dropdown Alignment (bắt buộc)
+- **`SelectContent`** luôn dùng `align="start"`.
+- **`DropdownMenuContent`** dùng `align="end"` khi mở từ góc phải, `align="start"` cho menu bên trái.
+- **`PopoverContent`** dùng `align="start"` mặc định.
+- Không dùng `position="item-aligned"` trong Select.
+- Luôn thêm `sideOffset={4}`.
+
+## Fixed Viewport Layout (bắt buộc cho trang có bảng)
+
+Mọi page có bảng dữ liệu phải dùng cấu trúc sau:
+
+```tsx
+<div className="h-full flex flex-col bg-background text-foreground">
+  <HRPageHeader … />
+
+  <div className="flex flex-col flex-1 min-h-0 max-w-7xl w-full mx-auto px-4 md:px-8 py-5 gap-4">
+    <div className="… shrink-0">             {/* title + actions */}
+    <div className="… shrink-0">             {/* search / filters */}
+
+    <div className="rounded-lg border bg-card overflow-auto max-h-full min-h-0">
+      <Table>
+        <TableHeader className="sticky top-0 z-10 bg-card">…</TableHeader>
+        <TableBody>…</TableBody>
+      </Table>
+    </div>
+  </div>
+</div>
+```
+
+- Root: `h-full flex flex-col`
+- Content wrapper: `flex-1 min-h-0` — thiếu `min-h-0` thì overflow không hoạt động
+- Toolbar/header: `shrink-0`
+- `overflow-auto` đặt trực tiếp trên card
+- **KHÔNG dùng `overflow-hidden`** trên table card
+
+### Bảng có pagination (Pattern C)
+```tsx
+<div className="rounded-lg border bg-card flex flex-col overflow-hidden
+  [&>[data-slot=table-container]]:overflow-y-auto
+  [&>[data-slot=table-container]]:max-h-[calc(100vh-280px)]">
+  <div className="contents">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="sticky top-0 z-10 bg-card">…</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>…</TableBody>
+    </Table>
+  </div>
+  <div className="shrink-0 border-t px-4 py-2.5 flex items-center justify-between">
+    …
+  </div>
+</div>
+```
+
+## TypeScript
+- No `any`. Use `unknown` and narrow, or define a proper type.
+- No type assertions (`as SomeType`) unless unavoidable — add a comment explaining why.
+- Prefer `interface` for object shapes, `type` for unions/intersections/aliases.
+- Derive types from source of truth: `z.infer<>`, `ReturnType<>`, `Parameters<>`, `Awaited<>`.
+- Use `type` keyword for type-only imports: `import type { Task } from '../types/task.types'`.
+- Mark optional props with `?`. Never use `| undefined` manually when `?` suffices.
+- Use `readonly` for props/state that should not be mutated.
+- Avoid enums — use `as const` objects or Zod `z.enum()` instead.
+
+## Component Props
+- Explicit TypeScript interfaces for all props. No `any`.
+- Destructure props in function signature.
+- Type-only imports use `import type { ... }`.
+
+## Hydration Mismatch (bắt buộc)
+
+Next.js renders components on the server first, then hydrates on the client. Mismatches cause errors or silent UI corruption.
+
+### Forbidden in render (without guard)
+- `window`, `document`, `navigator`, `localStorage`, `sessionStorage` — undefined on server
+- `Math.random()`, `Date.now()`, `new Date()` — produce different values each render
+- `typeof window !== 'undefined'` branch that changes rendered output
+- Any condition that evaluates differently on server vs client (e.g. timezone, locale)
+
+### Required patterns
+```tsx
+// ❌ WRONG — renders differently server vs client
+export function Clock() { return <span>{new Date().toLocaleTimeString()}</span> }
+
+// ✅ CORRECT — defer to client only
+'use client'
+export function Clock() {
+  const [time, setTime] = useState<string>('')
+  useEffect(() => { setTime(new Date().toLocaleTimeString()) }, [])
+  return <span>{time}</span>    // '' on server, real time on client — safe
+}
+```
+
+```tsx
+// ❌ WRONG — localStorage in render
+const theme = localStorage.getItem('theme') ?? 'light'
+
+// ✅ CORRECT
+const [theme, setTheme] = useState<string>('light')
+useEffect(() => { setTheme(localStorage.getItem('theme') ?? 'light') }, [])
+```
+
+### Checklist before shipping any component
+- [ ] No browser-only API (`window`, `document`, `localStorage`) called at render time outside `useEffect`
+- [ ] No `new Date()` / `Date.now()` / `Math.random()` in JSX or computed during render
+- [ ] No `typeof window !== 'undefined'` branching that changes rendered output — use `useEffect` + state instead
+- [ ] Dynamic IDs (e.g. chart tooltips, dialog aria) use `useId()` from React, not `Math.random()`
+- [ ] `suppressHydrationWarning` used **only** on intentionally mismatched nodes (e.g. `<html lang>`) — never as a blanket suppress
+
+### `suppressHydrationWarning`
+- Add only to the **single element** whose attribute legitimately differs (e.g. `<html>` tag in `layout.tsx`)
+- Never add to an entire subtree to silence a real bug
+
+## BE–FE Contract (bắt buộc)
+
+Before writing any form/service/schema for a feature, read the corresponding BE Command and Validator files. Then:
+
+1. **Field names must match exactly** — same casing as BE DTO (camelCase in JSON).
+2. **Zod schema must mirror BE validator** — every `NotEmpty`, `MaximumLength`, `MinimumLength`, `GreaterThan`, `EmailAddress` must have an equivalent Zod rule.
+3. **Service payload must match the BE Command** — only send fields the BE Command declares.
+4. **Separate Create vs Update schemas** when BE Commands differ.
+5. **Response types must include all fields the BE returns** — read the BE `*Response.cs` first.
+6. **When BE adds/removes a field, update in this order**: schema → types → service → hook → component.

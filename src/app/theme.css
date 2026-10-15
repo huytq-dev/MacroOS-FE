@@ -1,0 +1,118 @@
+:root,
+.light {
+  color-scheme: light;
+  /* Nền xám nhạt để thẻ trắng (--card) nổi lên, thay cho đường viền cứng như MISA. */
+  --background: oklch(0.965 0.004 75);
+  --foreground: oklch(0.18 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0 0);
+  /* Cam đậm hơn bản tối (0.638) để chữ cam trên nền sáng và chữ trắng trên nút cam đạt tương phản WCAG AA ≥ 4.5:1. */
+  --primary: oklch(0.52 0.19 38.4);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.94 0.005 75);
+  --secondary-foreground: oklch(0.18 0 0);
+  --muted: oklch(0.94 0.005 75);
+  --muted-foreground: oklch(0.45 0.005 75);
+  --accent: oklch(0.975 0.025 75);
+  --accent-foreground: oklch(0.5 0.1 40.2);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0.002 75);
+  --input: oklch(0.922 0.002 75);
+  --ring: oklch(0.638 0.187 40.2);
+  --radius: 0.625rem;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* ── Finance Analytics Palette ─────────────────── */
+  --finance-teal: #5db8a6;
+  --finance-purple: #7c3aed;
+  /* ─────────────────────────────────────────────── */
+
+  /* ── Design Tokens ─────────────────────────────── */
+  --t-sidebar-bg: #191919;
+  --t-sidebar-text: #999999;
+  --t-sidebar-text-hover: #e0e0e0;
+  --t-sidebar-active-bg: rgba(232, 120, 74, 0.15);
+  --t-sidebar-active-txt: #e8784a;
+  --t-sidebar-border: rgba(255, 255, 255, 0.08);
+
+  --t-bg-primary: #fafaf8;
+  --t-bg-surface: #ffffff;
+  --t-bg-hover: #f0ede8;
+  --t-bg-selected: #ede9e4;
+
+  --t-text-primary: #1a1a1a;
+  --t-text-secondary: #6b6b6b;
+  --t-text-muted: #9a9a9a;
+
+  --t-accent: #e8784a;
+  --t-accent-hover: #d96b3c;
+  --t-accent-subtle: rgba(232, 120, 74, 0.12);
+
+  --t-border: #e8e8e6;
+  --t-border-strong: #d0ccc8;
+
+  --t-priority-high-bg: #fdecea;
+  --t-priority-high-text: #c0392b;
+  --t-priority-med-bg: #fef6e4;
+  --t-priority-med-text: #b7770d;
+  --t-priority-low-bg: #e8f4fd;
+  --t-priority-low-text: #1a6ea8;
+
+  --t-status-todo-bg: #f0f0ee;
+  --t-status-todo-text: #6b6b6b;
+  --t-status-progress-bg: #fef6e4;
+  --t-status-progress-text: #b7770d;
+  --t-status-done-bg: #eaf3de;
+  --t-status-done-text: #3b6d11;
+  --t-status-overdue-bg: #fdecea;
+  --t-status-overdue-text: #c0392b;
+  /* ─────────────────────────────────────────────── */
+}
+
+.dark {
+  --background: oklch(0.14 0.005 75);
+  --foreground: oklch(0.985 0.003 75);
+  --card: oklch(0.18 0.005 75);
+  --card-foreground: oklch(0.985 0.003 75);
+  --popover: oklch(0.18 0.005 75);
+  --popover-foreground: oklch(0.985 0.003 75);
+  --primary: oklch(0.638 0.187 40.2);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.22 0.005 75);
+  --secondary-foreground: oklch(0.985 0.003 75);
+  --muted: oklch(0.22 0.005 75);
+  --muted-foreground: oklch(0.65 0.005 75);
+  --accent: oklch(0.25 0.05 40.2);
+  --accent-foreground: oklch(0.985 0.003 75);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(0.25 0.005 75);
+  --input: oklch(0.25 0.005 75);
+  --ring: oklch(0.638 0.187 40.2);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.25 0.005 75);
+  --sidebar-ring: oklch(0.556 0 0);
+}
