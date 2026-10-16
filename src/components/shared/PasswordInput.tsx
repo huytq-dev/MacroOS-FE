@@ -27,14 +27,19 @@ export function PasswordInput({ startIcon: StartIcon, className, ...props }: Pas
         type={visible ? 'text' : 'password'}
         className={cn('pr-11 md:pr-11', StartIcon && 'pl-10 md:pl-10', className)}
       />
-      <IconButton
-        type="button"
-        icon={visible ? EyeOff : Eye}
-        label={visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-        aria-pressed={visible}
-        onClick={() => setVisible((current) => !current)}
-        className="text-muted-foreground absolute top-1/2 right-0.5 -translate-y-1/2"
-      />
+      {/* Căn giữa bằng flex, không dùng translate: nút có hiệu ứng nhấn translate-y-px sẽ ghi đè và làm nút tụt xuống */}
+      <div className="absolute inset-y-0 right-1 flex items-center">
+        <IconButton
+          type="button"
+          icon={visible ? EyeOff : Eye}
+          label={visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+          aria-pressed={visible}
+          // Giữ focus ở ô nhập để bàn phím trên điện thoại không đóng khi bấm hiện/ẩn
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setVisible((current) => !current)}
+          className="text-muted-foreground"
+        />
+      </div>
     </div>
   )
 }

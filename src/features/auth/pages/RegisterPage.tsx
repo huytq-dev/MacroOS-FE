@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, MailCheck } from 'lucide-react'
+import { AuthAltAction } from '@/features/auth/components/AuthAltAction'
 import { AuthShell } from '@/features/auth/components/AuthShell'
 import { applyServerFieldErrors, getFormErrorMessage } from '@/features/auth/auth.utils'
 import { authService } from '@/features/auth/services/auth.service'
@@ -72,15 +72,7 @@ export function RegisterPage() {
   }
 
   const footer = (
-    <>
-      Đã có tài khoản?{' '}
-      <Link
-        href={routePath.login}
-        className="text-foreground font-medium underline underline-offset-4"
-      >
-        Đăng nhập
-      </Link>
-    </>
+    <AuthAltAction prompt="Đã có tài khoản?" label="Đăng nhập" href={routePath.login} />
   )
 
   if (registeredEmail)

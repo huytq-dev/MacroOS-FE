@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, Suspense } from 'react'
-import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/use-auth'
 import { LoginForm } from '@/features/auth/components/login/LoginForm'
+import { AuthAltAction } from '@/features/auth/components/AuthAltAction'
 import { AuthShell } from '@/features/auth/components/AuthShell'
 import { Skeleton } from '@/components/ui/skeleton'
 import { routePath } from '@/config/route-path'
@@ -40,15 +40,11 @@ function LoginPageInner() {
       title="Chào mừng quay lại"
       description="Đăng nhập để xem nhật ký hôm nay."
       footer={
-        <>
-          Chưa có tài khoản?{' '}
-          <Link
-            href={routePath.register}
-            className="text-foreground font-medium underline underline-offset-4"
-          >
-            Tạo tài khoản
-          </Link>
-        </>
+        <AuthAltAction
+          prompt="Chưa có tài khoản?"
+          label="Tạo tài khoản"
+          href={routePath.register}
+        />
       }
     >
       <Suspense fallback={null}>
