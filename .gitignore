@@ -42,3 +42,29 @@ next-env.d.ts
 
 # Cho phép commit file mẫu
 !.env.example
+
+# secrets / chứng chỉ
+*.key
+*.p12
+*.crt
+*.cer
+*.keystore
+credentials*.json
+service-account*.json
+
+# tool / IDE cá nhân
+.claude/settings.local.json
+.claude/*.local.*
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+Thumbs.db
+
+# log, cache, báo cáo test
+*.log
+.eslintcache
+.cache/
+playwright-report/
+test-results/
+.turbo/
