@@ -48,7 +48,13 @@ import { IconButton } from '@/components/shared/IconButton'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MEAL_TYPE, type FoodCategory, type MealType } from '@/config/enums'
+import {
+  MEAL_DEFAULT_TIME,
+  MEAL_TYPE,
+  mealForHour,
+  type FoodCategory,
+  type MealType,
+} from '@/config/enums'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useIsClient } from '@/hooks/use-is-client'
 import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
@@ -57,16 +63,12 @@ import { useUiStore } from '@/stores/ui.store'
 const SEARCH_PAGE = 25
 const MEAL_ORDER = Object.keys(MEAL_TYPE) as MealType[]
 
-/** Gợi ý bữa mặc định theo giờ hiện tại (chỉ gọi trong event handler, không trong render). */
-const mealForNow = (): MealType => {
-  const hour = new Date().getHours()
-  if (hour < 10) return 'Breakfast'
-  if (hour < 12) return 'MorningSnack'
-  if (hour < 14) return 'Lunch'
-  if (hour < 17) return 'AfternoonSnack'
-  if (hour < 21) return 'Dinner'
-  return 'EveningSnack'
+/** Giờ hiện tại dạng HH:mm (chỉ gọi trong event handler/khởi tạo state, không trong render). */
+const nowHourMinute = (): string => {
+  const now = new Date()
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 }
+const hourOf = (time: string): number => Number(time.slice(0, 2))
 
 export function FoodLogPage() {
   const isClient = useIsClient()
@@ -78,7 +80,9 @@ export function FoodLogPage() {
   const addOpen = useUiStore((state) => state.addFoodOpen)
   const setAddOpen = useUiStore((state) => state.setAddFoodOpen)
   const [tab, setTab] = useState<AddTab>('search')
-  const [meal, setMeal] = useState<MealType>(mealForNow)
+  // Giờ ăn là nguồn chính; bữa suy ra từ giờ (đổi giờ thì bữa đổi theo, mở từ nút + của bữa thì giờ lấy theo bữa).
+  const [eatenAt, setEatenAt] = useState<string>(nowHourMinute)
+  const [meal, setMeal] = useState<MealType>(() => mealForHour(hourOf(nowHourMinute())))
   const [search, setSearch] = useState('')
   const [view, setView] = useState<FoodView>('all')
   const [category, setCategory] = useState<FoodCategory | null>(null)
@@ -119,7 +123,9 @@ export function FoodLogPage() {
   const clearDay = useClearDay()
 
   const openAdd = (mealOverride?: MealType) => {
-    setMeal(mealOverride ?? mealForNow())
+    const time = mealOverride ? MEAL_DEFAULT_TIME[mealOverride] : nowHourMinute()
+    setEatenAt(time)
+    setMeal(mealOverride ?? mealForHour(hourOf(time)))
     setPickedId(null)
     addEntry.reset()
     quickAdd.reset()
@@ -145,7 +151,7 @@ export function FoodLogPage() {
         await addEntry.mutateAsync({
           logDate: date,
           mealType: meal,
-          eatenAt: null,
+          eatenAt: `${eatenAt}:00`,
           foodItemId: item.foodItemId,
           foodServingId: item.foodServingId,
           quantity: item.quantity,
@@ -164,7 +170,7 @@ export function FoodLogPage() {
   const onQuickAdd = (values: QuickAddValues) => {
     if (!date) return
     quickAdd.mutate(
-      { logDate: date, mealType: meal, eatenAt: null, ...values },
+      { logDate: date, mealType: meal, eatenAt: `${eatenAt}:00`, ...values },
       { onSuccess: () => setAddOpen(false) }
     )
   }
@@ -265,7 +271,11 @@ export function FoodLogPage() {
         tab={tab}
         onTabChange={setTab}
         meal={meal}
-        onMealChange={setMeal}
+        eatenAt={eatenAt}
+        onEatenAtChange={(time) => {
+          setEatenAt(time)
+          setMeal(mealForHour(hourOf(time)))
+        }}
         search={search}
         onSearchChange={(value) => {
           setSearch(value)

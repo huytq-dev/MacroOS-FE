@@ -39,6 +39,13 @@ export const apiRoutes = {
     quickAdd: '/food-logs/quick-add', // POST
     copy: '/food-logs/copy', // POST
   },
+  onboarding: {
+    root: '/onboarding', // GET (trạng thái wizard)
+    basics: '/onboarding/basics', // PUT
+    estimate: '/onboarding/estimate', // GET (TDEE khởi điểm)
+    preview: '/onboarding/preview', // POST (xem trước goal/program)
+    complete: '/onboarding/complete', // POST
+  },
   expenditure: {
     root: '/expenditure', // GET ?from&to
   },

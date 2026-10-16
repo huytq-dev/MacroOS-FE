@@ -4,6 +4,7 @@ export const routePath = {
   forgotPassword: '/forgot-password',
   resetPassword: '/reset-password',
   confirmEmail: '/confirm-email',
+  onboarding: '/onboarding',
   dashboard: '/dashboard',
   profile: '/profile',
   program: '/program',

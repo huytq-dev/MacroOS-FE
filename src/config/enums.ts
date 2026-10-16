@@ -92,5 +92,25 @@ export const MEAL_TYPE = {
 } as const
 export type MealType = keyof typeof MEAL_TYPE
 
+/** Bữa theo giờ trong ngày (giờ ăn là nguồn chính, bữa suy ra từ đó). */
+export const mealForHour = (hour: number): MealType => {
+  if (hour < 10) return 'Breakfast'
+  if (hour < 12) return 'MorningSnack'
+  if (hour < 14) return 'Lunch'
+  if (hour < 17) return 'AfternoonSnack'
+  if (hour < 21) return 'Dinner'
+  return 'EveningSnack'
+}
+
+/** Giờ gợi ý khi mở thêm món từ nút + của một bữa cụ thể. */
+export const MEAL_DEFAULT_TIME: Record<MealType, string> = {
+  Breakfast: '07:00',
+  MorningSnack: '10:00',
+  Lunch: '12:00',
+  AfternoonSnack: '15:00',
+  Dinner: '19:00',
+  EveningSnack: '21:30',
+}
+
 export const FOOD_SCOPE = { All: 'Tất cả', Mine: 'Của tôi', System: 'Hệ thống' } as const
 export type FoodScope = keyof typeof FOOD_SCOPE
