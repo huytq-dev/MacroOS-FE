@@ -25,7 +25,7 @@ export function PasswordInput({ startIcon: StartIcon, className, ...props }: Pas
       <Input
         {...props}
         type={visible ? 'text' : 'password'}
-        className={cn('pr-11', StartIcon && 'pl-10', className)}
+        className={cn('pr-11 md:pr-11', StartIcon && 'pl-10 md:pl-10', className)}
       />
       <IconButton
         type="button"

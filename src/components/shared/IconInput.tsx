@@ -15,7 +15,7 @@ export function IconInput({ startIcon: StartIcon, className, ...props }: IconInp
         aria-hidden="true"
         className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
       />
-      <Input {...props} className={cn('pl-10', className)} />
+      <Input {...props} className={cn('pl-10 md:pl-10', className)} />
     </div>
   )
 }
