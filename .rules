@@ -171,6 +171,31 @@ app/.../page.tsx          → thin shell, renders <NamePage /> only
 - Do not manually reorder Tailwind classes — `prettier-plugin-tailwindcss` handles it.
 - Cỡ chữ, kích thước control, khoảng cách, màu: bắt buộc tuân `docs/TIEU-CHUAN-UI.md` khi viết hoặc chỉnh giao diện (chữ nhỏ, gọn; h1 `text-base`, nội dung `text-xs`).
 
+## Mobile-first — iPhone 17 Pro Max (bắt buộc)
+
+App dùng chủ yếu trên **iPhone 17 Pro Max** (Safari/PWA, viewport CSS ≈ **440 × 956**, có Dynamic Island + home indicator). Thiết kế mobile trước, desktop (`md:` ≥ 768px) là phần mở rộng. Ghi đè các số đo "gọn" của `docs/TIEU-CHUAN-UI.md` trên mobile theo bảng dưới.
+
+| Hạng mục | Mobile (< md) | Desktop (≥ md) |
+|---|---|---|
+| Cỡ chữ input/select/textarea | **`text-base` (16px)** — dưới 16px iOS Safari tự zoom khi focus | `md:text-xs` |
+| Chiều cao control (input, select, nút chính) | `h-11` / `h-10` (≥ 44px chạm, HIG) | `md:h-8` |
+| Nút icon | `size-10` (≥ 40px, khoảng cách ≥ 8px) | `md:size-8` |
+| Lề trang | `p-4` (16px) | `md:p-5` |
+| Điều hướng | `MobileTabBar` dưới (4–5 tab, `h-14` + safe-area) | Sidebar trái |
+| Dialog / popup | **Bottom sheet** (sát đáy, bo trên, `max-h-[92dvh]`, cuộn trong) | Dialog giữa |
+| Bảng dữ liệu | Danh sách thẻ / bảng ≤ 4 cột, ẩn cột phụ (`hidden sm:table-cell`) | Bảng đầy đủ |
+
+- **Safe area**: layout có `viewport-fit=cover`; thanh cố định đáy dùng `pb-[env(safe-area-inset-bottom)]`, thanh cố định đỉnh dùng `pt-[env(safe-area-inset-top)]`. Nội dung cuộn chừa chỗ dưới (`pb-20`) cho tab bar.
+- **Chiều cao**: dùng `dvh`/`svh`, không dùng `vh` (thanh địa chỉ Safari co giãn làm vỡ `h-screen`). Không `overflow-clip`/`h-screen` ở mobile; để `body` cuộn, chỉ desktop mới khoá viewport (`md:h-screen md:overflow-clip`).
+- **Không tràn ngang**: kiểm tra ở 440px (và 375px cho máy nhỏ). Chuỗi dài `truncate`/`break-words`; lưới `grid-cols-1 sm:grid-cols-2`.
+- **Chạm, không hover**: mọi hành động phải làm được bằng chạm; `hover:` chỉ là phụ. Vùng chạm ≥ 44×44px (có thể dùng padding/`before:` mở rộng vùng chạm). Không đặt hai nút nhỏ sát nhau.
+- **Bàn phím số**: ô số dùng `type="number" inputMode="decimal|numeric"`; ngày dùng `type="date"` (picker native iOS); email `autoComplete`/`type="email"`. Ô `autoFocus` trong sheet chỉ khi cần nhập ngay (bàn phím che ~40% màn hình).
+- **Hành động chính nằm tầm ngón cái**: nút Lưu/Thêm đặt ở đáy sheet hoặc sticky đáy trang (`sticky bottom-0` trên nền `bg-background`), không ở góc trên. FAB (nếu có) ở đáy-phải, trên tab bar (`bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)]`).
+- **Cuộn**: danh sách dài cuộn tự nhiên theo trang; vùng cuộn lồng nhau (sheet, tab ngang) dùng `overscroll-contain`. Tab/chip ngang dùng `overflow-x-auto` + `shrink-0`.
+- **Khoảng cách chữ**: nội dung `text-sm` (14px) trở lên cho thông tin chính trên mobile; chữ `text-xs` (12px) chỉ cho nhãn phụ; `text-[11px]` chỉ cho chú thích. Số liệu `tabular-nums`.
+- **Hiệu năng**: ít request khi mở trang (Lazy Loading ở trên), skeleton cùng kích thước nội dung, không animation nặng; tôn trọng `prefers-reduced-motion`.
+- **Kiểm thử trước khi giao**: Chrome DevTools/Browser pane preset mobile 440×956 (hoặc `resize_window 440 956`), light + dark; kiểm tra không zoom khi focus input, không che nội dung bởi tab bar/bàn phím, dialog cuộn được, chạm trúng nút.
+
 ## Focus Ring (bắt buộc — đồng bộ toàn app)
 - Tất cả input, select trigger, textarea, combobox trigger đều dùng **`ring-1 ring-ring/50`** khi focus — KHÔNG dùng `ring-2`, `ring-3`, hay giá trị nào khác.
 - Pattern chuẩn: `focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50`

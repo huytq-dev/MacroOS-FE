@@ -20,6 +20,18 @@ export const apiRoutes = {
     style: '/programs/current/style', // PUT
     expenditure: '/programs/current/expenditure', // PUT
   },
+  foods: {
+    root: '/foods', // GET ?search&category&scope&top&skip, POST
+    byId: (id: string) => `/foods/${id}`, // GET, PUT, DELETE
+  },
+  foodLogs: {
+    root: '/food-logs', // GET ?date
+    byDate: (date: string) => `/food-logs/${date}`, // DELETE (xoá cả ngày)
+    entries: '/food-logs/entries', // POST
+    entry: (id: string) => `/food-logs/entries/${id}`, // PUT, DELETE
+    quickAdd: '/food-logs/quick-add', // POST
+    copy: '/food-logs/copy', // POST
+  },
   weights: {
     root: '/weights', // GET ?from&to, POST
     byDate: (logDate: string) => `/weights/${logDate}`, // DELETE

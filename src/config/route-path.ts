@@ -9,4 +9,6 @@ export const routePath = {
   program: '/program',
   programNew: '/program/new',
   weight: '/weight',
+  foodLog: '/food-log',
+  foods: '/foods',
 } as const

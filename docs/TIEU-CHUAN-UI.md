@@ -3,6 +3,7 @@
 Nguồn: đo thực tế trên các trang chuẩn của app (Nhân sự, Hệ thống) và trang Tuyển dụng sau khi đã chỉnh.
 App là công cụ nghiệp vụ nhiều dữ liệu, nên **chữ nhỏ, gọn, mật độ cao**. Không dùng cỡ chữ của trang marketing.
 Quy tắc chọn thành phần (dropdown có tìm kiếm, trường form, tệp đính kèm, trang công khai) nằm ở `UI.md`.
+> **Ưu tiên mobile**: app dùng chủ yếu trên iPhone 17 Pro Max (440×956). Số đo `h-8`, `text-xs` dưới đây là của **desktop (≥ md)**; trên mobile control cao `h-11`, chữ input `text-base` (16px, tránh iOS zoom), chạm ≥ 44px, dialog dạng bottom sheet — xem mục "Mobile-first" trong `.rules`.
 Bổ sung cho `.rules` (mục Styling, Focus Ring, Animation, Fixed Viewport Layout), không thay thế.
 
 ## 1. Thang cỡ chữ

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { LogOut, Monitor, Moon, Sun } from 'lucide-react'
+import { LogOut, Monitor, Moon, Sun, UserRound } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAuth } from '@/features/auth/hooks/use-auth'
@@ -64,6 +64,12 @@ export function AppHeader() {
                 <p className="text-muted-foreground truncate text-xs">{user?.email}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href={routePath.profile}>
+                  <UserRound />
+                  <span>Hồ sơ</span>
+                </Link>
+              </DropdownMenuItem>
               {mounted && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>

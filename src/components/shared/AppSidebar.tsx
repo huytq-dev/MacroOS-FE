@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronLeft, LayoutDashboard, Scale, Target, UserRound, type LucideIcon } from 'lucide-react'
+import { Apple, ChevronLeft, LayoutDashboard, Scale, Target, UserRound, UtensilsCrossed, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { routePath } from '@/config/route-path'
@@ -17,6 +17,8 @@ interface NavItem {
 // Thêm mục menu ở đây khi có trang mới (đồng bộ với config/route-path.ts)
 const NAV_ITEMS: readonly NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', href: routePath.dashboard },
+  { icon: UtensilsCrossed, label: 'Nhật ký', href: routePath.foodLog },
+  { icon: Apple, label: 'Thực phẩm', href: routePath.foods },
   { icon: Target, label: 'Program', href: routePath.program },
   { icon: Scale, label: 'Cân nặng', href: routePath.weight },
   { icon: UserRound, label: 'Hồ sơ', href: routePath.profile },

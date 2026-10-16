@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Scale, Target, UserRound, type LucideIcon } from 'lucide-react'
+import { Apple, LayoutDashboard, Scale, Target, UtensilsCrossed, type LucideIcon } from 'lucide-react'
 import { routePath } from '@/config/route-path'
 import { cn } from '@/lib/utils'
 
@@ -12,12 +12,13 @@ interface TabItem {
   href: string
 }
 
-// 4 tab dưới như MacroFactor (Dashboard · Food Log · Strategy · More); Food Log thêm ở MOS-005 FE
+// 5 tab dưới (iPhone: vùng chạm ≥ 44px); Hồ sơ nằm trong menu avatar ở header
 const TABS: readonly TabItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', href: routePath.dashboard },
+  { icon: UtensilsCrossed, label: 'Nhật ký', href: routePath.foodLog },
+  { icon: Apple, label: 'Món ăn', href: routePath.foods },
   { icon: Target, label: 'Program', href: routePath.program },
   { icon: Scale, label: 'Cân', href: routePath.weight },
-  { icon: UserRound, label: 'Hồ sơ', href: routePath.profile },
 ]
 
 export function MobileTabBar() {

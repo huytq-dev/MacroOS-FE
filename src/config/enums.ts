@@ -62,3 +62,31 @@ export type AdjustmentReason = keyof typeof ADJUSTMENT_REASON
 
 export const enumOptions = <T extends Record<string, string>>(labels: T) =>
   (Object.keys(labels) as (keyof T & string)[]).map((value) => ({ value, label: labels[value] }))
+
+export const FOOD_CATEGORY = {
+  Grains: 'Tinh bột',
+  Vegetables: 'Rau củ',
+  Fruits: 'Trái cây',
+  Dairy: 'Sữa',
+  Protein: 'Đạm',
+  Fats: 'Chất béo',
+  Beverages: 'Đồ uống',
+  Snacks: 'Ăn vặt',
+  FastFood: 'Đồ ăn nhanh',
+  Supplements: 'Thực phẩm bổ sung',
+  Other: 'Khác',
+} as const
+export type FoodCategory = keyof typeof FOOD_CATEGORY
+
+export const MEAL_TYPE = {
+  Breakfast: 'Bữa sáng',
+  MorningSnack: 'Phụ sáng',
+  Lunch: 'Bữa trưa',
+  AfternoonSnack: 'Phụ chiều',
+  Dinner: 'Bữa tối',
+  EveningSnack: 'Phụ tối',
+} as const
+export type MealType = keyof typeof MEAL_TYPE
+
+export const FOOD_SCOPE = { All: 'Tất cả', Mine: 'Của tôi', System: 'Hệ thống' } as const
+export type FoodScope = keyof typeof FOOD_SCOPE
