@@ -62,7 +62,7 @@ export function MobileTabBar() {
           type="button"
           onClick={openAddFood}
           aria-label="Thêm món"
-          className="bg-primary text-primary-foreground focus-visible:ring-ring/50 -mt-3 flex size-14 items-center justify-center rounded-full shadow-[0_4px_14px_rgb(0_0_0/0.18)] transition-transform focus-visible:ring-2 focus-visible:outline-none active:scale-95"
+          className="bg-primary text-primary-foreground focus-visible:ring-ring/50 -mt-3 flex size-14 items-center justify-center rounded-full shadow-[0_4px_14px_rgb(0_0_0/0.18)] transition-transform focus-visible:ring-1 focus-visible:outline-none active:scale-95"
         >
           <Plus className="size-7" strokeWidth={2.4} aria-hidden="true" />
         </button>

@@ -1,11 +1,13 @@
 'use client'
 
 import { useId, useState } from 'react'
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
+import { OptionList, PickerSheet } from './PickerSheet'
 import { filterOptions, type SearchableOption } from './searchable-options'
 
 interface SearchableSelectProps {
@@ -26,7 +28,7 @@ interface SearchableSelectProps {
  * Ô chọn có tìm kiếm (UI.md mục 1): gõ ngay trong ô, danh sách lọc không phân biệt dấu.
  * Bàn phím: mũi tên chọn dòng, Enter chọn, Escape đóng.
  */
-export function SearchableSelect({
+function DesktopSearchableSelect({
   options,
   value,
   onValueChange,
@@ -144,4 +146,87 @@ export function SearchableSelect({
       </PopoverContent>
     </Popover>
   )
+}
+
+/** Điện thoại: bảng trượt từ đáy có ô tìm kiếm (popover nổi sẽ đè nút Lưu trong sheet). */
+function MobileSearchableSelect({
+  options,
+  value,
+  onValueChange,
+  placeholder = 'Chọn...',
+  clearLabel,
+  emptyText = 'Không có kết quả phù hợp',
+  disabled,
+  id,
+  ...aria
+}: SearchableSelectProps) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const selected = options.find((option) => option.value === value)
+  const filtered = filterOptions(options, query)
+  const items: SearchableOption[] =
+    clearLabel && !query ? [{ value: '', label: clearLabel }, ...filtered] : filtered
+
+  return (
+    <>
+      <button
+        type="button"
+        {...aria}
+        id={id}
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        className="bg-secondary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-transparent px-3.5 text-left text-base outline-none focus-visible:ring-1 disabled:opacity-50 aria-invalid:ring-1"
+      >
+        <span className={cn('min-w-0 flex-1 truncate', !selected && 'text-muted-foreground')}>
+          {selected?.label ?? placeholder}
+        </span>
+        <ChevronDown aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
+      </button>
+      <PickerSheet
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next)
+          if (!next) setQuery('')
+        }}
+        title={placeholder}
+      >
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+          />
+          <Input
+            type="search"
+            autoComplete="off"
+            aria-label="Tìm kiếm"
+            placeholder="Tìm kiếm"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="max-h-[45dvh] overflow-y-auto overscroll-contain">
+          {items.length === 0 ? (
+            <p className="text-muted-foreground py-6 text-center text-sm">{emptyText}</p>
+          ) : (
+            <OptionList
+              aria-label={placeholder}
+              options={items}
+              value={value}
+              onValueChange={(next) => {
+                onValueChange(next)
+                setOpen(false)
+                setQuery('')
+              }}
+            />
+          )}
+        </div>
+      </PickerSheet>
+    </>
+  )
+}
+
+export function SearchableSelect(props: SearchableSelectProps) {
+  const isMobile = useIsMobile()
+  return isMobile ? <MobileSearchableSelect {...props} /> : <DesktopSearchableSelect {...props} />
 }

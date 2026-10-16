@@ -7,15 +7,9 @@ import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { FormField } from '@/components/shared/FormField'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { PickerSelect } from '@/components/shared/PickerSelect'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
   DAY_OF_WEEK,
@@ -211,18 +205,13 @@ export function CreateProgramForm({ form, isPending, error, onSubmit }: CreatePr
               control={control}
               name="checkInWeekday"
               render={({ field: { value, onChange } }) => (
-                <Select value={value} onValueChange={onChange}>
-                  <SelectTrigger id={field.id} className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start" position="popper" sideOffset={4}>
-                    {enumOptions(DAY_OF_WEEK).map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PickerSelect
+                  {...field}
+                  title="Ngày check-in"
+                  options={enumOptions(DAY_OF_WEEK)}
+                  value={value}
+                  onValueChange={onChange}
+                />
               )}
             />
           )}

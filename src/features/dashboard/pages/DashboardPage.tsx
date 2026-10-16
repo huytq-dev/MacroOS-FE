@@ -8,16 +8,14 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { Skeleton } from '@/components/ui/skeleton'
 import { routePath } from '@/config/route-path'
 import { useIsClient } from '@/hooks/use-is-client'
-import { todayIso } from '@/lib/date'
+import { formatDateVi, todayIso } from '@/lib/date'
 import { useUiStore } from '@/stores/ui.store'
 
-/** "Thứ Sáu, 16 tháng 10" theo ngày iso; chỉ gọi sau khi mount để không lệch hydration. */
-const dayLabel = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('vi-VN', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
+/** "Thứ Sáu, 16/10/2026" theo ngày iso; chỉ gọi sau khi mount để không lệch hydration. */
+const dayLabel = (iso: string) => {
+  const weekday = new Date(`${iso}T00:00:00`).toLocaleDateString('vi-VN', { weekday: 'long' })
+  return `${weekday}, ${formatDateVi(iso)}`
+}
 
 export function DashboardPage() {
   const router = useRouter()

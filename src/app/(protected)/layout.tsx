@@ -12,7 +12,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
 
   return (
     <AuthGuard>
-      <div className="bg-background text-foreground flex min-h-screen flex-col md:h-screen md:overflow-clip">
+      <div className="bg-background text-foreground flex min-h-dvh flex-col md:h-screen md:overflow-clip">
         <AppHeader />
         <div className="flex min-h-0 flex-1">
           <AppSidebar

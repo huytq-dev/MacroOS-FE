@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
+import { DateField } from '@/components/shared/DateField'
 import { FormField } from '@/components/shared/FormField'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -90,12 +90,7 @@ function CopyBody({ fromDate, defaultToDate, isPending, error, onOpenChange, onC
           error={sameTarget ? 'Nguồn và đích trùng nhau.' : undefined}
         >
           {(field) => (
-            <Input
-              {...field}
-              type="date"
-              value={toDate}
-              onChange={(event) => setToDate(event.target.value)}
-            />
+            <DateField {...field} value={toDate} onValueChange={setToDate} />
           )}
         </FormField>
         {scope !== DAY && (

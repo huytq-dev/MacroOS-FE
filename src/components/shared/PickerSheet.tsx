@@ -84,7 +84,7 @@ export function OptionList<T extends string>({
             aria-checked={selected}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              'focus-visible:ring-ring/50 flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-base transition-colors focus-visible:ring-2 focus-visible:outline-none md:min-h-10 md:text-sm',
+              'focus-visible:ring-ring/50 flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-base transition-colors focus-visible:ring-1 focus-visible:outline-none md:min-h-10 md:text-sm',
               selected ? 'bg-secondary font-semibold' : 'active:bg-muted'
             )}
           >

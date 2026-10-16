@@ -87,7 +87,7 @@ export function ListRow({
   const classes = cn(
     ROW_BASE,
     interactive &&
-      'active:bg-muted focus-visible:ring-ring/50 transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:outline-none',
+      'active:bg-muted focus-visible:ring-ring/50 transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:outline-none',
     className
   )
 

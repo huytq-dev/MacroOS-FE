@@ -14,14 +14,8 @@ import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { FormField } from '@/components/shared/FormField'
 import { PasswordInput } from '@/components/shared/PasswordInput'
 import { Button } from '@/components/ui/button'
+import { PickerSelect } from '@/components/shared/PickerSelect'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { GENDER, enumOptions } from '@/config/enums'
 import { routePath } from '@/config/route-path'
 import { logger } from '@/lib/logger'
@@ -121,22 +115,13 @@ export function RegisterPage() {
               control={control}
               name="gender"
               render={({ field: { value, onChange } }) => (
-                <Select value={value} onValueChange={onChange}>
-                  <SelectTrigger
-                    id={field.id}
-                    aria-invalid={field['aria-invalid']}
-                    className="w-full"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start" sideOffset={4} position="popper">
-                    {enumOptions(GENDER).map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PickerSelect
+                  {...field}
+                  title="Giới tính"
+                  options={enumOptions(GENDER)}
+                  value={value}
+                  onValueChange={onChange}
+                />
               )}
             />
           )}

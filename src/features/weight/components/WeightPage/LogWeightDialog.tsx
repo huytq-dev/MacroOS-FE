@@ -3,6 +3,7 @@
 import type { UseFormReturn } from 'react-hook-form'
 import { Loader2 } from 'lucide-react'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
+import { DateField } from '@/components/shared/DateField'
 import { FormField } from '@/components/shared/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,6 +39,7 @@ export function LogWeightDialog({
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = form
   const submit = (values: LogWeightFormValues) => {
@@ -59,7 +61,13 @@ export function LogWeightDialog({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Ngày" required error={errors.logDate?.message}>
-              {(field) => <Input {...field} type="date" {...register('logDate')} />}
+              {(field) => (
+                <DateField
+                  {...field}
+                  value={watch('logDate')}
+                  onValueChange={(next) => setValue('logDate', next, { shouldValidate: true })}
+                />
+              )}
             </FormField>
             <FormField label="Cân nặng (kg)" required error={errors.weightKg?.message}>
               {(field) => (

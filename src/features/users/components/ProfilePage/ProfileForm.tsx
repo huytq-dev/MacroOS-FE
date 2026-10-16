@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import type { UseFormReturn } from 'react-hook-form'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
+import { DateField } from '@/components/shared/DateField'
 import { FormField } from '@/components/shared/FormField'
 import { ListRow, ListSection } from '@/components/shared/ListGroup'
 import { OptionList, PickerSheet } from '@/components/shared/PickerSheet'
@@ -160,7 +161,14 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
       >
         <FormField label="Ngày sinh" required error={errors.dateOfBirth?.message}>
           {(field) => (
-            <Input {...field} type="date" autoComplete="bday" {...register('dateOfBirth')} />
+            <DateField
+              {...field}
+              autoComplete="bday"
+              value={values.dateOfBirth}
+              onValueChange={(next) =>
+                setValue('dateOfBirth', next, { shouldDirty: true, shouldValidate: true })
+              }
+            />
           )}
         </FormField>
       </PickerSheet>

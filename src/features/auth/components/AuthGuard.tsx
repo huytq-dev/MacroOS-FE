@@ -19,7 +19,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="bg-background flex h-screen flex-col overflow-hidden" aria-busy="true">
+      <div className="bg-background flex h-dvh flex-col overflow-hidden" aria-busy="true">
         <div className="flex h-12 shrink-0 items-center gap-3 border-b px-4">
           <Skeleton className="h-6 w-6 rounded-md" />
           <Skeleton className="h-4 w-28 rounded-sm" />
