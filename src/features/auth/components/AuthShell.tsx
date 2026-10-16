@@ -1,4 +1,4 @@
-import { Flame } from 'lucide-react'
+import { Wordmark } from '@/components/shared/Wordmark'
 
 interface AuthShellProps {
   readonly title: string
@@ -18,16 +18,8 @@ export function AuthShell({ title, description, children, footer }: AuthShellPro
     <div className="bg-background flex min-h-dvh flex-col sm:items-center sm:justify-center sm:px-8 sm:py-10">
       <div className="flex w-full flex-1 flex-col sm:max-w-sm sm:flex-none">
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 pt-[max(2.5rem,env(safe-area-inset-top))] pb-8 text-center sm:flex-none sm:pt-0">
-          <span
-            className="bg-primary text-primary-foreground flex size-16 items-center justify-center rounded-2xl"
-            aria-hidden="true"
-          >
-            <Flame className="size-8" />
-          </span>
-          <div className="space-y-1">
-            <p className="text-2xl font-semibold tracking-tight">MacroOS</p>
-            <p className="text-muted-foreground text-sm">Theo dõi calo và macro, nhẹ nhàng</p>
-          </div>
+          <Wordmark size={28} />
+          <p className="text-muted-foreground text-base">What&apos;s on your plate today?</p>
         </div>
 
         <div className="bg-card sm:ring-foreground/10 rounded-t-3xl px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_32px_rgb(0_0_0/0.06)] sm:rounded-3xl sm:px-7 sm:py-7 sm:shadow-none sm:ring-1">

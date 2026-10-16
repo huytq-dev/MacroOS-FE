@@ -10,11 +10,10 @@ Ký hiệu: `[ ]` ô nhập, `( )` nút, `▓` Skeleton, `⟳` spinner, `!` bi�
 ┌────────────────────────────────────────────┐
 │ 9:41                              ▂▄▆ ⌁ ▮ │  status bar
 │                                            │
-│                  ╭──────╮                  │
-│                  │  🔥  │                  │  logo 64px, nền đen, bo 2xl
-│                  ╰──────╯                  │
-│                 MacroOS                    │  24px đậm
-│        Theo dõi calo và macro, nhẹ nhàng   │  14px, màu muted
+│                                            │
+│           MACROOS                          │  wordmark: MACRO đậm + OS mảnh,
+│                                            │  font Unbounded 28px, không icon
+│        What's on your plate today?         │  tagline 16px, muted
 │                                            │  vùng thương hiệu co giãn
 ├╭──────────────────────────────────────────╮┤
 ││                  ───                     ││  thanh kéo trang trí

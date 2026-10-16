@@ -15,7 +15,10 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <div className="bg-background text-foreground flex min-h-screen flex-col md:h-screen md:overflow-clip">
         <AppHeader />
         <div className="flex min-h-0 flex-1">
-          <AppSidebar isCollapsed={isCollapsed} onToggleCollapse={() => setIsCollapsed((v) => !v)} />
+          <AppSidebar
+            isCollapsed={isCollapsed}
+            onToggleCollapse={() => setIsCollapsed((v) => !v)}
+          />
           {/* Mobile: không sidebar, chừa chỗ cho tab bar dưới; desktop: cuộn trong main */}
           <main
             className={cn(

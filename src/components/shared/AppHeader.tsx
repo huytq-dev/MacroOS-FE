@@ -6,7 +6,7 @@ import { useTheme } from '@/lib/theme'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAuth } from '@/features/auth/hooks/use-auth'
 import { routePath } from '@/config/route-path'
-import { Logo } from '@/components/shared/Logo'
+import { Wordmark } from '@/components/shared/Wordmark'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -45,7 +45,7 @@ export function AppHeader() {
     <header className="bg-background/80 sticky top-0 z-40 h-12 w-full shrink-0 border-b backdrop-blur-md">
       <div className="flex h-12 items-center px-4">
         <Link href={routePath.dashboard}>
-          <Logo height={28} />
+          <Wordmark size={16} />
         </Link>
 
         <div className="ml-auto flex items-center gap-2">
