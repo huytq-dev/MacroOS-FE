@@ -25,7 +25,7 @@ interface NavItem {
 
 // Thêm mục menu ở đây khi có trang mới (đồng bộ với config/route-path.ts)
 const NAV_ITEMS: readonly NavItem[] = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: routePath.dashboard },
+  { icon: LayoutDashboard, label: 'Hôm nay', href: routePath.dashboard },
   { icon: UtensilsCrossed, label: 'Nhật ký', href: routePath.foodLog },
   { icon: Apple, label: 'Thực phẩm', href: routePath.foods },
   { icon: Target, label: 'Program', href: routePath.program },

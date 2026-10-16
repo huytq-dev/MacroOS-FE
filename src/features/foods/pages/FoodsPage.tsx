@@ -15,6 +15,7 @@ import { customFoodSchema, type CustomFoodFormValues } from '../schemas/custom-f
 import { FoodList } from '../components/FoodList'
 import { CustomFoodDialog, FoodDetailDialog } from '../components/FoodsPage'
 import type { CustomFoodRequest, FoodDetail } from '../types/food.types'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { SearchInput } from '@/components/shared/SearchInput'
@@ -129,13 +130,15 @@ export function FoodsPage() {
   if (foods.isError) return <ErrorState error={foods.error} onRetry={() => void foods.refetch()} />
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">Thực phẩm</h1>
-        <Button size="sm" onClick={openCreate}>
-          <Plus aria-hidden="true" /> Tạo món
-        </Button>
-      </div>
+    <div className="flex max-w-2xl flex-col gap-4">
+      <PageHeader
+        title="Thực phẩm"
+        action={
+          <Button size="sm" onClick={openCreate}>
+            <Plus aria-hidden="true" /> Tạo món
+          </Button>
+        }
+      />
 
       <SearchInput
         aria-label="Tìm thực phẩm"

@@ -18,7 +18,7 @@ export function DateNav({ date, today, onChange }: DateNavProps) {
         className="size-11 md:size-8"
         onClick={() => onChange(addDaysIso(date, -1))}
       />
-      <label className="bg-secondary focus-within:ring-ring/50 relative flex h-11 flex-1 items-center justify-center rounded-xl focus-within:ring-3 md:h-8">
+      <label className="bg-card focus-within:ring-ring/50 relative flex h-11 flex-1 items-center justify-center rounded-2xl focus-within:ring-3 md:h-8">
         <span className="text-sm font-semibold">
           {date === today ? 'Hôm nay · ' : ''}
           {formatDateVi(date)}

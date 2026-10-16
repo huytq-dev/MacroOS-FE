@@ -1,21 +1,52 @@
 'use client'
 
-import { useAuth } from '@/features/auth/hooks/use-auth'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useRouter } from 'next/navigation'
+import { TodayMeals, TodaySummary } from '../components/DashboardPage'
+import { useDayLog } from '@/features/food-log/hooks/use-food-log'
+import { ErrorState } from '@/components/shared/ErrorState'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { Skeleton } from '@/components/ui/skeleton'
+import { routePath } from '@/config/route-path'
+import { useIsClient } from '@/hooks/use-is-client'
+import { todayIso } from '@/lib/date'
+import { useUiStore } from '@/stores/ui.store'
+
+/** "Thứ Sáu, 16 tháng 10" theo ngày iso; chỉ gọi sau khi mount để không lệch hydration. */
+const dayLabel = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString('vi-VN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
 
 export function DashboardPage() {
-  const { user } = useAuth()
+  const router = useRouter()
+  const isClient = useIsClient()
+  const today = isClient ? todayIso() : null
+  const day = useDayLog(today)
+  const setAddFoodOpen = useUiStore((state) => state.setAddFoodOpen)
+
+  const addFood = () => {
+    setAddFoodOpen(true)
+    router.push(routePath.foodLog)
+  }
+
+  if (day.isError) return <ErrorState error={day.error} onRetry={() => void day.refetch()} />
 
   return (
-    <div className="flex flex-col gap-3">
-      <h1 className="text-base font-semibold">Dashboard</h1>
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>Xin chào, {user?.name || user?.email}</CardTitle>
-          <CardDescription>Chưa có dữ liệu. Các màn hình nghiệp vụ sẽ thêm sau.</CardDescription>
-        </CardHeader>
-        <CardContent />
-      </Card>
+    <div className="flex max-w-2xl flex-col gap-5">
+      <PageHeader title="Hôm nay" eyebrow={today ? dayLabel(today) : undefined} />
+      {!today || day.isLoading || !day.data ? (
+        <div className="space-y-5" aria-busy="true">
+          <Skeleton className="h-52 rounded-2xl" />
+          <Skeleton className="h-40 rounded-2xl" />
+        </div>
+      ) : (
+        <>
+          <TodaySummary totals={day.data.totals} target={day.data.target} />
+          <TodayMeals entries={day.data.entries} onAddFood={addFood} />
+        </>
+      )}
     </div>
   )
 }

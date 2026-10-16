@@ -15,6 +15,7 @@ import {
 import type { WeightEntry } from '../types/weight.types'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -77,11 +78,8 @@ export function WeightPage() {
   )
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">Cân nặng</h1>
-        {addButton}
-      </div>
+    <div className="flex max-w-2xl flex-col gap-4">
+      <PageHeader title="Cân nặng" action={addButton} />
 
       <WeightSummaryCards data={weights.data ?? undefined} isLoading={isLoading} />
 
@@ -115,21 +113,19 @@ export function WeightPage() {
         </div>
       </Card>
 
-      <Card className="gap-0 overflow-hidden rounded-2xl py-0">
-        {isLoading ? (
-          <div className="space-y-2 p-4" aria-busy="true">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <Skeleton key={index} className="h-6 w-full" />
-            ))}
-          </div>
-        ) : (
-          <WeightTable
-            items={weights.data?.items ?? []}
-            onRequestDelete={setDeleteTarget}
-            emptyAction={addButton}
-          />
-        )}
-      </Card>
+      {isLoading ? (
+        <div className="space-y-2" aria-busy="true">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-14 w-full rounded-2xl" />
+          ))}
+        </div>
+      ) : (
+        <WeightTable
+          items={weights.data?.items ?? []}
+          onRequestDelete={setDeleteTarget}
+          emptyAction={addButton}
+        />
+      )}
 
       <LogWeightDialog
         open={dialogOpen}

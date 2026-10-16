@@ -8,6 +8,7 @@ import { useCreateProgram } from '../hooks/use-program'
 import { createProgramSchema, type CreateProgramFormValues } from '../schemas/create-program.schema'
 import { CreateProgramForm } from '../components/CreateProgramPage'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { routePath } from '@/config/route-path'
 
 export function CreateProgramPage() {
@@ -51,9 +52,9 @@ export function CreateProgramPage() {
     )
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-base font-semibold">Tạo program</h1>
+    <div className="flex max-w-2xl flex-col gap-4">
+      <div className="space-y-2">
+        <PageHeader title="Tạo program" />
         <p className="text-muted-foreground text-xs">
           Cần có ngày sinh, chiều cao (
           <Link href={routePath.profile} className="text-primary hover:underline">

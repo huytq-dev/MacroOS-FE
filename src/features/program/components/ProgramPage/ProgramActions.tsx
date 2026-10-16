@@ -6,6 +6,7 @@ import { ChoiceGroup } from '@/components/shared/ChoiceGroup'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { FormField } from '@/components/shared/FormField'
+import { ListRow, ListSection } from '@/components/shared/ListGroup'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -251,20 +252,24 @@ export function ProgramActions({
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => show('goal')}>
-          Sửa mục tiêu
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => show('style')}>
-          Đổi style
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => show('tdee')}>
-          Nhập TDEE tay
-        </Button>
-        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => show('end')}>
-          Kết thúc program
-        </Button>
-      </div>
+      <ListSection label="Quản lý program">
+        <ListRow
+          label="Sửa mục tiêu"
+          hint="Tính lại target tuần hiện tại"
+          onClick={() => show('goal')}
+        />
+        <ListRow
+          label="Đổi style"
+          hint="Coached, Collaborative hoặc Manual"
+          onClick={() => show('style')}
+        />
+        <ListRow
+          label="Nhập TDEE tay"
+          hint="Thuật toán học lại từ hôm nay"
+          onClick={() => show('tdee')}
+        />
+        <ListRow label="Kết thúc program" destructive onClick={() => show('end')} />
+      </ListSection>
 
       {sheet(
         'goal',

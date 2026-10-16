@@ -175,6 +175,7 @@ app/.../page.tsx          → thin shell, renders <NamePage /> only
 - Cỡ chữ, kích thước control, khoảng cách, màu: bắt buộc tuân `docs/TIEU-CHUAN-UI.md` khi viết hoặc chỉnh giao diện (chữ nhỏ, gọn; h1 `text-base`, nội dung `text-xs`).
 
 ## Mobile-first — iPhone 17 Pro Max (bắt buộc)
+- Bố cục app điện thoại (kiểu MacroFactor): `PageHeader` cho tiêu đề, `ListSection`/`ListRow` thay form và bảng, `PickerSheet` để sửa giá trị, nút lưu dính đáy khi `isDirty`, thanh tab 4 mục + nút "+" giữa. Chi tiết: `docs/UI.md` mục 25.
 
 App dùng chủ yếu trên **iPhone 17 Pro Max** (Safari/PWA, viewport CSS ≈ **440 × 956**, có Dynamic Island + home indicator). Thiết kế mobile trước, desktop (`md:` ≥ 768px) là phần mở rộng. Ghi đè các số đo "gọn" của `docs/TIEU-CHUAN-UI.md` trên mobile theo bảng dưới.
 

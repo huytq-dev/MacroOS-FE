@@ -328,3 +328,16 @@ Bấm gửi form mà **cả trang chuyển thành skeleton**, form mất dữ li
 5. Trong lúc chờ chỉ nút gửi đổi trạng thái; phần còn lại của trang giữ nguyên.
 
 Mockup ASCII đủ các trạng thái của màn đăng nhập: `docs/MOCKUP-AUTH.md`.
+
+## 25. Bố cục app trên điện thoại (kiểu MacroFactor)
+
+App dùng chủ yếu trên iPhone nên giao diện phải giống app, không giống trang web thu nhỏ.
+
+- **Tiêu đề trang lớn:** mọi trang dùng `PageHeader` (chữ 28px đậm bên trái, ảnh đại diện bên phải, dòng nhỏ phía trên nếu cần). Không tự viết `h1` riêng. Header web (`AppHeader`) và sidebar chỉ hiện từ `md` trở lên.
+- **Thanh tab dưới:** 4 tab + nút tròn "+" ở giữa (thêm món ở mọi trang). Hôm nay, Nhật ký, nút +, Cân nặng, Program. Hồ sơ, Thực phẩm của tôi, giao diện, đăng xuất nằm trong menu ảnh đại diện (`AvatarMenu`). Trạng thái mở bảng Thêm món nằm ở `stores/ui.store.ts`.
+- **Danh sách thay cho form và bảng:** nhóm dòng dùng `ListSection` + `ListRow` (nhãn trái, giá trị muted phải, mũi tên, vùng chạm ≥ 48px, vạch mảnh giữa dòng, không viền ngoài, nền thẻ bo `2xl` trên nền xám nhạt). Không dựng bảng `Table` cho dữ liệu trên điện thoại; mỗi bản ghi là một dòng có dòng phụ.
+- **Sửa một giá trị = bảng trượt lên:** chạm dòng thì mở `PickerSheet` (đáy màn hình; desktop là hộp thoại giữa) chứa ô nhập hoặc `OptionList` (chọn một, dòng chọn có dấu ✓). Nút **Xong** đóng bảng. Không dùng ô xổ xuống `Select` trong form hồ sơ.
+- **Nút lưu dính đáy, chỉ hiện khi có thay đổi** (`formState.isDirty`), nằm ngay trên thanh tab. Giá trị còn thiếu hiện chữ cam đậm ("Chưa đặt") để mắt tìm ra; lỗi từ BE theo mục 24.
+- **Số liệu chính là tâm điểm:** số lớn (40px đậm, `tabular-nums`) kèm thanh tiến độ và ba macro đúng màu `--mf-*`; vượt target không đổi sang đỏ (BR-18).
+- **Không nút nổi riêng từng trang** trên điện thoại: hành động thêm chính đã có ở nút + giữa thanh tab. Desktop hiện nút "Thêm món" ở tiêu đề trang.
+

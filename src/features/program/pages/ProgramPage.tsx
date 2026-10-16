@@ -16,6 +16,7 @@ import {
   type ActionKind,
 } from '../components/ProgramPage'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Button } from '@/components/ui/button'
@@ -50,11 +51,8 @@ export function ProgramPage() {
   )
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">Program</h1>
-        {program.data === null && createButton}
-      </div>
+    <div className="flex max-w-2xl flex-col gap-4">
+      <PageHeader title="Program" action={program.data === null ? createButton : undefined} />
 
       {program.isLoading && (
         <div className="space-y-4" aria-busy="true">
@@ -93,7 +91,6 @@ export function ProgramPage() {
             }
             onEnd={(onDone) => endProgram.mutate(undefined, { onSuccess: onDone })}
           />
-          <h2 className="text-sm font-semibold">Lịch sử tuần</h2>
           <WeeksTable weeks={program.data.weeks} />
         </>
       )}

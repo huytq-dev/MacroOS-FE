@@ -35,6 +35,7 @@ import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { IconButton } from '@/components/shared/IconButton'
 import { Button } from '@/components/ui/button'
@@ -44,6 +45,7 @@ import { MEAL_TYPE, type MealType } from '@/config/enums'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useIsClient } from '@/hooks/use-is-client'
 import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
+import { useUiStore } from '@/stores/ui.store'
 
 const SEARCH_PAGE = 25
 const MEAL_ORDER = Object.keys(MEAL_TYPE) as MealType[]
@@ -65,9 +67,11 @@ export function FoodLogPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const date = selectedDate ?? today
 
-  const [addOpen, setAddOpen] = useState(false)
+  // Bảng Thêm món mở được từ nút + giữa thanh tab ở mọi trang nên trạng thái mở nằm trong ui.store
+  const addOpen = useUiStore((state) => state.addFoodOpen)
+  const setAddOpen = useUiStore((state) => state.setAddFoodOpen)
   const [tab, setTab] = useState<AddTab>('search')
-  const [meal, setMeal] = useState<MealType>('Breakfast')
+  const [meal, setMeal] = useState<MealType>(mealForNow)
   const [search, setSearch] = useState('')
   const [top, setTop] = useState(SEARCH_PAGE)
   const [pickedId, setPickedId] = useState<string | null>(null)
@@ -95,8 +99,8 @@ export function FoodLogPage() {
   const copyLog = useCopyLog()
   const clearDay = useClearDay()
 
-  const openAdd = () => {
-    setMeal(mealForNow())
+  const openAdd = (mealOverride?: MealType) => {
+    setMeal(mealOverride ?? mealForNow())
     setPickedId(null)
     addEntry.reset()
     quickAdd.reset()
@@ -169,29 +173,34 @@ export function FoodLogPage() {
   const deleteError = deleteEntry.error ?? clearDay.error
 
   const addButton = (
-    <Button size="sm" disabled={!date} onClick={openAdd}>
+    <Button size="sm" disabled={!date} onClick={() => openAdd()}>
       <Plus aria-hidden="true" /> Thêm món
     </Button>
   )
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h1 className="text-base font-semibold">Nhật ký</h1>
-        {entries.length > 0 && (
-          <div className="flex gap-1">
-            <IconButton icon={Copy} label="Sao chép nhật ký" onClick={openCopy} />
-            <IconButton
-              icon={Trash2}
-              label="Xoá nhật ký ngày"
-              onClick={() => {
-                clearDay.reset()
-                setClearOpen(true)
-              }}
-            />
+    <div className="flex max-w-2xl flex-col gap-4">
+      <PageHeader
+        title="Nhật ký"
+        action={
+          <div className="flex items-center gap-1">
+            {entries.length > 0 && (
+              <>
+                <IconButton icon={Copy} label="Sao chép nhật ký" onClick={openCopy} />
+                <IconButton
+                  icon={Trash2}
+                  label="Xoá nhật ký ngày"
+                  onClick={() => {
+                    clearDay.reset()
+                    setClearOpen(true)
+                  }}
+                />
+              </>
+            )}
+            <span className="ml-1 hidden md:inline-flex">{addButton}</span>
           </div>
-        )}
-      </div>
+        }
+      />
 
       <FormErrorAlert
         title="Không xoá được"
@@ -224,21 +233,12 @@ export function FoodLogPage() {
                 meal={mealType}
                 entries={entries.filter((entry) => entry.mealType === mealType)}
                 onSelectEntry={openEdit}
+                onAddToMeal={openAdd}
               />
             ))
           )}
         </>
       )}
-
-      <Button
-        size="icon-lg"
-        className="fixed right-4 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-40 size-14 rounded-full shadow-lg md:right-8 md:bottom-8"
-        aria-label="Thêm món"
-        disabled={!date}
-        onClick={openAdd}
-      >
-        <Plus className="size-6" aria-hidden="true" />
-      </Button>
 
       <AddFoodDialog
         open={addOpen}

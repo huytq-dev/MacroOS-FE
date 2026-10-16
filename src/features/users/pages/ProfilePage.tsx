@@ -6,13 +6,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useProfile, useUpdateProfile } from '../hooks/use-profile'
 import { updateProfileSchema, type UpdateProfileFormValues } from '../schemas/update-profile.schema'
 import { ProfileForm } from '../components/ProfilePage'
+import { useAuth } from '@/features/auth/hooks/use-auth'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export function ProfilePage() {
   const profile = useProfile()
   const updateProfile = useUpdateProfile()
+  const { user, logout } = useAuth()
 
   const form = useForm<UpdateProfileFormValues>({
     resolver: zodResolver(updateProfileSchema),
@@ -29,7 +32,7 @@ export function ProfilePage() {
     },
   })
 
-  // Đổ dữ liệu BE vào form sau khi tải
+  // Đổ dữ liệu BE vào form sau khi tải; reset cũng đặt lại trạng thái "chưa có thay đổi"
   useEffect(() => {
     if (!profile.data) return
     form.reset({
@@ -48,18 +51,13 @@ export function ProfilePage() {
     return <ErrorState error={profile.error} onRetry={() => void profile.refetch()} />
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="space-y-1">
-        <h1 className="text-base font-semibold">Hồ sơ</h1>
-        <p className="text-muted-foreground text-xs">
-          Ngày sinh, chiều cao và mức hoạt động dùng để tính TDEE khởi điểm.
-        </p>
-      </div>
+    <div className="flex max-w-2xl flex-col gap-5">
+      <PageHeader title="Hồ sơ" eyebrow={user?.email} />
       {profile.isLoading ? (
-        <div className="max-w-2xl space-y-4" aria-busy="true">
-          <Skeleton className="h-48 rounded-2xl" />
-          <Skeleton className="h-36 rounded-2xl" />
-          <Skeleton className="h-36 rounded-2xl" />
+        <div className="space-y-5" aria-busy="true">
+          <Skeleton className="h-52 rounded-2xl" />
+          <Skeleton className="h-14 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
         </div>
       ) : (
         <ProfileForm
@@ -69,6 +67,7 @@ export function ProfilePage() {
           onSubmit={(values) =>
             updateProfile.mutate({ ...values, timeZone: values.timeZone || null })
           }
+          onLogout={() => void logout()}
         />
       )}
     </div>
