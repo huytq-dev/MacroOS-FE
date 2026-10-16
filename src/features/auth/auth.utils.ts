@@ -1,4 +1,5 @@
 import { jwtDecode, type JwtPayload } from 'jwt-decode'
+import { getErrorMessage, isSystemError } from '@/lib/api'
 import { logger } from '@/lib/logger'
 import type { User } from './types/auth.types'
 
@@ -33,3 +34,7 @@ export const isTokenValid = (token: string): boolean => {
     return false
   }
 }
+
+/** Lỗi hiện trong form (UI.md mục 13): lỗi mạng/máy chủ nói chung, lỗi nghiệp vụ lấy nguyên văn từ BE. */
+export const getFormErrorMessage = (error: unknown): string =>
+  isSystemError(error) ? 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.' : getErrorMessage(error)

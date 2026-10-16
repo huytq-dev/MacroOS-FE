@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/use-auth'
 import { LoginForm } from '@/features/auth/components/login/LoginForm'
 import { AuthShell } from '@/features/auth/components/AuthShell'
+import { Skeleton } from '@/components/ui/skeleton'
 import { routePath } from '@/config/route-path'
 
 function LoginPageInner() {
@@ -21,8 +22,11 @@ function LoginPageInner() {
 
   if (isLoading || isAuthenticated) {
     return (
-      <div className="bg-background flex min-h-screen items-center justify-center" aria-busy="true">
-        <div className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
+      <div className="bg-background flex min-h-dvh items-start justify-center px-4 pt-10 sm:items-center" aria-busy="true">
+        <div className="w-full max-w-sm space-y-6">
+          <Skeleton className="mx-auto h-8 w-32" />
+          <Skeleton className="h-80 w-full rounded-2xl" />
+        </div>
       </div>
     )
   }
@@ -30,12 +34,12 @@ function LoginPageInner() {
   return (
     <AuthShell
       title="Đăng nhập"
-      description="Nhập email và mật khẩu để tiếp tục"
+      description="Nhập email và mật khẩu để tiếp tục theo dõi calo."
       footer={
         <>
           Chưa có tài khoản?{' '}
-          <Link href={routePath.register} className="text-primary hover:underline">
-            Đăng ký
+          <Link href={routePath.register} className="text-primary font-medium hover:underline">
+            Tạo tài khoản
           </Link>
         </>
       }

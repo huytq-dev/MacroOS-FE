@@ -2,46 +2,53 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { toast } from 'sonner'
 import { Loader2, MailCheck } from 'lucide-react'
 import { AuthShell } from '@/features/auth/components/AuthShell'
-import { FieldError } from '@/features/auth/components/FieldError'
+import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { authService } from '@/features/auth/services/auth.service'
 import { registerSchema, type RegisterFormValues } from '@/features/auth/schemas/register.schema'
+import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
+import { FormField } from '@/components/shared/FormField'
+import { PasswordInput } from '@/components/shared/PasswordInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { GENDER, enumOptions } from '@/config/enums'
 import { routePath } from '@/config/route-path'
-import { getErrorMessage, isSystemError, logger } from '@/lib/api'
+import { logger } from '@/lib/logger'
 
 export function RegisterPage() {
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
+    mode: 'onTouched',
     defaultValues: { email: '', password: '', confirmPassword: '', firstName: '', lastName: '', gender: 'Male' },
   })
 
   const onSubmit = async (values: RegisterFormValues) => {
+    if (isSubmitting) return
+    setFormError(null)
     try {
       await authService.register(values)
       setRegisteredEmail(values.email)
     } catch (error) {
       logger.error(error)
-      if (!isSystemError(error)) toast.error(getErrorMessage(error))
+      setFormError(getFormErrorMessage(error))
     }
   }
 
   const footer = (
     <>
       Đã có tài khoản?{' '}
-      <Link href={routePath.login} className="text-primary hover:underline">
+      <Link href={routePath.login} className="text-primary font-medium hover:underline">
         Đăng nhập
       </Link>
     </>
@@ -50,62 +57,78 @@ export function RegisterPage() {
   if (registeredEmail)
     return (
       <AuthShell title="Kiểm tra email" footer={footer}>
-        <div className="flex flex-col items-center gap-2 text-center">
-          <MailCheck className="text-mf-green size-8" aria-hidden="true" />
-          <p className="text-xs">
-            Đã gửi link xác thực tới <strong>{registeredEmail}</strong>. Sau khi đăng nhập, dán token vào trang xác thực email.
+        <div role="status" className="bg-mf-pastel-green text-mf-pastel-green-text flex items-start gap-3 rounded-xl p-4 text-sm">
+          <MailCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          <p>
+            Đã gửi link xác thực tới <strong className="break-all">{registeredEmail}</strong>. Sau khi đăng nhập, dán token trong email vào trang xác thực.
           </p>
         </div>
       </AuthShell>
     )
 
   return (
-    <AuthShell title="Đăng ký" description="Tạo tài khoản MacroOS" footer={footer}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-        <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="lastName">Họ</Label>
-            <Input id="lastName" autoComplete="family-name" {...register('lastName')} />
-            <FieldError message={errors.lastName?.message} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="firstName">Tên</Label>
-            <Input id="firstName" autoComplete="given-name" {...register('firstName')} />
-            <FieldError message={errors.firstName?.message} />
-          </div>
+    <AuthShell title="Tạo tài khoản" description="Mất khoảng một phút. Hồ sơ cơ thể bổ sung sau." footer={footer}>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+        <FormErrorAlert title="Không tạo được tài khoản" message={formError} />
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Họ" required error={errors.lastName?.message}>
+            {(field) => <Input {...field} autoComplete="family-name" {...register('lastName')} />}
+          </FormField>
+          <FormField label="Tên" required error={errors.firstName?.message}>
+            {(field) => <Input {...field} autoComplete="given-name" {...register('firstName')} />}
+          </FormField>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="gender">Giới tính</Label>
-          <select
-            id="gender"
-            className="border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 h-8 w-full rounded-md border bg-transparent px-2.5 text-xs outline-none focus-visible:ring-1"
-            {...register('gender')}
-          >
-            {enumOptions(GENDER).map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" autoComplete="email" {...register('email')} />
-          <FieldError message={errors.email?.message} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Mật khẩu</Label>
-          <Input id="password" type="password" autoComplete="new-password" {...register('password')} />
-          <FieldError message={errors.password?.message} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="confirmPassword">Nhập lại mật khẩu</Label>
-          <Input id="confirmPassword" type="password" autoComplete="new-password" {...register('confirmPassword')} />
-          <FieldError message={errors.confirmPassword?.message} />
-        </div>
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 size={16} className="mr-2 animate-spin" />}
-          Tạo tài khoản
+
+        <FormField label="Giới tính" required error={errors.gender?.message}>
+          {(field) => (
+            <Controller
+              control={control}
+              name="gender"
+              render={({ field: { value, onChange } }) => (
+                <Select value={value} onValueChange={onChange}>
+                  <SelectTrigger id={field.id} aria-invalid={field['aria-invalid']} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start" sideOffset={4} position="popper">
+                    {enumOptions(GENDER).map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          )}
+        </FormField>
+
+        <FormField label="Email" required error={errors.email?.message}>
+          {(field) => (
+            <Input
+              {...field}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="ten@email.com"
+              {...register('email')}
+            />
+          )}
+        </FormField>
+
+        <FormField label="Mật khẩu" hint="Tối thiểu 8 ký tự" required error={errors.password?.message}>
+          {(field) => <PasswordInput {...field} autoComplete="new-password" {...register('password')} />}
+        </FormField>
+
+        <FormField label="Nhập lại mật khẩu" required error={errors.confirmPassword?.message}>
+          {(field) => <PasswordInput {...field} autoComplete="new-password" {...register('confirmPassword')} />}
+        </FormField>
+
+        <Button type="submit" className="w-full" disabled={isSubmitting} aria-busy={isSubmitting}>
+          {isSubmitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+          {isSubmitting ? 'Đang tạo tài khoản...' : 'Tạo tài khoản'}
         </Button>
       </form>
     </AuthShell>

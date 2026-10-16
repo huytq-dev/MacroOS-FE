@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth.store'
 import { authService, type LoginRequest } from '@/features/auth/services/auth.service'
 import { decodeUserFromToken, isTokenValid } from '@/features/auth/auth.utils'
-import { getErrorMessage, isSystemError } from '@/lib/api'
 import { getAccessToken } from '@/lib/axios'
 import { logger } from '@/lib/logger'
 import { routePath } from '@/config/route-path'
@@ -38,7 +37,6 @@ export const useAuth = () => {
         toast.success(`Chào mừng, ${decoded.name}!`)
         return response
       } catch (error) {
-        if (!isSystemError(error)) toast.error(getErrorMessage(error))
         throw error
       } finally {
         setLoading(false)
