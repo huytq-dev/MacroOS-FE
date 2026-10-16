@@ -111,11 +111,11 @@ export function ErrorState({
       <div
         role="alert"
         className={cn(
-          'flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs',
+          'flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-mf-warning-border bg-mf-warning-bg px-3 py-2 text-xs',
           className
         )}
       >
-        <Icon aria-hidden="true" className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <Icon aria-hidden="true" className="size-4 shrink-0 text-mf-warning-text" />
         <span className="min-w-0 flex-1">
           <strong className="font-medium">{title}.</strong>{' '}
           <span className="text-muted-foreground">Một phần dữ liệu có thể chưa đầy đủ.</span>

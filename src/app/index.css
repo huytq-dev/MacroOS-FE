@@ -34,6 +34,9 @@
   --color-mf-carbs: var(--mf-carbs);
   --color-mf-fat: var(--mf-fat);
   --color-mf-trend: var(--mf-trend);
+  --color-mf-warning-bg: var(--mf-warning-bg);
+  --color-mf-warning-border: var(--mf-warning-border);
+  --color-mf-warning-text: var(--mf-warning-text);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
