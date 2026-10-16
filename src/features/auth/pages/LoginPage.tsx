@@ -37,8 +37,8 @@ function LoginPageInner() {
 
   return (
     <AuthShell
-      title="Đăng nhập"
-      description="Nhập email và mật khẩu để tiếp tục theo dõi calo."
+      title="Chào mừng quay lại"
+      description="Đăng nhập để xem nhật ký hôm nay."
       footer={
         <>
           Chưa có tài khoản?{' '}

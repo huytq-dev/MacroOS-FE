@@ -113,7 +113,12 @@ function ResetPasswordInner() {
           )}
         </FormField>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting} aria-busy={isSubmitting}>
+        <Button
+          type="submit"
+          className="h-12 w-full text-base md:h-10 md:text-sm"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+        >
           {isSubmitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
           {isSubmitting ? 'Đang đặt lại...' : 'Đặt lại mật khẩu'}
         </Button>

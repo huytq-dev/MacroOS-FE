@@ -4,37 +4,41 @@ Mô tả bố cục và 5 trạng thái của màn hình đăng nhập. Các mà
 
 Ký hiệu: `[ ]` ô nhập, `( )` nút, `▓` Skeleton, `⟳` spinner, `!` biểu tượng lỗi.
 
-## 1. Mặc định
+## 1. Mặc định (phương án B: tờ form dính đáy, tầm ngón cái)
 
 ```
-┌──────────────────────────────────────────┐
-│ ▒▒▒▒▒▒▒▒▒▒▒▒ safe area ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒ │
-│                                          │
-│              (◉) MacroOS                 │  logo + tên, căn giữa
-│                                          │
-│  Đăng nhập                               │  tiêu đề 16px đậm
-│  Nhập email và mật khẩu để tiếp tục      │  mô tả, màu muted
-│  theo dõi calo.                          │
-│                                          │
-│  Email *                                 │  nhãn 12px
-│  ┌────────────────────────────────────┐  │
-│  │ ten@email.com                      │  │  ô cao 44px, chữ 16px,
-│  └────────────────────────────────────┘  │  nền secondary, bo xl
-│                                          │
-│  Mật khẩu *                              │
-│  ┌────────────────────────────────────┐  │
-│  │ Nhập mật khẩu                  (👁) │  │
-│  └────────────────────────────────────┘  │
-│                         Quên mật khẩu?   │  liên kết gạch chân, căn phải
-│                                          │
-│  ┌────────────────────────────────────┐  │
-│  │            Đăng nhập               │  │  nút pill đen, cao 44px
-│  └────────────────────────────────────┘  │
-│                                          │
-│     Chưa có tài khoản? Tạo tài khoản     │
-│                                          │
-└──────────────────────────────────────────┘
+┌────────────────────────────────────────────┐
+│ 9:41                              ▂▄▆ ⌁ ▮ │  status bar
+│                                            │
+│                  ╭──────╮                  │
+│                  │  🔥  │                  │  logo 64px, nền đen, bo 2xl
+│                  ╰──────╯                  │
+│                 MacroOS                    │  24px đậm
+│        Theo dõi calo và macro, nhẹ nhàng   │  14px, màu muted
+│                                            │  vùng thương hiệu co giãn
+├╭──────────────────────────────────────────╮┤
+││                  ───                     ││  thanh kéo trang trí
+││  Chào mừng quay lại                      ││  tiêu đề 20px đậm (h1)
+││  Đăng nhập để xem nhật ký hôm nay.       ││  mô tả 14px muted
+││                                          ││
+││  Email *                                 ││
+││  ┌────────────────────────────────────┐  ││
+││  │ ✉  ten@email.com                   │  ││  cao 48px, chữ 16px,
+││  └────────────────────────────────────┘  ││  nền secondary, không viền
+││                                          ││
+││  Mật khẩu *               Quên mật khẩu? ││  liên kết cùng hàng với nhãn
+││  ┌────────────────────────────────────┐  ││
+││  │ 🔒  Nhập mật khẩu              (👁) │  ││
+││  └────────────────────────────────────┘  ││
+││  ╭──────────────────────────────────────╮││
+││  │             Đăng nhập                │││  nút pill đen 48px
+││  ╰──────────────────────────────────────╯││
+││     Chưa có tài khoản?  Tạo tài khoản    ││
+│╰──────────────────────────────────────────╯│  đệm theo safe area dưới
+└────────────────────────────────────────────┘
 ```
+
+Từ `sm` (640px) trở lên: thương hiệu ở trên, tờ form thành thẻ bo 3xl căn giữa màn hình, không còn thanh kéo. Các trang đăng ký, quên mật khẩu, đặt lại mật khẩu dùng cùng khung này (`AuthShell`).
 
 ## 2. Bấm Đăng nhập khi để trống (lỗi từng ô, focus vào ô đầu)
 

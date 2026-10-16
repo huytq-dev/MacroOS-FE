@@ -16,6 +16,8 @@ interface FormFieldProps {
   readonly required?: boolean
   /** Bộ đếm "n/max" hiện trong dòng gợi ý khi trường có giới hạn ký tự. */
   readonly counter?: { readonly current: number; readonly max: number }
+  /** Liên kết/nút nhỏ cùng hàng với nhãn, căn phải (vd. "Quên mật khẩu?"). */
+  readonly labelAction?: React.ReactNode
   readonly className?: string
   readonly children: (control: FormFieldControl) => React.ReactNode
 }
@@ -27,6 +29,7 @@ export function FormField({
   error,
   required,
   counter,
+  labelAction,
   className,
   children,
 }: FormFieldProps) {
@@ -39,15 +42,18 @@ export function FormField({
   return (
     <div className={cn('space-y-1.5', className)}>
       <div className="space-y-0.5">
-        <Label htmlFor={id} className="text-xs font-medium">
-          {label}
-          {required && (
-            <span className="text-destructive" aria-hidden="true">
-              {' '}
-              *
-            </span>
-          )}
-        </Label>
+        <div className="flex items-baseline justify-between gap-3">
+          <Label htmlFor={id} className="text-xs font-medium">
+            {label}
+            {required && (
+              <span className="text-destructive" aria-hidden="true">
+                {' '}
+                *
+              </span>
+            )}
+          </Label>
+          {labelAction}
+        </div>
         {(hint || counter) && (
           <p id={hintId} className="text-muted-foreground text-[11px]">
             {hint}
