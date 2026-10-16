@@ -1,32 +1,52 @@
 'use client'
 
-import type { UseFormReturn } from 'react-hook-form'
+import { Controller, type UseFormReturn } from 'react-hook-form'
 import { Loader2 } from 'lucide-react'
+import { ChoiceGroup } from '@/components/shared/ChoiceGroup'
+import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
+import { FormField } from '@/components/shared/FormField'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { DAY_OF_WEEK, DIET_STYLE, GOAL_TYPE, PROGRAM_TYPE, PROTEIN_LEVEL, enumOptions } from '@/config/enums'
-import { cn } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import {
+  DAY_OF_WEEK,
+  DIET_STYLE,
+  GOAL_TYPE,
+  PROGRAM_TYPE,
+  PROTEIN_LEVEL,
+  enumOptions,
+} from '@/config/enums'
+import { toChoices } from '../../utils/choices'
 import type { CreateProgramFormValues } from '../../schemas/create-program.schema'
 
 interface CreateProgramFormProps {
   readonly form: UseFormReturn<CreateProgramFormValues>
   readonly isPending: boolean
+  readonly error: string | null
   readonly onSubmit: (values: CreateProgramFormValues) => void
 }
 
-type EnumField = 'goalType' | 'programType' | 'dietStyle' | 'proteinLevel' | 'checkInWeekday'
+const GOAL_CHOICES = toChoices(GOAL_TYPE)
+const PROGRAM_CHOICES = toChoices(PROGRAM_TYPE)
+const DIET_CHOICES = toChoices(DIET_STYLE)
+const PROTEIN_CHOICES = toChoices(PROTEIN_LEVEL)
 
-function FieldMessage({ message }: { readonly message?: string }) {
-  return message ? <p className="text-destructive text-[11px]">{message}</p> : null
-}
-
-/** Wizard rút gọn: các bước MacroFactor xếp thành mục trên một trang (ponytail: không multi-step). */
-export function CreateProgramForm({ form, isPending, onSubmit }: CreateProgramFormProps) {
+/** Wizard rút gọn: các bước MacroFactor xếp thành thẻ trên một trang (ponytail: không multi-step). */
+export function CreateProgramForm({ form, isPending, error, onSubmit }: CreateProgramFormProps) {
   const {
     register,
     handleSubmit,
     watch,
-    setValue,
+    control,
     formState: { errors },
   } = form
   const goalType = watch('goalType')
@@ -34,96 +54,214 @@ export function CreateProgramForm({ form, isPending, onSubmit }: CreateProgramFo
   const floorEnabled = watch('calorieFloorEnabled')
   const manualTdeeEnabled = watch('manualTdeeEnabled')
 
-  const choice = (name: EnumField, title: string, labels: Record<string, string>, hint?: string) => {
-    const current = watch(name)
-    return (
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {enumOptions(labels).map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setValue(name, option.value as CreateProgramFormValues[typeof name], { shouldDirty: true })}
-              aria-pressed={current === option.value}
-              className={cn(
-                'min-h-10 rounded-md border px-3 py-2 text-left text-xs transition-colors',
-                current === option.value ? 'border-primary bg-primary/10 font-medium' : 'hover:bg-muted'
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </section>
-    )
+  const section = (title: string, description: string | undefined, children: React.ReactNode) => (
+    <Card className="rounded-2xl">
+      <CardHeader>
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+        {description && <CardDescription className="text-xs">{description}</CardDescription>}
+      </CardHeader>
+      <CardContent className="space-y-3">{children}</CardContent>
+    </Card>
+  )
+
+  const switchRow = (
+    id: string,
+    label: string,
+    name: 'calorieFloorEnabled' | 'manualTdeeEnabled'
+  ) => (
+    <div className="bg-secondary flex min-h-11 items-center justify-between gap-3 rounded-xl px-3.5">
+      <Label htmlFor={id} className="text-sm font-normal">
+        {label}
+      </Label>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field: { value, onChange } }) => (
+          <Switch id={id} checked={value} onCheckedChange={onChange} />
+        )}
+      />
+    </div>
+  )
+
+  const submit = (values: CreateProgramFormValues) => {
+    if (isPending) return
+    onSubmit(values)
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex max-w-3xl flex-col gap-5 pb-4">
-      {choice('goalType', '1. Mục tiêu', GOAL_TYPE)}
+    <form onSubmit={handleSubmit(submit)} noValidate className="flex max-w-3xl flex-col gap-4 pb-4">
+      <FormErrorAlert title="Không tạo được program" message={error} />
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold">2. Tốc độ (% cân nặng / tuần)</h2>
-        <p className="text-muted-foreground text-xs">MacroFactor khuyến nghị 0.25–1 %. Giữ cân = 0. BE tự đặt dấu theo mục tiêu.</p>
-        <div className="flex items-center gap-3">
-          <Input
-            type="number"
-            inputMode="decimal"
-            step="0.05"
-            min={0}
-            max={1.5}
-            className="w-28"
-            disabled={goalType === 'Maintenance'}
-            {...register('weeklyWeightChangeTargetPercent', { valueAsNumber: true })}
-          />
-          <span className="text-xs">%/tuần</span>
-        </div>
-        <FieldMessage message={errors.weeklyWeightChangeTargetPercent?.message} />
-      </section>
-
-      {choice('programType', '3. Program style', PROGRAM_TYPE)}
-      {choice('dietStyle', '4. Diet style', DIET_STYLE)}
-      {choice('proteinLevel', '5. Protein', PROTEIN_LEVEL, 'Có tập tạ (trong hồ sơ) cộng thêm 0.2 g/kg.')}
-
-      {programType === 'Coached' && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold">6. Sàn kcal/ngày</h2>
-          <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" {...register('calorieFloorEnabled')} /> Bật sàn (mặc định 1200 kcal)
-          </label>
-          {floorEnabled && (
-            <>
-              <Input type="number" inputMode="numeric" className="w-28" {...register('calorieFloorKcal', { valueAsNumber: true })} />
-              <FieldMessage message={errors.calorieFloorKcal?.message} />
-            </>
+      {section(
+        '1. Mục tiêu',
+        undefined,
+        <Controller
+          control={control}
+          name="goalType"
+          render={({ field: { value, onChange } }) => (
+            <ChoiceGroup
+              options={GOAL_CHOICES}
+              value={value}
+              onValueChange={onChange}
+              aria-label="Mục tiêu"
+            />
           )}
-        </section>
+        />
       )}
 
-      {choice('checkInWeekday', '7. Ngày check-in hằng tuần', DAY_OF_WEEK)}
+      {section(
+        '2. Tốc độ',
+        'MacroFactor khuyến nghị 0,25 đến 1 % cân nặng mỗi tuần. Giữ cân là 0. BE tự đặt dấu theo mục tiêu.',
+        <FormField label="Tốc độ (%/tuần)" error={errors.weeklyWeightChangeTargetPercent?.message}>
+          {(field) => (
+            <Input
+              {...field}
+              type="number"
+              inputMode="decimal"
+              step="0.05"
+              min={0}
+              max={1.5}
+              disabled={goalType === 'Maintenance'}
+              {...register('weeklyWeightChangeTargetPercent', { valueAsNumber: true })}
+            />
+          )}
+        </FormField>
+      )}
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold">8. TDEE khởi điểm</h2>
-        <label className="flex items-center gap-2 text-xs">
-          <input type="checkbox" {...register('manualTdeeEnabled')} /> Nhập tay thay vì công thức Mifflin-St Jeor
-        </label>
-        {manualTdeeEnabled && (
+      {section(
+        '3. Program style',
+        undefined,
+        <Controller
+          control={control}
+          name="programType"
+          render={({ field: { value, onChange } }) => (
+            <ChoiceGroup
+              options={PROGRAM_CHOICES}
+              value={value}
+              onValueChange={onChange}
+              aria-label="Program style"
+            />
+          )}
+        />
+      )}
+
+      {section(
+        '4. Diet style',
+        undefined,
+        <Controller
+          control={control}
+          name="dietStyle"
+          render={({ field: { value, onChange } }) => (
+            <ChoiceGroup
+              options={DIET_CHOICES}
+              value={value}
+              onValueChange={onChange}
+              aria-label="Diet style"
+              columns={2}
+            />
+          )}
+        />
+      )}
+
+      {section(
+        '5. Protein',
+        'Có tập tạ (trong hồ sơ) cộng thêm 0,2 g/kg.',
+        <Controller
+          control={control}
+          name="proteinLevel"
+          render={({ field: { value, onChange } }) => (
+            <ChoiceGroup
+              options={PROTEIN_CHOICES}
+              value={value}
+              onValueChange={onChange}
+              aria-label="Mức protein"
+              columns={2}
+            />
+          )}
+        />
+      )}
+
+      {programType === 'Coached' &&
+        section(
+          '6. Sàn kcal mỗi ngày',
+          undefined,
           <>
-            <div className="flex items-center gap-3">
-              <Input type="number" inputMode="numeric" className="w-28" {...register('manualInitialTdeeKcal', { valueAsNumber: true })} />
-              <span className="text-xs">kcal/ngày</span>
-            </div>
-            <FieldMessage message={errors.manualInitialTdeeKcal?.message} />
+            {switchRow('floor-enabled', 'Bật sàn (mặc định 1200 kcal)', 'calorieFloorEnabled')}
+            {floorEnabled && (
+              <FormField label="Sàn (kcal)" error={errors.calorieFloorKcal?.message}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    type="number"
+                    inputMode="numeric"
+                    {...register('calorieFloorKcal', { valueAsNumber: true })}
+                  />
+                )}
+              </FormField>
+            )}
           </>
         )}
-      </section>
+
+      {section(
+        '7. Ngày check-in hằng tuần',
+        undefined,
+        <FormField label="Ngày check-in" required error={errors.checkInWeekday?.message}>
+          {(field) => (
+            <Controller
+              control={control}
+              name="checkInWeekday"
+              render={({ field: { value, onChange } }) => (
+                <Select value={value} onValueChange={onChange}>
+                  <SelectTrigger id={field.id} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start" position="popper" sideOffset={4}>
+                    {enumOptions(DAY_OF_WEEK).map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          )}
+        </FormField>
+      )}
+
+      {section(
+        '8. TDEE khởi điểm',
+        undefined,
+        <>
+          {switchRow(
+            'manual-tdee',
+            'Nhập tay thay vì công thức Mifflin-St Jeor',
+            'manualTdeeEnabled'
+          )}
+          {manualTdeeEnabled && (
+            <FormField label="TDEE (kcal/ngày)" error={errors.manualInitialTdeeKcal?.message}>
+              {(field) => (
+                <Input
+                  {...field}
+                  type="number"
+                  inputMode="numeric"
+                  {...register('manualInitialTdeeKcal', { valueAsNumber: true })}
+                />
+              )}
+            </FormField>
+          )}
+        </>
+      )}
 
       <div className="flex justify-end">
-        <Button type="submit" className="w-full sm:w-auto" disabled={isPending}>
-          {isPending && <Loader2 size={16} className="mr-2 animate-spin" />}
-          Bắt đầu program
+        <Button
+          type="submit"
+          className="w-full sm:w-auto"
+          disabled={isPending}
+          aria-busy={isPending}
+        >
+          {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+          {isPending ? 'Đang tạo...' : 'Bắt đầu program'}
         </Button>
       </div>
     </form>

@@ -15,7 +15,11 @@ export type ActivityLevel = keyof typeof ACTIVITY_LEVEL
 export const UNIT_SYSTEM = { Metric: 'Mét (kg, cm)', Imperial: 'Anh (lb, in)' } as const
 export type UnitSystem = keyof typeof UNIT_SYSTEM
 
-export const GOAL_TYPE = { WeightLoss: 'Giảm cân', Maintenance: 'Giữ cân', WeightGain: 'Tăng cân' } as const
+export const GOAL_TYPE = {
+  WeightLoss: 'Giảm cân',
+  Maintenance: 'Giữ cân',
+  WeightGain: 'Tăng cân',
+} as const
 export type GoalType = keyof typeof GOAL_TYPE
 
 export const PROGRAM_TYPE = {

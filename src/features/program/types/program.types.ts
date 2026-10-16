@@ -1,4 +1,11 @@
-import type { AdjustmentReason, DayOfWeek, DietStyle, GoalType, ProgramType, ProteinLevel } from '@/config/enums'
+import type {
+  AdjustmentReason,
+  DayOfWeek,
+  DietStyle,
+  GoalType,
+  ProgramType,
+  ProteinLevel,
+} from '@/config/enums'
 
 // Khớp BE Contract/Models/Programs/ProgramModels.cs
 export interface ProgramWeek {

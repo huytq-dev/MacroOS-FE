@@ -31,10 +31,12 @@ export interface ResetPasswordRequest {
 }
 
 export const authService = {
-  login: (credentials: LoginRequest) => apiCall.post<LoginResponse>(apiRoutes.auth.login, credentials),
+  login: (credentials: LoginRequest) =>
+    apiCall.post<LoginResponse>(apiRoutes.auth.login, credentials),
   logout: () => apiCall.post(apiRoutes.auth.logout),
   register: (payload: RegisterRequest) => apiCall.post<string>(apiRoutes.auth.register, payload),
   forgotPassword: (email: string) => apiCall.post(apiRoutes.auth.forgotPassword, { email }),
-  resetPassword: (payload: ResetPasswordRequest) => apiCall.post(apiRoutes.auth.resetPassword, payload),
+  resetPassword: (payload: ResetPasswordRequest) =>
+    apiCall.post(apiRoutes.auth.resetPassword, payload),
   confirmEmail: (token: string) => apiCall.post(apiRoutes.auth.confirmEmail, { token }),
 }

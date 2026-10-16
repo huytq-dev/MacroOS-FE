@@ -10,7 +10,10 @@ import { Loader2 } from 'lucide-react'
 import { AuthShell } from '@/features/auth/components/AuthShell'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { authService } from '@/features/auth/services/auth.service'
-import { resetPasswordSchema, type ResetPasswordFormValues } from '@/features/auth/schemas/password-reset.schema'
+import {
+  resetPasswordSchema,
+  type ResetPasswordFormValues,
+} from '@/features/auth/schemas/password-reset.schema'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { FormField } from '@/components/shared/FormField'
 import { PasswordInput } from '@/components/shared/PasswordInput'
@@ -51,7 +54,10 @@ function ResetPasswordInner() {
       title="Đặt lại mật khẩu"
       description="Dán token nhận qua email rồi nhập mật khẩu mới."
       footer={
-        <Link href={routePath.login} className="text-primary font-medium hover:underline">
+        <Link
+          href={routePath.login}
+          className="text-foreground font-medium underline underline-offset-4"
+        >
           Quay lại đăng nhập
         </Link>
       }
@@ -59,16 +65,42 @@ function ResetPasswordInner() {
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
         <FormErrorAlert title="Không đặt lại được mật khẩu" message={formError} />
 
-        <FormField label="Token" hint="Có trong email chúng tôi đã gửi" required error={errors.token?.message}>
-          {(field) => <Input {...field} autoComplete="one-time-code" autoCapitalize="none" spellCheck={false} {...register('token')} />}
+        <FormField
+          label="Token"
+          hint="Có trong email chúng tôi đã gửi"
+          required
+          error={errors.token?.message}
+        >
+          {(field) => (
+            <Input
+              {...field}
+              autoComplete="one-time-code"
+              autoCapitalize="none"
+              spellCheck={false}
+              {...register('token')}
+            />
+          )}
         </FormField>
 
-        <FormField label="Mật khẩu mới" hint="Tối thiểu 8 ký tự" required error={errors.newPassword?.message}>
-          {(field) => <PasswordInput {...field} autoComplete="new-password" {...register('newPassword')} />}
+        <FormField
+          label="Mật khẩu mới"
+          hint="Tối thiểu 8 ký tự"
+          required
+          error={errors.newPassword?.message}
+        >
+          {(field) => (
+            <PasswordInput {...field} autoComplete="new-password" {...register('newPassword')} />
+          )}
         </FormField>
 
         <FormField label="Nhập lại mật khẩu" required error={errors.confirmPassword?.message}>
-          {(field) => <PasswordInput {...field} autoComplete="new-password" {...register('confirmPassword')} />}
+          {(field) => (
+            <PasswordInput
+              {...field}
+              autoComplete="new-password"
+              {...register('confirmPassword')}
+            />
+          )}
         </FormField>
 
         <Button type="submit" className="w-full" disabled={isSubmitting} aria-busy={isSubmitting}>

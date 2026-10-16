@@ -6,13 +6,22 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus } from 'lucide-react'
 import { useDeleteWeight, useUpsertWeight, useWeights } from '../hooks/use-weights'
 import { logWeightSchema, type LogWeightFormValues } from '../schemas/log-weight.schema'
-import { LogWeightDialog, WeightChart, WeightSummaryCards, WeightTable } from '../components/WeightPage'
+import {
+  LogWeightDialog,
+  WeightChart,
+  WeightSummaryCards,
+  WeightTable,
+} from '../components/WeightPage'
+import type { WeightEntry } from '../types/weight.types'
+import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { addDaysIso, todayIso } from '@/lib/date'
-import { cn } from '@/lib/utils'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useIsClient } from '@/hooks/use-is-client'
+import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
 
 const RANGES = [
   { label: '2W', days: 14 },
@@ -28,6 +37,7 @@ export function WeightPage() {
   const today = isClient ? todayIso() : null
   const [rangeDays, setRangeDays] = useState<number>(30)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<WeightEntry | null>(null)
 
   const from = today ? addDaysIso(today, -rangeDays) : null
   const weights = useWeights(from, today)
@@ -36,11 +46,17 @@ export function WeightPage() {
 
   const form = useForm<LogWeightFormValues>({
     resolver: zodResolver(logWeightSchema),
+    mode: 'onTouched',
     defaultValues: { logDate: '', weightKg: Number.NaN, notes: '' },
   })
 
   const openDialog = () => {
-    form.reset({ logDate: todayIso(), weightKg: weights.data?.latestWeightKg ?? Number.NaN, notes: '' })
+    form.reset({
+      logDate: todayIso(),
+      weightKg: weights.data?.latestWeightKg ?? Number.NaN,
+      notes: '',
+    })
+    upsert.reset()
     setDialogOpen(true)
   }
 
@@ -50,54 +66,97 @@ export function WeightPage() {
       { onSuccess: () => setDialogOpen(false) }
     )
 
-  if (weights.isError) return <ErrorState error={weights.error} onRetry={() => void weights.refetch()} />
+  if (weights.isError)
+    return <ErrorState error={weights.error} onRetry={() => void weights.refetch()} />
 
   const isLoading = !today || weights.isLoading
+  const addButton = (
+    <Button size="sm" onClick={openDialog}>
+      <Plus aria-hidden="true" /> Ghi cân
+    </Button>
+  )
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-base font-semibold">Cân nặng</h1>
-        <Button size="sm" onClick={openDialog}>
-          <Plus /> Ghi cân
-        </Button>
+        {addButton}
       </div>
 
       <WeightSummaryCards data={weights.data ?? undefined} isLoading={isLoading} />
 
-      <div className="bg-card rounded-lg border">
-        <div className="flex items-center gap-1 overflow-x-auto border-b px-2 py-1.5">
-          {RANGES.map((range) => (
-            <button
-              key={range.label}
-              type="button"
-              onClick={() => setRangeDays(range.days)}
-              aria-pressed={rangeDays === range.days}
-              className={cn(
-                'h-8 shrink-0 rounded-full px-3 text-xs font-medium transition-colors',
-                rangeDays === range.days ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-muted'
-              )}
-            >
-              {range.label}
-            </button>
-          ))}
+      <Card className="gap-0 overflow-hidden rounded-2xl py-0">
+        <div className="px-3 py-2.5">
+          <ToggleGroup
+            type="single"
+            value={String(rangeDays)}
+            onValueChange={(next) => next && setRangeDays(Number(next))}
+            aria-label="Khoảng thời gian"
+            spacing={1}
+            className="justify-start overflow-x-auto"
+          >
+            {RANGES.map((range) => (
+              <ToggleGroupItem
+                key={range.label}
+                value={String(range.days)}
+                className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground h-8 shrink-0 rounded-full px-3.5 text-xs"
+              >
+                {range.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </div>
-        <div className="p-2">{isLoading ? <Skeleton className="h-48 w-full" /> : <WeightChart items={weights.data?.items ?? []} />}</div>
-      </div>
+        <div className="px-2 pb-3">
+          {isLoading ? (
+            <Skeleton className="h-48 w-full" aria-busy="true" />
+          ) : (
+            <WeightChart items={weights.data?.items ?? []} />
+          )}
+        </div>
+      </Card>
 
-      <div className="bg-card overflow-auto rounded-lg border">
+      <Card className="gap-0 overflow-hidden rounded-2xl py-0">
         {isLoading ? (
-          <div className="space-y-2 p-3">
+          <div className="space-y-2 p-4" aria-busy="true">
             {Array.from({ length: 5 }).map((_, index) => (
               <Skeleton key={index} className="h-6 w-full" />
             ))}
           </div>
         ) : (
-          <WeightTable items={weights.data?.items ?? []} isDeleting={remove.isPending} onDelete={(logDate) => remove.mutate(logDate)} />
+          <WeightTable
+            items={weights.data?.items ?? []}
+            onRequestDelete={setDeleteTarget}
+            emptyAction={addButton}
+          />
         )}
-      </div>
+      </Card>
 
-      <LogWeightDialog open={dialogOpen} onOpenChange={setDialogOpen} form={form} isPending={upsert.isPending} onSubmit={onSubmit} />
+      <LogWeightDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        form={form}
+        isPending={upsert.isPending}
+        error={upsert.error ? getFormErrorMessage(upsert.error) : null}
+        onSubmit={onSubmit}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Xoá lần cân này?"
+        description={
+          deleteTarget
+            ? `Xoá ${deleteTarget.weightKg.toFixed(1)} kg ngày ${formatDateVi(deleteTarget.logDate)}. Trend và expenditure được tính lại từ ngày đó.`
+            : ''
+        }
+        confirmLabel="Xoá lần cân"
+        pendingLabel="Đang xoá..."
+        isPending={remove.isPending}
+        onConfirm={() =>
+          deleteTarget &&
+          remove.mutate(deleteTarget.logDate, { onSuccess: () => setDeleteTarget(null) })
+        }
+      />
     </div>
   )
 }

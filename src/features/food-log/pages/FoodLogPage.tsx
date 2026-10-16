@@ -24,11 +24,21 @@ import {
   type AddTab,
   type QuickAddValues,
 } from '../components/FoodLogPage'
-import type { CopyRequest, FoodLogEntry, PlateItem, UpdateEntryRequest } from '../types/food-log.types'
+import type {
+  CopyRequest,
+  FoodLogEntry,
+  PlateItem,
+  UpdateEntryRequest,
+} from '../types/food-log.types'
 import { useFoodDetail, useFoodSearch } from '@/features/foods/hooks/use-foods'
+import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
+import { IconButton } from '@/components/shared/IconButton'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { MEAL_TYPE, type MealType } from '@/config/enums'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -64,13 +74,17 @@ export function FoodLogPage() {
   const [plate, setPlate] = useState<PlateItem[]>([])
   const [isLoggingPlate, setIsLoggingPlate] = useState(false)
   const [editing, setEditing] = useState<FoodLogEntry | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<FoodLogEntry | null>(null)
   const [copyOpen, setCopyOpen] = useState(false)
   const [clearOpen, setClearOpen] = useState(false)
 
   const day = useDayLog(date)
   const debouncedSearch = useDebounce(search.trim(), 300)
   // Lazy: chỉ tìm khi sheet mở ở tab tìm món
-  const foods = useFoodSearch({ search: debouncedSearch || undefined, scope: 'All', top }, addOpen && tab === 'search')
+  const foods = useFoodSearch(
+    { search: debouncedSearch || undefined, scope: 'All', top },
+    addOpen && tab === 'search'
+  )
   const picked = useFoodDetail(pickedId)
   const editingFood = useFoodDetail(editing?.foodItemId ?? null)
 
@@ -84,7 +98,19 @@ export function FoodLogPage() {
   const openAdd = () => {
     setMeal(mealForNow())
     setPickedId(null)
+    addEntry.reset()
+    quickAdd.reset()
     setAddOpen(true)
+  }
+
+  const openCopy = () => {
+    copyLog.reset()
+    setCopyOpen(true)
+  }
+
+  const openEdit = (entry: FoodLogEntry) => {
+    updateEntry.reset()
+    setEditing(entry)
   }
 
   const logPlate = async () => {
@@ -106,7 +132,7 @@ export function FoodLogPage() {
       toast.success(`Đã thêm ${plate.length} món`)
       setAddOpen(false)
     } catch {
-      // toast lỗi đã hiện trong hook; các món chưa log vẫn nằm trong plate để thử lại
+      // lỗi hiện inline trong sheet (addEntry.error); các món chưa log vẫn nằm trong plate để thử lại
     } finally {
       setIsLoggingPlate(false)
     }
@@ -114,7 +140,10 @@ export function FoodLogPage() {
 
   const onQuickAdd = (values: QuickAddValues) => {
     if (!date) return
-    quickAdd.mutate({ logDate: date, mealType: meal, eatenAt: null, ...values }, { onSuccess: () => setAddOpen(false) })
+    quickAdd.mutate(
+      { logDate: date, mealType: meal, eatenAt: null, ...values },
+      { onSuccess: () => setAddOpen(false) }
+    )
   }
 
   const onSaveEntry = (id: string, payload: UpdateEntryRequest) =>
@@ -123,7 +152,11 @@ export function FoodLogPage() {
   const onCopy = (payload: CopyRequest) =>
     copyLog.mutate(payload, {
       onSuccess: (count) => {
-        toast.success(count === 0 ? 'Không có món nào để sao chép' : `Đã sao chép ${count} món sang ${formatDateVi(payload.toDate)}`)
+        toast.success(
+          count === 0
+            ? 'Không có món nào để sao chép'
+            : `Đã sao chép ${count} món sang ${formatDateVi(payload.toDate)}`
+        )
         setCopyOpen(false)
       },
     })
@@ -132,6 +165,14 @@ export function FoodLogPage() {
 
   const entries = day.data?.entries ?? []
   const isLoading = !date || day.isLoading
+  // Lỗi xoá hiện inline ở đầu trang (xác nhận xoá đã đóng)
+  const deleteError = deleteEntry.error ?? clearDay.error
+
+  const addButton = (
+    <Button size="sm" disabled={!date} onClick={openAdd}>
+      <Plus aria-hidden="true" /> Thêm món
+    </Button>
+  )
 
   return (
     <div className="flex flex-col gap-3">
@@ -139,39 +180,50 @@ export function FoodLogPage() {
         <h1 className="text-base font-semibold">Nhật ký</h1>
         {entries.length > 0 && (
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" aria-label="Sao chép" onClick={() => setCopyOpen(true)}>
-              <Copy />
-            </Button>
-            <Button variant="ghost" size="icon" aria-label="Xoá nhật ký ngày" onClick={() => setClearOpen(true)}>
-              <Trash2 />
-            </Button>
+            <IconButton icon={Copy} label="Sao chép nhật ký" onClick={openCopy} />
+            <IconButton
+              icon={Trash2}
+              label="Xoá nhật ký ngày"
+              onClick={() => {
+                clearDay.reset()
+                setClearOpen(true)
+              }}
+            />
           </div>
         )}
       </div>
 
+      <FormErrorAlert
+        title="Không xoá được"
+        message={deleteError ? getFormErrorMessage(deleteError) : null}
+      />
+
       {date && <DateNav date={date} today={today} onChange={setSelectedDate} />}
 
       {isLoading || !day.data ? (
-        <>
-          <Skeleton className="h-36 rounded-lg" />
-          <Skeleton className="h-40 rounded-lg" />
-        </>
+        <div className="space-y-3" aria-busy="true">
+          <Skeleton className="h-36 rounded-2xl" />
+          <Skeleton className="h-40 rounded-2xl" />
+        </div>
       ) : (
         <>
           <DayTotals totals={day.data.totals} target={day.data.target} />
           {entries.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 rounded-lg border p-8 text-center">
-              <UtensilsCrossed className="text-muted-foreground size-8" aria-hidden="true" />
-              <p className="text-sm font-medium">Chưa có món nào</p>
-              <p className="text-muted-foreground text-xs">Chạm nút + để thêm món đầu tiên của ngày.</p>
-            </div>
+            <Card className="rounded-2xl">
+              <EmptyState
+                icon={UtensilsCrossed}
+                title="Chưa có món nào"
+                description="Thêm món đầu tiên của ngày để theo dõi kcal và macro."
+                action={addButton}
+              />
+            </Card>
           ) : (
             MEAL_ORDER.map((mealType) => (
               <MealSection
                 key={mealType}
                 meal={mealType}
                 entries={entries.filter((entry) => entry.mealType === mealType)}
-                onSelectEntry={setEditing}
+                onSelectEntry={openEdit}
               />
             ))
           )}
@@ -185,7 +237,7 @@ export function FoodLogPage() {
         disabled={!date}
         onClick={openAdd}
       >
-        <Plus className="size-6" />
+        <Plus className="size-6" aria-hidden="true" />
       </Button>
 
       <AddFoodDialog
@@ -197,7 +249,10 @@ export function FoodLogPage() {
         onMealChange={setMeal}
         plate={plate}
         isLogging={isLoggingPlate}
-        onRemoveFromPlate={(key) => setPlate((current) => current.filter((item) => item.key !== key))}
+        error={addEntry.error ? getFormErrorMessage(addEntry.error) : null}
+        onRemoveFromPlate={(key) =>
+          setPlate((current) => current.filter((item) => item.key !== key))
+        }
         onLogPlate={() => void logPlate()}
       >
         {tab === 'search' ? (
@@ -222,7 +277,11 @@ export function FoodLogPage() {
             }}
           />
         ) : (
-          <QuickAddPanel isPending={quickAdd.isPending} onSubmit={onQuickAdd} />
+          <QuickAddPanel
+            isPending={quickAdd.isPending}
+            error={quickAdd.error ? getFormErrorMessage(quickAdd.error) : null}
+            onSubmit={onQuickAdd}
+          />
         )}
       </AddFoodDialog>
 
@@ -230,10 +289,15 @@ export function FoodLogPage() {
         entry={editing}
         food={editingFood.data ?? undefined}
         isFoodLoading={editingFood.isLoading}
-        isPending={updateEntry.isPending || deleteEntry.isPending}
+        isPending={updateEntry.isPending}
+        error={updateEntry.error ? getFormErrorMessage(updateEntry.error) : null}
         onOpenChange={(open) => !open && setEditing(null)}
         onSave={onSaveEntry}
-        onDelete={(id) => deleteEntry.mutate(id, { onSuccess: () => setEditing(null) })}
+        onRequestDelete={(entry) => {
+          deleteEntry.reset()
+          setEditing(null)
+          setDeleteTarget(entry)
+        }}
       />
 
       {date && (
@@ -243,18 +307,51 @@ export function FoodLogPage() {
           fromDate={date}
           defaultToDate={addDaysIso(date, 1)}
           isPending={copyLog.isPending}
+          error={copyLog.error ? getFormErrorMessage(copyLog.error) : null}
           onCopy={onCopy}
         />
       )}
 
       <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Xoá món này?"
+        description={
+          deleteTarget
+            ? `Xoá ${deleteTarget.foodName} (${MEAL_TYPE[deleteTarget.mealType]}) khỏi nhật ký. Thực phẩm gốc vẫn được giữ.`
+            : ''
+        }
+        confirmLabel="Xoá món"
+        pendingLabel="Đang xoá..."
+        isPending={deleteEntry.isPending}
+        onConfirm={() =>
+          deleteTarget &&
+          deleteEntry.mutate(deleteTarget.id, {
+            onSuccess: () => setDeleteTarget(null),
+            onError: () => setDeleteTarget(null),
+          })
+        }
+      />
+
+      <ConfirmDialog
         open={clearOpen}
         onOpenChange={setClearOpen}
         title="Xoá nhật ký ngày?"
-        description={date ? `Xoá toàn bộ món của ${formatDateVi(date)}. Thuật toán sẽ coi ngày này là chưa log.` : ''}
+        description={
+          date
+            ? `Xoá toàn bộ món của ${formatDateVi(date)}. Thuật toán sẽ coi ngày này là chưa log.`
+            : ''
+        }
         confirmLabel="Xoá ngày"
+        pendingLabel="Đang xoá..."
         isPending={clearDay.isPending}
-        onConfirm={() => date && clearDay.mutate(date, { onSuccess: () => setClearOpen(false) })}
+        onConfirm={() =>
+          date &&
+          clearDay.mutate(date, {
+            onSuccess: () => setClearOpen(false),
+            onError: () => setClearOpen(false),
+          })
+        }
       />
     </div>
   )

@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useCreateProgram } from '../hooks/use-program'
 import { createProgramSchema, type CreateProgramFormValues } from '../schemas/create-program.schema'
 import { CreateProgramForm } from '../components/CreateProgramPage'
+import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { routePath } from '@/config/route-path'
 
 export function CreateProgramPage() {
@@ -15,6 +16,7 @@ export function CreateProgramPage() {
 
   const form = useForm<CreateProgramFormValues>({
     resolver: zodResolver(createProgramSchema),
+    mode: 'onTouched',
     defaultValues: {
       goalType: 'WeightLoss',
       weeklyWeightChangeTargetPercent: 0.5,
@@ -33,11 +35,15 @@ export function CreateProgramPage() {
     createProgram.mutate(
       {
         goalType: values.goalType,
-        weeklyWeightChangeTargetPercent: values.goalType === 'Maintenance' ? 0 : values.weeklyWeightChangeTargetPercent,
+        weeklyWeightChangeTargetPercent:
+          values.goalType === 'Maintenance' ? 0 : values.weeklyWeightChangeTargetPercent,
         programType: values.programType,
         dietStyle: values.dietStyle,
         proteinLevel: values.proteinLevel,
-        calorieFloorKcal: values.programType === 'Coached' && values.calorieFloorEnabled ? values.calorieFloorKcal : null,
+        calorieFloorKcal:
+          values.programType === 'Coached' && values.calorieFloorEnabled
+            ? values.calorieFloorKcal
+            : null,
         checkInWeekday: values.checkInWeekday,
         manualInitialTdeeKcal: values.manualTdeeEnabled ? values.manualInitialTdeeKcal : null,
       },
@@ -45,7 +51,7 @@ export function CreateProgramPage() {
     )
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-base font-semibold">Tạo program</h1>
         <p className="text-muted-foreground text-xs">
@@ -60,7 +66,12 @@ export function CreateProgramPage() {
           ).
         </p>
       </div>
-      <CreateProgramForm form={form} isPending={createProgram.isPending} onSubmit={onSubmit} />
+      <CreateProgramForm
+        form={form}
+        isPending={createProgram.isPending}
+        error={createProgram.error ? getFormErrorMessage(createProgram.error) : null}
+        onSubmit={onSubmit}
+      />
     </div>
   )
 }

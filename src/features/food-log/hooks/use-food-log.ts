@@ -3,8 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { foodLogService } from '../services/food-log.service'
-import type { AddEntryRequest, CopyRequest, QuickAddRequest, UpdateEntryRequest } from '../types/food-log.types'
-import { getErrorMessage, isSystemError, logger } from '@/lib/api'
+import type {
+  AddEntryRequest,
+  CopyRequest,
+  QuickAddRequest,
+  UpdateEntryRequest,
+} from '../types/food-log.types'
+import { logger } from '@/lib/api'
 
 export const foodLogKeys = {
   all: ['food-log'] as const,
@@ -32,15 +37,24 @@ const useLogMutation = <TVariables, TResult = unknown>(
     },
     onError: (error) => {
       logger.error(error)
-      if (!isSystemError(error)) toast.error(getErrorMessage(error))
+      // lỗi nghiệp vụ hiện inline ở dialog/trang (UI.md mục 10), không toast
     },
   })
 }
 
-export const useAddEntry = () => useLogMutation((payload: AddEntryRequest) => foodLogService.addEntry(payload))
+export const useAddEntry = () =>
+  useLogMutation((payload: AddEntryRequest) => foodLogService.addEntry(payload))
 export const useUpdateEntry = () =>
-  useLogMutation(({ id, payload }: { id: string; payload: UpdateEntryRequest }) => foodLogService.updateEntry(id, payload), 'Đã lưu')
-export const useDeleteEntry = () => useLogMutation((id: string) => foodLogService.deleteEntry(id), 'Đã xoá món')
-export const useQuickAdd = () => useLogMutation((payload: QuickAddRequest) => foodLogService.quickAdd(payload), 'Đã thêm nhanh')
-export const useCopyLog = () => useLogMutation((payload: CopyRequest) => foodLogService.copy(payload))
-export const useClearDay = () => useLogMutation((date: string) => foodLogService.clearDay(date), 'Đã xoá nhật ký ngày')
+  useLogMutation(
+    ({ id, payload }: { id: string; payload: UpdateEntryRequest }) =>
+      foodLogService.updateEntry(id, payload),
+    'Đã lưu'
+  )
+export const useDeleteEntry = () =>
+  useLogMutation((id: string) => foodLogService.deleteEntry(id), 'Đã xoá món')
+export const useQuickAdd = () =>
+  useLogMutation((payload: QuickAddRequest) => foodLogService.quickAdd(payload), 'Đã thêm nhanh')
+export const useCopyLog = () =>
+  useLogMutation((payload: CopyRequest) => foodLogService.copy(payload))
+export const useClearDay = () =>
+  useLogMutation((date: string) => foodLogService.clearDay(date), 'Đã xoá nhật ký ngày')

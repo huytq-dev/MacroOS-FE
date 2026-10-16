@@ -66,10 +66,20 @@ export function LoginForm() {
 
       <div className="space-y-1.5">
         <FormField label="Mật khẩu" required error={errors.password?.message}>
-          {(control) => <PasswordInput {...control} autoComplete="current-password" placeholder="Nhập mật khẩu" {...register('password')} />}
+          {(control) => (
+            <PasswordInput
+              {...control}
+              autoComplete="current-password"
+              placeholder="Nhập mật khẩu"
+              {...register('password')}
+            />
+          )}
         </FormField>
         <div className="flex justify-end">
-          <Link href={routePath.forgotPassword} className="text-primary text-xs font-medium hover:underline">
+          <Link
+            href={routePath.forgotPassword}
+            className="text-foreground text-xs font-medium underline underline-offset-4"
+          >
             Quên mật khẩu?
           </Link>
         </div>

@@ -3,20 +3,30 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Search } from 'lucide-react'
-import { useCreateFood, useDeleteFood, useFoodDetail, useFoodSearch, useUpdateFood } from '../hooks/use-foods'
+import { Plus } from 'lucide-react'
+import {
+  useCreateFood,
+  useDeleteFood,
+  useFoodDetail,
+  useFoodSearch,
+  useUpdateFood,
+} from '../hooks/use-foods'
 import { customFoodSchema, type CustomFoodFormValues } from '../schemas/custom-food.schema'
 import { FoodList } from '../components/FoodList'
 import { CustomFoodDialog, FoodDetailDialog } from '../components/FoodsPage'
 import type { CustomFoodRequest, FoodDetail } from '../types/food.types'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { SearchInput } from '@/components/shared/SearchInput'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { FOOD_SCOPE, enumOptions, type FoodScope } from '@/config/enums'
 import { useDebounce } from '@/hooks/use-debounce'
-import { cn } from '@/lib/utils'
+import { getFormErrorMessage } from '@/features/auth/auth.utils'
 
 const PAGE_STEP = 25
+const scopeOptions = enumOptions(FOOD_SCOPE)
 
 const emptyForm: CustomFoodFormValues = {
   name: '',
@@ -37,6 +47,7 @@ export function FoodsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<FoodDetail | null>(null)
 
   const debouncedSearch = useDebounce(search.trim(), 300)
   const foods = useFoodSearch({ search: debouncedSearch || undefined, scope, top })
@@ -45,10 +56,18 @@ export function FoodsPage() {
   const updateFood = useUpdateFood()
   const deleteFood = useDeleteFood()
 
-  const form = useForm<CustomFoodFormValues>({ resolver: zodResolver(customFoodSchema), defaultValues: emptyForm })
+  const form = useForm<CustomFoodFormValues>({
+    resolver: zodResolver(customFoodSchema),
+    mode: 'onTouched',
+    defaultValues: emptyForm,
+  })
+  const saveError = createFood.error ?? updateFood.error
+  const isFiltered = Boolean(debouncedSearch) || scope !== 'All'
 
   const openCreate = () => {
     form.reset(emptyForm)
+    createFood.reset()
+    updateFood.reset()
     setEditingId(null)
     setFormOpen(true)
   }
@@ -65,6 +84,8 @@ export function FoodsPage() {
       servingName: '',
       servingGrams: undefined,
     })
+    createFood.reset()
+    updateFood.reset()
     setEditingId(food.id)
     setSelectedId(null)
     setFormOpen(true)
@@ -85,7 +106,13 @@ export function FoodsPage() {
       // Bỏ trống khẩu phần: tạo mới → BE tự thêm "100 g"; sửa → giữ khẩu phần cũ
       servings:
         values.servingName?.trim() && values.servingGrams
-          ? [{ servingName: values.servingName.trim(), weightInGrams: values.servingGrams, isDefault: true }]
+          ? [
+              {
+                servingName: values.servingName.trim(),
+                weightInGrams: values.servingGrams,
+                isDefault: true,
+              },
+            ]
           : null,
     }
     const onSuccess = () => setFormOpen(false)
@@ -93,73 +120,82 @@ export function FoodsPage() {
     else createFood.mutate(payload, { onSuccess })
   }
 
+  const clearFilters = () => {
+    setSearch('')
+    setScope('All')
+    setTop(PAGE_STEP)
+  }
+
   if (foods.isError) return <ErrorState error={foods.error} onRetry={() => void foods.refetch()} />
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-base font-semibold">Thực phẩm</h1>
         <Button size="sm" onClick={openCreate}>
-          <Plus /> Tạo món
+          <Plus aria-hidden="true" /> Tạo món
         </Button>
       </div>
 
-      <div className="relative">
-        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" aria-hidden="true" />
-        <Input
-          type="search"
-          inputMode="search"
-          enterKeyHint="search"
-          placeholder="Tìm theo tên hoặc thương hiệu"
-          value={search}
-          className="pl-9"
-          onChange={(event) => {
-            setSearch(event.target.value)
-            setTop(PAGE_STEP)
-          }}
-        />
-      </div>
+      <SearchInput
+        aria-label="Tìm thực phẩm"
+        placeholder="Tìm theo tên hoặc thương hiệu"
+        value={search}
+        onValueChange={(value) => {
+          setSearch(value)
+          setTop(PAGE_STEP)
+        }}
+      />
 
-      <div className="flex gap-1 overflow-x-auto">
-        {enumOptions(FOOD_SCOPE).map((option) => (
-          <button
+      <ToggleGroup
+        type="single"
+        value={scope}
+        onValueChange={(next) => {
+          if (!next) return
+          setScope(next as FoodScope)
+          setTop(PAGE_STEP)
+        }}
+        aria-label="Phạm vi thực phẩm"
+        spacing={2}
+        className="justify-start overflow-x-auto"
+      >
+        {scopeOptions.map((option) => (
+          <ToggleGroupItem
             key={option.value}
-            type="button"
-            aria-pressed={scope === option.value}
-            onClick={() => {
-              setScope(option.value)
-              setTop(PAGE_STEP)
-            }}
-            className={cn(
-              'h-9 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors',
-              scope === option.value ? 'border-primary bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
-            )}
+            value={option.value}
+            variant="outline"
+            className="data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground h-9 shrink-0 rounded-full px-4 text-sm"
           >
             {option.label}
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
 
-      <div className="bg-card overflow-hidden rounded-lg border">
+      <Card className="gap-0 overflow-hidden rounded-2xl py-0">
         <FoodList
           items={foods.data?.items ? [...foods.data.items] : []}
           totalCount={foods.data?.totalCount ?? null}
           isLoading={foods.isLoading}
           isFetching={foods.isFetching}
-          emptyText={debouncedSearch ? 'Không tìm thấy thực phẩm phù hợp.' : 'Chưa có thực phẩm. Tạo món đầu tiên của bạn.'}
+          isFiltered={isFiltered}
+          onClearFilters={clearFilters}
+          emptyAction={
+            <Button size="sm" onClick={openCreate}>
+              <Plus aria-hidden="true" /> Tạo món
+            </Button>
+          }
           onSelect={(food) => setSelectedId(food.id)}
           onLoadMore={() => setTop((current) => current + PAGE_STEP)}
         />
-      </div>
+      </Card>
 
       <FoodDetailDialog
         open={selectedId !== null}
         onOpenChange={(open) => !open && setSelectedId(null)}
         food={detail.data ?? undefined}
         isLoading={detail.isLoading}
-        isDeleting={deleteFood.isPending}
         onEdit={openEdit}
-        onDelete={(id) => deleteFood.mutate(id, { onSuccess: () => setSelectedId(null) })}
+        onRequestDelete={setDeleteTarget}
       />
       <CustomFoodDialog
         open={formOpen}
@@ -167,7 +203,30 @@ export function FoodsPage() {
         isEdit={editingId !== null}
         form={form}
         isPending={createFood.isPending || updateFood.isPending}
+        error={saveError ? getFormErrorMessage(saveError) : null}
         onSubmit={onSubmit}
+      />
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Xoá thực phẩm?"
+        description={
+          deleteTarget
+            ? `Xoá "${deleteTarget.name}" khỏi thư viện của bạn. Các lần đã log trước đây vẫn giữ nguyên dinh dưỡng.`
+            : ''
+        }
+        confirmLabel="Xoá thực phẩm"
+        pendingLabel="Đang xoá..."
+        isPending={deleteFood.isPending}
+        onConfirm={() =>
+          deleteTarget &&
+          deleteFood.mutate(deleteTarget.id, {
+            onSuccess: () => {
+              setDeleteTarget(null)
+              setSelectedId(null)
+            },
+          })
+        }
       />
     </div>
   )

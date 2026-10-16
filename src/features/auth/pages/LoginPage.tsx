@@ -22,7 +22,10 @@ function LoginPageInner() {
 
   if (isLoading || isAuthenticated) {
     return (
-      <div className="bg-background flex min-h-dvh items-start justify-center px-4 pt-10 sm:items-center" aria-busy="true">
+      <div
+        className="bg-background flex min-h-dvh items-start justify-center px-4 pt-10 sm:items-center"
+        aria-busy="true"
+      >
         <div className="w-full max-w-sm space-y-6">
           <Skeleton className="mx-auto h-8 w-32" />
           <Skeleton className="h-80 w-full rounded-2xl" />
@@ -38,7 +41,10 @@ function LoginPageInner() {
       footer={
         <>
           Chưa có tài khoản?{' '}
-          <Link href={routePath.register} className="text-primary font-medium hover:underline">
+          <Link
+            href={routePath.register}
+            className="text-foreground font-medium underline underline-offset-4"
+          >
             Tạo tài khoản
           </Link>
         </>

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { weightService } from '../services/weight.service'
 import type { UpsertWeightRequest } from '../types/weight.types'
-import { getErrorMessage, isSystemError, logger } from '@/lib/api'
+import { logger } from '@/lib/api'
 
 export const weightKeys = {
   all: ['weights'] as const,
@@ -18,7 +18,10 @@ export const useWeights = (from: string | null, to: string | null) =>
     enabled: Boolean(from && to),
   })
 
-const useWeightMutation = <TVariables>(mutationFn: (variables: TVariables) => Promise<unknown>, successMessage: string) => {
+const useWeightMutation = <TVariables>(
+  mutationFn: (variables: TVariables) => Promise<unknown>,
+  successMessage: string
+) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn,
@@ -28,11 +31,15 @@ const useWeightMutation = <TVariables>(mutationFn: (variables: TVariables) => Pr
     },
     onError: (error) => {
       logger.error(error)
-      if (!isSystemError(error)) toast.error(getErrorMessage(error))
+      // lỗi nghiệp vụ hiện inline ở dialog/trang (UI.md mục 10), không toast
     },
   })
 }
 
 export const useUpsertWeight = () =>
-  useWeightMutation((payload: UpsertWeightRequest) => weightService.upsert(payload), 'Đã ghi cân nặng')
-export const useDeleteWeight = () => useWeightMutation((logDate: string) => weightService.remove(logDate), 'Đã xoá')
+  useWeightMutation(
+    (payload: UpsertWeightRequest) => weightService.upsert(payload),
+    'Đã ghi cân nặng'
+  )
+export const useDeleteWeight = () =>
+  useWeightMutation((logDate: string) => weightService.remove(logDate), 'Đã xoá')

@@ -21,11 +21,20 @@ interface FormFieldProps {
 }
 
 /** Nhãn, gợi ý, ô nhập, lỗi — đúng thứ tự UI.md mục 2; truyền `control` vào ô nhập để nối id, aria-invalid, aria-describedby. */
-export function FormField({ label, hint, error, required, counter, className, children }: FormFieldProps) {
+export function FormField({
+  label,
+  hint,
+  error,
+  required,
+  counter,
+  className,
+  children,
+}: FormFieldProps) {
   const id = useId()
   const hintId = `${id}-hint`
   const errorId = `${id}-error`
-  const describedBy = [hint || counter ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined
+  const describedBy =
+    [hint || counter ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined
 
   return (
     <div className={cn('space-y-1.5', className)}>

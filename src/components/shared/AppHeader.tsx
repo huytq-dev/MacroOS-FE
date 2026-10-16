@@ -54,7 +54,9 @@ export function AppHeader() {
               <Button variant="ghost" className="h-9 w-9 rounded-full border p-0">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user?.avatar} alt={displayName} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{initials}</AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                    {initials}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>

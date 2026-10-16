@@ -19,9 +19,9 @@ export function AuthShell({ title, description, children, footer }: AuthShellPro
         <div className="flex justify-center">
           <Logo height={32} />
         </div>
-        <Card className="gap-5 rounded-2xl py-6 ring-1">
-          <CardContent className="space-y-5 px-5 sm:px-6">
-            <header className="space-y-1">
+        <Card className="sm:bg-card gap-5 rounded-3xl border-0 bg-transparent py-0 shadow-none ring-0 sm:py-7 sm:ring-1">
+          <CardContent className="space-y-6 px-1 sm:px-7">
+            <header className="space-y-1.5">
               <h1 className="text-base font-semibold">{title}</h1>
               {description && <p className="text-muted-foreground text-sm">{description}</p>}
             </header>

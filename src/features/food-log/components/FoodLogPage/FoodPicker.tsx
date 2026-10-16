@@ -2,10 +2,16 @@
 
 import { useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
+import { FormField } from '@/components/shared/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { NativeSelect } from '@/components/ui/native-select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { scaleNutrition, type FoodDetail } from '@/features/foods/types/food.types'
 import type { PlateItem } from '../../types/food-log.types'
 
@@ -15,7 +21,8 @@ interface FoodPickerProps {
   readonly onAdd: (item: PlateItem) => void
 }
 
-const GRAM = ''
+// Radix Select không nhận value rỗng → dùng sentinel cho "Gram"
+const GRAM = 'gram'
 
 /** Chọn khẩu phần + số lượng, xem trước kcal/macro rồi thêm vào plate. Mount lại theo food.id (key ở cha). */
 export function FoodPicker({ food, onBack, onAdd }: FoodPickerProps) {
@@ -55,32 +62,49 @@ export function FoodPicker({ food, onBack, onAdd }: FoodPickerProps) {
   return (
     <div className="space-y-4 p-4">
       <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
-        <ArrowLeft /> Kết quả
+        <ArrowLeft aria-hidden="true" /> Kết quả
       </Button>
       <div>
         <h2 className="text-base font-semibold">{food.name}</h2>
         {food.brand && <p className="text-muted-foreground text-sm">{food.brand}</p>}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="pick-serving">Khẩu phần</Label>
-          <NativeSelect id="pick-serving" value={servingId} onChange={(event) => setServingId(event.target.value)}>
-            {food.servings.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.servingName} ({item.weightInGrams} g)
-              </option>
-            ))}
-            <option value={GRAM}>Gram</option>
-          </NativeSelect>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="pick-quantity">{serving ? 'Số khẩu phần' : 'Số gram'}</Label>
-          <Input id="pick-quantity" type="number" inputMode="decimal" step="0.1" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
-        </div>
+        <FormField label="Khẩu phần">
+          {(field) => (
+            <Select value={servingId} onValueChange={setServingId}>
+              <SelectTrigger id={field.id} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start" position="popper" sideOffset={4}>
+                {food.servings.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.servingName} ({item.weightInGrams} g)
+                  </SelectItem>
+                ))}
+                <SelectItem value={GRAM}>Gram</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </FormField>
+        <FormField
+          label={serving ? 'Số khẩu phần' : 'Số gram'}
+          error={valid ? undefined : 'Nhập từ 0,01 đến 10000'}
+        >
+          {(field) => (
+            <Input
+              {...field}
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+            />
+          )}
+        </FormField>
       </div>
       <div className="grid grid-cols-4 gap-2 text-center">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-md border py-2">
+          <div key={stat.label} className="bg-secondary rounded-xl py-2">
             <p className={`text-base font-semibold tabular-nums ${stat.color}`}>{stat.value}</p>
             <p className="text-muted-foreground text-[11px]">{stat.label}</p>
           </div>

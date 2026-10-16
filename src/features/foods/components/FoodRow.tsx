@@ -1,4 +1,5 @@
 import { ChevronRight } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import type { FoodSummary } from '../types/food.types'
 
 interface FoodRowProps {
@@ -13,18 +14,27 @@ export function FoodRow({ food, onSelect, trailing }: FoodRowProps) {
     <button
       type="button"
       onClick={() => onSelect(food)}
-      className="hover:bg-muted active:bg-muted flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition-colors"
+      className="hover:bg-muted/60 active:bg-muted flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors"
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">{food.name}</span>
-        <span className="text-muted-foreground block truncate text-xs">
+        <span className="text-muted-foreground block truncate text-xs tabular-nums">
           {food.brand ? `${food.brand} · ` : ''}
-          {Math.round(food.caloriesPer100g)} kcal · P {Math.round(food.proteinPer100g)} · C {Math.round(food.carbsPer100g)} · F{' '}
-          {Math.round(food.fatPer100g)} /100 g
+          {Math.round(food.caloriesPer100g)} kcal · P {Math.round(food.proteinPer100g)} · C{' '}
+          {Math.round(food.carbsPer100g)} · F {Math.round(food.fatPer100g)} /100 g
         </span>
       </span>
-      {food.isMine && <span className="bg-mf-pastel-green text-mf-pastel-green-text shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium">Của tôi</span>}
-      {trailing ?? <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />}
+      {food.isMine && (
+        <Badge
+          variant="secondary"
+          className="bg-mf-pastel-green text-mf-pastel-green-text shrink-0"
+        >
+          Của tôi
+        </Badge>
+      )}
+      {trailing ?? (
+        <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+      )}
     </button>
   )
 }

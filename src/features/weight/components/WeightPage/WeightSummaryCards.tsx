@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { WeightEntries } from '../../types/weight.types'
 
@@ -18,10 +19,14 @@ export function WeightSummaryCards({ data, isLoading }: WeightSummaryCardsProps)
   return (
     <div className="grid grid-cols-3 gap-2">
       {cards.map((card) => (
-        <div key={card.label} className="bg-card rounded-lg border px-3 py-2">
+        <Card key={card.label} className="gap-1 rounded-2xl px-3 py-3">
           <p className="text-muted-foreground text-[11px]">{card.label}</p>
-          {isLoading ? <Skeleton className="mt-1 h-6 w-20" /> : <p className="text-lg font-semibold tabular-nums">{card.value}</p>}
-        </div>
+          {isLoading ? (
+            <Skeleton className="h-6 w-16" />
+          ) : (
+            <p className="text-base font-semibold tabular-nums">{card.value}</p>
+          )}
+        </Card>
       ))}
     </div>
   )

@@ -50,12 +50,32 @@ function ConfirmEmailInner() {
       <Card className="max-w-lg rounded-2xl py-5">
         <CardContent className="px-5">
           <form onSubmit={onSubmit} noValidate className="space-y-4">
-            <p className="text-muted-foreground text-sm">Cần xác thực email trước khi dùng các tính năng chính.</p>
+            <p className="text-muted-foreground text-sm">
+              Cần xác thực email trước khi dùng các tính năng chính.
+            </p>
             <FormErrorAlert title="Không xác thực được email" message={formError} />
-            <FormField label="Token" hint="Có trong email chúng tôi đã gửi" required error={tokenError}>
-              {(field) => <Input {...field} autoCapitalize="none" spellCheck={false} value={token} onChange={(event) => setToken(event.target.value)} />}
+            <FormField
+              label="Token"
+              hint="Có trong email chúng tôi đã gửi"
+              required
+              error={tokenError}
+            >
+              {(field) => (
+                <Input
+                  {...field}
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={token}
+                  onChange={(event) => setToken(event.target.value)}
+                />
+              )}
             </FormField>
-            <Button type="submit" className="w-full sm:w-auto" disabled={isPending} aria-busy={isPending}>
+            <Button
+              type="submit"
+              className="w-full sm:w-auto"
+              disabled={isPending}
+              aria-busy={isPending}
+            >
               {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
               {isPending ? 'Đang xác thực...' : 'Xác thực email'}
             </Button>

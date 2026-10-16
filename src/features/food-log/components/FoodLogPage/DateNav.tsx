@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/shared/IconButton'
 import { addDaysIso, formatDateVi } from '@/lib/date'
 
 interface DateNavProps {
@@ -8,14 +8,17 @@ interface DateNavProps {
   readonly onChange: (date: string) => void
 }
 
-/** Chuyển ngày: nút trước/sau (chạm 40px) + chạm giữa để mở picker ngày native. */
+/** Chuyển ngày: nút trước/sau + chạm giữa để mở picker ngày native. */
 export function DateNav({ date, today, onChange }: DateNavProps) {
   return (
     <div className="flex items-center gap-1">
-      <Button variant="ghost" size="icon" aria-label="Ngày trước" onClick={() => onChange(addDaysIso(date, -1))}>
-        <ChevronLeft />
-      </Button>
-      <label className="relative flex h-10 flex-1 items-center justify-center rounded-md border">
+      <IconButton
+        icon={ChevronLeft}
+        label="Ngày trước"
+        className="size-11 md:size-8"
+        onClick={() => onChange(addDaysIso(date, -1))}
+      />
+      <label className="bg-secondary focus-within:ring-ring/50 relative flex h-11 flex-1 items-center justify-center rounded-xl focus-within:ring-3 md:h-8">
         <span className="text-sm font-semibold">
           {date === today ? 'Hôm nay · ' : ''}
           {formatDateVi(date)}
@@ -28,9 +31,12 @@ export function DateNav({ date, today, onChange }: DateNavProps) {
           className="absolute inset-0 h-full w-full opacity-0"
         />
       </label>
-      <Button variant="ghost" size="icon" aria-label="Ngày sau" onClick={() => onChange(addDaysIso(date, 1))}>
-        <ChevronRight />
-      </Button>
+      <IconButton
+        icon={ChevronRight}
+        label="Ngày sau"
+        className="size-11 md:size-8"
+        onClick={() => onChange(addDaysIso(date, 1))}
+      />
     </div>
   )
 }

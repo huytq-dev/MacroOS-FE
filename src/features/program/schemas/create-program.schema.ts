@@ -8,7 +8,10 @@ const keys = <T extends Record<string, string>>(labels: T) =>
 export const createProgramSchema = z
   .object({
     goalType: z.enum(keys(GOAL_TYPE)),
-    weeklyWeightChangeTargetPercent: z.number({ error: 'Nhập tốc độ' }).min(0).max(1.5, 'Tối đa 1.5 %/tuần'),
+    weeklyWeightChangeTargetPercent: z
+      .number({ error: 'Nhập tốc độ' })
+      .min(0)
+      .max(1.5, 'Tối đa 1.5 %/tuần'),
     programType: z.enum(keys(PROGRAM_TYPE)),
     dietStyle: z.enum(keys(DIET_STYLE)),
     proteinLevel: z.enum(keys(PROTEIN_LEVEL)),
@@ -18,9 +21,12 @@ export const createProgramSchema = z
     manualTdeeEnabled: z.boolean(),
     manualInitialTdeeKcal: z.number().min(1000, 'Từ 1000').max(6000, 'Tối đa 6000'),
   })
-  .refine((values) => values.goalType !== 'Maintenance' || values.weeklyWeightChangeTargetPercent === 0, {
-    message: 'Giữ cân thì tốc độ phải bằng 0',
-    path: ['weeklyWeightChangeTargetPercent'],
-  })
+  .refine(
+    (values) => values.goalType !== 'Maintenance' || values.weeklyWeightChangeTargetPercent === 0,
+    {
+      message: 'Giữ cân thì tốc độ phải bằng 0',
+      path: ['weeklyWeightChangeTargetPercent'],
+    }
+  )
 
 export type CreateProgramFormValues = z.infer<typeof createProgramSchema>

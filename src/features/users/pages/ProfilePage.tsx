@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useProfile, useUpdateProfile } from '../hooks/use-profile'
 import { updateProfileSchema, type UpdateProfileFormValues } from '../schemas/update-profile.schema'
 import { ProfileForm } from '../components/ProfilePage'
+import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -15,6 +16,7 @@ export function ProfilePage() {
 
   const form = useForm<UpdateProfileFormValues>({
     resolver: zodResolver(updateProfileSchema),
+    mode: 'onTouched',
     defaultValues: {
       firstName: '',
       lastName: '',
@@ -42,25 +44,31 @@ export function ProfilePage() {
     })
   }, [profile.data, form])
 
-  if (profile.isError) return <ErrorState error={profile.error} onRetry={() => void profile.refetch()} />
+  if (profile.isError)
+    return <ErrorState error={profile.error} onRetry={() => void profile.refetch()} />
 
   return (
-    <div className="flex flex-col gap-3">
-      <div>
+    <div className="flex flex-col gap-4">
+      <div className="space-y-1">
         <h1 className="text-base font-semibold">Hồ sơ</h1>
-        <p className="text-muted-foreground text-xs">Ngày sinh, chiều cao, mức hoạt động dùng để tính TDEE khởi điểm.</p>
+        <p className="text-muted-foreground text-xs">
+          Ngày sinh, chiều cao và mức hoạt động dùng để tính TDEE khởi điểm.
+        </p>
       </div>
       {profile.isLoading ? (
-        <div className="grid max-w-2xl grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <Skeleton key={index} className="h-14 rounded-md" />
-          ))}
+        <div className="max-w-2xl space-y-4" aria-busy="true">
+          <Skeleton className="h-48 rounded-2xl" />
+          <Skeleton className="h-36 rounded-2xl" />
+          <Skeleton className="h-36 rounded-2xl" />
         </div>
       ) : (
         <ProfileForm
           form={form}
           isPending={updateProfile.isPending}
-          onSubmit={(values) => updateProfile.mutate({ ...values, timeZone: values.timeZone || null })}
+          error={updateProfile.error ? getFormErrorMessage(updateProfile.error) : null}
+          onSubmit={(values) =>
+            updateProfile.mutate({ ...values, timeZone: values.timeZone || null })
+          }
         />
       )}
     </div>

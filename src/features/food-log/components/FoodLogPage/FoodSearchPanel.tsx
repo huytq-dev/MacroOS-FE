@@ -1,9 +1,8 @@
 'use client'
 
-import { Search } from 'lucide-react'
 import { FoodList } from '@/features/foods/components/FoodList'
 import type { FoodDetail, FoodSummary } from '@/features/foods/types/food.types'
-import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/shared/SearchInput'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { PlateItem } from '../../types/food-log.types'
 import { FoodPicker } from './FoodPicker'
@@ -38,32 +37,27 @@ export function FoodSearchPanel({
   onAddToPlate,
 }: FoodSearchPanelProps) {
   if (pickedId) {
-    if (!picked) return <Skeleton className="m-4 h-56" />
+    if (!picked) return <Skeleton className="m-4 h-56 rounded-2xl" aria-busy="true" />
     return <FoodPicker key={picked.id} food={picked} onBack={onBack} onAdd={onAddToPlate} />
   }
 
   return (
     <div>
-      <div className="bg-background sticky top-0 z-10 border-b p-3">
-        <div className="relative">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" aria-hidden="true" />
-          <Input
-            type="search"
-            inputMode="search"
-            enterKeyHint="search"
-            placeholder="Tìm theo tên hoặc thương hiệu"
-            value={search}
-            className="pl-9"
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-        </div>
+      <div className="bg-background sticky top-0 z-10 p-3">
+        <SearchInput
+          value={search}
+          onValueChange={onSearchChange}
+          placeholder="Tìm theo tên hoặc thương hiệu"
+          aria-label="Tìm thực phẩm"
+        />
       </div>
       <FoodList
         items={items}
         totalCount={totalCount}
         isLoading={isLoading}
         isFetching={isFetching}
-        emptyText={search ? 'Không tìm thấy. Thử từ khoá khác hoặc dùng Nhập nhanh.' : 'Chưa có thực phẩm. Tạo ở mục Thực phẩm hoặc dùng Nhập nhanh.'}
+        isFiltered={search.trim() !== ''}
+        onClearFilters={() => onSearchChange('')}
         onSelect={onPick}
         onLoadMore={onLoadMore}
       />

@@ -4,7 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { toast } from 'sonner'
 import { foodService } from '../services/food.service'
 import type { CustomFoodRequest, FoodSearchParams } from '../types/food.types'
-import { getErrorMessage, isSystemError, logger } from '@/lib/api'
+import { logger } from '@/lib/api'
 
 export const foodKeys = {
   all: ['foods'] as const,
@@ -30,7 +30,10 @@ export const useFoodDetail = (id: string | null) =>
     staleTime: 5 * 60 * 1000,
   })
 
-const useFoodMutation = <TVariables>(mutationFn: (variables: TVariables) => Promise<unknown>, successMessage: string) => {
+const useFoodMutation = <TVariables>(
+  mutationFn: (variables: TVariables) => Promise<unknown>,
+  successMessage: string
+) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn,
@@ -40,12 +43,18 @@ const useFoodMutation = <TVariables>(mutationFn: (variables: TVariables) => Prom
     },
     onError: (error) => {
       logger.error(error)
-      if (!isSystemError(error)) toast.error(getErrorMessage(error))
+      // lỗi nghiệp vụ hiện inline ở dialog/trang (UI.md mục 10), không toast
     },
   })
 }
 
-export const useCreateFood = () => useFoodMutation((payload: CustomFoodRequest) => foodService.create(payload), 'Đã tạo thực phẩm')
+export const useCreateFood = () =>
+  useFoodMutation((payload: CustomFoodRequest) => foodService.create(payload), 'Đã tạo thực phẩm')
 export const useUpdateFood = () =>
-  useFoodMutation(({ id, payload }: { id: string; payload: CustomFoodRequest }) => foodService.update(id, payload), 'Đã lưu thực phẩm')
-export const useDeleteFood = () => useFoodMutation((id: string) => foodService.remove(id), 'Đã xoá thực phẩm')
+  useFoodMutation(
+    ({ id, payload }: { id: string; payload: CustomFoodRequest }) =>
+      foodService.update(id, payload),
+    'Đã lưu thực phẩm'
+  )
+export const useDeleteFood = () =>
+  useFoodMutation((id: string) => foodService.remove(id), 'Đã xoá thực phẩm')

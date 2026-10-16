@@ -2,7 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Apple, ChevronLeft, LayoutDashboard, Scale, Target, UserRound, UtensilsCrossed, type LucideIcon } from 'lucide-react'
+import {
+  Apple,
+  ChevronLeft,
+  LayoutDashboard,
+  Scale,
+  Target,
+  UserRound,
+  UtensilsCrossed,
+  type LucideIcon,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { routePath } from '@/config/route-path'
@@ -78,7 +87,10 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
         className="text-sidebar-foreground/50 hover:bg-sidebar-accent border-sidebar-border/30 h-9 w-full shrink-0 rounded-none border-t"
         aria-label={isCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
       >
-        <ChevronLeft className={cn('h-4 w-4 transition-transform', isCollapsed && 'rotate-180')} aria-hidden="true" />
+        <ChevronLeft
+          className={cn('h-4 w-4 transition-transform', isCollapsed && 'rotate-180')}
+          aria-hidden="true"
+        />
       </Button>
     </aside>
   )

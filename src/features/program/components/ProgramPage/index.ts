@@ -1,3 +1,3 @@
 export { CurrentWeekCard } from './CurrentWeekCard'
 export { WeeksTable } from './WeeksTable'
-export { ProgramActions } from './ProgramActions'
+export { ProgramActions, type ActionKind, type ActionState } from './ProgramActions'

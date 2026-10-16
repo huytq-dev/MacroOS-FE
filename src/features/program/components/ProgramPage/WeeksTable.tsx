@@ -1,3 +1,13 @@
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { ADJUSTMENT_REASON } from '@/config/enums'
 import { formatDateVi } from '@/lib/date'
 import type { ProgramWeek } from '../../types/program.types'
@@ -10,35 +20,41 @@ export function WeeksTable({ weeks }: WeeksTableProps) {
   if (weeks.length === 0) return null
   const sorted = [...weeks].sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))
   return (
-    <div className="bg-card overflow-auto rounded-lg border">
-      <table className="w-full text-xs">
-        <thead className="text-muted-foreground">
-          <tr className="border-b">
-            <th className="px-3 py-2 text-left font-medium">Từ ngày</th>
-            <th className="px-3 py-2 text-right font-medium">kcal</th>
-            <th className="px-3 py-2 text-right font-medium">P</th>
-            <th className="px-3 py-2 text-right font-medium">C</th>
-            <th className="px-3 py-2 text-right font-medium">F</th>
-            <th className="px-3 py-2 text-right font-medium">Δ</th>
-            <th className="hidden px-3 py-2 text-left font-medium sm:table-cell">Lý do</th>
-          </tr>
-        </thead>
-        <tbody className="tabular-nums">
+    <Card className="gap-0 overflow-hidden rounded-2xl py-0">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Từ ngày</TableHead>
+            <TableHead className="text-right">kcal</TableHead>
+            <TableHead className="text-right">P</TableHead>
+            <TableHead className="text-right">C</TableHead>
+            <TableHead className="text-right">F</TableHead>
+            <TableHead className="text-right">Δ</TableHead>
+            <TableHead className="hidden sm:table-cell">Lý do</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="tabular-nums">
           {sorted.map((week) => (
-            <tr key={week.id} className="border-b last:border-0">
-              <td className="px-3 py-1.5 whitespace-nowrap">{formatDateVi(week.effectiveFrom)}</td>
-              <td className="px-3 py-1.5 text-right font-medium">{week.caloriesTarget}</td>
-              <td className="px-3 py-1.5 text-right">{Math.round(week.proteinTarget)}</td>
-              <td className="px-3 py-1.5 text-right">{Math.round(week.carbsTarget)}</td>
-              <td className="px-3 py-1.5 text-right">{Math.round(week.fatTarget)}</td>
-              <td className="px-3 py-1.5 text-right">
-                {week.previousCaloriesTarget === null ? '—' : week.caloriesTarget - week.previousCaloriesTarget}
-              </td>
-              <td className="hidden px-3 py-1.5 sm:table-cell">{ADJUSTMENT_REASON[week.adjustmentReason]}</td>
-            </tr>
+            <TableRow key={week.id}>
+              <TableCell className="whitespace-nowrap">
+                {formatDateVi(week.effectiveFrom)}
+              </TableCell>
+              <TableCell className="text-right font-medium">{week.caloriesTarget}</TableCell>
+              <TableCell className="text-right">{Math.round(week.proteinTarget)}</TableCell>
+              <TableCell className="text-right">{Math.round(week.carbsTarget)}</TableCell>
+              <TableCell className="text-right">{Math.round(week.fatTarget)}</TableCell>
+              <TableCell className="text-right">
+                {week.previousCaloriesTarget === null
+                  ? '—'
+                  : week.caloriesTarget - week.previousCaloriesTarget}
+              </TableCell>
+              <TableCell className="hidden sm:table-cell">
+                <Badge variant="secondary">{ADJUSTMENT_REASON[week.adjustmentReason]}</Badge>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </Card>
   )
 }

@@ -1,29 +1,29 @@
 /*
  * Bảng màu MacroFactor (macrofactor.com/brand + CSS web):
- * lõi đen/trắng làm chữ + nền, nền ấm #F7F6F3; phụ xanh dương #215CDA, tím #A101C9, xanh lá #08C343, cam #CE5400;
+ * lõi đen/trắng, nền xám nhạt #F5F5F5; phụ xanh dương #215CDA, tím #A101C9, xanh lá #08C343, cam #CE5400;
  * accent web cam #FF8B41; xám #F5F5F5 #E5E5E5 #656565 #3A3A3A. Font DM Sans (layout.tsx).
  * Macro: kcal cam · protein xanh dương · carb xanh lá · fat tím · trend cân tím.
  */
 :root,
 .light {
   color-scheme: light;
-  --background: #f7f6f3;
-  --foreground: #161616;
+  --background: #f5f5f5;
+  --foreground: #000000;
   --card: #ffffff;
-  --card-foreground: #161616;
+  --card-foreground: #000000;
   --popover: #ffffff;
-  --popover-foreground: #161616;
-  --primary: #ce5400;
+  --popover-foreground: #000000;
+  --primary: #000000;
   --primary-foreground: #ffffff;
-  --secondary: #efede8;
-  --secondary-foreground: #161616;
-  --muted: #efede8;
-  --muted-foreground: #6b6862;
+  --secondary: #ececec;
+  --secondary-foreground: #000000;
+  --muted: #ececec;
+  --muted-foreground: #656565;
   --accent: #fff1e8;
-  --accent-foreground: #a84300;
+  --accent-foreground: #ce5400;
   --destructive: #d92d20;
-  --border: #e7e4dd;
-  --input: #dedad1;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
   --ring: #ff8b41;
   --radius: 0.875rem;
 
@@ -33,13 +33,13 @@
   --chart-4: #a101c9;
   --chart-5: #ce5400;
 
-  --sidebar: #fbfaf8;
-  --sidebar-foreground: #161616;
-  --sidebar-primary: #ce5400;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #000000;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #fff1e8;
-  --sidebar-accent-foreground: #a84300;
-  --sidebar-border: #e7e4dd;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: #e5e5e5;
   --sidebar-ring: #ff8b41;
 
   /* Màu dữ liệu MacroFactor */
@@ -67,23 +67,23 @@
 
 .dark {
   color-scheme: dark;
-  --background: #0e0e0d;
-  --foreground: #f5f3ee;
-  --card: #181817;
-  --card-foreground: #f5f3ee;
-  --popover: #181817;
-  --popover-foreground: #f5f3ee;
-  --primary: #ff8b41;
-  --primary-foreground: #1c0f04;
-  --secondary: #232321;
-  --secondary-foreground: #f5f3ee;
-  --muted: #232321;
-  --muted-foreground: #a29e95;
-  --accent: #2b1b10;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #141414;
+  --card-foreground: #ffffff;
+  --popover: #141414;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #1f1f1f;
+  --secondary-foreground: #ffffff;
+  --muted: #1f1f1f;
+  --muted-foreground: #a3a3a3;
+  --accent: #2a1a10;
   --accent-foreground: #ff8b41;
   --destructive: #f97066;
-  --border: #2a2926;
-  --input: #34322e;
+  --border: #262626;
+  --input: #262626;
   --ring: #ff8b41;
 
   --chart-1: #ff8b41;
@@ -92,13 +92,13 @@
   --chart-4: #c04df0;
   --chart-5: #ffbc7d;
 
-  --sidebar: #121211;
-  --sidebar-foreground: #f5f3ee;
-  --sidebar-primary: #ff8b41;
-  --sidebar-primary-foreground: #1c0f04;
-  --sidebar-accent: #2b1b10;
-  --sidebar-accent-foreground: #ff8b41;
-  --sidebar-border: #2a2926;
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1f1f1f;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #262626;
   --sidebar-ring: #ff8b41;
 
   --mf-orange: #ff8b41;

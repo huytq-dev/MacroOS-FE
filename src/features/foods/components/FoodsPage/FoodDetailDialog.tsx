@@ -1,6 +1,14 @@
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { FOOD_CATEGORY } from '@/config/enums'
 import type { FoodDetail } from '../../types/food.types'
 
@@ -9,33 +17,57 @@ interface FoodDetailDialogProps {
   readonly onOpenChange: (open: boolean) => void
   readonly food?: FoodDetail
   readonly isLoading: boolean
-  readonly isDeleting: boolean
   readonly onEdit: (food: FoodDetail) => void
-  readonly onDelete: (id: string) => void
+  readonly onRequestDelete: (food: FoodDetail) => void
 }
 
 const cell = (label: string, value: number | null | undefined, unit: string) =>
   value === null || value === undefined ? null : (
-    <div key={label} className="rounded-md border px-3 py-2">
+    <div key={label} className="bg-secondary rounded-xl px-3.5 py-2.5">
       <p className="text-muted-foreground text-xs">{label}</p>
       <p className="text-base font-semibold tabular-nums">
-        {Math.round(value * 10) / 10} <span className="text-muted-foreground text-xs font-normal">{unit}</span>
+        {Math.round(value * 10) / 10}{' '}
+        <span className="text-muted-foreground text-xs font-normal">{unit}</span>
       </p>
     </div>
   )
 
-export function FoodDetailDialog({ open, onOpenChange, food, isLoading, isDeleting, onEdit, onDelete }: FoodDetailDialogProps) {
+export function FoodDetailDialog({
+  open,
+  onOpenChange,
+  food,
+  isLoading,
+  onEdit,
+  onRequestDelete,
+}: FoodDetailDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{food?.name ?? 'Thực phẩm'}</DialogTitle>
-          <DialogDescription>
-            {food ? `${food.brand ? `${food.brand} · ` : ''}${FOOD_CATEGORY[food.category]}` : 'Dinh dưỡng trên 100 g'}
+          <DialogTitle className="font-sans text-sm font-semibold">
+            {food?.name ?? 'Thực phẩm'}
+          </DialogTitle>
+          <DialogDescription className="flex flex-wrap items-center gap-1.5 text-xs">
+            {food ? (
+              <>
+                {food.brand && <span>{food.brand}</span>}
+                <Badge variant="outline">{FOOD_CATEGORY[food.category]}</Badge>
+                {food.isMine && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-mf-pastel-green text-mf-pastel-green-text"
+                  >
+                    Của tôi
+                  </Badge>
+                )}
+              </>
+            ) : (
+              'Dinh dưỡng trên 100 g'
+            )}
           </DialogDescription>
         </DialogHeader>
         {isLoading || !food ? (
-          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" aria-busy="true" />
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2">
@@ -47,22 +79,24 @@ export function FoodDetailDialog({ open, onOpenChange, food, isLoading, isDeleti
               {cell('Sodium', food.nutrition.sodiumPer100g, 'mg')}
             </div>
             <div>
-              <p className="text-muted-foreground mb-1 text-xs">Khẩu phần</p>
-              <ul className="space-y-1 text-sm">
+              <p className="text-muted-foreground mb-1.5 text-xs">Khẩu phần</p>
+              <ul className="divide-border divide-y text-sm">
                 {food.servings.map((serving) => (
-                  <li key={serving.id} className="flex justify-between">
-                    <span>
+                  <li key={serving.id} className="flex items-center justify-between gap-2 py-2">
+                    <span className="flex items-center gap-1.5">
                       {serving.servingName}
-                      {serving.isDefault && ' (mặc định)'}
+                      {serving.isDefault && <Badge variant="outline">Mặc định</Badge>}
                     </span>
-                    <span className="text-muted-foreground tabular-nums">{serving.weightInGrams} g</span>
+                    <span className="text-muted-foreground tabular-nums">
+                      {serving.weightInGrams} g
+                    </span>
                   </li>
                 ))}
               </ul>
             </div>
             {food.isMine && (
               <DialogFooter>
-                <Button variant="destructive" onClick={() => onDelete(food.id)} disabled={isDeleting}>
+                <Button variant="destructive" onClick={() => onRequestDelete(food)}>
                   Xoá
                 </Button>
                 <Button onClick={() => onEdit(food)}>Sửa</Button>

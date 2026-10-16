@@ -14,7 +14,13 @@ import { FormField } from '@/components/shared/FormField'
 import { PasswordInput } from '@/components/shared/PasswordInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { GENDER, enumOptions } from '@/config/enums'
 import { routePath } from '@/config/route-path'
 import { logger } from '@/lib/logger'
@@ -30,7 +36,14 @@ export function RegisterPage() {
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     mode: 'onTouched',
-    defaultValues: { email: '', password: '', confirmPassword: '', firstName: '', lastName: '', gender: 'Male' },
+    defaultValues: {
+      email: '',
+      password: '',
+      confirmPassword: '',
+      firstName: '',
+      lastName: '',
+      gender: 'Male',
+    },
   })
 
   const onSubmit = async (values: RegisterFormValues) => {
@@ -48,7 +61,10 @@ export function RegisterPage() {
   const footer = (
     <>
       Đã có tài khoản?{' '}
-      <Link href={routePath.login} className="text-primary font-medium hover:underline">
+      <Link
+        href={routePath.login}
+        className="text-foreground font-medium underline underline-offset-4"
+      >
         Đăng nhập
       </Link>
     </>
@@ -57,17 +73,25 @@ export function RegisterPage() {
   if (registeredEmail)
     return (
       <AuthShell title="Kiểm tra email" footer={footer}>
-        <div role="status" className="bg-mf-pastel-green text-mf-pastel-green-text flex items-start gap-3 rounded-xl p-4 text-sm">
+        <div
+          role="status"
+          className="bg-mf-pastel-green text-mf-pastel-green-text flex items-start gap-3 rounded-xl p-4 text-sm"
+        >
           <MailCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
           <p>
-            Đã gửi link xác thực tới <strong className="break-all">{registeredEmail}</strong>. Sau khi đăng nhập, dán token trong email vào trang xác thực.
+            Đã gửi link xác thực tới <strong className="break-all">{registeredEmail}</strong>. Sau
+            khi đăng nhập, dán token trong email vào trang xác thực.
           </p>
         </div>
       </AuthShell>
     )
 
   return (
-    <AuthShell title="Tạo tài khoản" description="Mất khoảng một phút. Hồ sơ cơ thể bổ sung sau." footer={footer}>
+    <AuthShell
+      title="Tạo tài khoản"
+      description="Mất khoảng một phút. Hồ sơ cơ thể bổ sung sau."
+      footer={footer}
+    >
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
         <FormErrorAlert title="Không tạo được tài khoản" message={formError} />
 
@@ -87,7 +111,11 @@ export function RegisterPage() {
               name="gender"
               render={({ field: { value, onChange } }) => (
                 <Select value={value} onValueChange={onChange}>
-                  <SelectTrigger id={field.id} aria-invalid={field['aria-invalid']} className="w-full">
+                  <SelectTrigger
+                    id={field.id}
+                    aria-invalid={field['aria-invalid']}
+                    className="w-full"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="start" sideOffset={4} position="popper">
@@ -118,12 +146,25 @@ export function RegisterPage() {
           )}
         </FormField>
 
-        <FormField label="Mật khẩu" hint="Tối thiểu 8 ký tự" required error={errors.password?.message}>
-          {(field) => <PasswordInput {...field} autoComplete="new-password" {...register('password')} />}
+        <FormField
+          label="Mật khẩu"
+          hint="Tối thiểu 8 ký tự"
+          required
+          error={errors.password?.message}
+        >
+          {(field) => (
+            <PasswordInput {...field} autoComplete="new-password" {...register('password')} />
+          )}
         </FormField>
 
         <FormField label="Nhập lại mật khẩu" required error={errors.confirmPassword?.message}>
-          {(field) => <PasswordInput {...field} autoComplete="new-password" {...register('confirmPassword')} />}
+          {(field) => (
+            <PasswordInput
+              {...field}
+              autoComplete="new-password"
+              {...register('confirmPassword')}
+            />
+          )}
         </FormField>
 
         <Button type="submit" className="w-full" disabled={isSubmitting} aria-busy={isSubmitting}>

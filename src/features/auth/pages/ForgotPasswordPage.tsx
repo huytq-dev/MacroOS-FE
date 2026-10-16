@@ -8,7 +8,10 @@ import { Loader2, MailCheck } from 'lucide-react'
 import { AuthShell } from '@/features/auth/components/AuthShell'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { authService } from '@/features/auth/services/auth.service'
-import { forgotPasswordSchema, type ForgotPasswordFormValues } from '@/features/auth/schemas/password-reset.schema'
+import {
+  forgotPasswordSchema,
+  type ForgotPasswordFormValues,
+} from '@/features/auth/schemas/password-reset.schema'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { FormField } from '@/components/shared/FormField'
 import { Button } from '@/components/ui/button'
@@ -46,14 +49,20 @@ export function ForgotPasswordPage() {
       title="Quên mật khẩu"
       description="Nhập email của bạn, chúng tôi gửi token đặt lại mật khẩu (hiệu lực 15 phút)."
       footer={
-        <Link href={routePath.login} className="text-primary font-medium hover:underline">
+        <Link
+          href={routePath.login}
+          className="text-foreground font-medium underline underline-offset-4"
+        >
           Quay lại đăng nhập
         </Link>
       }
     >
       {sent ? (
         <div className="space-y-3">
-          <div role="status" className="bg-mf-pastel-green text-mf-pastel-green-text flex items-start gap-3 rounded-xl p-4 text-sm">
+          <div
+            role="status"
+            className="bg-mf-pastel-green text-mf-pastel-green-text flex items-start gap-3 rounded-xl p-4 text-sm"
+          >
             <MailCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
             <p>Nếu email tồn tại, bạn sẽ nhận được hướng dẫn trong ít phút.</p>
           </div>

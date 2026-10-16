@@ -37,4 +37,6 @@ export const isTokenValid = (token: string): boolean => {
 
 /** Lỗi hiện trong form (UI.md mục 13): lỗi mạng/máy chủ nói chung, lỗi nghiệp vụ lấy nguyên văn từ BE. */
 export const getFormErrorMessage = (error: unknown): string =>
-  isSystemError(error) ? 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.' : getErrorMessage(error)
+  isSystemError(error)
+    ? 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.'
+    : getErrorMessage(error)

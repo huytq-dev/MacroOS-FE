@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { userService } from '../services/user.service'
 import type { UpdateProfileRequest } from '../types/user.types'
-import { getErrorMessage, isSystemError, logger } from '@/lib/api'
+import { logger } from '@/lib/api'
 
 export const profileKeys = { me: ['profile', 'me'] as const }
 
@@ -21,7 +21,7 @@ export const useUpdateProfile = () => {
     },
     onError: (error) => {
       logger.error(error)
-      if (!isSystemError(error)) toast.error(getErrorMessage(error))
+      // lỗi nghiệp vụ hiện inline ở dialog/trang (UI.md mục 10), không toast
     },
   })
 }

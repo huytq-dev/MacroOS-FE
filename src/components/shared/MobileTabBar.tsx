@@ -2,7 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Apple, LayoutDashboard, Scale, Target, UtensilsCrossed, type LucideIcon } from 'lucide-react'
+import {
+  Apple,
+  LayoutDashboard,
+  Scale,
+  Target,
+  UtensilsCrossed,
+  type LucideIcon,
+} from 'lucide-react'
 import { routePath } from '@/config/route-path'
 import { cn } from '@/lib/utils'
 

@@ -72,4 +72,5 @@ export interface CustomFoodRequest {
 }
 
 /** Dinh dưỡng của một lượng gram (hiển thị trước khi log). */
-export const scaleNutrition = (per100g: number, grams: number): number => Math.round((per100g * grams) / 100)
+export const scaleNutrition = (per100g: number, grams: number): number =>
+  Math.round((per100g * grams) / 100)

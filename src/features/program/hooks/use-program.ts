@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { programService } from '../services/program.service'
 import type { ProgramType } from '@/config/enums'
 import type { CreateProgramRequest, UpdateProgramGoalRequest } from '../types/program.types'
-import { getErrorMessage, isSystemError, logger } from '@/lib/api'
+import { logger } from '@/lib/api'
 
 export const programKeys = { current: ['program', 'current'] as const }
 
@@ -38,17 +38,30 @@ const useProgramMutation = <TVariables>(
     },
     onError: (error) => {
       logger.error(error)
-      if (!isSystemError(error)) toast.error(getErrorMessage(error))
+      // lỗi nghiệp vụ hiện inline ở dialog/trang (UI.md mục 10), không toast
     },
   })
 }
 
 export const useCreateProgram = () =>
-  useProgramMutation((payload: CreateProgramRequest) => programService.create(payload), 'Đã tạo program')
+  useProgramMutation(
+    (payload: CreateProgramRequest) => programService.create(payload),
+    'Đã tạo program'
+  )
 export const useUpdateProgramGoal = () =>
-  useProgramMutation((payload: UpdateProgramGoalRequest) => programService.updateGoal(payload), 'Đã cập nhật mục tiêu')
+  useProgramMutation(
+    (payload: UpdateProgramGoalRequest) => programService.updateGoal(payload),
+    'Đã cập nhật mục tiêu'
+  )
 export const useChangeProgramStyle = () =>
-  useProgramMutation((programType: ProgramType) => programService.changeStyle(programType), 'Đã đổi program style')
+  useProgramMutation(
+    (programType: ProgramType) => programService.changeStyle(programType),
+    'Đã đổi program style'
+  )
 export const useSetManualExpenditure = () =>
-  useProgramMutation((tdeeKcal: number) => programService.setManualExpenditure(tdeeKcal), 'Đã đặt TDEE khởi điểm')
-export const useEndProgram = () => useProgramMutation(() => programService.end(), 'Đã kết thúc program')
+  useProgramMutation(
+    (tdeeKcal: number) => programService.setManualExpenditure(tdeeKcal),
+    'Đã đặt TDEE khởi điểm'
+  )
+export const useEndProgram = () =>
+  useProgramMutation(() => programService.end(), 'Đã kết thúc program')
