@@ -89,9 +89,7 @@ function CopyBody({ fromDate, defaultToDate, isPending, error, onOpenChange, onC
           required
           error={sameTarget ? 'Nguồn và đích trùng nhau.' : undefined}
         >
-          {(field) => (
-            <DateField {...field} value={toDate} onValueChange={setToDate} />
-          )}
+          {(field) => <DateField {...field} value={toDate} onValueChange={setToDate} />}
         </FormField>
         {scope !== DAY && (
           <FormField label="Vào bữa">

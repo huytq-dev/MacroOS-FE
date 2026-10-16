@@ -18,7 +18,7 @@ interface SearchInputProps {
 /** Ô tìm kiếm có biểu tượng (UI.md mục 7: `InputGroup`); nút x xoá nhanh, bàn phím iOS hiện phím "Tìm". */
 export function SearchInput({ value, onValueChange, placeholder, ...aria }: SearchInputProps) {
   return (
-    <InputGroup className="h-11 rounded-xl md:h-8">
+    <InputGroup className="bg-secondary md:border-input h-11 rounded-full border-transparent md:h-8 md:rounded-md md:bg-transparent">
       <InputGroupAddon>
         <Search aria-hidden="true" />
       </InputGroupAddon>

@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, X } from 'lucide-react'
+import { Loader2, Search, X, Zap } from 'lucide-react'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { IconButton } from '@/components/shared/IconButton'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,9 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MEAL_TYPE, enumOptions, type MealType } from '@/config/enums'
-import type { PlateItem } from '../../types/food-log.types'
+import type { ProgramWeek } from '@/features/program/types/program.types'
+import type { MacroTotals, PlateItem } from '../../types/food-log.types'
+import { AddFoodProgress } from './AddFoodProgress'
 
 export type AddTab = 'search' | 'quick'
 
@@ -33,6 +35,8 @@ interface AddFoodDialogProps {
   readonly meal: MealType
   readonly onMealChange: (meal: MealType) => void
   readonly plate: PlateItem[]
+  readonly totals?: MacroTotals
+  readonly target?: ProgramWeek | null
   readonly isLogging: boolean
   readonly error: string | null
   readonly onRemoveFromPlate: (key: string) => void
@@ -49,6 +53,8 @@ export function AddFoodDialog({
   meal,
   onMealChange,
   plate,
+  totals,
+  target,
   isLogging,
   error,
   onRemoveFromPlate,
@@ -56,30 +62,53 @@ export function AddFoodDialog({
   children,
 }: AddFoodDialogProps) {
   const plateKcal = plate.reduce((sum, item) => sum + item.calories, 0)
+  const plateTotals: MacroTotals = {
+    calories: plateKcal,
+    protein: plate.reduce((sum, item) => sum + item.protein, 0),
+    carbs: plate.reduce((sum, item) => sum + item.carbs, 0),
+    fat: plate.reduce((sum, item) => sum + item.fat, 0),
+    fiber: 0,
+  }
   return (
     <Dialog open={open} onOpenChange={(next) => !isLogging && onOpenChange(next)}>
       <DialogContent className="flex h-[92dvh] flex-col gap-0 p-0 sm:h-[80dvh] sm:max-w-lg sm:p-0">
-        <DialogHeader className="space-y-3 p-4 pr-12">
-          <DialogTitle className="font-sans text-base font-semibold">Thêm món</DialogTitle>
+        <DialogHeader className="relative z-20 space-y-0">
+          <DialogTitle className="sr-only">Thêm món</DialogTitle>
           <DialogDescription className="sr-only">
             Tìm thực phẩm hoặc nhập nhanh kcal và macro
           </DialogDescription>
-          <Select value={meal} onValueChange={(next) => onMealChange(next as MealType)}>
-            <SelectTrigger aria-label="Bữa" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="start" position="popper" sideOffset={4}>
-              {enumOptions(MEAL_TYPE).map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3 p-4 pr-14">
+            <Select value={meal} onValueChange={(next) => onMealChange(next as MealType)}>
+              <SelectTrigger
+                aria-label="Bữa"
+                className="h-11 w-auto shrink-0 rounded-full md:rounded-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start" position="popper" sideOffset={4}>
+                {enumOptions(MEAL_TYPE).map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <AddFoodProgress totals={totals} target={target} plate={plateTotals} />
+          </div>
           <Tabs value={tab} onValueChange={(next) => onTabChange(next as AddTab)}>
-            <TabsList className="w-full">
-              <TabsTrigger value="search">Tìm món</TabsTrigger>
-              <TabsTrigger value="quick">Nhập nhanh</TabsTrigger>
+            <TabsList variant="line" className="w-full border-b">
+              <TabsTrigger
+                value="search"
+                className="h-11 flex-1 text-base group-data-horizontal/tabs:after:bottom-0 md:text-sm"
+              >
+                <Search aria-hidden="true" /> Tìm món
+              </TabsTrigger>
+              <TabsTrigger
+                value="quick"
+                className="h-11 flex-1 text-base group-data-horizontal/tabs:after:bottom-0 md:text-sm"
+              >
+                <Zap aria-hidden="true" /> Nhập nhanh
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </DialogHeader>

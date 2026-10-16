@@ -33,7 +33,7 @@ export function PickerSelect<T extends string>({
         {...aria}
         onClick={() => setOpen(true)}
         className={cn(
-          'bg-secondary focus-visible:border-ring focus-visible:ring-ring/50 flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-transparent px-3.5 text-left text-base transition-colors outline-none focus-visible:ring-1 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 md:border-input md:h-8 md:rounded-md md:bg-transparent md:px-2.5 md:text-xs'
+          'bg-secondary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 md:border-input flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-transparent px-3.5 text-left text-base transition-colors outline-none focus-visible:ring-1 aria-invalid:ring-1 md:h-8 md:rounded-md md:bg-transparent md:px-2.5 md:text-xs'
         )}
       >
         <span className="min-w-0 flex-1 truncate">{selected?.label}</span>

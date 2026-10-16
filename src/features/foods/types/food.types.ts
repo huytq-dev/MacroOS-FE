@@ -30,6 +30,12 @@ export interface FoodSummary {
   proteinPer100g: number
   carbsPer100g: number
   fatPer100g: number
+  /** Khẩu phần mặc định (BE luôn trả; không có thì "100 g"); defaultServingId null khi món chưa có khẩu phần. */
+  defaultServingId: string | null
+  defaultServingName: string
+  defaultServingGrams: number
+  /** Lần log gần nhất của người dùng hiện tại; null nếu chưa từng log món này. */
+  lastLoggedAt: string | null
 }
 
 export interface FoodDetail {

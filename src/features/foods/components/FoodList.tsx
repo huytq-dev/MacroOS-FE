@@ -15,6 +15,7 @@ interface FoodListProps {
   readonly onClearFilters: () => void
   readonly emptyAction?: React.ReactNode
   readonly onSelect: (food: FoodSummary) => void
+  readonly onQuickAdd?: (food: FoodSummary) => void
   readonly onLoadMore: () => void
 }
 
@@ -27,6 +28,7 @@ export function FoodList({
   onClearFilters,
   emptyAction,
   onSelect,
+  onQuickAdd,
   onLoadMore,
 }: FoodListProps) {
   if (isLoading)
@@ -67,7 +69,7 @@ export function FoodList({
       </p>
       <div className="divide-border divide-y">
         {items.map((food) => (
-          <FoodRow key={food.id} food={food} onSelect={onSelect} />
+          <FoodRow key={food.id} food={food} onSelect={onSelect} onQuickAdd={onQuickAdd} />
         ))}
       </div>
       {hasMore && (

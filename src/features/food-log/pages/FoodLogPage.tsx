@@ -248,6 +248,8 @@ export function FoodLogPage() {
         meal={meal}
         onMealChange={setMeal}
         plate={plate}
+        totals={day.data?.totals}
+        target={day.data?.target}
         isLogging={isLoggingPlate}
         error={addEntry.error ? getFormErrorMessage(addEntry.error) : null}
         onRemoveFromPlate={(key) =>
