@@ -14,12 +14,20 @@ import { logger } from '@/lib/api'
 export const foodLogKeys = {
   all: ['food-log'] as const,
   day: (date: string) => ['food-log', 'day', date] as const,
+  week: (date: string) => ['food-log', 'week', date] as const,
 }
 
 export const useDayLog = (date: string | null) =>
   useQuery({
     queryKey: foodLogKeys.day(date ?? ''),
     queryFn: () => foodLogService.getDay(date ?? ''),
+    enabled: Boolean(date),
+  })
+
+export const useWeekLog = (date: string | null) =>
+  useQuery({
+    queryKey: foodLogKeys.week(date ?? ''),
+    queryFn: () => foodLogService.getWeek(date ?? ''),
     enabled: Boolean(date),
   })
 

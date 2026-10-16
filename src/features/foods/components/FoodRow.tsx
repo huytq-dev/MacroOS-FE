@@ -23,20 +23,19 @@ export function FoodRow({ food, onSelect, onQuickAdd, trailing }: FoodRowProps) 
       >
         <FoodIcon name={food.name} category={food.category} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-medium md:text-sm">{food.name}</span>
+          <span className="line-clamp-2 text-base leading-snug font-medium md:text-sm">
+            {food.name}
+          </span>
           <span className="block text-sm tabular-nums md:text-xs">
             <span className="text-mf-calories font-semibold">
               {scaleNutrition(food.caloriesPer100g, grams)} kcal
             </span>
             <span className="text-muted-foreground">
-              {' · '}P {scaleNutrition(food.proteinPer100g, grams)} · F{' '}
-              {scaleNutrition(food.fatPer100g, grams)} · C{' '}
-              {scaleNutrition(food.carbsPer100g, grams)}
+              {'  '}
+              {scaleNutrition(food.proteinPer100g, grams)}P {scaleNutrition(food.fatPer100g, grams)}
+              F {scaleNutrition(food.carbsPer100g, grams)}C • {food.defaultServingName} (
+              {Math.round(grams)} g)
             </span>
-          </span>
-          <span className="text-muted-foreground block truncate text-sm md:text-xs">
-            {food.brand ? `${food.brand} · ` : ''}
-            {food.defaultServingName} ({Math.round(grams)} g)
           </span>
         </span>
         {food.isMine && (

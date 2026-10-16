@@ -28,6 +28,17 @@ export interface FoodLogEntry {
   fiber: number | null
 }
 
+// Khớp BE Contract/Models/FoodLogs/FoodLogModels.cs (WeekLogResponse)
+export interface WeekDay {
+  logDate: string
+  totals: MacroTotals
+  target: ProgramWeek | null
+}
+
+export interface WeekLog {
+  days: WeekDay[]
+}
+
 export interface DayLog {
   logDate: string
   notes: string | null

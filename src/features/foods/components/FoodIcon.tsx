@@ -76,9 +76,7 @@ const CATEGORY_EMOJI: Record<FoodCategory, string> = {
 
 const emojiFor = (name: string, category: FoodCategory): string => {
   const text = ` ${normalizeSearchText(name)} `
-  const found = NAME_EMOJI.find(
-    ([keyword]) => text.includes(` ${keyword} `) || text.includes(` ${keyword}`)
-  )
+  const found = NAME_EMOJI.find(([keyword]) => text.includes(` ${keyword} `))
   return found?.[1] ?? CATEGORY_EMOJI[category] ?? CATEGORY_EMOJI.Other
 }
 

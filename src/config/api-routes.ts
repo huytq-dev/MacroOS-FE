@@ -21,17 +21,26 @@ export const apiRoutes = {
     style: '/programs/current/style', // PUT
     expenditure: '/programs/current/expenditure', // PUT
   },
+  foodFavorites: {
+    root: '/food-favorites', // GET, POST
+    byId: (id: string) => `/food-favorites/${id}`, // DELETE
+    order: '/food-favorites/order', // PUT { ids }
+  },
   foods: {
     root: '/foods', // GET ?search&category&scope&top&skip, POST
     byId: (id: string) => `/foods/${id}`, // GET, PUT, DELETE
   },
   foodLogs: {
     root: '/food-logs', // GET ?date
+    week: '/food-logs/week', // GET ?date (Thứ 2 → Chủ nhật của tuần chứa date)
     byDate: (date: string) => `/food-logs/${date}`, // DELETE (xoá cả ngày)
     entries: '/food-logs/entries', // POST
     entry: (id: string) => `/food-logs/entries/${id}`, // PUT, DELETE
     quickAdd: '/food-logs/quick-add', // POST
     copy: '/food-logs/copy', // POST
+  },
+  expenditure: {
+    root: '/expenditure', // GET ?from&to
   },
   weights: {
     root: '/weights', // GET ?from&to, POST

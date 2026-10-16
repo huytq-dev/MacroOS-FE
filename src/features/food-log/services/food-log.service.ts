@@ -4,12 +4,14 @@ import type {
   AddEntryRequest,
   CopyRequest,
   DayLog,
+  WeekLog,
   QuickAddRequest,
   UpdateEntryRequest,
 } from '../types/food-log.types'
 
 export const foodLogService = {
   getDay: (date: string) => apiCall.get<DayLog>(apiRoutes.foodLogs.root, { params: { date } }),
+  getWeek: (date: string) => apiCall.get<WeekLog>(apiRoutes.foodLogs.week, { params: { date } }),
   addEntry: (payload: AddEntryRequest) => apiCall.post<string>(apiRoutes.foodLogs.entries, payload),
   updateEntry: (id: string, payload: UpdateEntryRequest) =>
     apiCall.put(apiRoutes.foodLogs.entry(id), payload),

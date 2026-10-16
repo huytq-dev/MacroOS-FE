@@ -48,14 +48,17 @@ export function WeightPage() {
   const form = useForm<LogWeightFormValues>({
     resolver: zodResolver(logWeightSchema),
     mode: 'onTouched',
-    defaultValues: { logDate: '', weightKg: Number.NaN, notes: '' },
+    defaultValues: { logDate: '', weightKg: Number.NaN },
   })
 
-  const openDialog = () => {
+  // Sửa một lần cân đã ghi: giữ ngày (BE upsert theo ngày), chỉ đổi số cân.
+  const [editingDate, setEditingDate] = useState<string | null>(null)
+
+  const openDialog = (entry?: WeightEntry) => {
+    setEditingDate(entry?.logDate ?? null)
     form.reset({
-      logDate: todayIso(),
-      weightKg: weights.data?.latestWeightKg ?? Number.NaN,
-      notes: '',
+      logDate: entry?.logDate ?? todayIso(),
+      weightKg: entry?.weightKg ?? weights.data?.latestWeightKg ?? Number.NaN,
     })
     upsert.reset()
     setDialogOpen(true)
@@ -63,7 +66,7 @@ export function WeightPage() {
 
   const onSubmit = (values: LogWeightFormValues) =>
     upsert.mutate(
-      { logDate: values.logDate, weightKg: values.weightKg, notes: values.notes?.trim() || null },
+      { logDate: values.logDate, weightKg: values.weightKg, notes: null },
       { onSuccess: () => setDialogOpen(false) }
     )
 
@@ -72,7 +75,7 @@ export function WeightPage() {
 
   const isLoading = !today || weights.isLoading
   const addButton = (
-    <Button size="sm" onClick={openDialog}>
+    <Button size="sm" onClick={() => openDialog()}>
       <Plus aria-hidden="true" /> Ghi cân
     </Button>
   )
@@ -122,6 +125,7 @@ export function WeightPage() {
       ) : (
         <WeightTable
           items={weights.data?.items ?? []}
+          onEdit={openDialog}
           onRequestDelete={setDeleteTarget}
           emptyAction={addButton}
         />
@@ -131,6 +135,7 @@ export function WeightPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         form={form}
+        isEditing={editingDate !== null}
         isPending={upsert.isPending}
         error={upsert.error ? getFormErrorMessage(upsert.error) : null}
         onSubmit={onSubmit}

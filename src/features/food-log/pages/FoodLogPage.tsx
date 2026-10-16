@@ -19,6 +19,7 @@ import {
   DayTotals,
   EntryEditDialog,
   FoodSearchPanel,
+  type FoodView,
   MealSection,
   QuickAddPanel,
   type AddTab,
@@ -31,6 +32,12 @@ import type {
   UpdateEntryRequest,
 } from '../types/food-log.types'
 import { useFoodDetail, useFoodSearch } from '@/features/foods/hooks/use-foods'
+import {
+  useAddFavorite,
+  useFavorites,
+  useRemoveFavorite,
+  useReorderFavorites,
+} from '@/features/foods/hooks/use-favorites'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -41,7 +48,7 @@ import { IconButton } from '@/components/shared/IconButton'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MEAL_TYPE, type MealType } from '@/config/enums'
+import { MEAL_TYPE, type FoodCategory, type MealType } from '@/config/enums'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useIsClient } from '@/hooks/use-is-client'
 import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
@@ -73,6 +80,8 @@ export function FoodLogPage() {
   const [tab, setTab] = useState<AddTab>('search')
   const [meal, setMeal] = useState<MealType>(mealForNow)
   const [search, setSearch] = useState('')
+  const [view, setView] = useState<FoodView>('all')
+  const [category, setCategory] = useState<FoodCategory | null>(null)
   const [top, setTop] = useState(SEARCH_PAGE)
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [plate, setPlate] = useState<PlateItem[]>([])
@@ -86,9 +95,19 @@ export function FoodLogPage() {
   const debouncedSearch = useDebounce(search.trim(), 300)
   // Lazy: chỉ tìm khi sheet mở ở tab tìm món
   const foods = useFoodSearch(
-    { search: debouncedSearch || undefined, scope: 'All', top },
-    addOpen && tab === 'search'
+    {
+      search: debouncedSearch || undefined,
+      category: category ?? undefined,
+      scope: view === 'mine' ? 'Mine' : 'All',
+      top,
+    },
+    addOpen && tab === 'search' && view !== 'favorites'
   )
+  // Lazy: yêu thích chỉ tải khi sheet Thêm món mở ở tab tìm món.
+  const favorites = useFavorites(addOpen && tab === 'search')
+  const addFavorite = useAddFavorite()
+  const removeFavorite = useRemoveFavorite()
+  const reorderFavorites = useReorderFavorites()
   const picked = useFoodDetail(pickedId)
   const editingFood = useFoodDetail(editing?.foodItemId ?? null)
 
@@ -247,6 +266,11 @@ export function FoodLogPage() {
         onTabChange={setTab}
         meal={meal}
         onMealChange={setMeal}
+        search={search}
+        onSearchChange={(value) => {
+          setSearch(value)
+          setTop(SEARCH_PAGE)
+        }}
         plate={plate}
         totals={day.data?.totals}
         target={day.data?.target}
@@ -259,6 +283,16 @@ export function FoodLogPage() {
       >
         {tab === 'search' ? (
           <FoodSearchPanel
+            view={view}
+            onViewChange={(next) => {
+              setView(next)
+              setTop(SEARCH_PAGE)
+            }}
+            category={category}
+            onCategoryChange={(next) => {
+              setCategory(next)
+              setTop(SEARCH_PAGE)
+            }}
             search={search}
             onSearchChange={(value) => {
               setSearch(value)
@@ -273,6 +307,13 @@ export function FoodLogPage() {
             picked={picked.data ?? undefined}
             onPick={(food) => setPickedId(food.id)}
             onBack={() => setPickedId(null)}
+            favorites={favorites.data ?? []}
+            isFavoritePending={addFavorite.isPending || removeFavorite.isPending}
+            onAddFavorite={(foodItemId, foodServingId, quantity) =>
+              addFavorite.mutate({ foodItemId, foodServingId, quantity })
+            }
+            onRemoveFavorite={(id) => removeFavorite.mutate(id)}
+            onReorderFavorites={(ids) => reorderFavorites.mutate(ids)}
             onAddToPlate={(item) => {
               setPlate((current) => [...current, item])
               setPickedId(null)

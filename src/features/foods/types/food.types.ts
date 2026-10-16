@@ -77,6 +77,10 @@ export interface CustomFoodRequest {
   servings: FoodServingInput[] | null
 }
 
+/** Nhãn lượng ăn: tên khẩu phần đã có số ("1 lát") nên 1 khẩu phần chỉ hiện tên, nhiều hơn thì "2 × 1 lát". */
+export const servingAmountLabel = (quantity: number, servingName: string): string =>
+  quantity === 1 ? servingName : `${quantity} × ${servingName}`
+
 /** Dinh dưỡng của một lượng gram (hiển thị trước khi log). */
 export const scaleNutrition = (per100g: number, grams: number): number =>
   Math.round((per100g * grams) / 100)

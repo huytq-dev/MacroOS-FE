@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react'
 import { ListRow, ListSection } from '@/components/shared/ListGroup'
 import { MEAL_TYPE, type MealType } from '@/config/enums'
+import { servingAmountLabel } from '@/features/foods/types/food.types'
 import type { FoodLogEntry } from '../../types/food-log.types'
 
 interface MealSectionProps {
@@ -12,7 +13,7 @@ interface MealSectionProps {
 }
 
 const quantityLabel = (entry: FoodLogEntry) =>
-  entry.servingName ? `${entry.quantity} × ${entry.servingName}` : `${entry.quantity} g`
+  entry.servingName ? servingAmountLabel(entry.quantity, entry.servingName) : `${entry.quantity} g`
 
 /** Một bữa: nhãn + tổng kcal phía trên, danh sách món (chạm để sửa), dòng "Thêm món" cuối nhóm. */
 export function MealSection({ meal, entries, onSelectEntry, onAddToMeal }: MealSectionProps) {

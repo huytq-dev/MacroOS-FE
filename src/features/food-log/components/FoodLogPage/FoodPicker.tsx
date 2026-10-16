@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Heart } from 'lucide-react'
 import { FormField } from '@/components/shared/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,20 +12,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { scaleNutrition, type FoodDetail } from '@/features/foods/types/food.types'
+import type { FavoriteFood } from '@/features/foods/types/favorite.types'
+import {
+  scaleNutrition,
+  servingAmountLabel,
+  type FoodDetail,
+} from '@/features/foods/types/food.types'
+import { cn } from '@/lib/utils'
 import type { PlateItem } from '../../types/food-log.types'
 
 interface FoodPickerProps {
   readonly food: FoodDetail
   readonly onBack: () => void
   readonly onAdd: (item: PlateItem) => void
+  /** Preset yêu thích đã lưu của riêng món này. */
+  readonly favorites: readonly FavoriteFood[]
+  readonly isFavoritePending: boolean
+  readonly onAddFavorite: (servingId: string | null, quantity: number) => void
+  readonly onRemoveFavorite: (id: string) => void
 }
+
+// Khoá dòng plate phải khác nhau mỗi lần thêm (cùng món thêm nhiều lần); gọi trong sự kiện bấm.
+const newPlateKey = (foodId: string) => `${foodId}-${Date.now()}`
 
 // Radix Select không nhận value rỗng → dùng sentinel cho "Gram"
 const GRAM = 'gram'
 
 /** Chọn khẩu phần + số lượng, xem trước kcal/macro rồi thêm vào plate. Mount lại theo food.id (key ở cha). */
-export function FoodPicker({ food, onBack, onAdd }: FoodPickerProps) {
+export function FoodPicker({
+  food,
+  onBack,
+  onAdd,
+  favorites,
+  isFavoritePending,
+  onAddFavorite,
+  onRemoveFavorite,
+}: FoodPickerProps) {
   const defaultServing = food.servings.find((serving) => serving.isDefault) ?? food.servings[0]
   const [servingId, setServingId] = useState(defaultServing?.id ?? GRAM)
   const [quantity, setQuantity] = useState(defaultServing ? '1' : '100')
@@ -41,13 +63,27 @@ export function FoodPicker({ food, onBack, onAdd }: FoodPickerProps) {
     fat: scaleNutrition(food.nutrition.fatPer100g, grams),
   }
 
+  // Yêu thích gắn với đúng (khẩu phần, số lượng) đang chọn: cùng món lưu được nhiều preset.
+  const favorite = valid
+    ? favorites.find(
+        (item) => item.foodServingId === (serving?.id ?? null) && item.quantity === quantityNumber
+      )
+    : undefined
+  const toggleFavorite = () => {
+    if (isFavoritePending || !valid) return
+    if (favorite) onRemoveFavorite(favorite.id)
+    else onAddFavorite(serving?.id ?? null, quantityNumber)
+  }
+
   const add = () =>
     onAdd({
-      key: `${food.id}-${Date.now()}`,
+      key: newPlateKey(food.id),
       foodItemId: food.id,
       name: food.name,
       foodServingId: serving?.id ?? null,
-      servingLabel: serving ? `${quantityNumber} × ${serving.servingName}` : `${quantityNumber} g`,
+      servingLabel: serving
+        ? servingAmountLabel(quantityNumber, serving.servingName)
+        : `${quantityNumber} g`,
       quantity: quantityNumber,
       ...preview,
     })
@@ -64,9 +100,27 @@ export function FoodPicker({ food, onBack, onAdd }: FoodPickerProps) {
       <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
         <ArrowLeft aria-hidden="true" /> Kết quả
       </Button>
-      <div>
-        <h2 className="text-base font-semibold">{food.name}</h2>
-        {food.brand && <p className="text-muted-foreground text-sm">{food.brand}</p>}
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg leading-snug font-semibold md:text-base">{food.name}</h2>
+          {food.brand && <p className="text-muted-foreground text-sm">{food.brand}</p>}
+        </div>
+        <button
+          type="button"
+          aria-pressed={Boolean(favorite)}
+          aria-label={favorite ? 'Bỏ khỏi yêu thích' : 'Lưu vào yêu thích với khẩu phần này'}
+          disabled={!valid || isFavoritePending}
+          onClick={toggleFavorite}
+          className="bg-secondary active:bg-muted focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:opacity-50"
+        >
+          <Heart
+            aria-hidden="true"
+            className={cn(
+              'size-5 transition-colors',
+              favorite && 'fill-mf-calories text-mf-calories'
+            )}
+          />
+        </button>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Khẩu phần">

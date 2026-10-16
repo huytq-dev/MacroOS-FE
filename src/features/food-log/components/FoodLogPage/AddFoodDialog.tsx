@@ -23,6 +23,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MEAL_TYPE, enumOptions, type MealType } from '@/config/enums'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import type { MacroTotals, PlateItem } from '../../types/food-log.types'
+import { SearchInput } from '@/components/shared/SearchInput'
+import { useKeyboardInset } from '@/hooks/use-keyboard-inset'
 import { AddFoodProgress } from './AddFoodProgress'
 
 export type AddTab = 'search' | 'quick'
@@ -34,6 +36,8 @@ interface AddFoodDialogProps {
   readonly onTabChange: (tab: AddTab) => void
   readonly meal: MealType
   readonly onMealChange: (meal: MealType) => void
+  readonly search: string
+  readonly onSearchChange: (value: string) => void
   readonly plate: PlateItem[]
   readonly totals?: MacroTotals
   readonly target?: ProgramWeek | null
@@ -52,6 +56,8 @@ export function AddFoodDialog({
   onTabChange,
   meal,
   onMealChange,
+  search,
+  onSearchChange,
   plate,
   totals,
   target,
@@ -61,6 +67,7 @@ export function AddFoodDialog({
   onLogPlate,
   children,
 }: AddFoodDialogProps) {
+  const keyboardInset = useKeyboardInset(open)
   const plateKcal = plate.reduce((sum, item) => sum + item.calories, 0)
   const plateTotals: MacroTotals = {
     calories: plateKcal,
@@ -71,7 +78,10 @@ export function AddFoodDialog({
   }
   return (
     <Dialog open={open} onOpenChange={(next) => !isLogging && onOpenChange(next)}>
-      <DialogContent className="flex h-[92dvh] flex-col gap-0 p-0 sm:h-[80dvh] sm:max-w-lg sm:p-0">
+      <DialogContent
+        className="flex h-[92dvh] flex-col gap-0 p-0 sm:h-[80dvh] sm:max-w-lg sm:p-0"
+        style={keyboardInset > 0 ? { bottom: keyboardInset } : undefined}
+      >
         <DialogHeader className="relative z-20 space-y-0">
           <DialogTitle className="sr-only">Thêm món</DialogTitle>
           <DialogDescription className="sr-only">
@@ -121,9 +131,9 @@ export function AddFoodDialog({
 
         <ScrollArea className="min-h-0 flex-1">{children}</ScrollArea>
 
-        {plate.length > 0 && (
-          <div className="bg-card space-y-2 rounded-t-2xl p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-1px_0_var(--border)]">
-            <ul className="max-h-28 space-y-1 overflow-y-auto text-sm">
+        <div className="bg-card space-y-2 rounded-t-2xl px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-1px_0_var(--border)]">
+          {plate.length > 0 && (
+            <ul className="max-h-24 space-y-1 overflow-y-auto text-sm">
               {plate.map((item) => (
                 <li key={item.key} className="flex items-center gap-2">
                   <span className="min-w-0 flex-1 truncate">
@@ -142,22 +152,37 @@ export function AddFoodDialog({
                 </li>
               ))}
             </ul>
-            <Button
-              className="w-full"
-              size="lg"
-              disabled={isLogging}
-              aria-busy={isLogging}
-              onClick={() => {
-                if (!isLogging) onLogPlate()
-              }}
-            >
-              {isLogging && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-              {isLogging
-                ? 'Đang log...'
-                : `Log ${plate.length} món · ${Math.round(plateKcal)} kcal`}
-            </Button>
+          )}
+          <div className="flex items-center gap-3">
+            {tab === 'search' && (
+              <div className="min-w-0 flex-1">
+                <SearchInput
+                  value={search}
+                  onValueChange={onSearchChange}
+                  placeholder="Tìm thực phẩm"
+                  aria-label="Tìm thực phẩm"
+                />
+              </div>
+            )}
+            {plate.length > 0 && (
+              <Button
+                className={
+                  tab === 'search'
+                    ? 'h-12 shrink-0 rounded-full px-5 text-base'
+                    : 'h-12 w-full rounded-full text-base'
+                }
+                disabled={isLogging}
+                aria-busy={isLogging}
+                onClick={() => {
+                  if (!isLogging) onLogPlate()
+                }}
+              >
+                {isLogging && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+                {isLogging ? 'Đang log...' : `Log ${plate.length} món`}
+              </Button>
+            )}
           </div>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   )
