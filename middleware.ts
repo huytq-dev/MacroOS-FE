@@ -2,7 +2,15 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { routePath } from '@/config/route-path'
 
-const AUTH_PATHS = [routePath.login, routePath.register, routePath.forgotPassword, routePath.resetPassword]
+// Mở cho cả người chưa và đã đăng nhập: link xác thực email bấm từ hộp thư (tài khoản chưa xác thực thì chưa đăng nhập được)
+const PUBLIC_PATHS = [routePath.confirmEmail]
+
+const AUTH_PATHS = [
+  routePath.login,
+  routePath.register,
+  routePath.forgotPassword,
+  routePath.resetPassword,
+]
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -12,9 +20,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return NextResponse.next()
+
   // Đã login mà vào trang auth → về dashboard
   if (AUTH_PATHS.some((p) => pathname.startsWith(p))) {
-    return token ? NextResponse.redirect(new URL(routePath.dashboard, request.url)) : NextResponse.next()
+    return token
+      ? NextResponse.redirect(new URL(routePath.dashboard, request.url))
+      : NextResponse.next()
   }
 
   // Protected: chưa login → /login?redirect=

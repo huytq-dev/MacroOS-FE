@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, MailCheck } from 'lucide-react'
@@ -84,10 +85,15 @@ export function RegisterPage() {
         >
           <MailCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
           <p>
-            Đã gửi link xác thực tới <strong className="break-all">{registeredEmail}</strong>. Sau
-            khi đăng nhập, dán token trong email vào trang xác thực.
+            Đã gửi email xác thực tới <strong className="break-all">{registeredEmail}</strong>. Mở
+            email và bấm link để kích hoạt tài khoản, rồi quay lại đăng nhập.
           </p>
         </div>
+        <Button asChild variant="outline" className="h-12 w-full text-base md:h-10 md:text-sm">
+          <Link href={`${routePath.confirmEmail}?email=${encodeURIComponent(registeredEmail)}`}>
+            Link không mở được? Nhập mã hoặc gửi lại
+          </Link>
+        </Button>
       </AuthShell>
     )
 

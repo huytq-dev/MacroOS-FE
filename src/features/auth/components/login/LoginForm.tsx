@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { isAxiosError } from 'axios'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, Lock, Mail } from 'lucide-react'
@@ -24,10 +25,13 @@ export function LoginForm() {
   const [formError, setFormError] = useState<string | null>(null)
   // Sau khi đăng nhập thành công, giữ nút ở trạng thái chờ cho tới khi trang đổi (tránh nháy nút bấm lại được)
   const [isRedirecting, setIsRedirecting] = useState(false)
+  // BE chặn đăng nhập khi chưa xác thực email (lỗi 400 không theo ô) → gợi ý gửi lại email
+  const [needsVerification, setNeedsVerification] = useState(false)
 
   const {
     register,
     handleSubmit,
+    getValues,
     setError,
     setFocus,
     formState: { errors, isSubmitting },
@@ -42,23 +46,33 @@ export function LoginForm() {
   const onSubmit = async (values: LoginFormValues) => {
     if (isPending) return
     setFormError(null)
+    setNeedsVerification(false)
     try {
       await login(values)
       setIsRedirecting(true)
       router.replace(searchParams.get('redirect') ?? routePath.dashboard)
     } catch (error) {
       logger.error(error)
-      setFormError(
-        applyServerFieldErrors(error, { setError, setFocus }, ['email', 'password'])
-          ? null
-          : getFormErrorMessage(error)
-      )
+      const hasFieldErrors = applyServerFieldErrors(error, { setError, setFocus }, [
+        'email',
+        'password',
+      ])
+      setFormError(hasFieldErrors ? null : getFormErrorMessage(error))
+      setNeedsVerification(isAxiosError(error) && error.response?.status === 400 && !hasFieldErrors)
     }
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
       <FormErrorAlert title="Không đăng nhập được" message={formError} />
+      {needsVerification && (
+        <Link
+          href={`${routePath.confirmEmail}?email=${encodeURIComponent(getValues('email').trim())}`}
+          className="text-foreground block text-sm font-medium underline underline-offset-4"
+        >
+          Gửi lại email xác thực
+        </Link>
+      )}
 
       <FormField label="Email" required error={errors.email?.message}>
         {(control) => (

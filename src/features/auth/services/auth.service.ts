@@ -39,4 +39,5 @@ export const authService = {
   resetPassword: (payload: ResetPasswordRequest) =>
     apiCall.post(apiRoutes.auth.resetPassword, payload),
   confirmEmail: (token: string) => apiCall.post(apiRoutes.auth.confirmEmail, { token }),
+  resendVerification: (email: string) => apiCall.post(apiRoutes.auth.resendVerification, { email }),
 }

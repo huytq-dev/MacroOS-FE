@@ -8,7 +8,8 @@ export const apiRoutes = {
     changePassword: '/auth/change-password', // POST
     forgotPassword: '/auth/forgot-password', // POST
     resetPassword: '/auth/reset-password', // POST
-    confirmEmail: '/auth/confirm-email', // POST (cần đăng nhập)
+    confirmEmail: '/auth/confirm-email', // POST (công khai: token trong link email là bằng chứng)
+    resendVerification: '/auth/resend-verification', // POST (công khai, 1 email/60 giây)
   },
   users: {
     me: '/users/me', // GET, PUT
