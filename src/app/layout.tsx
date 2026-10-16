@@ -5,7 +5,7 @@ import { Providers } from '@/lib/providers'
 import './index.css'
 
 // DM Sans = font thương hiệu MacroFactor (macrofactor.com/brand)
-const geistSans = DM_Sans({ variable: '--font-geist-sans', subsets: ['latin', 'latin-ext'] })
+const geistSans = DM_Sans({ variable: '--font-geist-sans', subsets: ['latin', 'latin-ext'], weight: ['400', '500', '600', '700'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {

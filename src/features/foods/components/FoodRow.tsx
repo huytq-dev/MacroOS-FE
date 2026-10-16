@@ -23,7 +23,7 @@ export function FoodRow({ food, onSelect, trailing }: FoodRowProps) {
           {Math.round(food.fatPer100g)} /100 g
         </span>
       </span>
-      {food.isMine && <span className="bg-accent text-accent-foreground shrink-0 rounded px-1.5 py-0.5 text-[11px]">Của tôi</span>}
+      {food.isMine && <span className="bg-mf-pastel-green text-mf-pastel-green-text shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium">Của tôi</span>}
       {trailing ?? <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />}
     </button>
   )

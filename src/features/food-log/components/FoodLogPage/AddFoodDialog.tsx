@@ -65,7 +65,7 @@ export function AddFoodDialog({
                 aria-pressed={tab === item.value}
                 onClick={() => onTabChange(item.value)}
                 className={cn(
-                  'h-9 flex-1 rounded-md text-sm font-medium transition-colors',
+                  'h-9 flex-1 rounded-full text-sm font-medium transition-colors',
                   tab === item.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground bg-muted'
                 )}
               >

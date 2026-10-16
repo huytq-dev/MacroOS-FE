@@ -74,7 +74,7 @@ export function WeightPage() {
               onClick={() => setRangeDays(range.days)}
               aria-pressed={rangeDays === range.days}
               className={cn(
-                'h-7 shrink-0 rounded-md px-2.5 text-xs font-medium transition-colors',
+                'h-8 shrink-0 rounded-full px-3 text-xs font-medium transition-colors',
                 rangeDays === range.days ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-muted'
               )}
             >

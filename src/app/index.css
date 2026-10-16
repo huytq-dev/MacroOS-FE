@@ -34,6 +34,14 @@
   --color-mf-carbs: var(--mf-carbs);
   --color-mf-fat: var(--mf-fat);
   --color-mf-trend: var(--mf-trend);
+  --color-mf-pastel-green: var(--mf-pastel-green);
+  --color-mf-pastel-green-text: var(--mf-pastel-green-text);
+  --color-mf-pastel-yellow: var(--mf-pastel-yellow);
+  --color-mf-pastel-yellow-text: var(--mf-pastel-yellow-text);
+  --color-mf-pastel-red: var(--mf-pastel-red);
+  --color-mf-pastel-red-text: var(--mf-pastel-red-text);
+  --color-mf-pastel-purple: var(--mf-pastel-purple);
+  --color-mf-pastel-purple-text: var(--mf-pastel-purple-text);
   --color-mf-warning-bg: var(--mf-warning-bg);
   --color-mf-warning-border: var(--mf-warning-border);
   --color-mf-warning-text: var(--mf-warning-text);
