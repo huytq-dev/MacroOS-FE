@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/features/auth/hooks/use-auth'
-import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { applyServerFieldErrors, getFormErrorMessage } from '@/features/auth/auth.utils'
 import { loginSchema, type LoginFormValues } from '@/features/auth/schemas/login.schema'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { FormField } from '@/components/shared/FormField'
@@ -22,10 +22,14 @@ export function LoginForm() {
   const searchParams = useSearchParams()
   const { login } = useAuth()
   const [formError, setFormError] = useState<string | null>(null)
+  // Sau khi đăng nhập thành công, giữ nút ở trạng thái chờ cho tới khi trang đổi (tránh nháy nút bấm lại được)
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   const {
     register,
     handleSubmit,
+    setError,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -33,15 +37,22 @@ export function LoginForm() {
     defaultValues: { email: '', password: '' },
   })
 
+  const isPending = isSubmitting || isRedirecting
+
   const onSubmit = async (values: LoginFormValues) => {
-    if (isSubmitting) return
+    if (isPending) return
     setFormError(null)
     try {
       await login(values)
+      setIsRedirecting(true)
       router.replace(searchParams.get('redirect') ?? routePath.dashboard)
     } catch (error) {
       logger.error(error)
-      setFormError(getFormErrorMessage(error))
+      setFormError(
+        applyServerFieldErrors(error, { setError, setFocus }, ['email', 'password'])
+          ? null
+          : getFormErrorMessage(error)
+      )
     }
   }
 
@@ -85,9 +96,9 @@ export function LoginForm() {
         </div>
       </div>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting} aria-busy={isSubmitting}>
-        {isSubmitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-        {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
+      <Button type="submit" className="w-full" disabled={isPending} aria-busy={isPending}>
+        {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+        {isPending ? 'Đang đăng nhập...' : 'Đăng nhập'}
       </Button>
     </form>
   )

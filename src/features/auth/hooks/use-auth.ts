@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger'
 import { routePath } from '@/config/route-path'
 
 export const useAuth = () => {
-  const { user, isAuthenticated, isLoading, setUser, clearAuth, setLoading } = useAuthStore()
+  const { user, isAuthenticated, isLoading, setUser, clearAuth } = useAuthStore()
   const router = useRouter()
 
   // Khôi phục user từ token còn hạn (store persist có thể bị xoá nhưng token vẫn còn)
@@ -23,31 +23,25 @@ export const useAuth = () => {
     }
   }, [isAuthenticated, user, setUser])
 
+  // Không bật cờ loading toàn cục ở đây: `isLoading` của store chỉ là "đang khôi phục phiên" (UI.md mục 23).
+  // Trạng thái chờ của form do chính form giữ (isSubmitting) để không gỡ form và mất dữ liệu đã nhập.
   const login = useCallback(
     async (credentials: LoginRequest) => {
-      try {
-        setLoading(true)
-        const response = await authService.login(credentials)
-        if (!response?.accessToken) throw new Error('Không nhận được Access Token từ server.')
+      const response = await authService.login(credentials)
+      if (!response?.accessToken) throw new Error('Không nhận được Access Token từ server.')
 
-        const decoded = decodeUserFromToken(response.accessToken)
-        if (!decoded) throw new Error('Token không hợp lệ.')
+      const decoded = decodeUserFromToken(response.accessToken)
+      if (!decoded) throw new Error('Token không hợp lệ.')
 
-        setUser(decoded, response.accessToken)
-        toast.success(`Chào mừng, ${decoded.name}!`)
-        return response
-      } catch (error) {
-        throw error
-      } finally {
-        setLoading(false)
-      }
+      setUser(decoded, response.accessToken)
+      toast.success(`Chào mừng, ${decoded.name}!`)
+      return response
     },
-    [setUser, setLoading]
+    [setUser]
   )
 
   const logout = useCallback(async () => {
     try {
-      setLoading(true)
       await authService.logout()
     } catch (error) {
       logger.error('Logout API error:', error)
@@ -55,9 +49,8 @@ export const useAuth = () => {
       clearAuth()
       toast.info('Đã đăng xuất')
       router.push(routePath.login)
-      setLoading(false)
     }
-  }, [clearAuth, router, setLoading])
+  }, [clearAuth, router])
 
   return { user, isAuthenticated, isLoading, login, logout }
 }

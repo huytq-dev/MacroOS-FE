@@ -1,5 +1,6 @@
 import { jwtDecode, type JwtPayload } from 'jwt-decode'
-import { getErrorMessage, isSystemError } from '@/lib/api'
+import type { FieldValues, Path, UseFormSetError, UseFormSetFocus } from 'react-hook-form'
+import { getErrorMessage, getFieldErrors, isSystemError } from '@/lib/api'
 import { logger } from '@/lib/logger'
 import type { User } from './types/auth.types'
 
@@ -40,3 +41,19 @@ export const getFormErrorMessage = (error: unknown): string =>
   isSystemError(error)
     ? 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.'
     : getErrorMessage(error)
+
+/**
+ * Lỗi 400 theo ô của BE hiện ngay tại ô (UI.md mục 17) và focus ô đầu tiên.
+ * Trả true nếu có ít nhất một ô nhận lỗi; khi đó không cần khung Alert chung.
+ */
+export const applyServerFieldErrors = <T extends FieldValues>(
+  error: unknown,
+  form: { setError: UseFormSetError<T>; setFocus: UseFormSetFocus<T> },
+  fields: readonly Path<T>[]
+): boolean => {
+  const serverErrors = getFieldErrors(error)
+  const matched = fields.filter((field) => serverErrors[field])
+  matched.forEach((field) => form.setError(field, { type: 'server', message: serverErrors[field] }))
+  if (matched[0]) form.setFocus(matched[0])
+  return matched.length > 0
+}

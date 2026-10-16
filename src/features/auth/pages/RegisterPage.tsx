@@ -6,7 +6,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, MailCheck } from 'lucide-react'
 import { AuthShell } from '@/features/auth/components/AuthShell'
-import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { applyServerFieldErrors, getFormErrorMessage } from '@/features/auth/auth.utils'
 import { authService } from '@/features/auth/services/auth.service'
 import { registerSchema, type RegisterFormValues } from '@/features/auth/schemas/register.schema'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
@@ -32,6 +32,8 @@ export function RegisterPage() {
     register,
     control,
     handleSubmit,
+    setError,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -54,7 +56,18 @@ export function RegisterPage() {
       setRegisteredEmail(values.email)
     } catch (error) {
       logger.error(error)
-      setFormError(getFormErrorMessage(error))
+      setFormError(
+        applyServerFieldErrors(error, { setError, setFocus }, [
+          'email',
+          'password',
+          'confirmPassword',
+          'firstName',
+          'lastName',
+          'gender',
+        ])
+          ? null
+          : getFormErrorMessage(error)
+      )
     }
   }
 

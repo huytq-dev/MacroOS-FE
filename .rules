@@ -122,6 +122,7 @@ app/.../page.tsx          → thin shell, renders <NamePage /> only
 - Always use skeleton loading for route transitions, data fetching, and async content areas. Never render blank screens for loading states.
 - Route segments that can wait on data must include `loading.tsx` with layout-matching skeletons.
 - Components with `isLoading` / `isPending` must render skeleton placeholders sized like the final UI, not generic spinners unless the action is inline and under 1 second.
+- **Submit ≠ page loading.** Gửi form/mutation chỉ làm nút gửi chờ (`isSubmitting`/`isPending`), không bao giờ đổi cả trang hay gỡ form thành skeleton. Cờ loading dùng chung (vd. `isLoading` của `auth.store` = "đang khôi phục phiên") không được bật trong `login`, `logout` hay mutation. Chi tiết: `docs/UI.md` mục 24.
 
 ## Lazy Loading (bắt buộc — mở cái gì gọi cái đó)
 - Vào trang chỉ gọi dữ liệu trang cần để hiển thị NGAY (thường 2–3 request). Dữ liệu của tab, hộp thoại, ngăn kéo, popover, mục form thu gọn chỉ tải KHI người dùng mở nó: `useQuery({ enabled: isOpen })`. Không gọi trước "cho tiện".
@@ -156,6 +157,8 @@ app/.../page.tsx          → thin shell, renders <NamePage /> only
 - Use React Hook Form + Zod. Define Zod schema first, infer TS type from it.
 - No manual validation logic when Zod can express it.
 - Field errors from `form.formState.errors`, not global state.
+- Không gỡ form khỏi cây giao diện khi đang gửi hoặc sau lỗi (mất dữ liệu nhập, lỗi ô và khung lỗi). Giữ nút ở trạng thái chờ tới khi chuyển trang xong.
+- Lỗi BE phải hiện tại form: `message` nguyên văn trong `Alert` (`FormErrorAlert` + `getFormErrorMessage`); lỗi 400 theo ô gắn vào đúng ô bằng `applyServerFieldErrors` rồi focus ô đầu. Không chỉ toast. Quy trình kiểm tra: `docs/UI.md` mục 24.
 
 ## Environment Variables
 - Client-accessible vars must be prefixed `NEXT_PUBLIC_`.

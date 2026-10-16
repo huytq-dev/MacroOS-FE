@@ -301,3 +301,30 @@ Nguyên tắc: **mở cái gì thì gọi cái đó**. Vào trang chỉ tải ph
 - Danh mục dùng chung chia hai nhóm: **lõi** (tải ở hầu hết trang) và **nặng** (mẫu, trường tùy chỉnh — chỉ nơi dùng mới gọi).
 - Lọc theo đối tượng cha gửi tham số lên máy chủ; không kéo toàn bộ rồi lọc ở FE. Danh sách phân trang theo cấu hình chuẩn (10/25/50), không đặt cỡ trang lớn để lấy hết.
 - Kiểm tra trước khi giao: reload trang, mở tab Network, đếm request lúc mở; trang chi tiết thường chỉ còn 2–3 request (chi tiết, danh sách chính, danh mục lõi).
+
+## 24. Trạng thái chờ của form và lỗi từ BE (bắt buộc)
+
+Bấm gửi form mà **cả trang chuyển thành skeleton**, form mất dữ liệu đã nhập, hoặc lỗi BE không thấy đâu là lỗi nặng. Đã từng xảy ra ở trang đăng nhập; mọi form phải theo các điều sau.
+
+**Chờ chỉ ở nút, không ở trang**
+- Trạng thái chờ khi gửi form do **chính form giữ** (`isSubmitting` của React Hook Form, `isPending` của mutation) và chỉ hiện ở nút gửi (mục 12). Không bật cờ loading dùng chung (Zustand, context) khi gửi form.
+- Cờ `isLoading` của `auth.store` chỉ có nghĩa **"đang khôi phục phiên lần đầu"**. Không gọi `setLoading(true)` trong `login`, `logout` hay bất kỳ mutation nào.
+- `Skeleton` cả trang chỉ dành cho tải dữ liệu lần đầu (mục 16). Không dựng điều kiện kiểu `if (isLoading) return <Skeleton />` bao quanh form vì cờ đó có thể bật lúc đang gửi.
+- **Không gỡ form khỏi cây giao diện** khi đang gửi hay sau khi lỗi: gỡ form là mất giá trị đã nhập, lỗi từng ô và khung lỗi (mục 17).
+- Gửi thành công rồi chuyển trang: giữ nút ở trạng thái chờ ("Đang đăng nhập...") cho tới khi trang đổi, không để nút mở khóa lại trong lúc chuyển.
+
+**Lỗi BE phải thấy được ngay tại form**
+- Có `message` từ BE (đã là tiếng Việt) thì hiện **nguyên văn** trong `Alert` đầu form (mục 15): "Email hoặc mật khẩu không đúng." Không thay bằng câu chung chung. Dùng `getFormErrorMessage`.
+- BE trả lỗi theo ô (`errors` của 400): gắn vào **đúng ô** bằng `applyServerFieldErrors` (`features/auth/auth.utils.ts`, dùng `getFieldErrors`) rồi focus ô đầu tiên. Khi đã gắn được vào ô thì không cần `Alert` chung.
+- Lỗi mạng hoặc 5xx: `Alert` nói chuyện gì xảy ra và làm gì tiếp ("Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại."); không lộ mã lỗi.
+- Endpoint `/auth/*` trả 401 là lỗi nghiệp vụ (sai mật khẩu), **không** được chuyển trang hay làm mới token; interceptor đã bỏ qua nhóm này, đừng sửa lại.
+- Có lỗi thì mở khóa nút ngay, giữ nguyên dữ liệu để người dùng sửa và thử lại (mục 12, 17).
+
+**Kiểm tra trước khi giao form** (làm bằng tay ở 440×956)
+1. Bấm gửi khi để trống: mỗi ô có lỗi riêng, focus vào ô lỗi đầu tiên.
+2. Gửi dữ liệu BE từ chối: thấy đúng thông báo của BE, form không nháy, giá trị còn nguyên.
+3. Tắt BE rồi gửi: có thông báo lỗi kết nối ngay trong form.
+4. Nhấn Enter hai lần liên tiếp: chỉ gửi một yêu cầu.
+5. Trong lúc chờ chỉ nút gửi đổi trạng thái; phần còn lại của trang giữ nguyên.
+
+Mockup ASCII đủ các trạng thái của màn đăng nhập: `docs/MOCKUP-AUTH.md`.

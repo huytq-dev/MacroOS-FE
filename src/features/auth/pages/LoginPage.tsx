@@ -20,7 +20,8 @@ function LoginPageInner() {
     }
   }, [isAuthenticated, isLoading, router, searchParams])
 
-  if (isLoading || isAuthenticated) {
+  // Chỉ thay form bằng skeleton khi đang khôi phục phiên; không gỡ form lúc submit (UI.md mục 23)
+  if (isLoading) {
     return (
       <div
         className="bg-background flex min-h-dvh items-start justify-center px-4 pt-10 sm:items-center"

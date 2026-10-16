@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, MailCheck } from 'lucide-react'
 import { AuthShell } from '@/features/auth/components/AuthShell'
-import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { applyServerFieldErrors, getFormErrorMessage } from '@/features/auth/auth.utils'
 import { authService } from '@/features/auth/services/auth.service'
 import {
   forgotPasswordSchema,
@@ -25,6 +25,8 @@ export function ForgotPasswordPage() {
   const {
     register,
     handleSubmit,
+    setError,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<ForgotPasswordFormValues>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -40,7 +42,11 @@ export function ForgotPasswordPage() {
       setSent(true)
     } catch (error) {
       logger.error(error)
-      setFormError(getFormErrorMessage(error))
+      setFormError(
+        applyServerFieldErrors(error, { setError, setFocus }, ['email'])
+          ? null
+          : getFormErrorMessage(error)
+      )
     }
   }
 

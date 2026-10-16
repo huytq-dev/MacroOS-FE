@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { AuthShell } from '@/features/auth/components/AuthShell'
-import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { applyServerFieldErrors, getFormErrorMessage } from '@/features/auth/auth.utils'
 import { authService } from '@/features/auth/services/auth.service'
 import {
   resetPasswordSchema,
@@ -29,6 +29,8 @@ function ResetPasswordInner() {
   const {
     register,
     handleSubmit,
+    setError,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
@@ -45,7 +47,15 @@ function ResetPasswordInner() {
       router.replace(routePath.login)
     } catch (error) {
       logger.error(error)
-      setFormError(getFormErrorMessage(error))
+      setFormError(
+        applyServerFieldErrors(error, { setError, setFocus }, [
+          'token',
+          'newPassword',
+          'confirmPassword',
+        ])
+          ? null
+          : getFormErrorMessage(error)
+      )
     }
   }
 
