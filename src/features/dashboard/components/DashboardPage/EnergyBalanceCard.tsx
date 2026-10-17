@@ -1,9 +1,11 @@
 'use client'
 
-import { ChartColumn, TrendingUp } from 'lucide-react'
+import Link from 'next/link'
+import { ChartColumn, ChevronRight, TrendingUp } from 'lucide-react'
 import { ModeToggle } from './DailyNutritionCard'
 import { energyBalance, isLogged, type BalanceMode } from '../../dashboard.utils'
 import type { DailyProgress } from '../../types/dashboard.types'
+import { routePath } from '@/config/route-path'
 import { cn } from '@/lib/utils'
 
 const W = 300
@@ -55,14 +57,22 @@ export function EnergyBalanceCard({
   const baselineTone = mode === 'targets' ? 'text-mf-tile-fat' : 'text-mf-tile-protein'
 
   return (
-    <div className="flex flex-1 flex-col justify-between gap-5">
-      <h2 className="text-xl font-bold">Energy Balance</h2>
+    <div className="flex flex-1 flex-col justify-between gap-3">
+      <h2 className="text-lg font-bold">
+        <Link
+          href={routePath.dashboardEnergyBalance}
+          className="focus-visible:ring-ring/50 -my-2 flex min-h-11 items-center gap-1 focus-visible:ring-1 focus-visible:outline-none"
+        >
+          Energy Balance
+          <ChevronRight aria-hidden="true" className="text-muted-foreground size-5" />
+        </Link>
+      </h2>
       <div>
         <svg
           viewBox={`0 0 ${W} ${H}`}
           role="img"
           aria-label="Chart of calories consumed versus target over the last 30 days"
-          className="h-40 w-full"
+          className="h-28 w-full"
         >
           {points.map((point, index) =>
             isLogged(point) ? (
@@ -90,32 +100,32 @@ export function EnergyBalanceCard({
           )}
           <line x1="0" x2={W} y1={H - 3} y2={H - 3} className="stroke-border" strokeWidth="1" />
         </svg>
-        <p className="text-muted-foreground pt-2 text-right text-lg">Last 30 Days</p>
+        <p className="text-muted-foreground pt-1 text-right text-sm">Last 30 Days</p>
       </div>
 
       <dl className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-start gap-x-2 text-center">
         <div>
-          <dd className="text-2xl tabular-nums">{show(summary.nutrition)}</dd>
-          <dt className="text-muted-foreground flex items-center justify-center gap-1.5 text-lg">
-            <ChartColumn aria-hidden="true" className="text-mf-tile-calories size-5" /> Nutrition
+          <dd className="text-xl tabular-nums">{show(summary.nutrition)}</dd>
+          <dt className="text-muted-foreground flex items-center justify-center gap-1.5 text-sm">
+            <ChartColumn aria-hidden="true" className="text-mf-tile-calories size-4" /> Nutrition
           </dt>
         </div>
-        <span aria-hidden="true" className="text-2xl">
+        <span aria-hidden="true" className="text-xl">
           −
         </span>
         <div>
-          <dd className="text-2xl tabular-nums">{show(summary.baseline)}</dd>
-          <dt className="text-muted-foreground flex items-center justify-center gap-1.5 text-lg">
-            <TrendingUp aria-hidden="true" className={cn('size-5', baselineTone)} />
+          <dd className="text-xl tabular-nums">{show(summary.baseline)}</dd>
+          <dt className="text-muted-foreground flex items-center justify-center gap-1.5 text-sm">
+            <TrendingUp aria-hidden="true" className={cn('size-4', baselineTone)} />
             {mode === 'targets' ? 'Target' : 'Expenditure'}
           </dt>
         </div>
-        <span aria-hidden="true" className="text-2xl">
+        <span aria-hidden="true" className="text-xl">
           =
         </span>
         <div>
-          <dd className="text-2xl tabular-nums">{show(summary.difference)}</dd>
-          <dt className="text-muted-foreground text-lg">Difference</dt>
+          <dd className="text-xl tabular-nums">{show(summary.difference)}</dd>
+          <dt className="text-muted-foreground text-sm">Difference</dt>
         </div>
       </dl>
 

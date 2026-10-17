@@ -2,6 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
 import { dashboardService } from '../services/dashboard.service'
 
 export const useDailyProgress = (from: string | null, to: string | null) =>
@@ -9,6 +10,28 @@ export const useDailyProgress = (from: string | null, to: string | null) =>
     queryKey: ['expenditure', 'daily', from ?? '', to ?? ''],
     queryFn: () => dashboardService.dailyProgress(from ?? '', to ?? ''),
     enabled: Boolean(from && to),
+  })
+
+/** Biến thiên TDEE 3/7/14/30/90 ngày do BE tính; lỗi (API cũ chưa có) thì trang tự suy từ điểm đã tải. */
+export const useExpenditureChanges = () =>
+  useQuery({
+    queryKey: ['expenditure', 'changes'],
+    queryFn: () => dashboardService.expenditureChanges(),
+    retry: false,
+  })
+
+/** 404 = chưa có goal đang hoạt động (không phải lỗi) → data null. */
+export const useGoalProgress = () =>
+  useQuery({
+    queryKey: ['goals', 'progress'],
+    queryFn: async () => {
+      try {
+        return await dashboardService.goalProgress()
+      } catch (error) {
+        if (error instanceof AxiosError && error.response?.status === 404) return null
+        throw error
+      }
+    },
   })
 
 export const useExpenditureSeries = (from: string | null, to: string | null) =>

@@ -32,7 +32,7 @@ export function ModeToggle<T extends string>({
         <ToggleGroupItem
           key={optionValue}
           value={optionValue}
-          className="data-[state=on]:bg-foreground data-[state=on]:text-background focus-visible:ring-foreground/40 h-10 rounded-full px-5 text-base shadow-none transition-colors focus-visible:ring-1"
+          className="data-[state=on]:bg-foreground data-[state=on]:text-background focus-visible:ring-foreground/40 h-9 rounded-full px-4 text-sm shadow-none transition-colors focus-visible:ring-1"
         >
           {label}
         </ToggleGroupItem>
@@ -74,8 +74,8 @@ function SideStat({ value, label }: { readonly value: number | null; readonly la
   return (
     <div className="relative">
       <div className="absolute inset-x-0 -translate-y-1/2 text-center" style={{ top: CENTER_Y }}>
-        <dd className="text-2xl font-medium tabular-nums">{value ?? '—'}</dd>
-        <dt className="text-muted-foreground text-base">{label}</dt>
+        <dd className="text-xl font-medium tabular-nums">{value ?? '—'}</dd>
+        <dt className="text-muted-foreground text-sm">{label}</dt>
       </div>
     </div>
   )
@@ -97,11 +97,11 @@ export function DailyNutritionCard({
   const side = consumedMode ? remaining : consumed
 
   return (
-    <div className="flex flex-1 flex-col justify-between gap-5">
-      <h2 className="text-xl font-bold">Daily Nutrition</h2>
+    <div className="flex flex-1 flex-col justify-between gap-3">
+      <h2 className="text-lg font-bold">Daily Nutrition</h2>
       <dl className="grid grid-cols-[1fr_minmax(0,45%)_1fr] gap-x-1" aria-live="polite">
         <SideStat value={side} label={consumedMode ? 'Remaining' : 'Consumed'} />
-        <div className="relative aspect-[8/7]">
+        <div className="relative aspect-[8/6]">
           <svg viewBox="0 0 160 140" aria-hidden="true" className="absolute inset-0 size-full">
             <path
               d={ARC_PATH}
@@ -126,8 +126,8 @@ export function DailyNutritionCard({
             className="absolute inset-x-0 -translate-y-1/2 text-center"
             style={{ top: CENTER_Y }}
           >
-            <dd className="text-4xl font-semibold tabular-nums">{big ?? '—'}</dd>
-            <dt className="text-muted-foreground text-base">
+            <dd className="text-3xl font-semibold tabular-nums">{big ?? '—'}</dd>
+            <dt className="text-muted-foreground text-sm">
               {consumedMode ? 'Consumed' : 'Remaining'}
             </dt>
           </div>
@@ -135,7 +135,7 @@ export function DailyNutritionCard({
         <SideStat value={goal} label="Target" />
       </dl>
 
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-3 gap-4">
         {MACROS.map((macro) => {
           const value = Math.round(totals[macro.key])
           const macroGoal = target ? Math.round(macro.goal(target)) : null
@@ -147,15 +147,15 @@ export function DailyNutritionCard({
                 ? Math.min(1, value / macroGoal)
                 : Math.max(0, 1 - value / macroGoal)
           return (
-            <div key={macro.key} className="space-y-1.5 text-center">
-              <p className="text-muted-foreground text-base">{macro.label}</p>
-              <div className="bg-muted-foreground/25 h-1.5 overflow-hidden rounded-full">
+            <div key={macro.key} className="space-y-1 text-center">
+              <p className="text-muted-foreground text-sm">{macro.label}</p>
+              <div className="bg-muted-foreground/25 h-1 overflow-hidden rounded-full">
                 <div
                   className={cn('h-full rounded-full transition-[width] duration-500', macro.bar)}
                   style={{ width: `${fill * 100}%` }}
                 />
               </div>
-              <p className="text-base tabular-nums">
+              <p className="text-sm tabular-nums">
                 {shown} / {macroGoal ?? '—'}g
               </p>
             </div>

@@ -54,7 +54,7 @@ export function WizardShell({
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
-      <header className="bg-background sticky top-0 z-10 px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2">
+      <header className="bg-background sticky top-0 z-10 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-2">
         <div className="relative flex h-11 items-center justify-center">
           {canGoBack && (
             <button

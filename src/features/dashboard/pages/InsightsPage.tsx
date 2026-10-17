@@ -24,7 +24,7 @@ export function InsightsPage() {
   const data = useDashboardData(today, Boolean(program.data), GOAL_TARGET_KG)
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6 pb-16 md:pb-0">
+    <div className="flex max-w-2xl flex-col gap-6 md:pb-0">
       <SubPageHeader title="Insights & Analytics" />
       <section aria-labelledby="all-heading" className="space-y-3">
         <h2 id="all-heading" className="text-xl font-bold">

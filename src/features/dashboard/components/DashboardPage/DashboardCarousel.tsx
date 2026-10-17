@@ -40,7 +40,7 @@ export function DashboardCarousel({ slides }: DashboardCarouselProps) {
           <section
             key={slide.key}
             aria-label={`${slide.label} (${index + 1}/${slides.length})`}
-            className="flex w-full shrink-0 snap-center flex-col p-4"
+            className="flex w-full shrink-0 snap-center flex-col px-4 pt-3.5 pb-3"
           >
             {slide.node}
           </section>

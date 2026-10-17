@@ -8,7 +8,7 @@ interface MealTimePillProps {
 
 /**
  * Ô giờ ăn kiểu MacroFactor ("12 PM"): hiện giờ + tên bữa; `<input type="time">` trong suốt phủ lên để
- * mở bộ chọn giờ native của iOS. Đổi giờ thì bữa tự đổi theo (mealForHour ở trang).
+ * mở bộ chọn giờ native của iOS. Đổi giờ thì bữa tự đổi theo (mealForTime ở trang).
  */
 export function MealTimePill({ time, mealLabel, onTimeChange }: MealTimePillProps) {
   return (

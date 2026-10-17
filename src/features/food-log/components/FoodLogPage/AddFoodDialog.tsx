@@ -18,6 +18,7 @@ import type { ProgramWeek } from '@/features/program/types/program.types'
 import type { MacroTotals, PlateItem } from '../../types/food-log.types'
 import { SearchInput } from '@/components/shared/SearchInput'
 import { useKeyboardInset } from '@/hooks/use-keyboard-inset'
+import type { FoodLogSettings } from '../../food-log-settings'
 import { AddFoodProgress } from './AddFoodProgress'
 import { MealTimePill } from './MealTimePill'
 
@@ -36,6 +37,15 @@ interface AddFoodDialogProps {
   readonly plate: PlateItem[]
   readonly totals?: MacroTotals
   readonly target?: ProgramWeek | null
+  /** Cài đặt Logger Banner (chất hiện trên banner và cách tính). */
+  readonly settings: Pick<
+    FoodLogSettings,
+    | 'loggerBannerShowCalories'
+    | 'loggerBannerShowProtein'
+    | 'loggerBannerShowFat'
+    | 'loggerBannerShowCarbs'
+    | 'loggerBannerDisplay'
+  >
   readonly isLogging: boolean
   readonly error: string | null
   readonly onRemoveFromPlate: (key: string) => void
@@ -57,6 +67,7 @@ export function AddFoodDialog({
   plate,
   totals,
   target,
+  settings,
   isLogging,
   error,
   onRemoveFromPlate,
@@ -99,7 +110,18 @@ export function AddFoodDialog({
               mealLabel={MEAL_TYPE[meal]}
               onTimeChange={onEatenAtChange}
             />
-            <AddFoodProgress totals={totals} target={target} plate={plateTotals} />
+            <AddFoodProgress
+              totals={totals}
+              target={target}
+              plate={plateTotals}
+              show={{
+                calories: settings.loggerBannerShowCalories,
+                protein: settings.loggerBannerShowProtein,
+                fat: settings.loggerBannerShowFat,
+                carbs: settings.loggerBannerShowCarbs,
+              }}
+              display={settings.loggerBannerDisplay}
+            />
             <span
               role="status"
               aria-label={`${plate.length} ${plate.length === 1 ? 'item' : 'items'} in plate`}

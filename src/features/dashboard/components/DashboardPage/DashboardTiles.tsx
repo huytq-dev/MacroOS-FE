@@ -16,7 +16,7 @@ export function ExpenditureTile({ data }: Data) {
     <MetricTile
       title="Expenditure"
       subtitle="Last 7 Days"
-      href={routePath.program}
+      href={routePath.dashboardExpenditure}
       visual={<Sparkline values={data.tdeeSpark} className="text-mf-tile-protein" />}
       value={data.tdee === null ? '---' : String(Math.round(data.tdee))}
       unit="kcal"
@@ -29,7 +29,7 @@ export function WeightTrendTile({ data }: Data) {
     <MetricTile
       title="Weight Trend"
       subtitle="Last 7 Days"
-      href={routePath.weight}
+      href={routePath.dashboardWeightTrend}
       visual={<Sparkline values={data.weightSpark} className="text-mf-purple" />}
       value={fixed(data.weightLatest)}
       unit="kg"
@@ -48,6 +48,7 @@ export function EnergyBalanceTile({ data }: Data) {
     <MetricTile
       title="Energy Balance"
       subtitle="Last 7 Days"
+      href={routePath.dashboardEnergyBalance}
       visual={<DashedLine className="text-mf-tile-protein" />}
       value={difference === null ? '---' : String(Math.abs(difference))}
       unit={difference !== null && difference < 0 ? 'kcal deficit' : 'kcal surplus'}
@@ -60,7 +61,7 @@ export function GoalProgressTile({ data }: Data) {
     <MetricTile
       title="Goal Progress"
       subtitle="Since Start"
-      href={routePath.program}
+      href={routePath.dashboardGoalProgress}
       visual={data.goalPercent === null ? undefined : <GoalBar percent={data.goalPercent} />}
       value={data.goalPercent === null ? '---' : String(data.goalPercent)}
       unit="%"

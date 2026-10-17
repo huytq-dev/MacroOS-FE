@@ -16,6 +16,8 @@ interface FoodListProps {
   readonly emptyAction?: React.ReactNode
   readonly onSelect: (food: FoodSummary) => void
   readonly onQuickAdd?: (food: FoodSummary) => void
+  /** Tự vẽ từng dòng (kết quả tìm kiếm ở Food Log); không truyền thì dùng `FoodRow`. */
+  readonly renderRow?: (food: FoodSummary) => React.ReactNode
   readonly onLoadMore: () => void
 }
 
@@ -29,6 +31,7 @@ export function FoodList({
   emptyAction,
   onSelect,
   onQuickAdd,
+  renderRow,
   onLoadMore,
 }: FoodListProps) {
   if (isLoading)
@@ -68,9 +71,13 @@ export function FoodList({
         {totalCount ?? items.length} {(totalCount ?? items.length) === 1 ? 'result' : 'results'}
       </p>
       <div className="divide-border divide-y">
-        {items.map((food) => (
-          <FoodRow key={food.id} food={food} onSelect={onSelect} onQuickAdd={onQuickAdd} />
-        ))}
+        {items.map((food) =>
+          renderRow ? (
+            <div key={food.id}>{renderRow(food)}</div>
+          ) : (
+            <FoodRow key={food.id} food={food} onSelect={onSelect} onQuickAdd={onQuickAdd} />
+          )
+        )}
       </div>
       {hasMore && (
         <div className="border-t p-2">

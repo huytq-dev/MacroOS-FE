@@ -15,6 +15,7 @@ import {
 import { PageHeader } from '@/components/shared/PageHeader'
 import { routePath } from '@/config/route-path'
 import { useAuth } from '@/features/auth/hooks/use-auth'
+import { useProfile } from '@/features/users/hooks/use-profile'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -116,6 +117,14 @@ function ThemeCard({
 /** Trang "More" (tab cuối thanh dưới): hồ sơ, các nhóm cài đặt, chọn giao diện, đăng xuất — thay cho menu ảnh đại diện trên điện thoại. */
 export function MorePage() {
   const { user, logout } = useAuth()
+  const profile = useProfile()
+  const memberSince = profile.data?.createdAt
+    ? new Date(profile.data.createdAt).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null
   const { theme, setTheme } = useTheme()
   const mounted = useIsClient()
   const name = user?.name || 'User'
@@ -127,8 +136,8 @@ export function MorePage() {
     .slice(0, 2)
 
   return (
-    <div className="flex max-w-2xl flex-col gap-8 pb-16 md:pb-0">
-      <div className="bg-card -mx-4 -mt-4 px-4 pt-4 pb-5">
+    <div className="flex max-w-2xl flex-col gap-8 md:pb-0">
+      <div className="bg-card -mx-4 -mt-[calc(env(safe-area-inset-top)+1.25rem)] px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-5">
         <PageHeader display title="More" />
         <div className="mt-4 flex items-center gap-4">
           <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-white text-xl font-bold text-black">
@@ -136,7 +145,9 @@ export function MorePage() {
           </span>
           <div className="min-w-0">
             <p className="truncate text-xl font-medium">{name}</p>
-            <p className="text-muted-foreground truncate text-base">{user?.email}</p>
+            <p className="text-muted-foreground truncate text-base">
+              {memberSince ? `Member Since ${memberSince}` : user?.email}
+            </p>
           </div>
         </div>
       </div>

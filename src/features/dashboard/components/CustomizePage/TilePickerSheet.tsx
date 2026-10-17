@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { SheetFrame } from './SheetFrame'
+import { SheetFrame } from '@/components/shared/SheetFrame'
 import { TileThumb } from './TileThumb'
 import {
   NUTRIENT_DISPLAYS,

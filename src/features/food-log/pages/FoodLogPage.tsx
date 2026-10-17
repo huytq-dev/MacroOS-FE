@@ -1,26 +1,32 @@
 'use client'
 
 import { useState } from 'react'
-import { Copy, Plus, Trash2, UtensilsCrossed } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useAddEntry,
+  useAddNote,
   useClearDay,
   useCopyLog,
   useDayLog,
   useDeleteEntry,
+  useDeleteNote,
   useQuickAdd,
+  useSetDayStatus,
   useUpdateEntry,
+  useUpdateNote,
 } from '../hooks/use-food-log'
 import {
   AddFoodDialog,
+  BarcodeSheet,
+  CalendarSheet,
   CopyDialog,
-  DateNav,
-  DayTotals,
+  DayTimeline,
   EntryEditDialog,
+  FoodLogHeader,
   FoodSearchPanel,
   type FoodView,
-  MealSection,
+  NoteSheet,
+  NotesSection,
   QuickAddPanel,
   type AddTab,
   type QuickAddValues,
@@ -28,47 +34,41 @@ import {
 import type {
   CopyRequest,
   FoodLogEntry,
+  FoodLogNote,
+  MacroTotals,
   PlateItem,
   UpdateEntryRequest,
 } from '../types/food-log.types'
-import { useFoodDetail, useFoodSearch } from '@/features/foods/hooks/use-foods'
+import { toNotes } from '../types/food-log.types'
+import { useBarcodeLookup, useFoodDetail, useFoodSearch } from '@/features/foods/hooks/use-foods'
 import {
   useAddFavorite,
   useFavorites,
   useRemoveFavorite,
   useReorderFavorites,
 } from '@/features/foods/hooks/use-favorites'
+import { loggerTileOptions, timelineTileOptions } from '../food-log-settings'
+import { useFoodLogSettings } from '../hooks/use-food-log-settings'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
-import { EmptyState } from '@/components/shared/EmptyState'
 import { ErrorState } from '@/components/shared/ErrorState'
-import { PageHeader } from '@/components/shared/PageHeader'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
-import { IconButton } from '@/components/shared/IconButton'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { DashboardSearchBar } from '@/features/dashboard/components/DashboardPage'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  MEAL_DEFAULT_TIME,
-  MEAL_TYPE,
-  mealForHour,
-  type FoodCategory,
-  type MealType,
-} from '@/config/enums'
+import { MEAL_TYPE, mealForTime, type FoodCategory, type MealType } from '@/config/enums'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useIsClient } from '@/hooks/use-is-client'
 import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
 import { useUiStore } from '@/stores/ui.store'
 
 const SEARCH_PAGE = 25
-const MEAL_ORDER = Object.keys(MEAL_TYPE) as MealType[]
+const EMPTY_TOTALS: MacroTotals = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
 
 /** Giờ hiện tại dạng HH:mm (chỉ gọi trong event handler/khởi tạo state, không trong render). */
 const nowHourMinute = (): string => {
   const now = new Date()
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 }
-const hourOf = (time: string): number => Number(time.slice(0, 2))
 
 export function FoodLogPage() {
   const isClient = useIsClient()
@@ -82,7 +82,7 @@ export function FoodLogPage() {
   const [tab, setTab] = useState<AddTab>('search')
   // Giờ ăn là nguồn chính; bữa suy ra từ giờ (đổi giờ thì bữa đổi theo, mở từ nút + của bữa thì giờ lấy theo bữa).
   const [eatenAt, setEatenAt] = useState<string>(nowHourMinute)
-  const [meal, setMeal] = useState<MealType>(() => mealForHour(hourOf(nowHourMinute())))
+  const [meal, setMeal] = useState<MealType>(() => mealForTime(nowHourMinute()))
   const [search, setSearch] = useState('')
   const [view, setView] = useState<FoodView>('all')
   const [category, setCategory] = useState<FoodCategory | null>(null)
@@ -94,6 +94,13 @@ export function FoodLogPage() {
   const [deleteTarget, setDeleteTarget] = useState<FoodLogEntry | null>(null)
   const [copyOpen, setCopyOpen] = useState(false)
   const [clearOpen, setClearOpen] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [barcodeOpen, setBarcodeOpen] = useState(false)
+  // Ghi chú đang mở trong bảng: undefined = đóng, null = thêm mới, còn lại = sửa.
+  const [noteEditor, setNoteEditor] = useState<FoodLogNote | null | undefined>(undefined)
+  const [settings] = useFoodLogSettings()
+  // Giờ hiện tại cho chấm "Now" trên timeline: chốt lúc mở trang (đổi giờ thì lần mở sau sẽ cập nhật).
+  const [currentHour] = useState(() => new Date().getHours())
 
   const day = useDayLog(date)
   const debouncedSearch = useDebounce(search.trim(), 300)
@@ -121,11 +128,16 @@ export function FoodLogPage() {
   const quickAdd = useQuickAdd()
   const copyLog = useCopyLog()
   const clearDay = useClearDay()
+  const setStatus = useSetDayStatus()
+  const addNote = useAddNote()
+  const updateNote = useUpdateNote()
+  const deleteNote = useDeleteNote()
+  const barcode = useBarcodeLookup()
 
-  const openAdd = (mealOverride?: MealType) => {
-    const time = mealOverride ? MEAL_DEFAULT_TIME[mealOverride] : nowHourMinute()
+  /** Mở bảng Thêm món; `time` (HH:mm) là giờ ăn, mặc định giờ hiện tại, bữa suy ra từ giờ. */
+  const openAdd = (time: string = nowHourMinute()) => {
     setEatenAt(time)
-    setMeal(mealOverride ?? mealForHour(hourOf(time)))
+    setMeal(mealForTime(time))
     setPickedId(null)
     addEntry.reset()
     quickAdd.reset()
@@ -197,72 +209,149 @@ export function FoodLogPage() {
   // Lỗi xoá hiện inline ở đầu trang (xác nhận xoá đã đóng)
   const deleteError = deleteEntry.error ?? clearDay.error
 
-  const addButton = (
-    <Button size="sm" disabled={!date} onClick={() => openAdd()}>
-      <Plus aria-hidden="true" /> Add food
-    </Button>
+  const header = date && (
+    <FoodLogHeader
+      date={date}
+      today={today}
+      onDateChange={(next) => {
+        setSelectedDate(next)
+        setCalendarOpen(false)
+      }}
+      totals={day.data?.totals ?? EMPTY_TOTALS}
+      target={day.data?.target ?? null}
+      showOverages={settings.overages === 'ShowOverages'}
+      weekBanner={settings.weekBanner}
+      calendarScrolling={settings.calendarScrolling}
+      calendarOpen={calendarOpen}
+      onCalendarToggle={() => setCalendarOpen((open) => !open)}
+      status={day.data?.status ?? 'Unmarked'}
+      onStatusChange={(status) =>
+        setStatus.mutate(
+          { date, status },
+          { onError: (error) => toast.error(getFormErrorMessage(error)) }
+        )
+      }
+      hasEntries={entries.length > 0}
+      onCopy={openCopy}
+      onClear={() => {
+        clearDay.reset()
+        setClearOpen(true)
+      }}
+    />
   )
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
-      <PageHeader
-        title="Food log"
-        action={
-          <div className="flex items-center gap-1">
-            {entries.length > 0 && (
-              <>
-                <IconButton icon={Copy} label="Copy food log" onClick={openCopy} />
-                <IconButton
-                  icon={Trash2}
-                  label="Delete day's log"
-                  onClick={() => {
-                    clearDay.reset()
-                    setClearOpen(true)
-                  }}
-                />
-              </>
-            )}
-            <span className="ml-1 hidden md:inline-flex">{addButton}</span>
-          </div>
-        }
-      />
+    <div className="flex max-w-2xl flex-col gap-5 pb-24 md:pb-0">
+      {header}
 
       <FormErrorAlert
         title="Couldn't delete"
         message={deleteError ? getFormErrorMessage(deleteError) : null}
       />
 
-      {date && <DateNav date={date} today={today} onChange={setSelectedDate} />}
+      {calendarOpen && date && (
+        <CalendarSheet
+          date={date}
+          today={today}
+          onSelect={(next) => {
+            setSelectedDate(next)
+            setCalendarOpen(false)
+          }}
+        />
+      )}
 
       {isLoading || !day.data ? (
         <div className="space-y-3" aria-busy="true">
-          <Skeleton className="h-36 rounded-2xl" />
-          <Skeleton className="h-40 rounded-2xl" />
+          <Skeleton className="h-16 rounded-2xl" />
+          <Skeleton className="h-16 rounded-2xl" />
+          <Skeleton className="h-16 rounded-2xl" />
         </div>
       ) : (
         <>
-          <DayTotals totals={day.data.totals} target={day.data.target} />
-          {entries.length === 0 ? (
-            <Card className="rounded-2xl">
-              <EmptyState
-                icon={UtensilsCrossed}
-                title="No foods logged"
-                description="Add your first food of the day to track calories and macros."
-                action={addButton}
-              />
-            </Card>
-          ) : (
-            MEAL_ORDER.map((mealType) => (
-              <MealSection
-                key={mealType}
-                meal={mealType}
-                entries={entries.filter((entry) => entry.mealType === mealType)}
-                onSelectEntry={openEdit}
-                onAddToMeal={openAdd}
-              />
-            ))
-          )}
+          <DayTimeline
+            entries={entries}
+            firstHour={settings.hourRangeFirst}
+            lastHour={settings.hourRangeLast}
+            currentHour={date === today ? currentHour : null}
+            showTimestamps={settings.showTimestamps}
+            showHourlyTotals={settings.showHourlyTotals}
+            alignRight={settings.alignment === 'Right'}
+            longPressToAdd={settings.addFoodsToHour === 'LongPress'}
+            tileSettings={timelineTileOptions(settings)}
+            onAddAt={openAdd}
+            onSelectEntry={openEdit}
+          />
+          <NotesSection
+            notes={toNotes(day.data.notes)}
+            onAdd={() => {
+              addNote.reset()
+              setNoteEditor(null)
+            }}
+            onSelect={(note) => {
+              updateNote.reset()
+              setNoteEditor(note)
+            }}
+          />
         </>
+      )}
+
+      {!calendarOpen && (
+        <DashboardSearchBar
+          onSearch={() => openAdd()}
+          onScan={() => {
+            barcode.reset()
+            setBarcodeOpen(true)
+          }}
+        />
+      )}
+
+      {noteEditor !== undefined && date && (
+        <NoteSheet
+          open
+          onOpenChange={(open) => !open && setNoteEditor(undefined)}
+          note={noteEditor}
+          defaultTime={nowHourMinute()}
+          isPending={addNote.isPending || updateNote.isPending || deleteNote.isPending}
+          error={
+            (addNote.error ?? updateNote.error ?? deleteNote.error)
+              ? getFormErrorMessage(addNote.error ?? updateNote.error ?? deleteNote.error)
+              : null
+          }
+          onSave={({ text, notedAt }) =>
+            noteEditor
+              ? updateNote.mutate(
+                  { id: noteEditor.id, payload: { text, notedAt } },
+                  { onSuccess: () => setNoteEditor(undefined) }
+                )
+              : addNote.mutate(
+                  { logDate: date, text, notedAt },
+                  { onSuccess: () => setNoteEditor(undefined) }
+                )
+          }
+          onDelete={(note) =>
+            deleteNote.mutate(note.id, { onSuccess: () => setNoteEditor(undefined) })
+          }
+        />
+      )}
+
+      {barcodeOpen && (
+        <BarcodeSheet
+          open
+          onOpenChange={(open) => !open && setBarcodeOpen(false)}
+          isPending={barcode.isPending}
+          error={barcode.error ? getFormErrorMessage(barcode.error) : null}
+          onLookup={(code) =>
+            barcode.mutate(code, {
+              onSuccess: (food) => {
+                if (!food) return
+                setBarcodeOpen(false)
+                setTab('search')
+                openAdd()
+                setPickedId(food.id)
+              },
+            })
+          }
+        />
       )}
 
       <AddFoodDialog
@@ -274,7 +363,7 @@ export function FoodLogPage() {
         eatenAt={eatenAt}
         onEatenAtChange={(time) => {
           setEatenAt(time)
-          setMeal(mealForHour(hourOf(time)))
+          setMeal(mealForTime(time))
         }}
         search={search}
         onSearchChange={(value) => {
@@ -284,6 +373,7 @@ export function FoodLogPage() {
         plate={plate}
         totals={day.data?.totals}
         target={day.data?.target}
+        settings={settings}
         isLogging={isLoggingPlate}
         error={addEntry.error ? getFormErrorMessage(addEntry.error) : null}
         onRemoveFromPlate={(key) =>
@@ -324,6 +414,7 @@ export function FoodLogPage() {
             }
             onRemoveFavorite={(id) => removeFavorite.mutate(id)}
             onReorderFavorites={(ids) => reorderFavorites.mutate(ids)}
+            tileOptions={loggerTileOptions(settings)}
             onAddToPlate={(item) => {
               setPlate((current) => [...current, item])
               setPickedId(null)

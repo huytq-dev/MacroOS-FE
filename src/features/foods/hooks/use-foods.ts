@@ -58,3 +58,10 @@ export const useUpdateFood = () =>
   )
 export const useDeleteFood = () =>
   useFoodMutation((id: string) => foodService.remove(id), 'Food deleted')
+
+/** Tra mã vạch (DB trước, chưa có thì BE lấy từ Open Food Facts); lỗi hiện inline ở nơi gọi. */
+export const useBarcodeLookup = () =>
+  useMutation({
+    mutationFn: (code: string) => foodService.byBarcode(code),
+    onError: (error) => logger.error(error),
+  })

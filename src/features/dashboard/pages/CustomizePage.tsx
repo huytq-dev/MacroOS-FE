@@ -50,8 +50,8 @@ export function CustomizePage() {
   }
 
   return (
-    <div className="flex max-w-2xl flex-col gap-8 pb-16 md:pb-0">
-      <div className="bg-card -mx-4 -mt-4 pt-4">
+    <div className="flex max-w-2xl flex-col gap-8 md:pb-0">
+      <div className="bg-card -mx-4 -mt-[calc(env(safe-area-inset-top)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1.25rem)]">
         <header className="grid grid-cols-[2.75rem_1fr_auto] items-center px-1">
           <IconButton
             icon={ChevronLeft}

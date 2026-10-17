@@ -63,12 +63,12 @@ export function MobileTabBar() {
         href={href}
         aria-current={active ? 'page' : undefined}
         className={cn(
-          'flex flex-1 flex-col items-center justify-center gap-1 pt-1 text-[11px] transition-colors',
+          'flex flex-1 flex-col items-center justify-start gap-1 pt-3 text-xs transition-colors',
           active ? 'text-foreground font-semibold' : 'text-muted-foreground'
         )}
       >
         <Icon
-          className="size-[22px]"
+          className="size-6"
           strokeWidth={active ? 2.2 : 1.7}
           fill={active && Icon === LayoutDashboard ? 'currentColor' : 'none'}
           aria-hidden="true"
@@ -89,7 +89,7 @@ export function MobileTabBar() {
           type="button"
           onClick={openAddFood}
           aria-label="Add food"
-          className="bg-primary text-primary-foreground focus-visible:ring-ring/50 -mt-1 flex size-11 items-center justify-center rounded-full transition-transform focus-visible:ring-1 focus-visible:outline-none active:scale-95"
+          className="bg-primary text-primary-foreground focus-visible:ring-ring/50 mt-2 flex size-11 items-center justify-center rounded-full transition-transform focus-visible:ring-1 focus-visible:outline-none active:scale-95"
         >
           <Plus className="size-6" strokeWidth={2} aria-hidden="true" />
         </button>
