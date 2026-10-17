@@ -70,15 +70,17 @@ function EditBody({
         <DialogTitle className="font-sans text-sm font-semibold">{entry.foodName}</DialogTitle>
         <DialogDescription className="text-xs tabular-nums">
           {Math.round(entry.calories)} kcal · P {Math.round(entry.protein)} · C{' '}
-          {Math.round(entry.carbs)} · F {Math.round(entry.fat)} (lúc log)
+          {Math.round(entry.carbs)} · F {Math.round(entry.fat)} (as logged)
         </DialogDescription>
       </DialogHeader>
-      <FormErrorAlert title="Không lưu được món" message={error} />
+      <FormErrorAlert title="Couldn't save food" message={error} />
       {!editable ? (
-        <p className="text-muted-foreground text-sm">Món từ công thức chưa sửa được.</p>
+        <p className="text-muted-foreground text-sm">
+          Foods from recipes can&apos;t be edited yet.
+        </p>
       ) : (
         <div className="space-y-4">
-          <FormField label="Bữa">
+          <FormField label="Meal">
             {(field) => (
               <Select value={meal} onValueChange={(next) => setMeal(next as MealType)}>
                 <SelectTrigger id={field.id} className="w-full">
@@ -98,7 +100,7 @@ function EditBody({
             <Skeleton className="h-20 w-full rounded-xl" aria-busy="true" />
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Khẩu phần">
+              <FormField label="Serving">
                 {(field) => (
                   <Select value={servingId} onValueChange={setServingId}>
                     <SelectTrigger id={field.id} className="w-full">
@@ -116,8 +118,8 @@ function EditBody({
                 )}
               </FormField>
               <FormField
-                label={servingId === GRAM ? 'Số gram' : 'Số khẩu phần'}
-                error={invalid ? 'Nhập từ 0,01 đến 10000' : undefined}
+                label={servingId === GRAM ? 'Grams' : 'Servings'}
+                error={invalid ? 'Enter a value from 0.01 to 10000' : undefined}
               >
                 {(field) => (
                   <Input
@@ -141,10 +143,10 @@ function EditBody({
           onClick={() => onRequestDelete(entry)}
           disabled={isPending}
         >
-          Xoá
+          Delete
         </Button>
         <Button variant="outline" onClick={onClose} disabled={isPending}>
-          Huỷ
+          Cancel
         </Button>
         {editable && (
           <Button
@@ -160,7 +162,7 @@ function EditBody({
             }
           >
             {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            {isPending ? 'Đang lưu...' : 'Lưu'}
+            {isPending ? 'Saving...' : 'Save'}
           </Button>
         )}
       </DialogFooter>

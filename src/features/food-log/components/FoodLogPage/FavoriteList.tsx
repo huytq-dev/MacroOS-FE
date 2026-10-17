@@ -35,11 +35,11 @@ export function FavoriteList({
     return (
       <EmptyState
         icon={Heart}
-        title={isFiltered ? 'Không có kết quả phù hợp' : 'Chưa có món yêu thích'}
+        title={isFiltered ? 'No matching results' : 'No favorites yet'}
         description={
           isFiltered
-            ? 'Thử từ khoá khác.'
-            : 'Mở một món, chọn khẩu phần rồi chạm hình trái tim để lưu lại.'
+            ? 'Try a different search.'
+            : 'Open a food, choose a serving, then tap the heart to save it.'
         }
       />
     )
@@ -55,7 +55,7 @@ export function FavoriteList({
   return (
     <div>
       <div className="flex items-center justify-between px-4 pt-4 pb-1">
-        <h3 className="text-lg font-semibold md:text-sm">Yêu thích</h3>
+        <h3 className="text-lg font-semibold md:text-sm">Favorites</h3>
         {!isFiltered && favorites.length > 1 && (
           <Button
             variant="ghost"
@@ -64,7 +64,7 @@ export function FavoriteList({
             onClick={() => setReordering((current) => !current)}
           >
             <ArrowUpDown aria-hidden="true" className="size-4" />
-            {reordering ? 'Xong' : 'Sắp xếp'}
+            {reordering ? 'Done' : 'Reorder'}
           </Button>
         )}
       </div>
@@ -96,21 +96,21 @@ export function FavoriteList({
               <div className="flex shrink-0 items-center pr-2">
                 <IconButton
                   icon={ArrowUp}
-                  label={`Đưa ${favorite.foodName} lên`}
+                  label={`Move ${favorite.foodName} up`}
                   className="size-11 md:size-8"
                   disabled={index === 0}
                   onClick={() => move(index, -1)}
                 />
                 <IconButton
                   icon={ArrowDown}
-                  label={`Đưa ${favorite.foodName} xuống`}
+                  label={`Move ${favorite.foodName} down`}
                   className="size-11 md:size-8"
                   disabled={index === favorites.length - 1}
                   onClick={() => move(index, 1)}
                 />
                 <IconButton
                   icon={Trash2}
-                  label={`Bỏ ${favorite.foodName} khỏi yêu thích`}
+                  label={`Remove ${favorite.foodName} from favorites`}
                   className="text-muted-foreground hover:text-destructive size-11 md:size-8"
                   onClick={() => onRemove(favorite.id)}
                 />
@@ -118,7 +118,7 @@ export function FavoriteList({
             ) : (
               <button
                 type="button"
-                aria-label={`Thêm ${favorite.foodName}`}
+                aria-label={`Add ${favorite.foodName}`}
                 onClick={() => onQuickAdd(favorite)}
                 className="bg-secondary active:bg-muted focus-visible:ring-ring/50 mr-3 flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none md:size-9"
               >

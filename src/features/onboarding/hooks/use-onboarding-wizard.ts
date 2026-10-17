@@ -56,6 +56,8 @@ export interface OnboardingWizard {
   readonly onReadyReached: () => void
 }
 
+const PREVIEW_DEBOUNCE_MS = 600
+
 /** Máy trạng thái của wizard thiết lập: bước hiện tại, đáp án, lưu BE từng bước Basics, xem trước, tạo program, đồng ý điều khoản. */
 export function useOnboardingWizard(initial: OnboardingState): OnboardingWizard {
   const router = useRouter()
@@ -77,7 +79,11 @@ export function useOnboardingWizard(initial: OnboardingState): OnboardingWizard 
     () => (PREVIEW_STEPS.includes(stepId) ? previewRequestOf(answers) : null),
     [stepId, answers]
   )
-  const preview = useProgramPreview(useDebounce(previewRequest, 250)).data ?? undefined
+  // Kéo thước/thanh trượt đổi đáp án liên tục: chỉ gọi BE khi người dùng dừng tay PREVIEW_DEBOUNCE_MS.
+  // Lần vào bước đầu tiên (chưa có giá trị đã debounce) gọi ngay để màn không phải chờ.
+  const settledRequest = useDebounce(previewRequest, PREVIEW_DEBOUNCE_MS)
+  const request = previewRequest === null ? null : (settledRequest ?? previewRequest)
+  const preview = useProgramPreview(request).data ?? undefined
 
   const visibleSteps = useMemo(
     () => STEP_ORDER.filter((id) => !(id === 'goalTarget' && answers.goalType === 'Maintenance')),
@@ -155,8 +161,12 @@ export function useOnboardingWizard(initial: OnboardingState): OnboardingWizard 
     // Sau khi đã tạo program thì không lùi về các bước tạo program nữa (tạo lại sẽ thay thế program vừa tạo)
     canGoBack: index > 1 && SECTION_OF[stepId] !== 'finish',
     canNext,
-    nextLabel: NEXT_LABEL[stepId] ?? 'Tiếp theo',
-    pendingLabel: stepId === 'ready' ? 'Đang tạo chương trình...' : 'Đang lưu...',
+    // Chưa chọn tỉ lệ mỡ thì nút thành "Bỏ qua" (BE rơi về công thức Mifflin-St Jeor)
+    nextLabel:
+      stepId === 'bodyFat' && answers.bodyFat === null
+        ? 'Skip, I am not sure'
+        : (NEXT_LABEL[stepId] ?? 'Next'),
+    pendingLabel: stepId === 'ready' ? 'Creating program...' : 'Saving...',
     isPending: saveBasics.isPending || createProgram.isPending || complete.isPending,
     error,
     next: () => void next(),

@@ -56,13 +56,13 @@ export const useUpdateEntry = () =>
   useLogMutation(
     ({ id, payload }: { id: string; payload: UpdateEntryRequest }) =>
       foodLogService.updateEntry(id, payload),
-    'Đã lưu'
+    'Saved'
   )
 export const useDeleteEntry = () =>
-  useLogMutation((id: string) => foodLogService.deleteEntry(id), 'Đã xoá món')
+  useLogMutation((id: string) => foodLogService.deleteEntry(id), 'Food deleted')
 export const useQuickAdd = () =>
-  useLogMutation((payload: QuickAddRequest) => foodLogService.quickAdd(payload), 'Đã thêm nhanh')
+  useLogMutation((payload: QuickAddRequest) => foodLogService.quickAdd(payload), 'Added')
 export const useCopyLog = () =>
   useLogMutation((payload: CopyRequest) => foodLogService.copy(payload))
 export const useClearDay = () =>
-  useLogMutation((date: string) => foodLogService.clearDay(date), 'Đã xoá nhật ký ngày')
+  useLogMutation((date: string) => foodLogService.clearDay(date), "Day's log deleted")

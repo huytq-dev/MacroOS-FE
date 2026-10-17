@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils'
 export type PlanId = 'monthly' | 'half' | 'yearly'
 
 const PLANS: readonly { id: PlanId; title: string; detail: string }[] = [
-  { id: 'monthly', title: '1 tháng', detail: 'Gia hạn hằng tháng' },
-  { id: 'yearly', title: '12 tháng', detail: 'Tiết kiệm nhất khi có phí' },
-  { id: 'half', title: '6 tháng', detail: 'Cân bằng giữa hai gói' },
+  { id: 'monthly', title: '1 month', detail: 'Renews monthly' },
+  { id: 'yearly', title: '12 months', detail: 'Best value once paid plans start' },
+  { id: 'half', title: '6 months', detail: 'A balance between the two plans' },
 ]
 
 interface PlanStepProps {
@@ -24,9 +24,9 @@ export function PlanStep({ plan, onChange }: PlanStepProps) {
   return (
     <div className="space-y-6">
       <h1 className="pt-4 text-center text-3xl font-extrabold tracking-wide uppercase">
-        Chọn một gói
+        Choose a plan
       </h1>
-      <div role="radiogroup" aria-label="Gói sử dụng" className="space-y-3">
+      <div role="radiogroup" aria-label="Plans" className="space-y-3">
         {PLANS.map((item, index) => {
           const selected = item.id === plan
           return (
@@ -47,8 +47,8 @@ export function PlanStep({ plan, onChange }: PlanStepProps) {
                 <span className="text-muted-foreground block text-sm">{item.detail}</span>
               </span>
               <span className="text-right">
-                <span className="block text-base font-semibold tabular-nums">0 ₫</span>
-                <span className="text-muted-foreground block text-sm">miễn phí (thử nghiệm)</span>
+                <span className="block text-base font-semibold tabular-nums">$0</span>
+                <span className="text-muted-foreground block text-sm">free (trial)</span>
               </span>
               {selected && (
                 <span
@@ -63,7 +63,7 @@ export function PlanStep({ plan, onChange }: PlanStepProps) {
         })}
       </div>
       <p className="text-muted-foreground text-center text-sm">
-        Bản thử nghiệm chưa thu phí. Bạn có thể đổi gói sau khi MacroOS mở thanh toán.
+        The trial is free of charge. You can change your plan once MacroOS opens up payments.
       </p>
     </div>
   )

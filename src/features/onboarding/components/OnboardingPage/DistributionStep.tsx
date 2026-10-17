@@ -9,13 +9,13 @@ import { DISTRIBUTION_OPTIONS } from '../../types/onboarding-options.types'
 import type { CalorieShiftMode } from '../../types/onboarding.types'
 
 const DAYS: readonly { value: DayOfWeek; short: string; full: string }[] = [
-  { value: 'Monday', short: 'T2', full: 'Thứ hai' },
-  { value: 'Tuesday', short: 'T3', full: 'Thứ ba' },
-  { value: 'Wednesday', short: 'T4', full: 'Thứ tư' },
-  { value: 'Thursday', short: 'T5', full: 'Thứ năm' },
-  { value: 'Friday', short: 'T6', full: 'Thứ sáu' },
-  { value: 'Saturday', short: 'T7', full: 'Thứ bảy' },
-  { value: 'Sunday', short: 'CN', full: 'Chủ nhật' },
+  { value: 'Monday', short: 'Mon', full: 'Monday' },
+  { value: 'Tuesday', short: 'Tue', full: 'Tuesday' },
+  { value: 'Wednesday', short: 'Wed', full: 'Wednesday' },
+  { value: 'Thursday', short: 'Thu', full: 'Thursday' },
+  { value: 'Friday', short: 'Fri', full: 'Friday' },
+  { value: 'Saturday', short: 'Sat', full: 'Saturday' },
+  { value: 'Sunday', short: 'Sun', full: 'Sunday' },
 ]
 
 interface DistributionStepProps {
@@ -39,8 +39,8 @@ export function DistributionStep({
   const invalid = mode === 'Custom' && (days.length < 1 || days.length > 6)
   return (
     <div>
-      <StepHeading title="Bạn muốn chia mục tiêu calo trong tuần thế nào?" />
-      <div role="radiogroup" aria-label="Cách chia calo trong tuần" className="space-y-3">
+      <StepHeading title="How do you want to spread your calorie target across the week?" />
+      <div role="radiogroup" aria-label="Weekly calorie distribution" className="space-y-3">
         {DISTRIBUTION_OPTIONS.map((option, index) => (
           <OptionCard
             key={option.value}
@@ -54,12 +54,12 @@ export function DistributionStep({
             {option.value === 'Custom' && mode === 'Custom' && (
               <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2 motion-safe:animation-duration-200 space-y-5 px-4 pt-1 pb-4">
                 <div className="space-y-2">
-                  <p className="text-base font-medium">Ngày ăn nhiều hơn</p>
+                  <p className="text-base font-medium">Higher-calorie days</p>
                   <ToggleGroup
                     type="multiple"
                     value={[...days]}
                     onValueChange={(next) => onDaysChange(next as DayOfWeek[])}
-                    aria-label="Ngày ăn nhiều hơn"
+                    aria-label="Higher-calorie days"
                     className="grid w-full grid-cols-7 gap-1.5"
                   >
                     {DAYS.map((day) => (
@@ -75,16 +75,16 @@ export function DistributionStep({
                   </ToggleGroup>
                   {invalid && (
                     <p role="alert" className="text-destructive text-sm">
-                      Chọn từ 1 đến 6 ngày.
+                      Choose 1 to 6 days.
                     </p>
                   )}
                 </div>
                 <div className="space-y-3">
                   <p className="text-base font-medium">
-                    Thêm <span className="tabular-nums">{percent}%</span> calo vào các ngày đó
+                    Add <span className="tabular-nums">{percent}%</span> more calories on those days
                   </p>
                   <Slider
-                    aria-label="Phần trăm calo thêm vào ngày chọn"
+                    aria-label="Extra calorie percentage on chosen days"
                     min={5}
                     max={30}
                     step={1}

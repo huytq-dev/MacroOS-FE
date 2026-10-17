@@ -1,37 +1,49 @@
 'use client'
 
-import { ChartLine, Heart, Lock, Salad, Target, Zap, type LucideIcon } from 'lucide-react'
+import { Castle, ChartArea, ChartLine, Lock, Zap, type LucideIcon } from 'lucide-react'
+import { Bubbles } from './LineIcons'
+import { cn } from '@/lib/utils'
+import type { OptionIcon } from '../../types/onboarding-options.types'
 
-const BENEFITS: readonly { icon: LucideIcon; title: string; text: string }[] = [
+const BENEFITS: readonly {
+  icon: LucideIcon | OptionIcon
+  solid?: boolean
+  title: string
+  text: string
+}[] = [
   {
-    icon: Target,
-    title: 'Kế hoạch ăn dành riêng cho mục tiêu của bạn',
-    text: 'Đạt mục tiêu nhanh hơn với kế hoạch khoa học, được tính riêng cho bạn.',
+    icon: Castle,
+    solid: true,
+    title: 'A nutrition plan built for your goal',
+    text: 'Reach your goal faster with a science-based plan calculated just for you.',
   },
   {
     icon: Zap,
-    title: 'Ghi món ăn thật nhanh',
-    text: 'Tìm món, thêm bằng một chạm, dùng món gần đây và món yêu thích.',
+    solid: true,
+    title: 'Log food in seconds',
+    text: 'Search foods, add them with one tap, and reuse recent foods and favorites.',
+  },
+  {
+    icon: ChartArea,
+    solid: true,
+    title: 'Coaching that follows your metabolism',
+    text: 'Your nutrition plan adjusts itself to your ever-changing expenditure.',
+  },
+  {
+    icon: Bubbles,
+    title: 'Track nutrition by week',
+    text: 'See daily kcal and macros against your target, consumed or remaining.',
   },
   {
     icon: ChartLine,
-    title: 'Huấn luyện theo trao đổi chất của bạn',
-    text: 'Kế hoạch dinh dưỡng tự điều chỉnh theo mức tiêu hao luôn thay đổi của bạn.',
-  },
-  {
-    icon: Salad,
-    title: 'Theo dõi dinh dưỡng theo tuần',
-    text: 'Xem kcal và macro từng ngày so với mục tiêu, đã ăn hay còn lại.',
-  },
-  {
-    icon: Heart,
-    title: 'Hiểu xu hướng cân nặng',
-    text: 'Tìm cân nặng thật của bạn nhờ thuật toán làm mượt các lần cân hằng ngày.',
+    title: 'Understand your Weight Trend',
+    text: 'Find your true weight with an algorithm that smooths your daily weigh-ins.',
   },
   {
     icon: Lock,
-    title: 'Riêng tư, không quảng cáo',
-    text: 'Chúng tôi không bán dữ liệu và không dùng mạng quảng cáo để theo dõi bạn.',
+    solid: true,
+    title: 'Private and ad-free',
+    text: 'We do not sell your data or use ad networks to track you.',
   },
 ]
 
@@ -40,7 +52,7 @@ export function WhatYouGetStep() {
   return (
     <div>
       <h1 className="pb-6 text-center text-3xl font-extrabold tracking-wide uppercase">
-        Bạn nhận được gì
+        What you get
       </h1>
       <ul className="divide-border divide-y">
         {BENEFITS.map((benefit, index) => (
@@ -49,7 +61,10 @@ export function WhatYouGetStep() {
             className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-300 flex gap-4 py-4 [animation-fill-mode:backwards]"
             style={{ animationDelay: `${index * 70}ms` }}
           >
-            <benefit.icon aria-hidden="true" className="mt-1 size-6 shrink-0" />
+            <benefit.icon
+              aria-hidden="true"
+              className={cn('mt-1 size-6 shrink-0', benefit.solid && 'fill-current')}
+            />
             <div>
               <h2 className="text-lg leading-snug font-medium">{benefit.title}</h2>
               <p className="text-muted-foreground text-base leading-snug">{benefit.text}</p>

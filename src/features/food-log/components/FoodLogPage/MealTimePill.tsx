@@ -18,7 +18,7 @@ export function MealTimePill({ time, mealLabel, onTimeChange }: MealTimePillProp
       <input
         type="time"
         value={time}
-        aria-label="Giờ ăn"
+        aria-label="Meal time"
         onChange={(event) => event.target.value && onTimeChange(event.target.value)}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
       />

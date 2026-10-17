@@ -15,41 +15,44 @@ import { cn } from '@/lib/utils'
 const SLIDES: readonly { icon: LucideIcon; title: string; points: readonly string[] }[] = [
   {
     icon: Zap,
-    title: 'Ghi món nhanh hơn',
+    title: 'Log food faster',
     points: [
-      'Thêm món chỉ với một chạm bằng nút +',
-      'Món yêu thích lưu sẵn đúng khẩu phần',
-      'Món vừa ăn luôn nằm đầu danh sách',
+      'Add foods with a single tap of the + button',
+      'Favorites are saved with the right serving',
+      'Recent foods always sit at the top of the list',
     ],
   },
   {
     icon: ChartLine,
-    title: 'Làm chủ trao đổi chất',
+    title: 'Master your metabolism',
     points: [
-      'Mục tiêu kcal tự điều chỉnh mỗi tuần',
-      'Check-in hằng tuần như một huấn luyện viên',
-      'Mức tiêu hao được tinh chỉnh theo dữ liệu thật',
+      'Your kcal target adjusts itself every week',
+      'Weekly check-ins, like a coach',
+      'Expenditure fine-tuned with your real data',
     ],
   },
   {
     icon: ListChecks,
-    title: 'Theo dõi macro theo tuần',
+    title: 'Track macros by week',
     points: [
-      'Xem protein, chất béo, carb từng ngày',
-      'Chạm một ngày để xem chi tiết, hoặc cả tuần',
-      'Đã ăn hay còn lại, chuyển bằng một cú chạm',
+      'See protein, fat and carbs for each day',
+      'Tap a day for details, or view the whole week',
+      'Consumed or remaining, switch with one tap',
     ],
   },
   {
     icon: Scale,
-    title: 'Hết lo cân nặng lên xuống',
+    title: 'Stop worrying about weight swings',
     points: [
-      'Cân nặng xu hướng lọc bỏ biến động hằng ngày',
-      'Biểu đồ cân thô và xu hướng cạnh nhau',
-      'Biết chính xác bạn đang đi đúng hướng chưa',
+      'Weight Trend filters out daily fluctuations',
+      'Scale weight and trend charts side by side',
+      'Know exactly whether you are on track',
     ],
   },
 ]
+
+const arrow =
+  'bg-secondary focus-visible:ring-ring/50 flex size-11 items-center justify-center rounded-full transition-opacity focus-visible:ring-1 focus-visible:outline-none disabled:opacity-30'
 
 /** Bốn trang giới thiệu tính năng: vuốt ngang (scroll-snap) hoặc bấm mũi tên, có chấm báo vị trí. */
 export function FeatureCarouselStep() {
@@ -73,22 +76,22 @@ export function FeatureCarouselStep() {
             setPage(Math.round(track.scrollLeft / track.clientWidth))
           }}
           className="flex snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden"
-          aria-label="Giới thiệu tính năng"
+          aria-label="Feature overview"
           role="region"
         >
           {SLIDES.map((slide, index) => (
             <section
               key={slide.title}
               aria-hidden={index !== page}
-              className="flex w-full shrink-0 snap-center flex-col items-center gap-8 px-12 text-center"
+              className="flex w-full shrink-0 snap-center flex-col items-center gap-8 px-2 text-center"
             >
               <span className="bg-secondary flex size-28 items-center justify-center rounded-full">
                 <slide.icon aria-hidden="true" className="size-12" />
               </span>
-              <h1 className="text-3xl leading-tight font-extrabold tracking-wide uppercase">
+              <h1 className="text-3xl leading-tight font-extrabold tracking-wide text-balance uppercase">
                 {slide.title}
               </h1>
-              <ul className="text-muted-foreground space-y-3 text-lg leading-snug">
+              <ul className="text-muted-foreground space-y-3 text-lg leading-snug text-balance">
                 {slide.points.map((point) => (
                   <li key={point}>{point}</li>
                 ))}
@@ -96,32 +99,37 @@ export function FeatureCarouselStep() {
             </section>
           ))}
         </div>
-        {(['Trang trước', 'Trang sau'] as const).map((label, side) => (
-          <button
-            key={label}
-            type="button"
-            aria-label={label}
-            disabled={side === 0 ? page === 0 : page === SLIDES.length - 1}
-            onClick={() => goTo(page + (side === 0 ? -1 : 1))}
-            className={cn(
-              'bg-secondary/80 focus-visible:ring-ring/50 absolute top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full transition-opacity focus-visible:ring-1 focus-visible:outline-none disabled:opacity-30',
-              side === 0 ? 'left-0' : 'right-0'
-            )}
-          >
-            {side === 0 ? <ChevronLeft aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}
-          </button>
-        ))}
       </div>
-      <div className="mt-8 flex justify-center gap-2" aria-hidden="true">
-        {SLIDES.map((slide, index) => (
-          <span
-            key={slide.title}
-            className={cn(
-              'h-2 rounded-full transition-all duration-300',
-              index === page ? 'bg-foreground w-6' : 'bg-muted-foreground/40 w-2'
-            )}
-          />
-        ))}
+      <div className="mt-8 flex items-center justify-center gap-4">
+        <button
+          type="button"
+          aria-label="Previous page"
+          disabled={page === 0}
+          onClick={() => goTo(page - 1)}
+          className={arrow}
+        >
+          <ChevronLeft aria-hidden="true" />
+        </button>
+        <div className="flex gap-2" aria-hidden="true">
+          {SLIDES.map((slide, index) => (
+            <span
+              key={slide.title}
+              className={cn(
+                'h-2 rounded-full transition-all duration-300',
+                index === page ? 'bg-foreground w-6' : 'bg-muted-foreground/40 w-2'
+              )}
+            />
+          ))}
+        </div>
+        <button
+          type="button"
+          aria-label="Trang sau"
+          disabled={page === SLIDES.length - 1}
+          onClick={() => goTo(page + 1)}
+          className={arrow}
+        >
+          <ChevronRight aria-hidden="true" />
+        </button>
       </div>
     </div>
   )

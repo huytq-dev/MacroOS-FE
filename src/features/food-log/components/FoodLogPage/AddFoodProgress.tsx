@@ -41,10 +41,7 @@ export function AddFoodProgress({ totals, target, plate }: AddFoodProgressProps)
     { name: 'C', suffix: 'C', value: sum('carbs'), goal: target?.carbsTarget, bar: 'bg-mf-carbs' },
   ]
   return (
-    <dl
-      className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-1.5"
-      aria-label="Tiến độ trong ngày"
-    >
+    <dl className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-1.5" aria-label="Daily progress">
       {cells.map((cell) => {
         const percent = cell.goal ? Math.min(100, (cell.value / cell.goal) * 100) : 0
         return (

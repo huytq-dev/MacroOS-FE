@@ -245,8 +245,8 @@ export const SECTION_OF: Record<StepId, SectionId> = {
 
 export const SECTION_TITLE: Record<SectionId, string> = {
   intro: '',
-  basics: 'Thông tin cơ bản',
-  goal: 'Đặt mục tiêu mới',
-  program: 'Tạo program mới',
+  basics: 'Basics',
+  goal: 'Set a new goal',
+  program: 'Create a new program',
   finish: '',
 }

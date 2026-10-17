@@ -6,18 +6,18 @@ import { StepHeading } from './ChoiceStep'
 const POINTS: readonly { icon: LucideIcon; title: string; text: string }[] = [
   {
     icon: ChartLine,
-    title: 'Dựa trên dữ liệu của chính bạn',
-    text: 'Mục tiêu kcal xuất phát từ ước tính, rồi được chỉnh theo cân nặng xu hướng và lượng bạn thật sự ăn.',
+    title: 'Built on your own data',
+    text: 'Your kcal target starts from an estimate, then is adjusted using your Weight Trend and what you actually eat.',
   },
   {
     icon: RefreshCw,
-    title: 'Tự điều chỉnh mỗi tuần',
-    text: 'Check-in hằng tuần cập nhật mục tiêu khi trao đổi chất của bạn thay đổi, không cần tự tính lại.',
+    title: 'Adjusts itself every week',
+    text: 'Weekly check-ins update your target as your metabolism changes, so you never have to recalculate.',
   },
   {
     icon: ShieldCheck,
-    title: 'Riêng tư và không quảng cáo',
-    text: 'Dữ liệu sức khoẻ chỉ dùng để cá nhân hoá chương trình cho bạn.',
+    title: 'Private and ad-free',
+    text: 'Your health data is only used to personalise your program.',
   },
 ]
 
@@ -25,7 +25,7 @@ const POINTS: readonly { icon: LucideIcon; title: string; text: string }[] = [
 export function ValueStep() {
   return (
     <div>
-      <StepHeading title="Chương trình này thích ứng theo bạn và dựa trên khoa học mới nhất" />
+      <StepHeading title="This program adapts to you and is built on the latest science" />
       <ul className="space-y-3">
         {POINTS.map((point, index) => (
           <li

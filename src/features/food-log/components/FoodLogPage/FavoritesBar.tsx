@@ -11,15 +11,15 @@ interface FavoritesBarProps {
 export function FavoritesBar({ favorites, onQuickAdd }: FavoritesBarProps) {
   if (favorites.length === 0) return null
   return (
-    <section aria-label="Yêu thích" className="space-y-2 pt-3">
-      <h3 className="px-4 text-lg font-semibold md:text-sm">Yêu thích</h3>
+    <section aria-label="Favorites" className="space-y-2 pt-3">
+      <h3 className="px-4 text-lg font-semibold md:text-sm">Favorites</h3>
       <ul className="flex gap-2 overflow-x-auto overscroll-x-contain px-3 pb-1">
         {favorites.map((favorite) => (
           <li key={favorite.id} className="w-24 shrink-0">
             <button
               type="button"
               onClick={() => onQuickAdd(favorite)}
-              aria-label={`Thêm ${favorite.foodName}, ${favorite.quantity} ${favorite.servingName}`}
+              aria-label={`Add ${favorite.foodName}, ${favorite.quantity} ${favorite.servingName}`}
               className="focus-visible:ring-ring/50 flex w-full flex-col items-center gap-1 rounded-xl px-1 py-1.5 focus-visible:ring-1 focus-visible:outline-none active:opacity-70"
             >
               <span className="relative">

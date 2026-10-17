@@ -28,13 +28,13 @@ export const useAuth = () => {
   const login = useCallback(
     async (credentials: LoginRequest) => {
       const response = await authService.login(credentials)
-      if (!response?.accessToken) throw new Error('Không nhận được Access Token từ server.')
+      if (!response?.accessToken) throw new Error('No access token received from the server.')
 
       const decoded = decodeUserFromToken(response.accessToken)
-      if (!decoded) throw new Error('Token không hợp lệ.')
+      if (!decoded) throw new Error('Invalid token.')
 
       setUser(decoded, response.accessToken)
-      toast.success(`Chào mừng, ${decoded.name}!`)
+      toast.success(`Welcome back, ${decoded.name}!`)
       return response
     },
     [setUser]
@@ -47,7 +47,7 @@ export const useAuth = () => {
       logger.error('Logout API error:', error)
     } finally {
       clearAuth()
-      toast.info('Đã đăng xuất')
+      toast.info('Signed out')
       router.push(routePath.login)
     }
   }, [clearAuth, router])

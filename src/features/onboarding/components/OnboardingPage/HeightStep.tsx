@@ -36,14 +36,14 @@ export function HeightStep({ heightCm, unit, onChange, onUnitChange }: HeightSte
 
   return (
     <div>
-      <StepHeading title="Chiều cao của bạn?" />
+      <StepHeading title="What is your height?" />
       <UnitToggle
-        ariaLabel="Đơn vị chiều cao"
+        ariaLabel="Height unit"
         value={unit}
         onChange={(next) => onUnitChange(next as UnitSystem)}
         options={[
-          { value: 'Imperial', label: 'Feet và inch' },
-          { value: 'Metric', label: 'Centimet' },
+          { value: 'Imperial', label: 'Feet and inches' },
+          { value: 'Metric', label: 'Centimeters' },
         ]}
       />
       <div className="mt-6">
@@ -52,14 +52,14 @@ export function HeightStep({ heightCm, unit, onChange, onUnitChange }: HeightSte
             items={METRIC_ITEMS}
             value={Math.round(heightCm)}
             onChange={onChange}
-            ariaLabel="Chiều cao (cm)"
+            ariaLabel="Height (cm)"
           />
         ) : (
           <WheelPicker
             items={items}
             value={inches}
             onChange={(next) => onChange(Math.round(next * CM_PER_INCH))}
-            ariaLabel="Chiều cao (feet và inch)"
+            ariaLabel="Height (feet and inches)"
           />
         )}
       </div>

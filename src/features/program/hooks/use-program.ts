@@ -46,22 +46,21 @@ const useProgramMutation = <TVariables>(
 export const useCreateProgram = () =>
   useProgramMutation(
     (payload: CreateProgramRequest) => programService.create(payload),
-    'Đã tạo program'
+    'Program created'
   )
 export const useUpdateProgramGoal = () =>
   useProgramMutation(
     (payload: UpdateProgramGoalRequest) => programService.updateGoal(payload),
-    'Đã cập nhật mục tiêu'
+    'Goal updated'
   )
 export const useChangeProgramStyle = () =>
   useProgramMutation(
     (programType: ProgramType) => programService.changeStyle(programType),
-    'Đã đổi program style'
+    'Program style changed'
   )
 export const useSetManualExpenditure = () =>
   useProgramMutation(
     (tdeeKcal: number) => programService.setManualExpenditure(tdeeKcal),
-    'Đã đặt TDEE khởi điểm'
+    'Starting TDEE set'
   )
-export const useEndProgram = () =>
-  useProgramMutation(() => programService.end(), 'Đã kết thúc program')
+export const useEndProgram = () => useProgramMutation(() => programService.end(), 'Program ended')

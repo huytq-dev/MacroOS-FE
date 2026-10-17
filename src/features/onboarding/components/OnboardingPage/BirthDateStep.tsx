@@ -1,14 +1,14 @@
 'use client'
 
 import { useMemo } from 'react'
-import { TriangleAlert } from 'lucide-react'
 import { StepHeading } from './ChoiceStep'
+import { BadgeAlert } from './SolidIcons'
 import { WheelPicker } from './WheelPicker'
 import { ageOn } from '../../onboarding.utils'
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => ({
   value: index + 1,
-  label: `Tháng ${index + 1}`,
+  label: new Date(2000, index, 1).toLocaleString('en-US', { month: 'long' }),
 }))
 
 const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate()
@@ -47,34 +47,34 @@ export function BirthDateStep({ value, today, onChange }: BirthDateStepProps) {
 
   return (
     <div>
-      <StepHeading title="Bạn sinh ngày nào?" />
+      <StepHeading title="When were you born?" />
       <div className="mt-8 grid grid-cols-[1.4fr_1fr_1.2fr] gap-2">
         <WheelPicker
           items={MONTHS}
           value={month}
           onChange={(next) => update(year, next, day)}
-          ariaLabel="Tháng sinh"
+          ariaLabel="Birth month"
         />
         <WheelPicker
           items={days}
           value={day}
           onChange={(next) => update(year, month, next)}
-          ariaLabel="Ngày sinh"
+          ariaLabel="Birth day"
         />
         <WheelPicker
           items={years}
           value={year}
           onChange={(next) => update(next, month, day)}
-          ariaLabel="Năm sinh"
+          ariaLabel="Birth year"
         />
       </div>
       {ageOn(value, today) < 18 && (
         <div
           role="alert"
-          className="bg-destructive/15 text-destructive motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-200 mt-6 flex items-center gap-3 rounded-2xl p-4 text-base"
+          className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-200 mt-6 flex items-center gap-3 rounded-2xl bg-red-950 p-4 text-base text-red-50"
         >
-          <TriangleAlert aria-hidden="true" className="size-5 shrink-0" />
-          Bạn cần đủ 18 tuổi để tiếp tục
+          <BadgeAlert className="size-5 shrink-0" />
+          You must be at least 18 to continue
         </div>
       )}
     </div>

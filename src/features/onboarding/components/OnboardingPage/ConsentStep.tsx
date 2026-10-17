@@ -30,40 +30,37 @@ export function ConsentStep({
     <div className="flex flex-1 flex-col">
       <div className="flex-1 space-y-6 pb-6">
         <h1 className="text-2xl leading-tight font-bold">
-          Nhắc nhở ăn uống có trách nhiệm và lưu ý về quyền riêng tư
+          Healthy eating reminder and privacy notice
         </h1>
         <section className="space-y-2">
-          <h2 className="text-lg font-medium">Tuyên bố sức khoẻ</h2>
+          <h2 className="text-lg font-medium">Health disclaimer</h2>
           <p className="text-muted-foreground text-base leading-relaxed">
-            MacroOS cung cấp thông tin sức khoẻ mang tính giáo dục dựa trên dữ liệu bạn nhập, không
-            phải lời khuyên y tế hay tư vấn cá nhân. Hãy luôn hỏi chuyên gia y tế trước khi đưa ra
-            quyết định quan trọng về sức khoẻ, như thay đổi chế độ ăn hoặc tập luyện. Bạn hiểu và
-            chấp nhận các rủi ro khi dùng ứng dụng, gồm cả thay đổi về ăn uống và vận động. Bạn chịu
-            trách nhiệm cho quyết định sức khoẻ của mình và nên tìm hướng dẫn chuyên môn khi cần.
+            MacroOS provides educational health information based on the data you enter. It is not
+            medical advice or personal counselling. Always ask a healthcare professional before
+            making important health decisions, such as changing your diet or exercise routine. You
+            understand and accept the risks of using the app, including changes to your eating and
+            activity. You are responsible for your own health decisions and should seek professional
+            guidance when needed.
           </p>
         </section>
         <section className="space-y-2">
-          <h2 className="text-lg font-medium">Quyền riêng tư dữ liệu sức khoẻ</h2>
+          <h2 className="text-lg font-medium">Health data privacy</h2>
           <p className="text-muted-foreground text-base leading-relaxed">
-            <strong className="text-foreground font-medium">
-              Riêng tư và an toàn là trên hết:
-            </strong>{' '}
-            chúng tôi giữ dữ liệu của bạn an toàn, cho bạn biết dữ liệu được dùng ra sao và cam kết
-            không bán nó. Dữ liệu chỉ dùng để cải thiện trải nghiệm MacroOS với các tính năng phù
-            hợp mục tiêu của bạn.
+            <strong className="text-foreground font-medium">Privacy and safety come first:</strong>{' '}
+            we keep your data safe, tell you how it is used and promise never to sell it. Your data
+            is only used to improve your MacroOS experience with features that fit your goals.
           </p>
           <p className="text-muted-foreground text-base leading-relaxed">
             <strong className="text-foreground font-medium">
-              Sức khoẻ của bạn, dữ liệu của bạn, quyền của bạn:
+              Your health, your data, your choice:
             </strong>{' '}
-            chúng tôi cần sự đồng ý của bạn để dùng các thông tin như chỉ số cơ thể và dinh dưỡng
-            nhằm đưa ra phản hồi cá nhân hoá. Không có dữ liệu này, ứng dụng không thể đưa phản hồi
-            phù hợp với riêng bạn.
+            we need your consent to use information such as body metrics and nutrition to give you
+            personalised feedback. Without this data, the app cannot give feedback tailored to you.
           </p>
           <p className="text-muted-foreground text-base leading-relaxed">
-            <strong className="text-foreground font-medium">Bạn kiểm soát:</strong> bạn quyết định
-            cung cấp thông tin nào và có thể sửa hoặc xoá dữ liệu bất cứ lúc nào, điều này có thể
-            ảnh hưởng đến các gợi ý cá nhân hoá.
+            <strong className="text-foreground font-medium">You are in control:</strong> you decide
+            what information to provide and can edit or delete your data at any time, which may
+            affect your personalised recommendations.
           </p>
         </section>
       </div>
@@ -72,13 +69,13 @@ export function ConsentStep({
         {[
           {
             id: healthId,
-            label: 'Tôi đồng ý với điều khoản của Tuyên bố sức khoẻ.',
+            label: 'I agree to the terms of the Health Disclaimer.',
             checked: healthAccepted,
             onChange: onHealthChange,
           },
           {
             id: privacyId,
-            label: 'Tôi đồng ý với điều khoản của Thông báo quyền riêng tư dữ liệu sức khoẻ.',
+            label: 'I agree to the terms of the Health Data Privacy Notice.',
             checked: privacyAccepted,
             onChange: onPrivacyChange,
           },
@@ -104,7 +101,7 @@ export function ConsentStep({
           }}
         >
           {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-          {isPending ? 'Đang hoàn tất...' : 'Chấp nhận và tiếp tục'}
+          {isPending ? 'Finishing...' : 'Accept and continue'}
         </Button>
       </div>
     </div>

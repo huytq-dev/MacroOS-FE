@@ -22,20 +22,20 @@ export function WeightStep({ weightKg, unit, onChange, onUnitChange }: WeightSte
   const imperial = unit === 'Imperial'
   return (
     <div>
-      <StepHeading title="Cân nặng của bạn?" />
+      <StepHeading title="What is your weight?" />
       <UnitToggle
-        ariaLabel="Đơn vị cân nặng"
+        ariaLabel="Weight unit"
         value={unit}
         onChange={(next) => onUnitChange(next as UnitSystem)}
         options={[
-          { value: 'Imperial', label: 'Pound' },
-          { value: 'Metric', label: 'Kilôgam' },
+          { value: 'Imperial', label: 'Pounds' },
+          { value: 'Metric', label: 'Kilograms' },
         ]}
       />
       <div className="mt-24">
         {imperial ? (
           <RulerSlider
-            ariaLabel="Cân nặng (lb)"
+            ariaLabel="Weight (lb)"
             unit="lb"
             min={Math.round(MIN_KG * LB_PER_KG)}
             max={Math.round(MAX_KG * LB_PER_KG)}
@@ -44,7 +44,7 @@ export function WeightStep({ weightKg, unit, onChange, onUnitChange }: WeightSte
           />
         ) : (
           <RulerSlider
-            ariaLabel="Cân nặng (kg)"
+            ariaLabel="Weight (kg)"
             unit="kg"
             min={MIN_KG}
             max={MAX_KG}

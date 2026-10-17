@@ -80,14 +80,14 @@ export function AddFoodDialog({
         style={keyboardInset > 0 ? { bottom: keyboardInset } : undefined}
       >
         <DialogHeader className="relative z-20 space-y-0">
-          <DialogTitle className="sr-only">Thêm món</DialogTitle>
+          <DialogTitle className="sr-only">Add food</DialogTitle>
           <DialogDescription className="sr-only">
-            Tìm thực phẩm hoặc nhập nhanh kcal và macro
+            Search for a food or quick add calories and macros
           </DialogDescription>
           <div className="flex items-center gap-2 px-3 py-3">
             <button
               type="button"
-              aria-label="Đóng"
+              aria-label="Close"
               disabled={isLogging}
               onClick={() => onOpenChange(false)}
               className="bg-secondary active:bg-muted focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:opacity-50"
@@ -102,7 +102,7 @@ export function AddFoodDialog({
             <AddFoodProgress totals={totals} target={target} plate={plateTotals} />
             <span
               role="status"
-              aria-label={`${plate.length} món trong plate`}
+              aria-label={`${plate.length} ${plate.length === 1 ? 'item' : 'items'} in plate`}
               className="bg-secondary flex h-11 shrink-0 items-center gap-1 rounded-full px-3 text-base font-semibold tabular-nums"
             >
               <Utensils aria-hidden="true" className="size-5" />
@@ -115,13 +115,13 @@ export function AddFoodDialog({
                 value="search"
                 className="h-11 flex-1 text-base group-data-horizontal/tabs:after:bottom-0 md:text-sm"
               >
-                <Search aria-hidden="true" /> Tìm món
+                <Search aria-hidden="true" /> Search
               </TabsTrigger>
               <TabsTrigger
                 value="quick"
                 className="h-11 flex-1 text-base group-data-horizontal/tabs:after:bottom-0 md:text-sm"
               >
-                <Zap aria-hidden="true" /> Nhập nhanh
+                <Zap aria-hidden="true" /> Quick add
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -129,7 +129,7 @@ export function AddFoodDialog({
 
         {error && (
           <div className="px-4 pb-2">
-            <FormErrorAlert title="Không thêm được món" message={error} />
+            <FormErrorAlert title="Couldn't add food" message={error} />
           </div>
         )}
 
@@ -149,7 +149,7 @@ export function AddFoodDialog({
                   </span>
                   <IconButton
                     icon={X}
-                    label={`Bỏ ${item.name}`}
+                    label={`Remove ${item.name}`}
                     disabled={isLogging}
                     onClick={() => onRemoveFromPlate(item.key)}
                   />
@@ -163,8 +163,8 @@ export function AddFoodDialog({
                 <SearchInput
                   value={search}
                   onValueChange={onSearchChange}
-                  placeholder="Tìm thực phẩm"
-                  aria-label="Tìm thực phẩm"
+                  placeholder="Search for a food"
+                  aria-label="Search for a food"
                 />
               </div>
             )}
@@ -182,7 +182,9 @@ export function AddFoodDialog({
                 }}
               >
                 {isLogging && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-                {isLogging ? 'Đang log...' : `Log ${plate.length} món`}
+                {isLogging
+                  ? 'Logging...'
+                  : `Log ${plate.length} ${plate.length === 1 ? 'item' : 'items'}`}
               </Button>
             )}
           </div>

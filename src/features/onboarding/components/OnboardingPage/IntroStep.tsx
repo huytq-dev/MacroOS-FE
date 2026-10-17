@@ -4,14 +4,17 @@ import { cn } from '@/lib/utils'
 
 const STEPS = [
   {
-    title: 'Thông tin cơ bản',
+    title: 'Basics',
     description:
-      'Mình bắt đầu bằng việc tìm hiểu về bạn và trao đổi chất của bạn. Đây là nền tảng cho chương trình dành riêng cho bạn.',
+      'We start by getting to know you and your metabolism. This is the foundation for your personalised program.',
   },
-  { title: 'Mục tiêu', description: 'Bạn muốn giảm, giữ hay tăng cân, và với tốc độ nào.' },
+  {
+    title: 'Goal',
+    description: 'Whether you want to lose, maintain or gain weight, and how fast.',
+  },
   {
     title: 'Program',
-    description: 'Cách MacroOS chia kcal thành protein, chất béo và carb mỗi ngày.',
+    description: 'How MacroOS splits your daily kcal into protein, fat and carbs.',
   },
 ] as const
 
@@ -20,8 +23,8 @@ export function IntroStep() {
   return (
     <div className="pt-6">
       <div className="space-y-2 text-center">
-        <h1 className="text-3xl font-extrabold tracking-wide uppercase">Bắt đầu nào</h1>
-        <p className="text-muted-foreground text-lg">Chương trình cá nhân hoá của bạn đang chờ</p>
+        <h1 className="text-3xl font-extrabold tracking-wide uppercase">Let&apos;s get started</h1>
+        <p className="text-muted-foreground text-lg">Your personalised program is waiting</p>
       </div>
       <ol className="mt-10 space-y-0">
         {STEPS.map((step, index) => (

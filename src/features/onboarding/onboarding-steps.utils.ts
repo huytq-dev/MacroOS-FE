@@ -15,12 +15,12 @@ export const PREVIEW_STEPS: readonly StepId[] = [
 ]
 
 export const NEXT_LABEL: Partial<Record<StepId, string>> = {
-  intro: 'Đến phần Thông tin cơ bản',
-  ready: 'Xong',
-  carousel: 'Tiếp tục',
-  whatYouGet: 'Tiếp tục',
-  plan: 'Bắt đầu dùng thử',
-  first30: 'Tiếp tục',
+  intro: 'Go to Basics',
+  ready: 'Done',
+  carousel: 'Continue',
+  whatYouGet: 'Continue',
+  plan: 'Start trial',
+  first30: 'Continue',
 }
 
 interface ProceedContext {
@@ -42,8 +42,6 @@ export function canProceed({ stepId, answers, today, preview, readyReached }: Pr
       return answers.weighedMoreThanBefore !== null
     case 'weightTrend':
       return answers.recentWeightTrend !== null
-    case 'bodyFat':
-      return answers.bodyFat !== null
     case 'exercise':
       return answers.exerciseSessions !== null
     case 'activity':
@@ -88,7 +86,7 @@ export function programRequestOf(
   answers: WizardAnswers,
   preview: ProgramPreview | undefined
 ): CreateProgramRequest {
-  if (!preview || !answers.goalType) throw new Error('Chưa có bản xem trước chương trình')
+  if (!preview || !answers.goalType) throw new Error('No program preview yet')
   const maintain = answers.goalType === 'Maintenance'
   const custom = answers.shiftMode === 'Custom'
   const floor = answers.calorieFloor

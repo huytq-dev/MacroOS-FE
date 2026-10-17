@@ -13,7 +13,7 @@ export function WeightChart({ items }: WeightChartProps) {
   if (items.length < 2)
     return (
       <p className="text-muted-foreground px-3 py-6 text-center text-xs">
-        Cần ít nhất 2 lần cân để vẽ biểu đồ.
+        Log at least 2 weigh-ins to see the chart.
       </p>
     )
 
@@ -38,7 +38,7 @@ export function WeightChart({ items }: WeightChartProps) {
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       className="w-full"
       role="img"
-      aria-label="Biểu đồ cân nặng và trend"
+      aria-label="Scale weight and trend weight chart"
     >
       {ticks.map((tick) => (
         <g key={tick}>

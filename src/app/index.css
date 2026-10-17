@@ -35,6 +35,14 @@
   --color-mf-carbs: var(--mf-carbs);
   --color-mf-fat: var(--mf-fat);
   --color-mf-trend: var(--mf-trend);
+  --color-mf-tile-calories: var(--mf-tile-calories);
+  --color-mf-tile-calories-text: var(--mf-tile-calories-text);
+  --color-mf-tile-protein: var(--mf-tile-protein);
+  --color-mf-tile-protein-text: var(--mf-tile-protein-text);
+  --color-mf-tile-fat: var(--mf-tile-fat);
+  --color-mf-tile-fat-text: var(--mf-tile-fat-text);
+  --color-mf-tile-carbs: var(--mf-tile-carbs);
+  --color-mf-tile-carbs-text: var(--mf-tile-carbs-text);
   --color-mf-pastel-green: var(--mf-pastel-green);
   --color-mf-pastel-green-text: var(--mf-pastel-green-text);
   --color-mf-pastel-yellow: var(--mf-pastel-yellow);

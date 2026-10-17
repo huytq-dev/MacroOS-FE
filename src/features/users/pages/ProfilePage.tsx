@@ -52,7 +52,7 @@ export function ProfilePage() {
 
   return (
     <div className="flex max-w-2xl flex-col gap-5">
-      <PageHeader title="Hồ sơ" eyebrow={user?.email} />
+      <PageHeader title="Profile" eyebrow={user?.email} />
       {profile.isLoading ? (
         <div className="space-y-5" aria-busy="true">
           <Skeleton className="h-52 rounded-2xl" />

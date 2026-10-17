@@ -6,10 +6,14 @@ import { ChatBubble, TypingDots } from './ChatBubbles'
 import { PickerSheet } from '@/components/shared/PickerSheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { buildChatItems, buildChatNodes, type ChatReply } from '../../estimate-chat.utils'
+import {
+  buildChatItems,
+  buildChatNodes,
+  pauseBefore,
+  typingDuration,
+  type ChatReply,
+} from '../../estimate-chat.utils'
 import type { TdeeEstimate } from '../../types/onboarding.types'
-
-const TYPING_MS = 550
 
 interface EstimateChatStepProps {
   readonly estimate: TdeeEstimate | null
@@ -32,6 +36,7 @@ export function EstimateChatStep({
   const [path, setPath] = useState<readonly string[]>(['start'])
   const [replies, setReplies] = useState<readonly string[]>([])
   const [revealed, setRevealed] = useState(0)
+  const [typing, setTyping] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -45,22 +50,38 @@ export function EstimateChatStep({
     [nodes, path, replies]
   )
 
-  // Mỗi lượt tiết lộ một bong bóng sau thời gian "đang gõ"; bong bóng của người dùng hiện ngay
+  // Mỗi bong bóng của bot: nghỉ một nhịp → hiện "đang gõ" → hiện chữ sau thời gian tỉ lệ độ dài câu.
+  // Bong bóng của người dùng hiện ngay khi bấm.
   useEffect(() => {
     if (revealed >= items.length) return
-    const delay = items[revealed].kind === 'user' ? 0 : TYPING_MS
-    const timer = setTimeout(() => setRevealed((current) => current + 1), delay)
-    return () => clearTimeout(timer)
+    const item = items[revealed]
+    if (item.kind === 'user') {
+      const timer = setTimeout(() => setRevealed((count) => count + 1), 0)
+      return () => clearTimeout(timer)
+    }
+    const pause = pauseBefore(items, revealed)
+    const showTyping = setTimeout(() => setTyping(true), pause)
+    const reveal = setTimeout(
+      () => {
+        setTyping(false)
+        setRevealed((count) => count + 1)
+      },
+      pause + typingDuration(item)
+    )
+    return () => {
+      clearTimeout(showTyping)
+      clearTimeout(reveal)
+    }
   }, [revealed, items])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [revealed])
+  }, [revealed, typing])
 
   if (isLoading || !estimate || !tdee || !nodes)
     return (
       <div className="flex flex-1 items-center justify-center" aria-busy="true">
-        <Loader2 aria-label="Đang ước tính" className="text-muted-foreground size-8 animate-spin" />
+        <Loader2 aria-label="Estimating" className="text-muted-foreground size-8 animate-spin" />
       </div>
     )
 
@@ -87,21 +108,24 @@ export function EstimateChatStep({
             }}
           />
         ))}
-        {!settled && items[revealed]?.kind !== 'user' && <TypingDots />}
+        {typing && !settled && <TypingDots />}
         <div ref={bottomRef} />
       </div>
 
       <div className="bg-background sticky bottom-0 -mx-4 space-y-3 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {settled && !isEnd && (
-          <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-200 space-y-2">
-            <p className="text-base">Chọn câu trả lời</p>
+          <div className="space-y-2">
+            <p className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-300 text-base [animation-fill-mode:backwards]">
+              Choose a reply
+            </p>
             <div className="flex flex-wrap gap-2">
-              {current.replies.map((choice) => (
+              {current.replies.map((choice, index) => (
                 <button
                   key={choice.label}
                   type="button"
                   onClick={() => reply(choice)}
-                  className="border-border focus-visible:ring-ring/50 active:bg-muted min-h-11 rounded-xl border-2 px-4 py-2 text-left text-base transition-colors focus-visible:ring-1 focus-visible:outline-none"
+                  style={{ animationDelay: `${250 + index * 120}ms` }}
+                  className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-300 border-border focus-visible:ring-ring/50 active:bg-muted min-h-11 rounded-xl border-2 px-4 py-2 text-left text-base transition-colors [animation-fill-mode:backwards] focus-visible:ring-1 focus-visible:outline-none"
                 >
                   {choice.label}
                 </button>
@@ -114,7 +138,7 @@ export function EstimateChatStep({
           className="h-12 w-full rounded-full text-base"
           onClick={onNext}
         >
-          {isEnd ? 'Tiếp theo' : 'Bỏ qua'}
+          {isEnd ? 'Next' : 'Skip'}
         </Button>
       </div>
 
@@ -127,8 +151,8 @@ export function EstimateChatStep({
           }
           setEditing(open)
         }}
-        title="Chỉnh mức tiêu hao"
-        description="Nhập TDEE bạn đã biết (1.000 – 6.000 kcal). MacroOS vẫn tinh chỉnh theo dữ liệu thật."
+        title="Edit expenditure"
+        description="Enter your TDEE if you already know it (1,000 – 6,000 kcal). MacroOS will still fine-tune it using your real data."
       >
         <Input
           type="number"
@@ -136,7 +160,7 @@ export function EstimateChatStep({
           min={1000}
           max={6000}
           value={draft}
-          aria-label="Mức tiêu hao (kcal)"
+          aria-label="Expenditure (kcal)"
           onChange={(event) => setDraft(event.target.value)}
           className="h-12 text-center text-xl font-semibold"
         />

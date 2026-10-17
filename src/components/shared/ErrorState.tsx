@@ -25,39 +25,39 @@ interface ErrorCopy {
 const copy: Record<ErrorKind, ErrorCopy> = {
   forbidden: {
     icon: Lock,
-    title: 'Bạn chưa có quyền xem nội dung này',
+    title: "You don't have access to this content",
     description:
-      'Tài khoản của bạn chưa được cấp quyền truy cập mục này. Vui lòng liên hệ quản trị viên để được cấp quyền.',
+      'Your account does not have permission to view this section. Contact an administrator to request access.',
     retryable: false,
   },
   unauthorized: {
     icon: ShieldAlert,
-    title: 'Phiên đăng nhập đã hết hạn',
-    description: 'Vui lòng đăng nhập lại để tiếp tục.',
+    title: 'Your session has expired',
+    description: 'Sign in again to continue.',
     retryable: false,
   },
   notFound: {
     icon: SearchX,
-    title: 'Không tìm thấy dữ liệu',
-    description: 'Dữ liệu bạn yêu cầu không tồn tại hoặc đã bị xóa.',
+    title: 'Nothing found',
+    description: 'The data you requested does not exist or has been deleted.',
     retryable: false,
   },
   network: {
     icon: WifiOff,
-    title: 'Không thể kết nối đến hệ thống',
-    description: 'Vui lòng kiểm tra kết nối mạng rồi thử lại.',
+    title: 'Unable to connect',
+    description: 'Check your internet connection and try again.',
     retryable: true,
   },
   server: {
     icon: ServerCrash,
-    title: 'Hệ thống đang gặp sự cố',
-    description: 'Chúng tôi chưa tải được dữ liệu. Vui lòng thử lại sau ít phút.',
+    title: 'Something went wrong on our end',
+    description: 'We could not load your data. Please try again in a few minutes.',
     retryable: true,
   },
   unknown: {
     icon: CircleAlert,
-    title: 'Không thể tải dữ liệu',
-    description: 'Đã có lỗi xảy ra. Vui lòng thử lại.',
+    title: 'Unable to load data',
+    description: 'Something went wrong. Please try again.',
     retryable: true,
   },
 }
@@ -91,13 +91,13 @@ export function ErrorState({
   const retryButton = canRetry && (
     <Button variant="outline" size="sm" className="gap-1.5" disabled={isRetrying} onClick={onRetry}>
       <RefreshCw aria-hidden="true" className={cn('size-3.5', isRetrying && 'animate-spin')} />
-      {isRetrying ? 'Đang thử lại…' : 'Thử lại'}
+      {isRetrying ? 'Retrying…' : 'Try again'}
     </Button>
   )
   const technical = (
     <details className="text-muted-foreground text-xs">
       <summary className="hover:text-foreground cursor-pointer select-none">
-        Chi tiết kỹ thuật
+        Technical details
       </summary>
       <p className="mt-1 break-words">
         {status ? `HTTP ${status} · ` : ''}
@@ -118,7 +118,7 @@ export function ErrorState({
         <Icon aria-hidden="true" className="text-mf-warning-text size-4 shrink-0" />
         <span className="min-w-0 flex-1">
           <strong className="font-medium">{title}.</strong>{' '}
-          <span className="text-muted-foreground">Một phần dữ liệu có thể chưa đầy đủ.</span>
+          <span className="text-muted-foreground">Some data may be incomplete.</span>
         </span>
         {retryButton}
       </div>
@@ -158,12 +158,12 @@ export function ErrorState({
       <div className="flex flex-wrap items-center justify-center gap-2">
         {backHref && (
           <Button variant="outline" size="sm" asChild>
-            <Link href={backHref}>Quay lại</Link>
+            <Link href={backHref}>Go back</Link>
           </Button>
         )}
         {kind === 'unauthorized' && (
           <Button size="sm" asChild>
-            <Link href={routePath.login}>Đăng nhập lại</Link>
+            <Link href={routePath.login}>Sign in again</Link>
           </Button>
         )}
         {retryButton}

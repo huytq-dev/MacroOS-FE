@@ -1,27 +1,27 @@
 'use client'
 
-import { ChartLine, Dumbbell, Salad, Target, type LucideIcon } from 'lucide-react'
+import { Apple, ChartLine, Crosshair, Whistle, type LucideIcon } from 'lucide-react'
 
 const TIMELINE: readonly { icon: LucideIcon; title: string; text: string }[] = [
   {
-    icon: Salad,
-    title: 'Ghi bữa ăn và cân nặng mỗi ngày',
-    text: 'MacroOS dùng dữ liệu đó để phân tích trao đổi chất và cá nhân hoá kế hoạch của bạn.',
+    icon: Apple,
+    title: 'Log your meals and weight every day',
+    text: 'MacroOS uses that data to analyse your metabolism and personalise your plan.',
   },
   {
     icon: ChartLine,
-    title: 'Sau ngày thứ 3, MacroOS cập nhật mức tiêu hao',
-    text: 'Thuật toán bắt đầu tinh chỉnh mức tiêu hao ước tính trên trang Tổng quan.',
+    title: 'After day 3, MacroOS updates your expenditure',
+    text: 'The algorithm starts fine-tuning your estimated expenditure on the Dashboard.',
   },
   {
-    icon: Target,
-    title: 'Tuần sau, bạn nhận check-in đầu tiên',
-    text: 'MacroOS điều chỉnh mục tiêu calo như một huấn luyện viên dinh dưỡng. Hãy tiếp tục ghi mỗi ngày.',
+    icon: Whistle,
+    title: 'Next week, you get your first check-in',
+    text: 'MacroOS adjusts your calorie target like a nutrition coach. Keep logging every day.',
   },
   {
-    icon: Dumbbell,
-    title: 'Sau 30 ngày, kế hoạch khớp với trao đổi chất của bạn',
-    text: 'Khi ghi đều đặn, MacroOS nắm được trao đổi chất và đưa mục tiêu calo khớp với cơ thể bạn.',
+    icon: Crosshair,
+    title: 'After 30 days, your plan matches your metabolism',
+    text: 'When you log consistently, MacroOS learns your metabolism and sets a calorie target that fits your body.',
   },
 ]
 
@@ -30,7 +30,7 @@ export function First30DaysStep() {
   return (
     <div>
       <h1 className="pt-4 pb-8 text-center text-3xl font-extrabold tracking-wide uppercase">
-        30 ngày đầu tiên
+        Your first 30 days
       </h1>
       <ol>
         {TIMELINE.map((item, index) => (

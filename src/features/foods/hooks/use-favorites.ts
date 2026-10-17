@@ -37,10 +37,10 @@ const useFavoriteMutation = <TVariables>(
 }
 
 export const useAddFavorite = () =>
-  useFavoriteMutation(favoriteService.add, 'Đã lưu vào yêu thích', 'Không lưu được yêu thích')
+  useFavoriteMutation(favoriteService.add, 'Saved to favorites', "Couldn't save favorite")
 
 export const useRemoveFavorite = () =>
-  useFavoriteMutation(favoriteService.remove, 'Đã bỏ khỏi yêu thích', 'Không bỏ được yêu thích')
+  useFavoriteMutation(favoriteService.remove, 'Removed from favorites', "Couldn't remove favorite")
 
 /** Sắp xếp lại: cập nhật giao diện trước, lỗi thì tải lại và báo (UI.md mục 22). */
 export const useReorderFavorites = () => {
@@ -55,7 +55,7 @@ export const useReorderFavorites = () => {
     },
     onError: (error) => {
       logger.error(error)
-      toast.error('Không sắp xếp được yêu thích')
+      toast.error("Couldn't reorder favorites")
       void queryClient.invalidateQueries({ queryKey: favoriteKeys.all })
     },
   })

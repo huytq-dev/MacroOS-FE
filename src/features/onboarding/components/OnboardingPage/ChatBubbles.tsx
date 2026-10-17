@@ -15,11 +15,11 @@ interface ChatBubbleProps {
 export function ChatBubble({ item, tdee, onEdit }: ChatBubbleProps) {
   if (item.kind === 'card')
     return (
-      <div className="border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:animation-duration-300 flex w-fit items-center gap-3 rounded-2xl border-2 px-5 py-3">
+      <div className="border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-90 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-400 flex w-fit origin-bottom-left items-center gap-3 rounded-2xl border-2 px-5 py-3">
         <p className="text-2xl font-bold tabular-nums">{tdee} kcal</p>
         <IconButton
           icon={Pencil}
-          label="Sửa mức tiêu hao"
+          label="Edit expenditure"
           variant="secondary"
           className="size-11 rounded-full"
           onClick={onEdit}
@@ -29,8 +29,10 @@ export function ChatBubble({ item, tdee, onEdit }: ChatBubbleProps) {
   return (
     <div
       className={cn(
-        'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-300 flex',
-        item.kind === 'user' ? 'justify-end' : 'justify-start'
+        'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-90 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-400 flex',
+        item.kind === 'user'
+          ? 'origin-bottom-right justify-end'
+          : 'origin-bottom-left justify-start'
       )}
     >
       <p
@@ -51,14 +53,14 @@ export function ChatBubble({ item, tdee, onEdit }: ChatBubbleProps) {
 export function TypingDots() {
   return (
     <div
-      className="bg-foreground/90 flex w-fit gap-1 rounded-3xl rounded-bl-md px-4 py-4"
-      aria-label="Đang gõ"
+      className="bg-foreground/90 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-75 motion-safe:animation-duration-200 flex w-fit origin-bottom-left gap-1.5 rounded-3xl rounded-bl-md px-4 py-4"
+      aria-label="Typing"
     >
       {[0, 1, 2].map((dot) => (
         <span
           key={dot}
           className="bg-background size-2 rounded-full motion-safe:animate-bounce"
-          style={{ animationDelay: `${dot * 120}ms` }}
+          style={{ animationDelay: `${dot * 150}ms` }}
         />
       ))}
     </div>

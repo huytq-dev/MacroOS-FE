@@ -32,9 +32,9 @@ function DesktopSearchableSelect({
   options,
   value,
   onValueChange,
-  placeholder = 'Chọn...',
+  placeholder = 'Select...',
   clearLabel,
-  emptyText = 'Không có kết quả phù hợp',
+  emptyText = 'No matching results',
   disabled,
   id,
   ...aria
@@ -153,9 +153,9 @@ function MobileSearchableSelect({
   options,
   value,
   onValueChange,
-  placeholder = 'Chọn...',
+  placeholder = 'Select...',
   clearLabel,
-  emptyText = 'Không có kết quả phù hợp',
+  emptyText = 'No matching results',
   disabled,
   id,
   ...aria
@@ -198,8 +198,8 @@ function MobileSearchableSelect({
           <Input
             type="search"
             autoComplete="off"
-            aria-label="Tìm kiếm"
-            placeholder="Tìm kiếm"
+            aria-label="Search"
+            placeholder="Search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="pl-9"

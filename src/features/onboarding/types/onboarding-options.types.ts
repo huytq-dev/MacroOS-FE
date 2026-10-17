@@ -1,38 +1,48 @@
+import type { ComponentType } from 'react'
 import {
   ArrowDown,
   ArrowUp,
-  Armchair,
-  Beef,
   Bean,
-  CalendarDays,
   Check,
   CheckCheck,
-  CircleHelp,
-  Droplet,
   Dumbbell,
   Egg,
-  Equal,
+  EggFried,
+  Fish,
   Footprints,
-  Minus,
-  PersonStanding,
-  Scale,
-  SignalHigh,
-  SignalLow,
-  SignalMedium,
-  SignalZero,
-  Star,
-  TriangleAlert,
-  TrendingDown,
-  TrendingUp,
-  Venus,
+  Hamburger,
   Mars,
+  Menu,
+  Minus,
+  Scale,
+  Sofa,
+  Venus,
   Waves,
-  WheatOff,
   X,
-  Zap,
-  Drumstick,
-  type LucideIcon,
 } from 'lucide-react'
+import {
+  ExperienceAdvanced,
+  ExperienceBeginner,
+  ExperienceIntermediate,
+  ExperienceNone,
+  BadgeAlert,
+  BadgeStar,
+  CalendarMany,
+  CalendarOne,
+  CalendarThree,
+  CalendarZero,
+  ScaleGain,
+  ScaleKeep,
+  ScaleLose,
+} from '../components/OnboardingPage/SolidIcons'
+import {
+  ButterDish,
+  Meditator,
+  QuestionMark,
+  Runner,
+  Skate,
+  Skewers,
+} from '../components/OnboardingPage/LineIcons'
 import type {
   BodyFatBand,
   CalorieFloorChoice,
@@ -46,172 +56,220 @@ import type {
 } from './onboarding.types'
 import type { DietStyle, Gender, GoalType, ProteinLevel } from '@/config/enums'
 
+/** Icon của thẻ chọn: icon lucide hoặc icon tự vẽ, chỉ cần nhận className. */
+export type OptionIcon = ComponentType<{ className?: string }>
+
 export interface ChoiceOption<T extends string> {
   readonly value: T
   readonly label: string
   readonly description?: string
-  readonly icon: LucideIcon
+  readonly icon: OptionIcon
 }
 
 export const SEX_OPTIONS: readonly ChoiceOption<Exclude<Gender, 'Other'>>[] = [
-  { value: 'Female', label: 'Nữ', icon: Venus },
-  { value: 'Male', label: 'Nam', icon: Mars },
+  { value: 'Female', label: 'Female', icon: Venus },
+  { value: 'Male', label: 'Male', icon: Mars },
 ]
 
 export const WEIGHT_HISTORY_OPTIONS: readonly ChoiceOption<WeightHistoryAnswer>[] = [
-  { value: 'Yes', label: 'Có', icon: Check },
-  { value: 'No', label: 'Chưa', icon: X },
-  { value: 'NotSure', label: 'Không chắc', icon: CircleHelp },
+  { value: 'Yes', label: 'Yes', icon: Check },
+  { value: 'No', label: 'Not yet', icon: X },
+  { value: 'NotSure', label: 'Not sure', icon: QuestionMark },
 ]
 
 export const WEIGHT_TREND_OPTIONS: readonly ChoiceOption<WeightTrendAnswer>[] = [
-  { value: 'Losing', label: 'Tôi đang giảm cân', icon: ArrowDown },
-  { value: 'Gaining', label: 'Tôi đang tăng cân', icon: ArrowUp },
-  { value: 'Stable', label: 'Cân nặng của tôi ổn định', icon: Minus },
-  { value: 'NotSure', label: 'Không chắc', icon: CircleHelp },
+  { value: 'Losing', label: 'I am losing weight', icon: ArrowDown },
+  { value: 'Gaining', label: 'I am gaining weight', icon: ArrowUp },
+  { value: 'Stable', label: 'My weight is stable', icon: Minus },
+  { value: 'NotSure', label: 'Not sure', icon: QuestionMark },
 ]
 
 export const EXERCISE_OPTIONS: readonly ChoiceOption<ExerciseSessionsBand>[] = [
-  { value: 'None', label: '0 buổi / tuần', icon: CalendarDays },
-  { value: 'OneToThree', label: '1–3 buổi / tuần', icon: CalendarDays },
-  { value: 'FourToSix', label: '4–6 buổi / tuần', icon: CalendarDays },
-  { value: 'SevenPlus', label: '7+ buổi / tuần', icon: CalendarDays },
+  { value: 'None', label: '0 sessions / week', icon: CalendarZero },
+  { value: 'OneToThree', label: '1–3 sessions / week', icon: CalendarOne },
+  { value: 'FourToSix', label: '4–6 sessions / week', icon: CalendarThree },
+  { value: 'SevenPlus', label: '7+ sessions / week', icon: CalendarMany },
 ]
 
 export const ACTIVITY_OPTIONS: readonly ChoiceOption<DailyActivityBand>[] = [
   {
     value: 'MostlySedentary',
-    label: 'Chủ yếu ngồi nhiều',
-    description: 'Thường dưới 5.000 bước mỗi ngày',
-    icon: Armchair,
+    label: 'Mostly sedentary',
+    description: 'Usually under 5,000 steps per day',
+    icon: Sofa,
   },
   {
     value: 'ModeratelyActive',
-    label: 'Vận động vừa phải',
-    description: 'Thường 5.000 – 15.000 bước mỗi ngày',
+    label: 'Moderately active',
+    description: 'Usually 5,000 – 15,000 steps per day',
     icon: Footprints,
   },
   {
     value: 'VeryActive',
-    label: 'Rất năng động',
-    description: 'Thường trên 15.000 bước mỗi ngày',
-    icon: PersonStanding,
+    label: 'Very active',
+    description: 'Usually over 15,000 steps per day',
+    icon: Skate,
   },
 ]
 
 const experienceOptions = (activity: string): readonly ChoiceOption<ExperienceLevel>[] => [
-  { value: 'None', label: 'Chưa có', description: `Hiện không ${activity}`, icon: SignalZero },
+  { value: 'None', label: 'None', description: `Currently not ${activity}`, icon: ExperienceNone },
   {
     value: 'Beginner',
-    label: 'Mới bắt đầu',
-    description: `${activity} dưới 1 năm`,
-    icon: SignalLow,
+    label: 'Beginner',
+    description: `${activity} for under 1 year`,
+    icon: ExperienceBeginner,
   },
   {
     value: 'Intermediate',
-    label: 'Trung bình',
-    description: `${activity} hơn 1 năm nhưng dưới 4 năm`,
-    icon: SignalMedium,
+    label: 'Intermediate',
+    description: `${activity} for 1 to 4 years`,
+    icon: ExperienceIntermediate,
   },
   {
     value: 'Advanced',
-    label: 'Nâng cao',
-    description: `${activity} từ 4 năm trở lên`,
-    icon: SignalHigh,
+    label: 'Advanced',
+    description: `${activity} for 4+ years`,
+    icon: ExperienceAdvanced,
   },
 ]
 
-export const LIFTING_OPTIONS = experienceOptions('tập tạ')
-export const CARDIO_OPTIONS = experienceOptions('tập cardio')
+export const LIFTING_OPTIONS = experienceOptions('lifting')
+export const CARDIO_OPTIONS = experienceOptions('doing cardio')
 
 export const GOAL_OPTIONS: readonly ChoiceOption<
   Extract<GoalType, 'WeightLoss' | 'Maintenance' | 'WeightGain'>
 >[] = [
-  { value: 'WeightLoss', label: 'Giảm cân', icon: TrendingDown },
-  { value: 'Maintenance', label: 'Giữ cân', icon: Equal },
-  { value: 'WeightGain', label: 'Tăng cân', icon: TrendingUp },
+  { value: 'WeightLoss', label: 'Lose weight', icon: ScaleLose },
+  { value: 'Maintenance', label: 'Maintain weight', icon: ScaleKeep },
+  { value: 'WeightGain', label: 'Gain weight', icon: ScaleGain },
 ]
 
 export const DIET_OPTIONS: readonly ChoiceOption<DietStyle>[] = [
   {
     value: 'Balanced',
-    label: 'Cân bằng',
-    description: 'Phân bổ carb và chất béo ở mức chuẩn',
+    label: 'Balanced',
+    description: 'Standard split of carbs and fat',
     icon: Scale,
   },
   {
     value: 'LowFat',
-    label: 'Ít béo',
-    description: 'Giảm chất béo để ưu tiên carb và đạm',
-    icon: Droplet,
+    label: 'Low fat',
+    description: 'Less fat to make room for carbs and protein',
+    icon: ButterDish,
   },
   {
     value: 'LowCarb',
-    label: 'Ít carb',
-    description: 'Giảm carb để ưu tiên chất béo và đạm',
-    icon: WheatOff,
+    label: 'Low carb',
+    description: 'Fewer carbs to make room for fat and protein',
+    icon: Fish,
   },
   {
     value: 'Keto',
     label: 'Keto',
-    description: 'Carb rất thấp để dành chỗ cho chất béo',
-    icon: Egg,
+    description: 'Very low carb to make room for fat',
+    icon: EggFried,
   },
 ]
 
 export const TRAINING_OPTIONS: readonly ChoiceOption<TrainingType>[] = [
-  { value: 'None', label: 'Không tập hoặc vận động nhẹ', icon: PersonStanding },
-  { value: 'Lifting', label: 'Tập tạ', icon: Dumbbell },
-  { value: 'Cardio', label: 'Cardio', icon: Footprints },
-  { value: 'Both', label: 'Cardio và tạ', icon: CheckCheck },
+  { value: 'None', label: 'No training or light activity', icon: Meditator },
+  { value: 'Lifting', label: 'Lifting', icon: Dumbbell },
+  { value: 'Cardio', label: 'Cardio', icon: Runner },
+  { value: 'Both', label: 'Cardio and lifting', icon: CheckCheck },
 ]
 
 export const DISTRIBUTION_OPTIONS: readonly ChoiceOption<CalorieShiftMode>[] = [
   {
     value: 'Even',
-    label: 'Chia đều',
-    description: 'Chia đều mục tiêu kcal cho mọi ngày trong tuần',
-    icon: Equal,
+    label: 'Even',
+    description: 'Spread your kcal target evenly across the week',
+    icon: Menu,
   },
   {
     value: 'Custom',
-    label: 'Dồn kcal vào ngày chọn',
-    description: 'Ăn nhiều hơn vào những ngày bạn chọn, tổng tuần không đổi',
+    label: 'Shift kcal to chosen days',
+    description: 'Eat more on the days you choose; the weekly total stays the same',
     icon: Waves,
   },
 ]
 
 export const PROTEIN_OPTIONS: readonly ChoiceOption<ProteinLevel>[] = [
-  { value: 'Low', label: 'Thấp', description: 'Ở mức thấp của khoảng tối ưu', icon: Bean },
-  { value: 'Moderate', label: 'Vừa', description: 'Ở giữa khoảng tối ưu', icon: Drumstick },
-  { value: 'High', label: 'Cao', description: 'Ở mức cao của khoảng tối ưu', icon: Beef },
-  { value: 'ExtraHigh', label: 'Rất cao', description: 'Mức khuyến nghị cao nhất', icon: Zap },
+  { value: 'Low', label: 'Low', description: 'Low end of the optimal range', icon: Bean },
+  { value: 'Moderate', label: 'Moderate', description: 'Middle of the optimal range', icon: Egg },
+  { value: 'High', label: 'High', description: 'High end of the optimal range', icon: Hamburger },
+  {
+    value: 'ExtraHigh',
+    label: 'Very high',
+    description: 'Highest recommended level',
+    icon: Skewers,
+  },
 ]
 
-export const FLOOR_ICON: Record<Exclude<CalorieFloorChoice, 'Off'>, LucideIcon> = {
-  Standard: Star,
-  Low: TriangleAlert,
+export const FLOOR_ICON: Record<Exclude<CalorieFloorChoice, 'Off'>, OptionIcon> = {
+  Standard: BadgeStar,
+  Low: BadgeAlert,
 }
 
-export const BODY_FAT_BANDS: readonly { value: BodyFatBand; label: string }[] = [
-  { value: 'Bf10To13', label: '10–13%' },
-  { value: 'Bf14To17', label: '14–17%' },
-  { value: 'Bf18To23', label: '18–23%' },
-  { value: 'Bf24To28', label: '24–28%' },
-  { value: 'Bf29To33', label: '29–33%' },
-  { value: 'Bf34To37', label: '34–37%' },
-  { value: 'Bf38To42', label: '38–42%' },
-  { value: 'Bf43To49', label: '43–49%' },
-  { value: 'Bf50Plus', label: '50%+' },
+export const BODY_FAT_BANDS: readonly {
+  value: BodyFatBand
+  label: string
+  midPercent: number
+  description: string
+}[] = [
+  {
+    value: 'Bf10To13',
+    label: '10–13%',
+    midPercent: 11.5,
+    description: 'Very lean, abs clearly visible',
+  },
+  {
+    value: 'Bf14To17',
+    label: '14–17%',
+    midPercent: 15.5,
+    description: 'Fit, abs still visible',
+  },
+  { value: 'Bf18To23', label: '18–23%', midPercent: 20.5, description: 'Lean, abs faint' },
+  {
+    value: 'Bf24To28',
+    label: '24–28%',
+    midPercent: 26,
+    description: 'Flat stomach, no visible abs',
+  },
+  {
+    value: 'Bf29To33',
+    label: '29–33%',
+    midPercent: 31,
+    description: 'Stomach starting to soften, slight fold',
+  },
+  {
+    value: 'Bf34To37',
+    label: '34–37%',
+    midPercent: 35.5,
+    description: 'Noticeable belly, fuller waist',
+  },
+  {
+    value: 'Bf38To42',
+    label: '38–42%',
+    midPercent: 40,
+    description: 'Larger belly, clear stomach folds',
+  },
+  {
+    value: 'Bf43To49',
+    label: '43–49%',
+    midPercent: 46,
+    description: 'Large belly, fuller arms and waist',
+  },
+  { value: 'Bf50Plus', label: '50%+', midPercent: 53, description: 'Very full, thick belly fat' },
 ]
 
 export const REFERRAL_OPTIONS: readonly string[] = [
   'Affiliate',
   'YouTube',
   'Reddit',
-  'Bạn bè',
+  'Friends',
   'Instagram',
   'TikTok',
   'Facebook',
-  'Khác',
+  'Other',
 ]

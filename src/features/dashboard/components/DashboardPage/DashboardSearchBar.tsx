@@ -16,11 +16,11 @@ export function DashboardSearchBar({ onSearch }: DashboardSearchBarProps) {
         className="bg-secondary text-muted-foreground focus-visible:ring-ring/50 flex h-12 min-w-0 flex-1 items-center gap-3 rounded-full px-4 text-left text-base focus-visible:ring-1 focus-visible:outline-none"
       >
         <Search aria-hidden="true" className="text-foreground size-5 shrink-0" />
-        Tìm món ăn
+        Search foods
       </button>
       <Link
         href={routePath.foods}
-        aria-label="Thư viện thực phẩm"
+        aria-label="Food library"
         className="bg-secondary focus-visible:ring-ring/50 flex size-12 shrink-0 items-center justify-center rounded-full focus-visible:ring-1 focus-visible:outline-none"
       >
         <BookOpen aria-hidden="true" className="size-5" />

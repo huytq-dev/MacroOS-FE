@@ -67,25 +67,25 @@ export function RegisterPage() {
   }
 
   const footer = (
-    <AuthAltAction prompt="Đã có tài khoản?" label="Đăng nhập" href={routePath.login} />
+    <AuthAltAction prompt="Already have an account?" label="Log in" href={routePath.login} />
   )
 
   if (registeredEmail)
     return (
-      <AuthShell title="Kiểm tra email" footer={footer}>
+      <AuthShell title="Check your email" footer={footer}>
         <div
           role="status"
           className="bg-mf-pastel-green text-mf-pastel-green-text flex items-start gap-3 rounded-xl p-4 text-sm"
         >
           <MailCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
           <p>
-            Đã gửi email xác thực tới <strong className="break-all">{registeredEmail}</strong>. Mở
-            email và bấm link để kích hoạt tài khoản, rồi quay lại đăng nhập.
+            We sent a verification email to <strong className="break-all">{registeredEmail}</strong>
+            . Open it and tap the link to activate your account, then come back and log in.
           </p>
         </div>
         <Button asChild variant="outline" className="h-12 w-full text-base md:h-10 md:text-sm">
           <Link href={`${routePath.confirmEmail}?email=${encodeURIComponent(registeredEmail)}`}>
-            Link không mở được? Nhập mã hoặc gửi lại
+            Link not working? Enter the code or resend
           </Link>
         </Button>
       </AuthShell>
@@ -93,23 +93,23 @@ export function RegisterPage() {
 
   return (
     <AuthShell
-      title="Tạo tài khoản"
-      description="Mất khoảng một phút. Hồ sơ cơ thể bổ sung sau."
+      title="Create account"
+      description="Takes about a minute. You can add body details later."
       footer={footer}
     >
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <FormErrorAlert title="Không tạo được tài khoản" message={formError} />
+        <FormErrorAlert title="Couldn't create account" message={formError} />
 
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Họ" required error={errors.lastName?.message}>
-            {(field) => <Input {...field} autoComplete="family-name" {...register('lastName')} />}
-          </FormField>
-          <FormField label="Tên" required error={errors.firstName?.message}>
+          <FormField label="First name" required error={errors.firstName?.message}>
             {(field) => <Input {...field} autoComplete="given-name" {...register('firstName')} />}
+          </FormField>
+          <FormField label="Last name" required error={errors.lastName?.message}>
+            {(field) => <Input {...field} autoComplete="family-name" {...register('lastName')} />}
           </FormField>
         </div>
 
-        <FormField label="Giới tính" required error={errors.gender?.message}>
+        <FormField label="Gender" required error={errors.gender?.message}>
           {(field) => (
             <Controller
               control={control}
@@ -117,7 +117,7 @@ export function RegisterPage() {
               render={({ field: { value, onChange } }) => (
                 <PickerSelect
                   {...field}
-                  title="Giới tính"
+                  title="Gender"
                   options={enumOptions(GENDER)}
                   value={value}
                   onValueChange={onChange}
@@ -143,8 +143,8 @@ export function RegisterPage() {
         </FormField>
 
         <FormField
-          label="Mật khẩu"
-          hint="Tối thiểu 8 ký tự"
+          label="Password"
+          hint="At least 8 characters"
           required
           error={errors.password?.message}
         >
@@ -153,7 +153,7 @@ export function RegisterPage() {
           )}
         </FormField>
 
-        <FormField label="Nhập lại mật khẩu" required error={errors.confirmPassword?.message}>
+        <FormField label="Confirm password" required error={errors.confirmPassword?.message}>
           {(field) => (
             <PasswordInput
               {...field}
@@ -170,7 +170,7 @@ export function RegisterPage() {
           aria-busy={isSubmitting}
         >
           {isSubmitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-          {isSubmitting ? 'Đang tạo tài khoản...' : 'Tạo tài khoản'}
+          {isSubmitting ? 'Creating account...' : 'Create account'}
         </Button>
       </form>
     </AuthShell>

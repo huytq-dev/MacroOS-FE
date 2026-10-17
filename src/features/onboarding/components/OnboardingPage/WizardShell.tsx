@@ -59,7 +59,7 @@ export function WizardShell({
           {canGoBack && (
             <button
               type="button"
-              aria-label="Quay lại"
+              aria-label="Back"
               onClick={onBack}
               className="focus-visible:ring-ring/50 active:bg-muted absolute left-0 flex size-11 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
             >
@@ -71,7 +71,7 @@ export function WizardShell({
         {progress !== null && (
           <div
             role="progressbar"
-            aria-label="Tiến độ"
+            aria-label="Progress"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(progress * 100)}
@@ -101,7 +101,7 @@ export function WizardShell({
 
       {(footer !== false || error) && (
         <footer className="bg-background sticky bottom-0 space-y-2 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {error && <FormErrorAlert title="Chưa lưu được" message={error} />}
+          {error && <FormErrorAlert title="Could not save" message={error} />}
           {footer === false
             ? null
             : (footer ?? (

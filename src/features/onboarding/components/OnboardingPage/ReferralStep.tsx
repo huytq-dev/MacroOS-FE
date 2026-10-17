@@ -1,31 +1,30 @@
 'use client'
 
-import {
-  Camera,
-  Ellipsis,
-  MessagesSquare,
-  Music2,
-  Play,
-  Tag,
-  ThumbsUp,
-  Users,
-  type LucideIcon,
-} from 'lucide-react'
+import { Ellipsis } from 'lucide-react'
 import { FormField } from '@/components/shared/FormField'
 import { Input } from '@/components/ui/input'
 import { StepHeading } from './ChoiceStep'
+import {
+  AffiliateTag,
+  FacebookLogo,
+  FriendStar,
+  InstagramLogo,
+  RedditLogo,
+  TiktokLogo,
+  YoutubeLogo,
+} from './BrandIcons'
 import { OptionCard } from './OptionCard'
-import { REFERRAL_OPTIONS } from '../../types/onboarding-options.types'
+import { REFERRAL_OPTIONS, type OptionIcon } from '../../types/onboarding-options.types'
 
-const ICONS: Record<string, LucideIcon> = {
-  Affiliate: Tag,
-  YouTube: Play,
-  Reddit: MessagesSquare,
-  'Bạn bè': Users,
-  Instagram: Camera,
-  TikTok: Music2,
-  Facebook: ThumbsUp,
-  Khác: Ellipsis,
+const ICONS: Record<string, OptionIcon> = {
+  Affiliate: AffiliateTag,
+  YouTube: YoutubeLogo,
+  Reddit: RedditLogo,
+  Friends: FriendStar,
+  Instagram: InstagramLogo,
+  TikTok: TiktokLogo,
+  Facebook: FacebookLogo,
+  Other: Ellipsis,
 }
 
 interface ReferralStepProps {
@@ -44,8 +43,8 @@ export function ReferralStep({
 }: ReferralStepProps) {
   return (
     <div>
-      <StepHeading title="Bạn biết đến MacroOS từ đâu?" subtitle="Không bắt buộc" />
-      <div role="radiogroup" aria-label="Nguồn biết đến" className="space-y-3">
+      <StepHeading title="How did you hear about MacroOS?" subtitle="Optional" />
+      <div role="radiogroup" aria-label="How you heard about us" className="space-y-3">
         {REFERRAL_OPTIONS.map((option, index) => (
           <OptionCard
             key={option}
@@ -57,14 +56,14 @@ export function ReferralStep({
           >
             {option === 'Affiliate' && source === 'Affiliate' && (
               <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2 motion-safe:animation-duration-200 px-4 pb-4">
-                <FormField label="Cho chúng tôi biết ai đã giới thiệu bạn">
+                <FormField label="Tell us who referred you">
                   {(field) => (
                     <Input
                       {...field}
                       value={affiliateCode}
                       maxLength={50}
                       autoComplete="off"
-                      placeholder="Nhập mã giới thiệu"
+                      placeholder="Enter referral code"
                       onChange={(event) => onAffiliateCodeChange(event.target.value)}
                     />
                   )}

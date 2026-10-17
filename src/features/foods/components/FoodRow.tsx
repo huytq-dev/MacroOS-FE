@@ -43,7 +43,7 @@ export function FoodRow({ food, onSelect, onQuickAdd, trailing }: FoodRowProps) 
             variant="secondary"
             className="bg-mf-pastel-green text-mf-pastel-green-text shrink-0"
           >
-            Của tôi
+            Mine
           </Badge>
         )}
         {!onQuickAdd &&
@@ -54,7 +54,7 @@ export function FoodRow({ food, onSelect, onQuickAdd, trailing }: FoodRowProps) 
       {onQuickAdd && (
         <button
           type="button"
-          aria-label={`Thêm ${food.name}`}
+          aria-label={`Add ${food.name}`}
           onClick={() => onQuickAdd(food)}
           className="bg-secondary active:bg-muted focus-visible:ring-ring/50 mr-3 flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none md:size-9"
         >

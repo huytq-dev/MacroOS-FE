@@ -18,57 +18,57 @@ export type ChatItem =
 
 const methodText = (estimate: TdeeEstimate) =>
   estimate.method === 'KatchMcArdle'
-    ? `Từ cân nặng và tỉ lệ mỡ bạn chọn, MacroOS tính khối lượng nạc rồi dùng công thức Katch-McArdle (BMR ≈ ${estimate.bmrKcal} kcal), nhân với mức vận động của bạn.`
-    : `Từ giới tính, tuổi, chiều cao và cân nặng, MacroOS dùng công thức Mifflin-St Jeor (BMR ≈ ${estimate.bmrKcal} kcal), nhân với mức vận động của bạn.`
+    ? `From your weight and the body fat level you chose, MacroOS works out your lean mass and applies the Katch-McArdle formula (BMR ≈ ${estimate.bmrKcal} kcal), then multiplies it by your activity level.`
+    : `From your sex, age, height and weight, MacroOS uses the Mifflin-St Jeor formula (BMR ≈ ${estimate.bmrKcal} kcal), then multiplies it by your activity level.`
 
 /** Kịch bản trò chuyện giải thích TDEE: mỗi nút là một lượt bot kèm các câu trả lời gợi ý dẫn tới nút kế. */
 export const buildChatNodes = (tdee: number, estimate: TdeeEstimate): Record<string, ChatNode> => ({
   start: {
     bot: [
-      'Dựa trên câu trả lời của bạn, đây là ước tính lượng calo bạn đốt mỗi ngày, hay lượng bạn cần ăn để giữ cân.',
-      'Còn gọi là mức tiêu hao năng lượng (expenditure).',
+      'Based on your answers, this is an estimate of the calories you burn each day, or the amount you need to eat to maintain your weight.',
+      'It is also called your energy expenditure.',
     ],
     card: true,
     replies: [
-      { label: 'Đã hiểu', next: 'understood' },
-      { label: 'Bạn tính thế nào?', next: 'how' },
+      { label: 'Got it', next: 'understood' },
+      { label: 'How do you calculate it?', next: 'how' },
     ],
   },
   understood: {
-    bot: ['Hiểu rõ mức tiêu hao là chìa khóa để quản lý cân nặng.'],
+    bot: ['Understanding your expenditure is the key to managing your weight.'],
     replies: [
-      { label: `Vậy ${tdee} kcal có đúng không?`, next: 'right' },
-      { label: 'Là sao?', next: 'why' },
+      { label: `So is ${tdee} kcal right?`, next: 'right' },
+      { label: 'What do you mean?', next: 'why' },
     ],
   },
   how: {
     bot: [
       methodText(estimate),
-      'Công thức thường lệch 100–200 kcal, nên MacroOS sẽ tinh chỉnh theo dữ liệu thật của bạn.',
+      'Formulas are often off by 100–200 kcal, so MacroOS will fine-tune it using your real data.',
     ],
-    replies: [{ label: 'Đã hiểu', next: 'understood' }],
+    replies: [{ label: 'Got it', next: 'understood' }],
   },
   why: {
-    bot: ['Mức tiêu hao quyết định bạn nên ăn bao nhiêu để giảm, giữ hay tăng cân.'],
-    replies: [{ label: 'Đã hiểu', next: 'right' }],
+    bot: ['Your expenditure decides how much you should eat to lose, maintain or gain weight.'],
+    replies: [{ label: 'Got it', next: 'right' }],
   },
   right: {
     bot: [
-      'Đó là điểm khởi đầu tốt.',
-      'Thuật toán sẽ cá nhân hoá theo trao đổi chất của bạn khi bạn ghi món ăn và cân nặng trong app.',
+      'That is a good starting point.',
+      'The algorithm will personalise it to your metabolism as you log food and weight in the app.',
     ],
     replies: [
-      { label: 'Đã hiểu', next: 'end' },
-      { label: 'Thuật toán hoạt động ra sao?', next: 'algo' },
+      { label: 'Got it', next: 'end' },
+      { label: 'How does the algorithm work?', next: 'algo' },
     ],
   },
   algo: {
     bot: [
-      'Mỗi tuần MacroOS so xu hướng cân nặng với lượng ăn thực tế để suy ngược mức tiêu hao, rồi chỉnh mục tiêu kcal cho bạn.',
+      'Each week MacroOS compares your weight trend with what you actually ate to work out your expenditure, then adjusts your kcal target.',
     ],
-    replies: [{ label: 'Đã hiểu', next: 'end' }],
+    replies: [{ label: 'Got it', next: 'end' }],
   },
-  end: { bot: ['Xong phần cơ bản! Giờ mình đặt mục tiêu nhé.'], replies: [] },
+  end: { bot: ['Basics done! Now let us set your goal.'], replies: [] },
 })
 
 /** Trải đường đi (các nút đã qua + câu trả lời đã chọn) thành danh sách bong bóng theo thứ tự hiển thị. */
@@ -85,3 +85,11 @@ export function buildChatItems(
     return reply ? [...withCard, { kind: 'user', text: reply }] : withCard
   })
 }
+
+/** Thời gian bot "đang gõ" tỉ lệ độ dài câu (0,7–1,8 giây); thẻ kcal hiện nhanh hơn. */
+export const typingDuration = (item: ChatItem) =>
+  item.kind === 'bot' ? Math.min(1800, Math.max(700, 450 + item.text.length * 16)) : 600
+
+/** Nghỉ trước khi hiện "đang gõ": lâu hơn sau câu trả lời của người dùng, như người thật đọc xong mới gõ. */
+export const pauseBefore = (items: readonly ChatItem[], index: number) =>
+  index === 0 ? 400 : items[index - 1].kind === 'user' ? 800 : 500

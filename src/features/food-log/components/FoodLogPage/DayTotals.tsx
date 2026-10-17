@@ -8,7 +8,7 @@ interface DayTotalsProps {
   readonly target: ProgramWeek | null
 }
 
-const number = new Intl.NumberFormat('vi-VN')
+const number = new Intl.NumberFormat('en-US')
 
 /**
  * Tổng ngày gọn: calo / mục tiêu, thanh tiến độ mảnh, P C F một hàng.
@@ -20,7 +20,7 @@ export function DayTotals({ totals, target }: DayTotalsProps) {
   const pct = goal ? Math.min(100, (totals.calories / goal) * 100) : 0
 
   return (
-    <section aria-label="Tổng ngày" className="bg-card space-y-3 rounded-2xl p-4">
+    <section aria-label="Daily totals" className="bg-card space-y-3 rounded-2xl p-4">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-2xl font-bold tracking-tight tabular-nums">
           {number.format(Math.round(totals.calories))}
@@ -31,15 +31,15 @@ export function DayTotals({ totals, target }: DayTotalsProps) {
         {remaining !== null && (
           <p className="text-sm font-semibold tabular-nums">
             {remaining >= 0
-              ? `còn ${number.format(remaining)}`
-              : `vượt ${number.format(-remaining)}`}
+              ? `${number.format(remaining)} remaining`
+              : `${number.format(-remaining)} over`}
           </p>
         )}
       </div>
       <div
         className="bg-muted h-2 overflow-hidden rounded-full"
         role="progressbar"
-        aria-label="Calo trong ngày"
+        aria-label="Daily calories"
         aria-valuenow={Math.round(totals.calories)}
         aria-valuemin={0}
         aria-valuemax={goal ?? Math.max(1, Math.round(totals.calories))}
@@ -62,12 +62,12 @@ export function DayTotals({ totals, target }: DayTotalsProps) {
       </p>
       {!target && (
         <p className="text-muted-foreground text-sm">
-          Chưa có mục tiêu cho ngày này.{' '}
+          No target set for this day.{' '}
           <Link
             href={routePath.programNew}
             className="text-foreground font-semibold underline underline-offset-4"
           >
-            Tạo program
+            Create program
           </Link>
         </p>
       )}

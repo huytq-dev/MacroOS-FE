@@ -25,7 +25,7 @@
   --border: #e5e5e5;
   --input: #e5e5e5;
   --ring: #ff8b41;
-  --radius: 0.875rem;
+  --radius: 0.5rem;
 
   --chart-1: #ff8b41;
   --chart-2: #215cda;
@@ -52,6 +52,15 @@
   --mf-carbs: #08c343;
   --mf-fat: #a101c9;
   --mf-trend: #a101c9;
+  /* Màu ô macro trong app MacroFactor (kcal xanh dương · protein cam · fat vàng · carb xanh lá) */
+  --mf-tile-calories: #5c8def;
+  --mf-tile-protein: #ff8261;
+  --mf-tile-fat: #ffd35a;
+  --mf-tile-carbs: #5dba85;
+  --mf-tile-calories-text: #2f62c9;
+  --mf-tile-protein-text: #d4491f;
+  --mf-tile-fat-text: #946a00;
+  --mf-tile-carbs-text: #2c8a57;
   --mf-warning-bg: var(--mf-pastel-yellow);
   --mf-warning-border: #ffbc7d;
   --mf-warning-text: var(--mf-pastel-yellow-text);
@@ -110,6 +119,14 @@
   --mf-carbs: #2ddc62;
   --mf-fat: #c04df0;
   --mf-trend: #c04df0;
+  --mf-tile-calories: #5c8def;
+  --mf-tile-protein: #ff8261;
+  --mf-tile-fat: #ffd35a;
+  --mf-tile-carbs: #5dba85;
+  --mf-tile-calories-text: #5c8def;
+  --mf-tile-protein-text: #ff8261;
+  --mf-tile-fat-text: #ffd35a;
+  --mf-tile-carbs-text: #5dba85;
   --mf-warning-bg: var(--mf-pastel-yellow);
   --mf-warning-border: #7a4a20;
   --mf-warning-text: var(--mf-pastel-yellow-text);

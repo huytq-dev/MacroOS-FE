@@ -1,14 +1,13 @@
 'use client'
 
-import type { LucideIcon } from 'lucide-react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
-import type { ChoiceOption } from '../../types/onboarding-options.types'
+import type { ChoiceOption, OptionIcon } from '../../types/onboarding-options.types'
 
 interface OptionCardProps {
   readonly label: string
   readonly description?: string
-  readonly icon?: LucideIcon
+  readonly icon?: OptionIcon
   readonly selected: boolean
   readonly onSelect: () => void
   readonly index?: number

@@ -1,7 +1,7 @@
 'use client'
 
-import { Info } from 'lucide-react'
 import { OptionList } from './OptionCard'
+import { BadgeInfo } from './SolidIcons'
 import type { ChoiceOption } from '../../types/onboarding-options.types'
 
 interface StepHeadingProps {
@@ -45,9 +45,9 @@ export function ChoiceStep<T extends string>({
       {info && value !== null && (
         <div
           role="note"
-          className="bg-secondary motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-300 mt-4 flex items-start gap-3 rounded-2xl p-4 text-base"
+          className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-300 mt-4 flex items-start gap-3 rounded-2xl bg-blue-950 p-4 text-base text-blue-50"
         >
-          <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          <BadgeInfo className="mt-0.5 size-5 shrink-0" />
           <p className="leading-snug">{info}</p>
         </div>
       )}

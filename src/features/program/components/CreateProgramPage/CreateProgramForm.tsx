@@ -84,10 +84,10 @@ export function CreateProgramForm({ form, isPending, error, onSubmit }: CreatePr
 
   return (
     <form onSubmit={handleSubmit(submit)} noValidate className="flex max-w-3xl flex-col gap-4 pb-4">
-      <FormErrorAlert title="Không tạo được program" message={error} />
+      <FormErrorAlert title="Couldn't create program" message={error} />
 
       {section(
-        '1. Mục tiêu',
+        '1. Goal',
         undefined,
         <Controller
           control={control}
@@ -97,16 +97,19 @@ export function CreateProgramForm({ form, isPending, error, onSubmit }: CreatePr
               options={GOAL_CHOICES}
               value={value}
               onValueChange={onChange}
-              aria-label="Mục tiêu"
+              aria-label="Goal"
             />
           )}
         />
       )}
 
       {section(
-        '2. Tốc độ',
-        'MacroFactor khuyến nghị 0,25 đến 1 % cân nặng mỗi tuần. Giữ cân là 0. BE tự đặt dấu theo mục tiêu.',
-        <FormField label="Tốc độ (%/tuần)" error={errors.weeklyWeightChangeTargetPercent?.message}>
+        '2. Weekly rate',
+        'We recommend 0.25 to 1% of body weight per week. Use 0 to maintain. The direction is set automatically from your goal.',
+        <FormField
+          label="Weekly rate (%/week)"
+          error={errors.weeklyWeightChangeTargetPercent?.message}
+        >
           {(field) => (
             <Input
               {...field}
@@ -159,7 +162,7 @@ export function CreateProgramForm({ form, isPending, error, onSubmit }: CreatePr
 
       {section(
         '5. Protein',
-        'Có tập tạ (trong hồ sơ) cộng thêm 0,2 g/kg.',
+        'If you lift weights (set in your profile), add 0.2 g/kg.',
         <Controller
           control={control}
           name="proteinLevel"
@@ -168,7 +171,7 @@ export function CreateProgramForm({ form, isPending, error, onSubmit }: CreatePr
               options={PROTEIN_CHOICES}
               value={value}
               onValueChange={onChange}
-              aria-label="Mức protein"
+              aria-label="Protein level"
               columns={2}
             />
           )}
@@ -177,12 +180,12 @@ export function CreateProgramForm({ form, isPending, error, onSubmit }: CreatePr
 
       {programType === 'Coached' &&
         section(
-          '6. Sàn kcal mỗi ngày',
+          '6. Daily calorie floor',
           undefined,
           <>
-            {switchRow('floor-enabled', 'Bật sàn (mặc định 1200 kcal)', 'calorieFloorEnabled')}
+            {switchRow('floor-enabled', 'Enable floor (default 1200 kcal)', 'calorieFloorEnabled')}
             {floorEnabled && (
-              <FormField label="Sàn (kcal)" error={errors.calorieFloorKcal?.message}>
+              <FormField label="Floor (kcal)" error={errors.calorieFloorKcal?.message}>
                 {(field) => (
                   <Input
                     {...field}
@@ -197,9 +200,9 @@ export function CreateProgramForm({ form, isPending, error, onSubmit }: CreatePr
         )}
 
       {section(
-        '7. Ngày check-in hằng tuần',
+        '7. Weekly check-in day',
         undefined,
-        <FormField label="Ngày check-in" required error={errors.checkInWeekday?.message}>
+        <FormField label="Check-in day" required error={errors.checkInWeekday?.message}>
           {(field) => (
             <Controller
               control={control}
@@ -207,7 +210,7 @@ export function CreateProgramForm({ form, isPending, error, onSubmit }: CreatePr
               render={({ field: { value, onChange } }) => (
                 <PickerSelect
                   {...field}
-                  title="Ngày check-in"
+                  title="Check-in day"
                   options={enumOptions(DAY_OF_WEEK)}
                   value={value}
                   onValueChange={onChange}
@@ -219,16 +222,16 @@ export function CreateProgramForm({ form, isPending, error, onSubmit }: CreatePr
       )}
 
       {section(
-        '8. TDEE khởi điểm',
+        '8. Starting TDEE',
         undefined,
         <>
           {switchRow(
             'manual-tdee',
-            'Nhập tay thay vì công thức Mifflin-St Jeor',
+            'Enter manually instead of using the Mifflin-St Jeor formula',
             'manualTdeeEnabled'
           )}
           {manualTdeeEnabled && (
-            <FormField label="TDEE (kcal/ngày)" error={errors.manualInitialTdeeKcal?.message}>
+            <FormField label="TDEE (kcal/day)" error={errors.manualInitialTdeeKcal?.message}>
               {(field) => (
                 <Input
                   {...field}
@@ -250,7 +253,7 @@ export function CreateProgramForm({ form, isPending, error, onSubmit }: CreatePr
           aria-busy={isPending}
         >
           {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-          {isPending ? 'Đang tạo...' : 'Bắt đầu program'}
+          {isPending ? 'Creating...' : 'Start program'}
         </Button>
       </div>
     </form>

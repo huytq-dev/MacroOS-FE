@@ -36,9 +36,9 @@ interface GoalSummaryStepProps {
 }
 
 const GOAL_LABEL = {
-  WeightLoss: 'Giảm cân',
-  Maintenance: 'Giữ cân',
-  WeightGain: 'Tăng cân',
+  WeightLoss: 'Lose weight',
+  Maintenance: 'Maintain weight',
+  WeightGain: 'Gain weight',
 } as const
 
 /** Tóm tắt mục tiêu trước khi sang Program: loại mục tiêu, tốc độ, ngân sách ban đầu và ngày dự kiến kèm lời giải thích. */
@@ -50,12 +50,12 @@ export function GoalSummaryStep({
   preview,
 }: GoalSummaryStepProps) {
   const maintain = goalType === 'Maintenance'
-  const verb = goalType === 'WeightGain' ? 'tăng' : 'giảm'
+  const verb = goalType === 'WeightGain' ? 'gain' : 'lose'
   if (!preview) return <Skeleton className="h-96 rounded-2xl" aria-busy="true" />
 
   return (
     <div className="space-y-4">
-      <StepHeading title="Tóm tắt mục tiêu" />
+      <StepHeading title="Goal summary" />
       <div className="bg-mf-pastel-green text-mf-pastel-green-text motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:animation-duration-300 flex items-center justify-between rounded-2xl px-4 py-4 text-lg font-semibold">
         <span>{GOAL_LABEL[goalType]}</span>
         {!maintain && targetWeightKg !== null && (
@@ -68,29 +68,31 @@ export function GoalSummaryStep({
       {!maintain && (
         <SummaryCard
           index={0}
-          title="Tốc độ mục tiêu"
-          value={`${goalType === 'WeightGain' ? '+' : '−'}${ratePercent.toFixed(2)}% mỗi tuần`}
+          title="Goal rate"
+          value={`${goalType === 'WeightGain' ? '+' : '−'}${ratePercent.toFixed(2)}% per week`}
         >
-          MacroOS sẽ chỉnh mục tiêu calo khi cần để bạn {verb} khoảng {ratePercent.toFixed(2)}% cân
-          nặng mỗi tuần. Số kg mỗi tuần sẽ thay đổi theo cân nặng của bạn.
+          MacroOS will adjust your calorie target as needed so you {verb} about{' '}
+          {ratePercent.toFixed(2)}% of your body weight per week. The kg per week will change as
+          your weight changes.
         </SummaryCard>
       )}
       <SummaryCard
         index={1}
-        title="Ngân sách hằng ngày ban đầu"
+        title="Starting daily budget"
         value={`${preview.averageCalories} kcal`}
       >
-        Ngân sách này ước tính từ mức tiêu hao hiện tại. Mức tiêu hao luôn thay đổi theo ăn uống và
-        vận động; mỗi tuần khi check-in, MacroOS cập nhật kế hoạch cho khớp.
+        This budget is estimated from your current expenditure. Your expenditure keeps changing with
+        your eating and activity; at each weekly check-in, MacroOS updates your plan to match.
       </SummaryCard>
       {!maintain && (
         <SummaryCard
           index={2}
-          title="Ngày dự kiến hoàn thành"
+          title="Projected completion date"
           value={preview.projectedEndDate ? formatDateVi(preview.projectedEndDate) : '—'}
         >
-          Đây là ước tính lạc quan, nếu mức tiêu hao ổn định hoàn toàn và bạn bám 100% mục tiêu. Hãy
-          ưu tiên tiến bộ hơn hoàn hảo, và chừa thêm vài tuần so với ngày này.
+          This is an optimistic estimate, assuming your expenditure stays perfectly stable and you
+          hit your target 100% of the time. Aim for progress over perfection, and allow a few extra
+          weeks beyond this date.
         </SummaryCard>
       )}
     </div>

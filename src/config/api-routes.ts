@@ -48,6 +48,7 @@ export const apiRoutes = {
   },
   expenditure: {
     root: '/expenditure', // GET ?from&to
+    daily: '/expenditure/daily', // GET ?from&to (mỗi ngày: đã ăn, target, cân xu hướng)
   },
   weights: {
     root: '/weights', // GET ?from&to, POST

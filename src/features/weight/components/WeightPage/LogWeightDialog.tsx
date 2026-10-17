@@ -55,19 +55,19 @@ export function LogWeightDialog({
         <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
           <DialogHeader>
             <DialogTitle className="font-sans text-xl font-bold sm:text-sm sm:font-semibold">
-              {isEditing ? 'Sửa cân nặng' : 'Ghi cân nặng'}
+              {isEditing ? 'Edit weight' : 'Log weight'}
             </DialogTitle>
             <DialogDescription className="text-sm sm:text-xs">
               {isEditing
-                ? 'Đổi số cân của ngày này. Trend được tính lại từ ngày đó.'
-                : 'Mỗi ngày một giá trị. Nhập lại cùng ngày sẽ ghi đè và tính lại trend.'}
+                ? 'Change the weight for this day. Trend weight is recalculated from that day on.'
+                : 'One entry per day. Logging again on the same day overwrites it and recalculates your trend.'}
             </DialogDescription>
           </DialogHeader>
 
-          <FormErrorAlert title="Không ghi được cân nặng" message={error} />
+          <FormErrorAlert title="Couldn't log weight" message={error} />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Ngày" required error={errors.logDate?.message}>
+            <FormField label="Date" required error={errors.logDate?.message}>
               {(field) =>
                 isEditing ? (
                   <Input {...field} readOnly value={formatDateVi(watch('logDate'))} />
@@ -80,7 +80,7 @@ export function LogWeightDialog({
                 )
               }
             </FormField>
-            <FormField label="Cân nặng (kg)" required error={errors.weightKg?.message}>
+            <FormField label="Weight (kg)" required error={errors.weightKg?.message}>
               {(field) => (
                 <Input
                   {...field}
@@ -103,7 +103,7 @@ export function LogWeightDialog({
               onClick={() => onOpenChange(false)}
               disabled={isPending}
             >
-              Huỷ
+              Cancel
             </Button>
             <Button
               type="submit"
@@ -112,7 +112,7 @@ export function LogWeightDialog({
               aria-busy={isPending}
             >
               {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-              {isPending ? 'Đang lưu...' : isEditing ? 'Lưu thay đổi' : 'Lưu'}
+              {isPending ? 'Saving...' : isEditing ? 'Save changes' : 'Save'}
             </Button>
           </DialogFooter>
         </form>

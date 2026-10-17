@@ -34,8 +34,8 @@ export function BasicsSteps({ wizard }: { readonly wizard: OnboardingWizard }) {
     case 'sex':
       return (
         <ChoiceStep
-          title="Giới tính sinh học của bạn?"
-          subtitle="Dùng để ước tính mức tiêu hao năng lượng"
+          title="What is your biological sex?"
+          subtitle="Used to estimate your energy expenditure"
           options={SEX_OPTIONS}
           value={answers.gender}
           onChange={(gender) => patch({ gender })}
@@ -70,29 +70,36 @@ export function BasicsSteps({ wizard }: { readonly wizard: OnboardingWizard }) {
     case 'weightHistory':
       return (
         <ChoiceStep
-          title={`Bạn từng nặng hơn ${weightLabel} chưa?`}
+          title={`Have you ever weighed more than ${weightLabel}?`}
           options={WEIGHT_HISTORY_OPTIONS}
           value={answers.weighedMoreThanBefore}
           onChange={(weighedMoreThanBefore) => patch({ weighedMoreThanBefore })}
-          info="Lịch sử cân nặng có thể ảnh hưởng đến trao đổi chất hiện tại. Thuật toán của MacroOS có tính đến điều này."
+          info="Your weight history can affect your current metabolism. The MacroOS algorithm takes this into account."
         />
       )
     case 'weightTrend':
       return (
         <ChoiceStep
-          title="Vài tuần qua cân nặng của bạn thay đổi thế nào?"
+          title="How has your weight changed over the past few weeks?"
           options={WEIGHT_TREND_OPTIONS}
           value={answers.recentWeightTrend}
           onChange={(recentWeightTrend) => patch({ recentWeightTrend })}
         />
       )
     case 'bodyFat':
-      return <BodyFatStep value={answers.bodyFat} onChange={(bodyFat) => patch({ bodyFat })} />
+      return (
+        <BodyFatStep
+          value={answers.bodyFat}
+          onChange={(bodyFat) => patch({ bodyFat })}
+          weightKg={answers.weightKg}
+          unit={answers.unit}
+        />
+      )
     case 'exercise':
       return (
         <ChoiceStep
-          title="Bạn tập luyện thường xuyên đến đâu?"
-          subtitle="Ước tính số buổi thể thao giải trí, cardio hoặc tập tạ"
+          title="How often do you exercise?"
+          subtitle="Estimate your sessions of recreational sports, cardio or lifting"
           options={EXERCISE_OPTIONS}
           value={answers.exerciseSessions}
           onChange={(exerciseSessions) => patch({ exerciseSessions })}
@@ -101,8 +108,8 @@ export function BasicsSteps({ wizard }: { readonly wizard: OnboardingWizard }) {
     case 'activity':
       return (
         <ChoiceStep
-          title="Bạn năng động đến mức nào?"
-          subtitle="Mức vận động ngoài giờ tập, trong công việc và lúc rảnh"
+          title="How active are you?"
+          subtitle="Your activity outside workouts, at work and in your free time"
           options={ACTIVITY_OPTIONS}
           value={answers.dailyActivity}
           onChange={(dailyActivity) => patch({ dailyActivity })}
@@ -111,7 +118,7 @@ export function BasicsSteps({ wizard }: { readonly wizard: OnboardingWizard }) {
     case 'lifting':
       return (
         <ChoiceStep
-          title="Kinh nghiệm tập tạ của bạn?"
+          title="What is your lifting experience?"
           options={LIFTING_OPTIONS}
           value={answers.liftingExperience}
           onChange={(liftingExperience) => patch({ liftingExperience })}
@@ -120,7 +127,7 @@ export function BasicsSteps({ wizard }: { readonly wizard: OnboardingWizard }) {
     case 'cardio':
       return (
         <ChoiceStep
-          title="Kinh nghiệm tập cardio của bạn?"
+          title="What is your cardio experience?"
           options={CARDIO_OPTIONS}
           value={answers.cardioExperience}
           onChange={(cardioExperience) => patch({ cardioExperience })}

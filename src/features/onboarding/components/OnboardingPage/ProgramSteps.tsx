@@ -27,7 +27,7 @@ export function ProgramSteps({ wizard }: { readonly wizard: OnboardingWizard }) 
     case 'goalType':
       return (
         <ChoiceStep
-          title="Mục tiêu của bạn là gì?"
+          title="What is your goal?"
           options={GOAL_OPTIONS}
           value={answers.goalType as Goal | null}
           onChange={wizard.setGoalType}
@@ -58,7 +58,7 @@ export function ProgramSteps({ wizard }: { readonly wizard: OnboardingWizard }) 
     case 'diet':
       return (
         <ChoiceStep
-          title="Kiểu ăn bạn ưa thích?"
+          title="Which diet style do you prefer?"
           options={DIET_OPTIONS}
           value={answers.dietStyle}
           onChange={(dietStyle) => patch({ dietStyle })}
@@ -68,20 +68,20 @@ export function ProgramSteps({ wizard }: { readonly wizard: OnboardingWizard }) 
       const floorOptions: readonly ChoiceOption<CalorieFloorChoice>[] = [
         {
           value: 'Standard',
-          label: 'Sàn tiêu chuẩn',
-          description: `Khuyến nghị calo của bạn sẽ không bao giờ xuống dưới ${preview?.floorStandardKcal ?? '…'} kcal`,
+          label: 'Standard floor',
+          description: `Your calorie recommendation will never drop below ${preview?.floorStandardKcal ?? '…'} kcal`,
           icon: FLOOR_ICON.Standard,
         },
         {
           value: 'Low',
-          label: 'Sàn thấp',
-          description: `Khuyến nghị calo của bạn sẽ không bao giờ xuống dưới ${preview?.floorLowKcal ?? '…'} kcal (cân nhắc kỹ)`,
+          label: 'Low floor',
+          description: `Your calorie recommendation will never drop below ${preview?.floorLowKcal ?? '…'} kcal (consider carefully)`,
           icon: FLOOR_ICON.Low,
         },
       ]
       return (
         <ChoiceStep
-          title="Bạn muốn mức sàn calo nào?"
+          title="Which calorie floor do you want?"
           options={floorOptions}
           value={answers.calorieFloor}
           onChange={(calorieFloor) => patch({ calorieFloor })}
@@ -91,7 +91,7 @@ export function ProgramSteps({ wizard }: { readonly wizard: OnboardingWizard }) 
     case 'training':
       return (
         <ChoiceStep
-          title="Bạn sẽ tập gì trong chương trình này?"
+          title="What will you train during this program?"
           options={TRAINING_OPTIONS}
           value={answers.trainingType}
           onChange={(trainingType) => patch({ trainingType })}
@@ -111,7 +111,7 @@ export function ProgramSteps({ wizard }: { readonly wizard: OnboardingWizard }) 
     case 'protein':
       return (
         <ChoiceStep
-          title="Mức protein bạn ưa thích?"
+          title="Which protein level do you prefer?"
           options={PROTEIN_OPTIONS}
           value={answers.proteinLevel}
           onChange={(proteinLevel) => patch({ proteinLevel })}
@@ -124,10 +124,11 @@ export function ProgramSteps({ wizard }: { readonly wizard: OnboardingWizard }) 
           goalType={goal}
           ratePercent={answers.weeklyRatePercent}
           proteinLabel={
-            PROTEIN_OPTIONS.find((option) => option.value === answers.proteinLevel)?.label ?? 'Vừa'
+            PROTEIN_OPTIONS.find((option) => option.value === answers.proteinLevel)?.label ??
+            'Moderate'
           }
           dietLabel={
-            DIET_OPTIONS.find((option) => option.value === answers.dietStyle)?.label ?? 'Cân bằng'
+            DIET_OPTIONS.find((option) => option.value === answers.dietStyle)?.label ?? 'Balanced'
           }
           onReachedEnd={wizard.onReadyReached}
         />

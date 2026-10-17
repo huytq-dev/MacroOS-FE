@@ -75,17 +75,17 @@ export function CustomFoodDialog({
         <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
           <DialogHeader>
             <DialogTitle className="font-sans text-sm font-semibold">
-              {isEdit ? 'Sửa thực phẩm' : 'Tạo thực phẩm'}
+              {isEdit ? 'Edit food' : 'Create food'}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Nhập dinh dưỡng trên 100 g. Có thể thêm một khẩu phần, ví dụ 1 chén = 150 g.
+              Enter nutrition per 100 g. You can add one serving, for example 1 cup = 150 g.
             </DialogDescription>
           </DialogHeader>
 
-          <FormErrorAlert title="Không lưu được thực phẩm" message={error} />
+          <FormErrorAlert title="Couldn't save food" message={error} />
 
           <FormField
-            label="Tên"
+            label="Name"
             required
             error={errors.name?.message}
             counter={{ current: form.watch('name')?.length ?? 0, max: 256 }}
@@ -93,11 +93,11 @@ export function CustomFoodDialog({
             {(field) => <Input {...field} maxLength={256} {...register('name')} />}
           </FormField>
 
-          <FormField label="Thương hiệu" hint="Không bắt buộc" error={errors.brand?.message}>
+          <FormField label="Brand" hint="Optional" error={errors.brand?.message}>
             {(field) => <Input {...field} maxLength={256} {...register('brand')} />}
           </FormField>
 
-          <FormField label="Nhóm" required error={errors.category?.message}>
+          <FormField label="Category" required error={errors.category?.message}>
             {(field) => (
               <Controller
                 control={control}
@@ -108,7 +108,7 @@ export function CustomFoodDialog({
                     options={categoryOptions}
                     value={value}
                     onValueChange={onChange}
-                    placeholder="Chọn nhóm"
+                    placeholder="Choose a category"
                   />
                 )}
               />
@@ -118,15 +118,15 @@ export function CustomFoodDialog({
           <div className="grid grid-cols-2 gap-3">
             {macro('caloriesPer100g', 'kcal /100 g')}
             {macro('proteinPer100g', 'Protein (g)')}
-            {macro('carbsPer100g', 'Carb (g)')}
+            {macro('carbsPer100g', 'Carbs (g)')}
             {macro('fatPer100g', 'Fat (g)')}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Khẩu phần" hint="Ví dụ: 1 chén" error={errors.servingName?.message}>
+            <FormField label="Serving" hint="Example: 1 cup" error={errors.servingName?.message}>
               {(field) => <Input {...field} maxLength={100} {...register('servingName')} />}
             </FormField>
-            <FormField label="Số gram" error={errors.servingGrams?.message}>
+            <FormField label="Grams" error={errors.servingGrams?.message}>
               {(field) => (
                 <Input
                   {...field}
@@ -146,11 +146,11 @@ export function CustomFoodDialog({
               onClick={() => onOpenChange(false)}
               disabled={isPending}
             >
-              Huỷ
+              Cancel
             </Button>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
               {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-              {isPending ? 'Đang lưu...' : 'Lưu'}
+              {isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </form>

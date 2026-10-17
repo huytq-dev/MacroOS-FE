@@ -76,13 +76,13 @@ export function WeightPage() {
   const isLoading = !today || weights.isLoading
   const addButton = (
     <Button size="sm" onClick={() => openDialog()}>
-      <Plus aria-hidden="true" /> Ghi cân
+      <Plus aria-hidden="true" /> Log weight
     </Button>
   )
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
-      <PageHeader title="Cân nặng" action={addButton} />
+      <PageHeader title="Weight" action={addButton} />
 
       <WeightSummaryCards data={weights.data ?? undefined} isLoading={isLoading} />
 
@@ -92,7 +92,7 @@ export function WeightPage() {
             type="single"
             value={String(rangeDays)}
             onValueChange={(next) => next && setRangeDays(Number(next))}
-            aria-label="Khoảng thời gian"
+            aria-label="Time range"
             spacing={1}
             className="justify-start overflow-x-auto"
           >
@@ -144,14 +144,14 @@ export function WeightPage() {
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Xoá lần cân này?"
+        title="Delete this weigh-in?"
         description={
           deleteTarget
-            ? `Xoá ${deleteTarget.weightKg.toFixed(1)} kg ngày ${formatDateVi(deleteTarget.logDate)}. Trend và expenditure được tính lại từ ngày đó.`
+            ? `Delete ${deleteTarget.weightKg.toFixed(1)} kg on ${formatDateVi(deleteTarget.logDate)}. Trend weight and expenditure are recalculated from that day on.`
             : ''
         }
-        confirmLabel="Xoá lần cân"
-        pendingLabel="Đang xoá..."
+        confirmLabel="Delete weigh-in"
+        pendingLabel="Deleting..."
         isPending={remove.isPending}
         onConfirm={() =>
           deleteTarget &&

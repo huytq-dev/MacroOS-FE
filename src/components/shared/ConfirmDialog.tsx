@@ -45,7 +45,7 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel autoFocus disabled={isPending}>
-            Huỷ
+            Cancel
           </AlertDialogCancel>
           <Button
             variant="destructive"

@@ -32,7 +32,7 @@ export function PasswordInput({ startIcon: StartIcon, className, ...props }: Pas
         <IconButton
           type="button"
           icon={visible ? EyeOff : Eye}
-          label={visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+          label={visible ? 'Hide password' : 'Show password'}
           aria-pressed={visible}
           // Giữ focus ở ô nhập để bàn phím trên điện thoại không đóng khi bấm hiện/ẩn
           onMouseDown={(event) => event.preventDefault()}
