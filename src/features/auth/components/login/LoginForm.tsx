@@ -64,13 +64,13 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-      <FormErrorAlert title="Không đăng nhập được" message={formError} />
+      <FormErrorAlert title="Couldn't log in" message={formError} />
       {needsVerification && (
         <Link
           href={`${routePath.confirmEmail}?email=${encodeURIComponent(getValues('email').trim())}`}
           className="text-foreground block text-sm font-medium underline underline-offset-4"
         >
-          Gửi lại email xác thực
+          Resend verification email
         </Link>
       )}
 
@@ -92,7 +92,7 @@ export function LoginForm() {
       </FormField>
 
       <FormField
-        label="Mật khẩu"
+        label="Password"
         required
         error={errors.password?.message}
         labelAction={
@@ -100,7 +100,7 @@ export function LoginForm() {
             href={routePath.forgotPassword}
             className="text-foreground text-xs font-medium underline underline-offset-4"
           >
-            Quên mật khẩu?
+            Forgot password?
           </Link>
         }
       >
@@ -109,7 +109,7 @@ export function LoginForm() {
             {...control}
             startIcon={Lock}
             autoComplete="current-password"
-            placeholder="Nhập mật khẩu"
+            placeholder="Enter your password"
             className="h-12 md:h-10 md:text-sm"
             {...register('password')}
           />
@@ -123,7 +123,7 @@ export function LoginForm() {
         aria-busy={isPending}
       >
         {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-        {isPending ? 'Đang đăng nhập...' : 'Đăng nhập'}
+        {isPending ? 'Logging in...' : 'Log in'}
       </Button>
     </form>
   )

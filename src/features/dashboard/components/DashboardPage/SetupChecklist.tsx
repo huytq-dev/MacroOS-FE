@@ -28,14 +28,14 @@ export function SetupChecklist({ steps }: SetupChecklistProps) {
     <section aria-labelledby="setup-heading" className="space-y-4">
       <div className="space-y-1">
         <p className="text-muted-foreground text-sm tabular-nums">
-          Bước {Math.min(doneCount + 1, steps.length)}/{steps.length}
+          Step {Math.min(doneCount + 1, steps.length)}/{steps.length}
         </p>
         <h2 id="setup-heading" className="text-2xl leading-tight font-bold">
-          Đặt mục tiêu ăn mỗi ngày
+          Set your daily targets
         </h2>
         <p className="text-muted-foreground text-base md:text-sm">
-          MacroOS cần vài thông tin để tính ra kcal và macro bạn nên ăn mỗi ngày. Xong rồi bảng theo
-          dõi tuần sẽ hiện ở đây.
+          MacroOS needs a few details to work out the calories and macros you should eat each day.
+          Once that is done, your weekly tracking board will show up here.
         </p>
       </div>
 
@@ -46,7 +46,7 @@ export function SetupChecklist({ steps }: SetupChecklistProps) {
             href={step.href}
             label={step.label}
             hint={step.hint}
-            value={step.done ? 'Xong' : undefined}
+            value={step.done ? 'Done' : undefined}
             leading={
               <span
                 aria-hidden="true"
@@ -64,7 +64,7 @@ export function SetupChecklist({ steps }: SetupChecklistProps) {
 
       {next && (
         <Button asChild className="h-12 w-full rounded-full text-base">
-          <Link href={next.href}>Tiếp tục: {next.label}</Link>
+          <Link href={next.href}>Continue: {next.label}</Link>
         </Button>
       )}
     </section>

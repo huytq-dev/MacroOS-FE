@@ -12,9 +12,9 @@ const format = (value: number | null, suffix: string, signed = false) =>
 
 export function WeightSummaryCards({ data, isLoading }: WeightSummaryCardsProps) {
   const cards = [
-    { label: 'Cân gần nhất', value: format(data?.latestWeightKg ?? null, 'kg') },
-    { label: 'Trend', value: format(data?.latestTrendKg ?? null, 'kg') },
-    { label: 'Tốc độ 7 ngày', value: format(data?.rateKgPerWeek ?? null, 'kg/tuần', true) },
+    { label: 'Scale weight', value: format(data?.latestWeightKg ?? null, 'kg') },
+    { label: 'Trend weight', value: format(data?.latestTrendKg ?? null, 'kg') },
+    { label: '7-day rate', value: format(data?.rateKgPerWeek ?? null, 'kg/week', true) },
   ]
   return (
     <div className="grid grid-cols-3 gap-2">

@@ -39,7 +39,7 @@ const useWeightMutation = <TVariables>(
 export const useUpsertWeight = () =>
   useWeightMutation(
     (payload: UpsertWeightRequest) => weightService.upsert(payload),
-    'Đã ghi cân nặng'
+    'Weight logged'
   )
 export const useDeleteWeight = () =>
-  useWeightMutation((logDate: string) => weightService.remove(logDate), 'Đã xoá')
+  useWeightMutation((logDate: string) => weightService.remove(logDate), 'Deleted')

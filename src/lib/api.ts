@@ -33,12 +33,12 @@ export const apiCall = {
 export const getErrorMessage = (error: unknown): string => {
   if (error instanceof AxiosError) {
     const apiResponse = error.response?.data as ApiResponse<unknown> | undefined
-    return apiResponse?.message || error.message || 'Có lỗi xảy ra'
+    return apiResponse?.message || error.message || 'Something went wrong'
   }
   if (error instanceof Error) {
     return error.message
   }
-  return 'Có lỗi không xác định'
+  return 'An unknown error occurred'
 }
 
 /** Lỗi 400 theo field của BE (`Rounds[0].Name`) gom về field cấp một dạng camelCase, giữ thông báo đầu tiên. */

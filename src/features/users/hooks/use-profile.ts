@@ -16,7 +16,7 @@ export const useUpdateProfile = () => {
   return useMutation({
     mutationFn: (payload: UpdateProfileRequest) => userService.updateProfile(payload),
     onSuccess: () => {
-      toast.success('Đã lưu hồ sơ')
+      toast.success('Profile saved')
       void queryClient.invalidateQueries({ queryKey: profileKeys.me })
     },
     onError: (error) => {

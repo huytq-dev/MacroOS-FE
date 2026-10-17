@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, Search, X, Zap } from 'lucide-react'
+import { Loader2, Search, Utensils, X, Zap } from 'lucide-react'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { IconButton } from '@/components/shared/IconButton'
 import { Button } from '@/components/ui/button'
@@ -12,20 +12,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { MEAL_TYPE, enumOptions, type MealType } from '@/config/enums'
+import { MEAL_TYPE, type MealType } from '@/config/enums'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import type { MacroTotals, PlateItem } from '../../types/food-log.types'
 import { SearchInput } from '@/components/shared/SearchInput'
 import { useKeyboardInset } from '@/hooks/use-keyboard-inset'
 import { AddFoodProgress } from './AddFoodProgress'
+import { MealTimePill } from './MealTimePill'
 
 export type AddTab = 'search' | 'quick'
 
@@ -35,7 +29,8 @@ interface AddFoodDialogProps {
   readonly tab: AddTab
   readonly onTabChange: (tab: AddTab) => void
   readonly meal: MealType
-  readonly onMealChange: (meal: MealType) => void
+  readonly eatenAt: string
+  readonly onEatenAtChange: (time: string) => void
   readonly search: string
   readonly onSearchChange: (value: string) => void
   readonly plate: PlateItem[]
@@ -55,7 +50,8 @@ export function AddFoodDialog({
   tab,
   onTabChange,
   meal,
-  onMealChange,
+  eatenAt,
+  onEatenAtChange,
   search,
   onSearchChange,
   plate,
@@ -79,31 +75,39 @@ export function AddFoodDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => !isLogging && onOpenChange(next)}>
       <DialogContent
+        showCloseButton={false}
         className="flex h-[92dvh] flex-col gap-0 p-0 sm:h-[80dvh] sm:max-w-lg sm:p-0"
         style={keyboardInset > 0 ? { bottom: keyboardInset } : undefined}
       >
         <DialogHeader className="relative z-20 space-y-0">
-          <DialogTitle className="sr-only">Thêm món</DialogTitle>
+          <DialogTitle className="sr-only">Add food</DialogTitle>
           <DialogDescription className="sr-only">
-            Tìm thực phẩm hoặc nhập nhanh kcal và macro
+            Search for a food or quick add calories and macros
           </DialogDescription>
-          <div className="flex items-center gap-3 p-4 pr-14">
-            <Select value={meal} onValueChange={(next) => onMealChange(next as MealType)}>
-              <SelectTrigger
-                aria-label="Bữa"
-                className="h-11 w-auto shrink-0 rounded-full md:rounded-full"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="start" position="popper" sideOffset={4}>
-                {enumOptions(MEAL_TYPE).map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-2 px-3 py-3">
+            <button
+              type="button"
+              aria-label="Close"
+              disabled={isLogging}
+              onClick={() => onOpenChange(false)}
+              className="bg-secondary active:bg-muted focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:opacity-50"
+            >
+              <X aria-hidden="true" className="size-5" />
+            </button>
+            <MealTimePill
+              time={eatenAt}
+              mealLabel={MEAL_TYPE[meal]}
+              onTimeChange={onEatenAtChange}
+            />
             <AddFoodProgress totals={totals} target={target} plate={plateTotals} />
+            <span
+              role="status"
+              aria-label={`${plate.length} ${plate.length === 1 ? 'item' : 'items'} in plate`}
+              className="bg-secondary flex h-11 shrink-0 items-center gap-1 rounded-full px-3 text-base font-semibold tabular-nums"
+            >
+              <Utensils aria-hidden="true" className="size-5" />
+              {plate.length > 0 && `+${plate.length}`}
+            </span>
           </div>
           <Tabs value={tab} onValueChange={(next) => onTabChange(next as AddTab)}>
             <TabsList variant="line" className="w-full border-b">
@@ -111,13 +115,13 @@ export function AddFoodDialog({
                 value="search"
                 className="h-11 flex-1 text-base group-data-horizontal/tabs:after:bottom-0 md:text-sm"
               >
-                <Search aria-hidden="true" /> Tìm món
+                <Search aria-hidden="true" /> Search
               </TabsTrigger>
               <TabsTrigger
                 value="quick"
                 className="h-11 flex-1 text-base group-data-horizontal/tabs:after:bottom-0 md:text-sm"
               >
-                <Zap aria-hidden="true" /> Nhập nhanh
+                <Zap aria-hidden="true" /> Quick add
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -125,7 +129,7 @@ export function AddFoodDialog({
 
         {error && (
           <div className="px-4 pb-2">
-            <FormErrorAlert title="Không thêm được món" message={error} />
+            <FormErrorAlert title="Couldn't add food" message={error} />
           </div>
         )}
 
@@ -145,7 +149,7 @@ export function AddFoodDialog({
                   </span>
                   <IconButton
                     icon={X}
-                    label={`Bỏ ${item.name}`}
+                    label={`Remove ${item.name}`}
                     disabled={isLogging}
                     onClick={() => onRemoveFromPlate(item.key)}
                   />
@@ -159,8 +163,8 @@ export function AddFoodDialog({
                 <SearchInput
                   value={search}
                   onValueChange={onSearchChange}
-                  placeholder="Tìm thực phẩm"
-                  aria-label="Tìm thực phẩm"
+                  placeholder="Search for a food"
+                  aria-label="Search for a food"
                 />
               </div>
             )}
@@ -178,7 +182,9 @@ export function AddFoodDialog({
                 }}
               >
                 {isLogging && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-                {isLogging ? 'Đang log...' : `Log ${plate.length} món`}
+                {isLogging
+                  ? 'Logging...'
+                  : `Log ${plate.length} ${plate.length === 1 ? 'item' : 'items'}`}
               </Button>
             )}
           </div>

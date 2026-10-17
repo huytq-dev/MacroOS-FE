@@ -1,15 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { IconButton } from '@/components/shared/IconButton'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Flame } from 'lucide-react'
+import { ModeToggle } from './DailyNutritionCard'
 import { formatDateVi } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import type { MacroTotals, WeekDay } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 
-type Mode = 'consumed' | 'remaining'
+export type NutritionMode = 'consumed' | 'remaining'
 
 interface Row {
   readonly key: 'calories' | 'protein' | 'fat' | 'carbs'
@@ -20,38 +18,30 @@ interface Row {
 
 // Thứ tự như MacroFactor: kcal, P, F, C.
 const ROWS: readonly Row[] = [
-  { key: 'calories', label: 'kcal', fill: 'bg-mf-calories', goal: (t) => t.caloriesTarget },
-  { key: 'protein', label: 'P', fill: 'bg-mf-protein', goal: (t) => t.proteinTarget },
-  { key: 'fat', label: 'F', fill: 'bg-mf-fat', goal: (t) => t.fatTarget },
-  { key: 'carbs', label: 'C', fill: 'bg-mf-carbs', goal: (t) => t.carbsTarget },
+  { key: 'calories', label: 'kcal', fill: 'bg-mf-tile-calories', goal: (t) => t.caloriesTarget },
+  { key: 'protein', label: 'P', fill: 'bg-mf-tile-protein', goal: (t) => t.proteinTarget },
+  { key: 'fat', label: 'F', fill: 'bg-mf-tile-fat', goal: (t) => t.fatTarget },
+  { key: 'carbs', label: 'C', fill: 'bg-mf-tile-carbs', goal: (t) => t.carbsTarget },
 ]
-const WEEKDAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-const CELL = 'h-11'
+const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+// Mỗi hàng chỉ số cao bằng nhau ở lưới và cột tổng bên phải để các số thẳng hàng với cột của nó.
+const ROW = 'h-[3.25rem]'
 
 interface WeekMatrixProps {
+  readonly mode: NutritionMode
+  readonly onModeChange: (mode: NutritionMode) => void
   readonly days: readonly WeekDay[]
   /** Ngày đang xem; null = cả tuần (chạm lại ngày đang chọn). */
   readonly selected: string | null
   readonly onSelect: (logDate: string | null) => void
-  readonly onPreviousWeek: () => void
-  /** Không cho đi quá tuần hiện tại. */
-  readonly onNextWeek?: () => void
 }
 
 const consumedOf = (totals: MacroTotals, key: Row['key']) => totals[key]
 
 /** Lưới 7 ngày × 4 chỉ số (kiểu "Nutrition & Targets"): cột thanh dọc theo % target, chạm cột để xem số của ngày đó. */
-export function WeekMatrix({
-  days,
-  selected,
-  onSelect,
-  onPreviousWeek,
-  onNextWeek,
-}: WeekMatrixProps) {
-  const [mode, setMode] = useState<Mode>('consumed')
+export function WeekMatrix({ mode, onModeChange, days, selected, onSelect }: WeekMatrixProps) {
   const current = days.find((day) => day.logDate === selected)
-  const first = days[0]
-  const last = days[days.length - 1]
 
   // Không có target: thanh so với ngày ăn nhiều nhất tuần của chính chỉ số đó.
   const percent = (day: WeekDay, row: Row): number => {
@@ -78,35 +68,9 @@ export function WeekMatrix({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <IconButton
-          icon={ChevronLeft}
-          label="Tuần trước"
-          className="size-11 md:size-8"
-          onClick={onPreviousWeek}
-        />
-        <p
-          className="text-center text-base font-semibold tabular-nums md:text-sm"
-          aria-live="polite"
-        >
-          {current
-            ? `${WEEKDAY_LABELS[days.indexOf(current)]}, ${formatDateVi(current.logDate).slice(0, 5)}`
-            : 'Cả tuần'}
-          <span className="text-muted-foreground block text-sm font-normal md:text-xs">
-            {formatDateVi(first.logDate).slice(0, 5)} – {formatDateVi(last.logDate).slice(0, 5)}
-          </span>
-        </p>
-        <IconButton
-          icon={ChevronRight}
-          label="Tuần sau"
-          className="size-11 md:size-8"
-          disabled={!onNextWeek}
-          onClick={onNextWeek}
-        />
-      </div>
-      <div className="flex gap-2">
-        <div className="flex flex-1 gap-1">
+    <div className="flex flex-1 flex-col justify-between gap-4">
+      <div className="flex gap-4">
+        <div className="flex flex-1">
           {days.map((day, index) => {
             const active = day.logDate === selected
             return (
@@ -114,32 +78,38 @@ export function WeekMatrix({
                 key={day.logDate}
                 type="button"
                 aria-pressed={active}
-                aria-label={`${WEEKDAY_LABELS[index]} ${formatDateVi(day.logDate)}: ${Math.round(day.totals.calories)} kcal`}
+                aria-label={`${WEEKDAY_NAMES[index]} ${formatDateVi(day.logDate)}: ${Math.round(day.totals.calories)} kcal`}
                 onClick={() => onSelect(active ? null : day.logDate)}
                 className={cn(
-                  'focus-visible:ring-ring/50 flex min-w-0 flex-1 flex-col gap-2 rounded-xl border-2 px-0.5 py-1.5 transition-colors focus-visible:ring-1 focus-visible:outline-none',
+                  'focus-visible:ring-foreground/40 flex min-w-0 flex-1 flex-col rounded-md border-[1.5px] transition-colors focus-visible:ring-1 focus-visible:outline-none',
                   active ? 'border-foreground' : 'border-transparent'
                 )}
               >
-                {ROWS.map((row) => (
+                {ROWS.map((row, rowIndex) => (
                   <span
                     key={row.key}
                     aria-hidden="true"
-                    className={cn('bg-muted/70 relative block w-full rounded-md', CELL)}
+                    className={cn(
+                      'flex w-full items-center justify-center',
+                      ROW,
+                      rowIndex < ROWS.length - 1 && 'border-foreground/10 border-b'
+                    )}
                   >
-                    <span
-                      className={cn(
-                        'absolute bottom-1 left-1/2 w-2.5 -translate-x-1/2 rounded-full transition-[height] duration-300',
-                        row.fill
-                      )}
-                      style={{ height: `calc((100% - 0.5rem) * ${percent(day, row) / 100})` }}
-                    />
-                    <span className="bg-foreground/40 absolute top-1 left-1/2 h-0.5 w-2.5 -translate-x-1/2 rounded-full" />
+                    <span className="bg-foreground/10 relative block h-8 w-[1.15rem] rounded-[3px]">
+                      <span
+                        className={cn(
+                          'absolute bottom-1 left-1/2 w-2 -translate-x-1/2 rounded-full transition-[height] duration-300',
+                          row.fill
+                        )}
+                        style={{ height: `calc((100% - 0.5rem) * ${percent(day, row) / 100})` }}
+                      />
+                      <span className="bg-foreground/40 absolute top-1 left-1/2 h-0.5 w-2 -translate-x-1/2 rounded-full" />
+                    </span>
                   </span>
                 ))}
                 <span
                   className={cn(
-                    'text-center text-sm',
+                    'py-2.5 text-center text-base',
                     active ? 'text-foreground font-bold' : 'text-muted-foreground'
                   )}
                 >
@@ -150,20 +120,22 @@ export function WeekMatrix({
           })}
         </div>
 
-        <dl className="flex w-[4.5rem] shrink-0 flex-col gap-2 py-1.5 pl-1" aria-live="polite">
+        <dl className="w-[4.5rem] shrink-0" aria-live="polite">
           {ROWS.map((row) => {
             const { value, goal } = summary(row)
             return (
-              <div key={row.key} className={cn('flex flex-col justify-center', CELL)}>
+              <div key={row.key} className={cn('flex flex-col justify-center', ROW)}>
                 <dt className="sr-only">{row.label}</dt>
-                <dd className="text-base leading-tight font-semibold tabular-nums">
+                <dd className="flex items-center gap-1 text-xl leading-none tabular-nums">
                   {value}
-                  <span className="text-muted-foreground ml-1 text-xs font-normal">
-                    {row.label}
-                  </span>
+                  {row.key === 'calories' ? (
+                    <Flame aria-hidden="true" className="size-4" />
+                  ) : (
+                    <span className="text-base">{row.label}</span>
+                  )}
                 </dd>
-                <dd className="text-muted-foreground text-xs tabular-nums">
-                  {goal !== null ? `/ ${Math.round(goal)}` : '/ —'}
+                <dd className="text-muted-foreground mt-0.5 text-sm tabular-nums">
+                  {goal !== null ? `of ${Math.round(goal)}` : 'of —'}
                 </dd>
               </div>
             )
@@ -171,28 +143,15 @@ export function WeekMatrix({
         </dl>
       </div>
 
-      <ToggleGroup
-        type="single"
+      <ModeToggle
         value={mode}
-        onValueChange={(next) => next && setMode(next as Mode)}
-        aria-label="Kiểu hiển thị"
-        className="mx-auto gap-1"
-      >
-        {(
-          [
-            ['consumed', 'Đã ăn'],
-            ['remaining', 'Còn lại'],
-          ] as const
-        ).map(([value, label]) => (
-          <ToggleGroupItem
-            key={value}
-            value={value}
-            className="data-[state=on]:bg-foreground data-[state=on]:text-background h-10 rounded-full px-5 text-base md:h-8 md:text-sm"
-          >
-            {label}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+        onChange={onModeChange}
+        ariaLabel="Display mode"
+        options={[
+          ['consumed', 'Consumed'],
+          ['remaining', 'Remaining'],
+        ]}
+      />
     </div>
   )
 }

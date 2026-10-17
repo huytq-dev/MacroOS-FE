@@ -98,7 +98,7 @@ export function FoodPicker({
   return (
     <div className="space-y-4 p-4">
       <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
-        <ArrowLeft aria-hidden="true" /> Kết quả
+        <ArrowLeft aria-hidden="true" /> Results
       </Button>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
@@ -108,7 +108,7 @@ export function FoodPicker({
         <button
           type="button"
           aria-pressed={Boolean(favorite)}
-          aria-label={favorite ? 'Bỏ khỏi yêu thích' : 'Lưu vào yêu thích với khẩu phần này'}
+          aria-label={favorite ? 'Remove from favorites' : 'Save to favorites with this serving'}
           disabled={!valid || isFavoritePending}
           onClick={toggleFavorite}
           className="bg-secondary active:bg-muted focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:opacity-50"
@@ -123,7 +123,7 @@ export function FoodPicker({
         </button>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Khẩu phần">
+        <FormField label="Serving">
           {(field) => (
             <Select value={servingId} onValueChange={setServingId}>
               <SelectTrigger id={field.id} className="w-full">
@@ -141,8 +141,8 @@ export function FoodPicker({
           )}
         </FormField>
         <FormField
-          label={serving ? 'Số khẩu phần' : 'Số gram'}
-          error={valid ? undefined : 'Nhập từ 0,01 đến 10000'}
+          label={serving ? 'Servings' : 'Grams'}
+          error={valid ? undefined : 'Enter a value from 0.01 to 10000'}
         >
           {(field) => (
             <Input
@@ -165,7 +165,7 @@ export function FoodPicker({
         ))}
       </div>
       <Button className="w-full" size="lg" disabled={!valid} onClick={add}>
-        Thêm vào plate
+        Add to plate
       </Button>
     </div>
   )

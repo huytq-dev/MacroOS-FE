@@ -12,7 +12,7 @@ export function WeeksTable({ weeks }: WeeksTableProps) {
   if (weeks.length === 0) return null
   const sorted = [...weeks].sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))
   return (
-    <ListSection label="Lịch sử tuần">
+    <ListSection label="Weekly history">
       {sorted.map((week) => {
         const delta =
           week.previousCaloriesTarget === null
@@ -21,7 +21,7 @@ export function WeeksTable({ weeks }: WeeksTableProps) {
         return (
           <ListRow
             key={week.id}
-            label={`Từ ${formatDateVi(week.effectiveFrom)}`}
+            label={`From ${formatDateVi(week.effectiveFrom)}`}
             hint={`${ADJUSTMENT_REASON[week.adjustmentReason]} · P ${Math.round(week.proteinTarget)} · C ${Math.round(week.carbsTarget)} · F ${Math.round(week.fatTarget)}`}
             value={
               <span className="text-foreground font-bold tabular-nums">

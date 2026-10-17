@@ -4,15 +4,15 @@ import { GENDER } from '@/config/enums'
 // Khớp BE RegisterCommandValidator
 export const registerSchema = z
   .object({
-    email: z.email('Email không đúng định dạng').max(320),
-    password: z.string().min(8, 'Mật khẩu tối thiểu 8 ký tự').max(100),
-    confirmPassword: z.string().min(1, 'Vui lòng nhập lại mật khẩu'),
-    firstName: z.string().min(1, 'Vui lòng nhập tên').max(100),
-    lastName: z.string().min(1, 'Vui lòng nhập họ').max(100),
+    email: z.email('Enter a valid email address').max(320),
+    password: z.string().min(8, 'Password must be at least 8 characters').max(100),
+    confirmPassword: z.string().min(1, 'Confirm your password'),
+    firstName: z.string().min(1, 'Enter your first name').max(100),
+    lastName: z.string().min(1, 'Enter your last name').max(100),
     gender: z.enum(Object.keys(GENDER) as [keyof typeof GENDER, ...(keyof typeof GENDER)[]]),
   })
   .refine((values) => values.password === values.confirmPassword, {
-    message: 'Mật khẩu nhập lại không khớp',
+    message: "Passwords don't match",
     path: ['confirmPassword'],
   })
 

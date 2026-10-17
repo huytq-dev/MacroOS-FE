@@ -37,7 +37,7 @@ export function SearchInput({ value, onValueChange, placeholder, ...aria }: Sear
         <InputGroupAddon align="inline-end">
           <InputGroupButton
             size="icon-xs"
-            aria-label="Xoá từ khoá"
+            aria-label="Clear search"
             onClick={() => onValueChange('')}
           >
             <X aria-hidden="true" />

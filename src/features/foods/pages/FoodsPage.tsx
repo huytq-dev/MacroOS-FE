@@ -132,17 +132,17 @@ export function FoodsPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <PageHeader
-        title="Thực phẩm"
+        title="Foods"
         action={
           <Button size="sm" onClick={openCreate}>
-            <Plus aria-hidden="true" /> Tạo món
+            <Plus aria-hidden="true" /> Create food
           </Button>
         }
       />
 
       <SearchInput
-        aria-label="Tìm thực phẩm"
-        placeholder="Tìm theo tên hoặc thương hiệu"
+        aria-label="Search for a food"
+        placeholder="Search by name or brand"
         value={search}
         onValueChange={(value) => {
           setSearch(value)
@@ -158,7 +158,7 @@ export function FoodsPage() {
           setScope(next as FoodScope)
           setTop(PAGE_STEP)
         }}
-        aria-label="Phạm vi thực phẩm"
+        aria-label="Food scope"
         spacing={2}
         className="justify-start overflow-x-auto"
       >
@@ -184,7 +184,7 @@ export function FoodsPage() {
           onClearFilters={clearFilters}
           emptyAction={
             <Button size="sm" onClick={openCreate}>
-              <Plus aria-hidden="true" /> Tạo món
+              <Plus aria-hidden="true" /> Create food
             </Button>
           }
           onSelect={(food) => setSelectedId(food.id)}
@@ -212,14 +212,14 @@ export function FoodsPage() {
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Xoá thực phẩm?"
+        title="Delete food?"
         description={
           deleteTarget
-            ? `Xoá "${deleteTarget.name}" khỏi thư viện của bạn. Các lần đã log trước đây vẫn giữ nguyên dinh dưỡng.`
+            ? `Delete "${deleteTarget.name}" from your library. Entries you already logged keep their nutrition.`
             : ''
         }
-        confirmLabel="Xoá thực phẩm"
-        pendingLabel="Đang xoá..."
+        confirmLabel="Delete food"
+        pendingLabel="Deleting..."
         isPending={deleteFood.isPending}
         onConfirm={() =>
           deleteTarget &&

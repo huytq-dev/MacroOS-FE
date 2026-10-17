@@ -49,6 +49,12 @@ export interface CreateProgramRequest {
   calorieFloorKcal: number | null
   checkInWeekday: DayOfWeek | null
   manualInitialTdeeKcal: number | null
+  // Wizard thiết lập: cân mục tiêu, loại tập, kiểu phân bổ kcal trong tuần (Custom = dồn vào các ngày chọn)
+  targetWeightKg?: number | null
+  trainingType?: 'None' | 'Lifting' | 'Cardio' | 'Both' | null
+  calorieShiftMode?: 'Even' | 'Custom' | null
+  calorieShiftDays?: DayOfWeek[] | null
+  calorieShiftPercent?: number | null
 }
 
 // Khớp BE UpdateProgramGoalCommand (null = giữ nguyên)

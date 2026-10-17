@@ -54,15 +54,15 @@ export function CreateProgramPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <div className="space-y-2">
-        <PageHeader title="Tạo program" />
+        <PageHeader title="Create program" />
         <p className="text-muted-foreground text-xs">
-          Cần có ngày sinh, chiều cao (
+          You need a date of birth, height (
           <Link href={routePath.profile} className="text-primary hover:underline">
-            Hồ sơ
+            Profile
           </Link>
-          ) và ít nhất một lần cân (
+          ) and at least one weigh-in (
           <Link href={routePath.weight} className="text-primary hover:underline">
-            Cân nặng
+            Weight
           </Link>
           ).
         </p>

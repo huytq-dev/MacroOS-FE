@@ -49,12 +49,12 @@ const useFoodMutation = <TVariables>(
 }
 
 export const useCreateFood = () =>
-  useFoodMutation((payload: CustomFoodRequest) => foodService.create(payload), 'Đã tạo thực phẩm')
+  useFoodMutation((payload: CustomFoodRequest) => foodService.create(payload), 'Food created')
 export const useUpdateFood = () =>
   useFoodMutation(
     ({ id, payload }: { id: string; payload: CustomFoodRequest }) =>
       foodService.update(id, payload),
-    'Đã lưu thực phẩm'
+    'Food saved'
   )
 export const useDeleteFood = () =>
-  useFoodMutation((id: string) => foodService.remove(id), 'Đã xoá thực phẩm')
+  useFoodMutation((id: string) => foodService.remove(id), 'Food deleted')

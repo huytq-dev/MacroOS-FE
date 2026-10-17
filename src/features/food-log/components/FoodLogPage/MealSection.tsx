@@ -35,7 +35,7 @@ export function MealSection({ meal, entries, onSelectEntry, onAddToMeal }: MealS
         />
       ))}
       <ListRow
-        label="Thêm món"
+        label="Add food"
         leading={<Plus aria-hidden="true" className="size-5" />}
         onClick={() => onAddToMeal(meal)}
         className="min-h-11 font-semibold"

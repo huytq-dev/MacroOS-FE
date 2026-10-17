@@ -25,12 +25,12 @@ interface NavItem {
 
 // Thêm mục menu ở đây khi có trang mới (đồng bộ với config/route-path.ts)
 const NAV_ITEMS: readonly NavItem[] = [
-  { icon: LayoutDashboard, label: 'Hôm nay', href: routePath.dashboard },
-  { icon: UtensilsCrossed, label: 'Nhật ký', href: routePath.foodLog },
-  { icon: Apple, label: 'Thực phẩm', href: routePath.foods },
+  { icon: LayoutDashboard, label: 'Dashboard', href: routePath.dashboard },
+  { icon: UtensilsCrossed, label: 'Food log', href: routePath.foodLog },
+  { icon: Apple, label: 'Foods', href: routePath.foods },
   { icon: Target, label: 'Program', href: routePath.program },
-  { icon: Scale, label: 'Cân nặng', href: routePath.weight },
-  { icon: UserRound, label: 'Hồ sơ', href: routePath.profile },
+  { icon: Scale, label: 'Weight', href: routePath.weight },
+  { icon: UserRound, label: 'Profile', href: routePath.profile },
 ]
 
 interface AppSidebarProps {
@@ -85,7 +85,7 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
         size="icon"
         onClick={onToggleCollapse}
         className="text-sidebar-foreground/50 hover:bg-sidebar-accent border-sidebar-border/30 h-9 w-full shrink-0 rounded-none border-t"
-        aria-label={isCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
+        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         <ChevronLeft
           className={cn('h-4 w-4 transition-transform', isCollapsed && 'rotate-180')}

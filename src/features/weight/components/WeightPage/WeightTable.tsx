@@ -20,19 +20,19 @@ export function WeightTable({ items, onEdit, onRequestDelete, emptyAction }: Wei
       <Card className="rounded-2xl">
         <EmptyState
           icon={Scale}
-          title="Chưa có lần cân nào"
-          description="Ghi cân nặng để xem trend và tốc độ thay đổi."
+          title="No weigh-ins yet"
+          description="Log your weight to see your trend and rate of change."
           action={emptyAction}
         />
       </Card>
     )
   return (
-    <ListSection label="Lịch sử">
+    <ListSection label="History">
       {items.map((entry) => (
         <div key={entry.id} className="flex min-h-14 items-center text-base md:text-sm">
           <button
             type="button"
-            aria-label={`Sửa cân ngày ${formatDateVi(entry.logDate)}`}
+            aria-label={`Edit weigh-in on ${formatDateVi(entry.logDate)}`}
             onClick={() => onEdit(entry)}
             className="active:bg-muted focus-visible:ring-ring/50 flex min-h-14 min-w-0 flex-1 items-center gap-2 py-1 pr-2 pl-4 text-left transition-colors focus-visible:ring-1 focus-visible:outline-none focus-visible:ring-inset"
           >
@@ -52,7 +52,7 @@ export function WeightTable({ items, onEdit, onRequestDelete, emptyAction }: Wei
           </button>
           <IconButton
             icon={Trash2}
-            label={`Xoá cân ngày ${formatDateVi(entry.logDate)}`}
+            label={`Delete weigh-in on ${formatDateVi(entry.logDate)}`}
             className="text-muted-foreground hover:text-destructive mr-1 size-11 md:size-8"
             onClick={() => onRequestDelete(entry)}
           />

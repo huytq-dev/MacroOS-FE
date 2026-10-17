@@ -37,12 +37,12 @@ function LoginPageInner() {
 
   return (
     <AuthShell
-      title="Chào mừng quay lại"
-      description="Đăng nhập để xem nhật ký hôm nay."
+      title="Welcome back"
+      description="Log in to see today's log."
       footer={
         <AuthAltAction
-          prompt="Chưa có tài khoản?"
-          label="Tạo tài khoản"
+          prompt="Don't have an account?"
+          label="Create account"
           href={routePath.register}
         />
       }

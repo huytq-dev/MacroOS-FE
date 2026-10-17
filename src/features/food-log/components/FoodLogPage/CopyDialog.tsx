@@ -63,43 +63,43 @@ function CopyBody({ fromDate, defaultToDate, isPending, error, onOpenChange, onC
     <>
       <DialogHeader>
         <DialogTitle className="font-sans text-sm font-semibold">
-          Sao chép từ {formatDateVi(fromDate)}
+          Copy from {formatDateVi(fromDate)}
         </DialogTitle>
         <DialogDescription className="text-xs">
-          Giữ nguyên dinh dưỡng đã log, không đọc lại thực phẩm.
+          Copies nutrition exactly as it was logged.
         </DialogDescription>
       </DialogHeader>
-      <FormErrorAlert title="Không sao chép được" message={error} />
+      <FormErrorAlert title="Couldn't copy" message={error} />
       <div className="space-y-4">
-        <FormField label="Sao chép">
+        <FormField label="Copy">
           {(field) => (
             <Select value={scope} onValueChange={setScope}>
               <SelectTrigger id={field.id} className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="start" position="popper" sideOffset={4}>
-                <SelectItem value={DAY}>Cả ngày</SelectItem>
+                <SelectItem value={DAY}>Whole day</SelectItem>
                 {mealItems}
               </SelectContent>
             </Select>
           )}
         </FormField>
         <FormField
-          label="Sang ngày"
+          label="To date"
           required
-          error={sameTarget ? 'Nguồn và đích trùng nhau.' : undefined}
+          error={sameTarget ? 'Source and destination are the same.' : undefined}
         >
           {(field) => <DateField {...field} value={toDate} onValueChange={setToDate} />}
         </FormField>
         {scope !== DAY && (
-          <FormField label="Vào bữa">
+          <FormField label="To meal">
             {(field) => (
               <Select value={toMeal} onValueChange={setToMeal}>
                 <SelectTrigger id={field.id} className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="start" position="popper" sideOffset={4}>
-                  <SelectItem value={SAME}>Giữ nguyên bữa</SelectItem>
+                  <SelectItem value={SAME}>Same meal</SelectItem>
                   {mealItems}
                 </SelectContent>
               </Select>
@@ -114,7 +114,7 @@ function CopyBody({ fromDate, defaultToDate, isPending, error, onOpenChange, onC
           disabled={isPending}
           onClick={() => onOpenChange(false)}
         >
-          Huỷ
+          Cancel
         </Button>
         <Button
           disabled={!canCopy}
@@ -129,7 +129,7 @@ function CopyBody({ fromDate, defaultToDate, isPending, error, onOpenChange, onC
           }
         >
           {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-          {isPending ? 'Đang sao chép...' : 'Sao chép'}
+          {isPending ? 'Copying...' : 'Copy'}
         </Button>
       </DialogFooter>
     </>

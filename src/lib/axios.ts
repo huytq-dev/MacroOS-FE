@@ -72,7 +72,13 @@ api.interceptors.response.use(
     const config = error.config as RetriableConfig | undefined
     const isAuthEndpoint = config?.url?.startsWith('/auth/') ?? false
 
-    if (error.response?.status === 401 && config && !config._retried && !isAuthEndpoint && getAccessToken()) {
+    if (
+      error.response?.status === 401 &&
+      config &&
+      !config._retried &&
+      !isAuthEndpoint &&
+      getAccessToken()
+    ) {
       config._retried = true
       try {
         const token = await refreshAccessToken()
@@ -96,11 +102,17 @@ api.interceptors.response.use(
     if (!error.response) {
       logger.error('Network error:', error.message)
       if (!isLoadRequest)
-        toast.error('Mất kết nối mạng', { id: 'network-error', description: 'Kiểm tra Internet rồi thử lại.' })
+        toast.error('No internet connection', {
+          id: 'network-error',
+          description: 'Check your connection and try again.',
+        })
     } else if (error.response.status >= 500) {
       logger.error('Server error:', error.message)
       if (!isLoadRequest)
-        toast.error('Hệ thống tạm thời không phản hồi', { id: 'server-error', description: 'Vui lòng thử lại sau.' })
+        toast.error('The server is not responding', {
+          id: 'server-error',
+          description: 'Please try again later.',
+        })
     }
 
     return Promise.reject(error)

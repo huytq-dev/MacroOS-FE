@@ -45,7 +45,7 @@ export function FoodDetailDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="font-sans text-sm font-semibold">
-            {food?.name ?? 'Thực phẩm'}
+            {food?.name ?? 'Food'}
           </DialogTitle>
           <DialogDescription className="flex flex-wrap items-center gap-1.5 text-xs">
             {food ? (
@@ -57,12 +57,12 @@ export function FoodDetailDialog({
                     variant="secondary"
                     className="bg-mf-pastel-green text-mf-pastel-green-text"
                   >
-                    Của tôi
+                    Mine
                   </Badge>
                 )}
               </>
             ) : (
-              'Dinh dưỡng trên 100 g'
+              'Nutrition per 100 g'
             )}
           </DialogDescription>
         </DialogHeader>
@@ -79,13 +79,13 @@ export function FoodDetailDialog({
               {cell('Sodium', food.nutrition.sodiumPer100g, 'mg')}
             </div>
             <div>
-              <p className="text-muted-foreground mb-1.5 text-xs">Khẩu phần</p>
+              <p className="text-muted-foreground mb-1.5 text-xs">Servings</p>
               <ul className="divide-border divide-y text-sm">
                 {food.servings.map((serving) => (
                   <li key={serving.id} className="flex items-center justify-between gap-2 py-2">
                     <span className="flex items-center gap-1.5">
                       {serving.servingName}
-                      {serving.isDefault && <Badge variant="outline">Mặc định</Badge>}
+                      {serving.isDefault && <Badge variant="outline">Default</Badge>}
                     </span>
                     <span className="text-muted-foreground tabular-nums">
                       {serving.weightInGrams} g
@@ -97,9 +97,9 @@ export function FoodDetailDialog({
             {food.isMine && (
               <DialogFooter>
                 <Button variant="destructive" onClick={() => onRequestDelete(food)}>
-                  Xoá
+                  Delete
                 </Button>
-                <Button onClick={() => onEdit(food)}>Sửa</Button>
+                <Button onClick={() => onEdit(food)}>Edit</Button>
               </DialogFooter>
             )}
           </>

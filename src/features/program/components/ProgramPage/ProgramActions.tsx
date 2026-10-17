@@ -57,7 +57,7 @@ function Footer({
   return (
     <DialogFooter>
       <Button type="button" variant="outline" onClick={onCancel} disabled={state.isPending}>
-        Huỷ
+        Cancel
       </Button>
       <Button type="submit" disabled={state.isPending || disabled} aria-busy={state.isPending}>
         {state.isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
@@ -83,7 +83,7 @@ function GoalBody({
   const rateError =
     maintenance || (rate.trim() !== '' && rateNumber >= 0 && rateNumber <= 1.5)
       ? undefined
-      : 'Nhập từ 0 đến 1,5 %/tuần'
+      : 'Enter 0 to 1.5 %/week'
   return (
     <form
       noValidate
@@ -95,19 +95,19 @@ function GoalBody({
       }}
     >
       <DialogHeader>
-        <DialogTitle className="font-sans text-sm font-semibold">Sửa mục tiêu</DialogTitle>
+        <DialogTitle className="font-sans text-sm font-semibold">Edit goal</DialogTitle>
         <DialogDescription className="text-xs">
-          Tính lại target tuần hiện tại ngay.
+          Recalculates this week&apos;s targets right away.
         </DialogDescription>
       </DialogHeader>
-      <FormErrorAlert title="Không sửa được mục tiêu" message={state.error} />
+      <FormErrorAlert title="Couldn't update goal" message={state.error} />
       <ChoiceGroup
         options={GOAL_CHOICES}
         value={goalType}
         onValueChange={setGoalType}
-        aria-label="Mục tiêu"
+        aria-label="Goal"
       />
-      <FormField label="Tốc độ (%/tuần)" hint="Giữ cân thì không cần nhập" error={rateError}>
+      <FormField label="Weekly rate (%/week)" hint="Not needed when maintaining" error={rateError}>
         {(field) => (
           <Input
             {...field}
@@ -125,8 +125,8 @@ function GoalBody({
       <Footer
         state={state}
         onCancel={onCancel}
-        label="Lưu"
-        pendingLabel="Đang lưu..."
+        label="Save"
+        pendingLabel="Saving..."
         disabled={Boolean(rateError)}
       />
     </form>
@@ -150,19 +150,19 @@ function StyleBody({
       }}
     >
       <DialogHeader>
-        <DialogTitle className="font-sans text-sm font-semibold">Đổi program style</DialogTitle>
+        <DialogTitle className="font-sans text-sm font-semibold">Change program style</DialogTitle>
         <DialogDescription className="text-xs">
-          Không mất dữ liệu, không reset expenditure.
+          Your data is kept and your expenditure isn&apos;t reset.
         </DialogDescription>
       </DialogHeader>
-      <FormErrorAlert title="Không đổi được style" message={state.error} />
+      <FormErrorAlert title="Couldn't change style" message={state.error} />
       <ChoiceGroup
         options={STYLE_CHOICES}
         value={style}
         onValueChange={setStyle}
         aria-label="Program style"
       />
-      <Footer state={state} onCancel={onCancel} label="Đổi style" pendingLabel="Đang đổi..." />
+      <Footer state={state} onCancel={onCancel} label="Change style" pendingLabel="Changing..." />
     </form>
   )
 }
@@ -178,7 +178,7 @@ function TdeeBody({
   const error =
     tdee.trim() !== '' && tdeeNumber >= 1000 && tdeeNumber <= 6000
       ? undefined
-      : 'Nhập từ 1000 đến 6000 kcal'
+      : 'Enter 1000 to 6000 kcal'
   return (
     <form
       noValidate
@@ -190,15 +190,13 @@ function TdeeBody({
       }}
     >
       <DialogHeader>
-        <DialogTitle className="font-sans text-sm font-semibold">
-          TDEE khởi điểm nhập tay
-        </DialogTitle>
+        <DialogTitle className="font-sans text-sm font-semibold">Manual starting TDEE</DialogTitle>
         <DialogDescription className="text-xs">
-          Thuật toán expenditure học lại từ hôm nay với số này.
+          The expenditure algorithm relearns from today using this number.
         </DialogDescription>
       </DialogHeader>
-      <FormErrorAlert title="Không đặt được TDEE" message={state.error} />
-      <FormField label="TDEE (kcal/ngày)" required error={error}>
+      <FormErrorAlert title="Couldn't set TDEE" message={state.error} />
+      <FormField label="TDEE (kcal/day)" required error={error}>
         {(field) => (
           <Input
             {...field}
@@ -213,8 +211,8 @@ function TdeeBody({
       <Footer
         state={state}
         onCancel={onCancel}
-        label="Lưu"
-        pendingLabel="Đang lưu..."
+        label="Save"
+        pendingLabel="Saving..."
         disabled={Boolean(error)}
       />
     </form>
@@ -252,23 +250,23 @@ export function ProgramActions({
 
   return (
     <>
-      <ListSection label="Quản lý program">
+      <ListSection label="Manage program">
         <ListRow
-          label="Sửa mục tiêu"
-          hint="Tính lại target tuần hiện tại"
+          label="Edit goal"
+          hint="Recalculates this week's targets"
           onClick={() => show('goal')}
         />
         <ListRow
-          label="Đổi style"
-          hint="Coached, Collaborative hoặc Manual"
+          label="Change style"
+          hint="Coached, Collaborative, or Manual"
           onClick={() => show('style')}
         />
         <ListRow
-          label="Nhập TDEE tay"
-          hint="Thuật toán học lại từ hôm nay"
+          label="Set TDEE manually"
+          hint="The algorithm relearns from today"
           onClick={() => show('tdee')}
         />
-        <ListRow label="Kết thúc program" destructive onClick={() => show('end')} />
+        <ListRow label="End program" destructive onClick={() => show('end')} />
       </ListSection>
 
       {sheet(
@@ -305,10 +303,10 @@ export function ProgramActions({
       <ConfirmDialog
         open={open === 'end'}
         onOpenChange={(isOpen) => !isOpen && close()}
-        title="Kết thúc program?"
-        description="Lịch sử tuần được giữ. Bạn có thể tạo program mới ngay sau đó."
-        confirmLabel="Kết thúc program"
-        pendingLabel="Đang kết thúc..."
+        title="End program?"
+        description="Your weekly history is kept. You can create a new program right after."
+        confirmLabel="End program"
+        pendingLabel="Ending..."
         isPending={end.isPending}
         onConfirm={() => onEnd(close)}
       />

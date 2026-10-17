@@ -14,26 +14,26 @@ export function DateNav({ date, today, onChange }: DateNavProps) {
     <div className="flex items-center gap-1">
       <IconButton
         icon={ChevronLeft}
-        label="Ngày trước"
+        label="Previous day"
         className="size-11 md:size-8"
         onClick={() => onChange(addDaysIso(date, -1))}
       />
       <label className="bg-card focus-within:ring-ring/50 relative flex h-11 flex-1 items-center justify-center rounded-2xl focus-within:ring-1 md:h-8">
         <span className="text-sm font-semibold">
-          {date === today ? 'Hôm nay · ' : ''}
+          {date === today ? 'Today · ' : ''}
           {formatDateVi(date)}
         </span>
         <input
           type="date"
           value={date}
-          aria-label="Chọn ngày"
+          aria-label="Choose date"
           onChange={(event) => event.target.value && onChange(event.target.value)}
           className="absolute inset-0 h-full w-full opacity-0"
         />
       </label>
       <IconButton
         icon={ChevronRight}
-        label="Ngày sau"
+        label="Next day"
         className="size-11 md:size-8"
         onClick={() => onChange(addDaysIso(date, 1))}
       />

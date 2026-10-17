@@ -5,15 +5,16 @@ Mọi trang mới và mọi lần sửa form phải theo các quy tắc dưới 
 
 ## 1. Dropdown (ô chọn)
 
-| Tình huống | Dùng | Ghi chú |
-|---|---|---|
-| Chọn **một** giá trị từ danh mục (đơn vị, vị trí, cấp bậc, ngành nghề, loại hình, ứng viên, mẫu, tin tuyển dụng...) | `SearchableSelect` | **Bắt buộc gõ tìm được.** Gõ ngay trong chính ô chọn (bấm vào ô thì ô thành ô nhập, danh sách bên dưới lọc theo chữ gõ); **không** làm hộp tìm kiếm riêng bên trong danh sách. Tìm không phân biệt dấu (`ha noi` ra `Hà Nội`). |
-| Chọn **nhiều** giá trị (địa điểm làm việc, người tham gia, thẻ...) | `SearchableMultiSelect` | Giá trị đã chọn hiện thành thẻ nhỏ trong ô; gõ tìm ngay trong ô, bấm x hoặc Backspace (khi ô tìm trống) để bỏ. |
-| Tập giá trị cố định, **tối đa 7 mục** và không thay đổi (Bắt buộc/Không bắt buộc, VND/USD, số dòng mỗi trang, trạng thái) | `Select` (`ui/select`) | Không cần tìm kiếm. |
-| Danh mục có thể nhiều hơn 7 mục hoặc do người dùng thêm | `SearchableSelect` | Dù hôm nay mới có 3 mục. |
-| Chọn một **hành động** từ danh sách (áp dụng mẫu, sao chép từ tin khác) | `SearchableSelect` với `value=""` | Giá trị luôn rỗng để ô luôn hiện gợi ý sau mỗi lần chọn. |
+| Tình huống                                                                                                                | Dùng                              | Ghi chú                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Chọn **một** giá trị từ danh mục (đơn vị, vị trí, cấp bậc, ngành nghề, loại hình, ứng viên, mẫu, tin tuyển dụng...)       | `SearchableSelect`                | **Bắt buộc gõ tìm được.** Gõ ngay trong chính ô chọn (bấm vào ô thì ô thành ô nhập, danh sách bên dưới lọc theo chữ gõ); **không** làm hộp tìm kiếm riêng bên trong danh sách. Tìm không phân biệt dấu (`ha noi` ra `Hà Nội`). |
+| Chọn **nhiều** giá trị (địa điểm làm việc, người tham gia, thẻ...)                                                        | `SearchableMultiSelect`           | Giá trị đã chọn hiện thành thẻ nhỏ trong ô; gõ tìm ngay trong ô, bấm x hoặc Backspace (khi ô tìm trống) để bỏ.                                                                                                                 |
+| Tập giá trị cố định, **tối đa 7 mục** và không thay đổi (Bắt buộc/Không bắt buộc, VND/USD, số dòng mỗi trang, trạng thái) | `Select` (`ui/select`)            | Không cần tìm kiếm.                                                                                                                                                                                                            |
+| Danh mục có thể nhiều hơn 7 mục hoặc do người dùng thêm                                                                   | `SearchableSelect`                | Dù hôm nay mới có 3 mục.                                                                                                                                                                                                       |
+| Chọn một **hành động** từ danh sách (áp dụng mẫu, sao chép từ tin khác)                                                   | `SearchableSelect` với `value=""` | Giá trị luôn rỗng để ô luôn hiện gợi ý sau mỗi lần chọn.                                                                                                                                                                       |
 
 Quy tắc dùng:
+
 - Import từ `@/components/shared/SearchableSelect` và `@/components/shared/SearchableMultiSelect`; **không tự viết** ô chọn có tìm kiếm riêng. Kiểu `SearchableOption` (`{ value, label, description? }`) và hàm lọc `filterOptions` nằm ở `searchable-options.ts`.
 - Trường **không bắt buộc**: truyền `clearLabel="Không chọn"` để có dòng bỏ chọn ở đầu danh sách; hàm `onValueChange` nhận chuỗi rỗng khi bỏ chọn.
 - Trong `FormField`, truyền `{...control}` vào ô chọn để nhận `id`, `aria-invalid`, `aria-describedby`.
@@ -23,6 +24,7 @@ Quy tắc dùng:
 ## 2. Trường trong form (`FormField`)
 
 Mỗi trường theo đúng thứ tự: **nhãn, dòng gợi ý (nếu có), ô nhập, thông báo lỗi**.
+
 - Nhãn `text-xs font-medium`, dấu `*` đỏ cho trường bắt buộc.
 - Dòng gợi ý `text-[11px] text-muted-foreground` nằm **ngay dưới nhãn**, không đặt dưới ô nhập (giống MISA). Gợi ý nói rõ trường này hiển thị ở đâu hoặc dùng làm gì, ví dụ "Tiêu đề hiển thị trên các chức năng và báo cáo của phần mềm".
 - Thông báo lỗi nằm dưới ô nhập, `text-[11px] text-destructive`.
@@ -63,23 +65,23 @@ Mỗi trường theo đúng thứ tự: **nhãn, dòng gợi ý (nếu có), ô 
 
 Mọi giao diện dựng từ component trong `components/ui` (shadcn) hoặc thành phần dùng chung đã bọc chúng. Không tự dựng bằng thẻ HTML thô khi đã có component.
 
-| Cần | Dùng | Không dùng |
-|---|---|---|
-| Khung nhóm trong form | `FormCard` (bọc `Card`, có tiêu đề, mô tả, hiệu ứng hiện nhẹ) | `<section className="bg-card rounded-xl border p-5">` |
-| Bảng dữ liệu | `Table`, `TableHeader`, `TableRow`, `TableHead`, `TableCell` | `<table>`, `<th>`, `<td>` |
-| Nút chỉ có biểu tượng (sửa, xóa) | `IconButton` (có chú thích, luôn có `aria-label`) | `Button` icon không nhãn |
-| Nút thêm dòng/mục cuối danh sách | `DashedAddButton` | `<button>` nét đứt tự viết |
-| Trạng thái, số đếm, nhãn nhỏ | `Badge` | `<span className="rounded bg-muted ...">` |
-| Danh sách rỗng | `Empty` (`EmptyMedia`, `EmptyTitle`, `EmptyDescription`) | một dòng chữ xám |
-| Mở/đóng nội dung | `Collapsible` kèm `animate-collapsible-down/up` | ẩn/hiện không chuyển động |
-| Ô tìm kiếm có biểu tượng | `InputGroup` + `InputGroupAddon` + `InputGroupInput` | `<input type="search">` |
-| Vùng cuộn có thanh cuộn | `ScrollArea` | `overflow-y-auto` rời |
-| Đường phân cách | `Separator` | `<div className="border-t">` |
-| Khung chờ | `Skeleton` | `div` có `animate-pulse` |
-| Ô nhập, chọn, tích, công tắc, nhãn | `Input`, `Select`, `SearchableSelect`, `Checkbox`, `Switch`, `Label` | thẻ gốc |
-| Chuyển tab trong trang | `Tabs`, `TabsList variant="line"`, `TabsTrigger`, `TabsContent` | `<button role="tab">` tự viết |
-| Chọn một trong vài lựa chọn dạng ô vuông (chọn màu) | `ToggleGroup type="single"` + `ToggleGroupItem` | `<button role="radio">` tự viết |
-| Khung thông tin chỉ đọc (trạng thái, liên kết) | `Card` + `CardContent` | `<section className="border ...">` |
+| Cần                                                 | Dùng                                                                 | Không dùng                                            |
+| --------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------- |
+| Khung nhóm trong form                               | `FormCard` (bọc `Card`, có tiêu đề, mô tả, hiệu ứng hiện nhẹ)        | `<section className="bg-card rounded-xl border p-5">` |
+| Bảng dữ liệu                                        | `Table`, `TableHeader`, `TableRow`, `TableHead`, `TableCell`         | `<table>`, `<th>`, `<td>`                             |
+| Nút chỉ có biểu tượng (sửa, xóa)                    | `IconButton` (có chú thích, luôn có `aria-label`)                    | `Button` icon không nhãn                              |
+| Nút thêm dòng/mục cuối danh sách                    | `DashedAddButton`                                                    | `<button>` nét đứt tự viết                            |
+| Trạng thái, số đếm, nhãn nhỏ                        | `Badge`                                                              | `<span className="rounded bg-muted ...">`             |
+| Danh sách rỗng                                      | `Empty` (`EmptyMedia`, `EmptyTitle`, `EmptyDescription`)             | một dòng chữ xám                                      |
+| Mở/đóng nội dung                                    | `Collapsible` kèm `animate-collapsible-down/up`                      | ẩn/hiện không chuyển động                             |
+| Ô tìm kiếm có biểu tượng                            | `InputGroup` + `InputGroupAddon` + `InputGroupInput`                 | `<input type="search">`                               |
+| Vùng cuộn có thanh cuộn                             | `ScrollArea`                                                         | `overflow-y-auto` rời                                 |
+| Đường phân cách                                     | `Separator`                                                          | `<div className="border-t">`                          |
+| Khung chờ                                           | `Skeleton`                                                           | `div` có `animate-pulse`                              |
+| Ô nhập, chọn, tích, công tắc, nhãn                  | `Input`, `Select`, `SearchableSelect`, `Checkbox`, `Switch`, `Label` | thẻ gốc                                               |
+| Chuyển tab trong trang                              | `Tabs`, `TabsList variant="line"`, `TabsTrigger`, `TabsContent`      | `<button role="tab">` tự viết                         |
+| Chọn một trong vài lựa chọn dạng ô vuông (chọn màu) | `ToggleGroup type="single"` + `ToggleGroupItem`                      | `<button role="radio">` tự viết                       |
+| Khung thông tin chỉ đọc (trạng thái, liên kết)      | `Card` + `CardContent`                                               | `<section className="border ...">`                    |
 
 `FormField` (nhãn, gợi ý, ô nhập, lỗi) nằm ở `components/shared/FormField` và dùng chung toàn app, không đặt trong thư mục của một trang.
 
@@ -105,6 +107,7 @@ Phong cách chung: **gọn, tối giản, bám MISA**. Viền mảnh, nền toke
 ### 10.1 Khung thông tin chỉ đọc (trạng thái, liên kết, mốc thời gian)
 
 Mẫu: `JobStatusPanel`. Dùng khi cần hiện nhiều thông tin ngắn ở đầu form.
+
 - `Card` nền `bg-muted/30`, `shadow-none`, bên trong `CardContent` dạng lưới `grid gap-x-6 gap-y-4 p-4 sm:grid-cols-2 lg:grid-cols-3`.
 - Mỗi ô (`InfoItem`): **biểu tượng `size-3.5` + nhãn** `text-[11px] text-muted-foreground` ở trên, **giá trị** `text-xs` (đậm `font-medium` với dữ liệu chính) ở dưới, mô tả phụ `text-[11px] text-muted-foreground`. Ô cần rộng (đường dẫn) thì `sm:col-span-2 lg:col-span-1`.
 - Ô có hành động (đường dẫn kèm Mở/Sao chép): chữ ở trái, **nút biểu tượng ở bên phải cùng một hàng**: `flex items-center justify-between gap-2`; chữ `min-w-0 truncate` kèm `title`, cụm nút `shrink-0`. **Không để nút xuống dòng** (dùng `IconButton` thay nút có chữ).
@@ -114,6 +117,7 @@ Mẫu: `JobStatusPanel`. Dùng khi cần hiện nhiều thông tin ngắn ở đ
 ### 10.2 Danh sách dòng có thao tác (quy trình, loại vòng, khoản chi...)
 
 Mẫu: `RoundListEditor`, `RoundTypesPanel`.
+
 - Mỗi dòng: `rounded-lg border px-3 py-2 gap-3 text-xs`, từ trái sang phải: **tay cầm kéo** (`SortableItem`), **ô màu** `size-3 rounded-sm`, **tên** `flex-1 truncate font-medium`, nhãn loại (`Badge outline`), **nút sửa** (bút chì), **nút xóa** (thùng rác, hover chuyển `text-destructive`). Hover dòng: `hover:border-primary/30 transition-colors`.
 - Dòng **khóa** (không sửa/kéo/xóa): nền `bg-muted/40`, không tay cầm (giữ chỗ trống `size-6` để chữ thẳng hàng), hiện `Badge secondary` kèm biểu tượng khóa chữ "Cố định". Chỉ khóa thứ thật sự không đổi được; thứ đổi được thì phải mở cho sửa, không gắn nhãn "Mặc định" gây hiểu nhầm là khóa.
 - Nút thêm: `DashedAddButton` nằm **ngay trước dòng cố định cuối** (ví dụ trước Offer/Đã tuyển), không nằm cuối danh sách.
@@ -129,6 +133,7 @@ Mẫu: `RoundListEditor`, `RoundTypesPanel`.
 ### 10.3b Popover cài đặt nhỏ (bánh răng trên thẻ)
 
 Mẫu: `FunnelSettings`.
+
 - `PopoverContent align="end" sideOffset={4}`, rộng `w-72`, `space-y-3 p-3`; nút kích hoạt là `IconButton` có chú thích.
 - Mọi chữ trong popover là `text-xs` (nhãn tùy chọn `font-normal`); **nút `Hủy` (`outline`) và `Đồng ý` dùng `size="sm" className="text-xs"`**, không để chữ nút mặc định `text-sm`.
 - Lựa chọn dùng `RadioGroup`/`Checkbox` bọc trong `Label` (`items-start` khi nhãn dài xuống dòng, `mt-0.5` cho ô chọn); ô chưa chọn có viền `border-muted-foreground/60` để thấy rõ ở chế độ tối.
@@ -186,6 +191,7 @@ Mọi nút kích hoạt tác vụ bất đồng bộ (lưu, xóa, gửi email, t
 ```
 
 Quy tắc kèm theo:
+
 - Cỡ spinner bằng cỡ biểu tượng của nút: `size-4` với nút `default`/`sm`/`lg`; `size-3` với nút `xs`/`icon-xs`. Nút chỉ có biểu tượng (`IconButton`): spinner **thay** biểu tượng, giữ nguyên kích thước nút để không lắc bố cục; vẫn giữ `aria-label`.
 - Mục trong menu "⋯" đang chạy: khóa mục, hiện spinner `size-3.5` và nhãn "Đang ...", đóng menu khi xong.
 - Hộp thoại đang xử lý: khóa cả hai nút ở chân hộp, **không đóng được bằng Esc hoặc bấm ra ngoài**, giữ nguyên nội dung đã nhập.
@@ -208,6 +214,7 @@ Quy tắc kèm theo:
 ## 14. Hộp thoại xác nhận hành động không hoàn tác
 
 Dùng `AlertDialog` cho xóa, gộp, gỡ liên kết và mọi hành động khó hoàn tác.
+
 - **Tiêu đề là câu hỏi cụ thể** ("Xóa tin tuyển dụng?"). Thân hộp nêu tên đối tượng và **hậu quả chính xác**: xóa gì, giữ lại gì, có thể phục hồi không. Không viết điều hệ thống không làm, và nói rõ phần được giữ lại: xóa tin tuyển dụng thì dữ liệu gắn với tin (đơn ứng tuyển, lịch phỏng vấn, đánh giá, thư mời) mất, còn "Hồ sơ ứng viên vẫn được giữ lại trong hệ thống".
 - **Chặn trước khi FE đã biết chắc từ dữ liệu có sẵn; còn lại để BE quyết định và hiện lỗi tại chỗ.** Nếu từ dữ liệu đang có đã biết chắc hành động bị từ chối thì khóa mục/nút kèm lý do nêu **số lượng cụ thể** và đặt cạnh đó hành động nên làm thay thế (xem mục 4 và mục 19). Nếu quy tắc chỉ BE kiểm tra được (ví dụ xóa tin có ứng viên đã tạo hồ sơ nhân viên), **cho mở hộp thoại** và hiện thông báo của BE trong hộp thoại khi bị từ chối (xem ý "Lỗi do dữ liệu đổi giữa chừng (409)" bên dưới), không tự suy ra quy tắc ở FE rồi khóa nhầm.
 - Khi sản phẩm có lựa chọn an toàn hơn và người dùng cần biết (không bắt buộc), nêu ngay trong thân hộp và cho thực hiện luôn; hộp thoại hiện tại đóng trước khi mở hộp thoại thay thế. Nếu đã quyết định bỏ lựa chọn đó khỏi giao diện (ví dụ mục "Đóng tin" đã bỏ khỏi menu ⋯ của thẻ tin) thì không gợi ý nó nữa.
@@ -219,6 +226,7 @@ Dùng `AlertDialog` cho xóa, gộp, gỡ liên kết và mọi hành động kh
 ## 15. Khung thông báo nội tuyến (`Alert`)
 
 Dùng `Alert` (`components/ui/alert`) cho thông tin, cảnh báo và lỗi nằm trong trang, hộp thoại hoặc form. Không tự dựng `div` có viền và nền màu.
+
 - Thông tin trung tính dùng mặc định; lỗi và cảnh báo nghiêm trọng dùng biến thể `destructive`. Màu chỉ lấy từ token (mục 10.6).
 - Cấu trúc: biểu tượng `size-4` (`aria-hidden`), **một dòng tiêu đề** `text-xs font-medium`, mô tả `text-xs`/`text-[11px]` nếu cần, hành động (nút hoặc liên kết) ở cuối. Lỗi có `role="alert"`; thông tin có `role="status"`.
 - Đặt **ngay trên nội dung liên quan** (đầu hộp thoại, đầu form, trên ô nhập), không chặn thao tác trừ khi nội dung nói rõ là phải làm gì.
@@ -229,12 +237,12 @@ Dùng `Alert` (`components/ui/alert`) cho thông tin, cảnh báo và lỗi nằ
 
 Mỗi danh sách, bảng, khối dữ liệu có đủ bốn trạng thái, mỗi trạng thái một cách hiển thị riêng:
 
-| Trạng thái | Hiển thị |
-|---|---|
-| Đang tải lần đầu | `Skeleton` cùng kích thước nội dung thật |
-| Lỗi tải | `ErrorState` đúng `variant` (xem `.rules`) |
-| Rỗng thật (chưa có dữ liệu) | `Empty` có tiêu đề, một câu mô tả và nút "Thêm ..." nếu người dùng có quyền |
-| Rỗng do bộ lọc | "Không có kết quả phù hợp" và nút **"Xóa bộ lọc"**; không hiện nút tạo mới như rỗng thật |
+| Trạng thái                  | Hiển thị                                                                                 |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
+| Đang tải lần đầu            | `Skeleton` cùng kích thước nội dung thật                                                 |
+| Lỗi tải                     | `ErrorState` đúng `variant` (xem `.rules`)                                               |
+| Rỗng thật (chưa có dữ liệu) | `Empty` có tiêu đề, một câu mô tả và nút "Thêm ..." nếu người dùng có quyền              |
+| Rỗng do bộ lọc              | "Không có kết quả phù hợp" và nút **"Xóa bộ lọc"**; không hiện nút tạo mới như rỗng thật |
 
 - Đổi bộ lọc, trang, sắp xếp: giữ dữ liệu cũ (hơi mờ) kèm chỉ báo nhỏ khi đang tải lại (`isFetching`), **không** nháy lại skeleton cả bảng.
 - Từ khóa, bộ lọc, sắp xếp, số dòng mỗi trang, trang hiện tại lưu **trên URL** để chia sẻ và quay lại đúng chỗ; đổi bộ lọc thì về trang 1; luôn hiện tổng số kết quả.
@@ -307,6 +315,7 @@ Nguyên tắc: **mở cái gì thì gọi cái đó**. Vào trang chỉ tải ph
 Bấm gửi form mà **cả trang chuyển thành skeleton**, form mất dữ liệu đã nhập, hoặc lỗi BE không thấy đâu là lỗi nặng. Đã từng xảy ra ở trang đăng nhập; mọi form phải theo các điều sau.
 
 **Chờ chỉ ở nút, không ở trang**
+
 - Trạng thái chờ khi gửi form do **chính form giữ** (`isSubmitting` của React Hook Form, `isPending` của mutation) và chỉ hiện ở nút gửi (mục 12). Không bật cờ loading dùng chung (Zustand, context) khi gửi form.
 - Cờ `isLoading` của `auth.store` chỉ có nghĩa **"đang khôi phục phiên lần đầu"**. Không gọi `setLoading(true)` trong `login`, `logout` hay bất kỳ mutation nào.
 - `Skeleton` cả trang chỉ dành cho tải dữ liệu lần đầu (mục 16). Không dựng điều kiện kiểu `if (isLoading) return <Skeleton />` bao quanh form vì cờ đó có thể bật lúc đang gửi.
@@ -314,6 +323,7 @@ Bấm gửi form mà **cả trang chuyển thành skeleton**, form mất dữ li
 - Gửi thành công rồi chuyển trang: giữ nút ở trạng thái chờ ("Đang đăng nhập...") cho tới khi trang đổi, không để nút mở khóa lại trong lúc chuyển.
 
 **Lỗi BE phải thấy được ngay tại form**
+
 - Có `message` từ BE (đã là tiếng Việt) thì hiện **nguyên văn** trong `Alert` đầu form (mục 15): "Email hoặc mật khẩu không đúng." Không thay bằng câu chung chung. Dùng `getFormErrorMessage`.
 - BE trả lỗi theo ô (`errors` của 400): gắn vào **đúng ô** bằng `applyServerFieldErrors` (`features/auth/auth.utils.ts`, dùng `getFieldErrors`) rồi focus ô đầu tiên. Khi đã gắn được vào ô thì không cần `Alert` chung.
 - Lỗi mạng hoặc 5xx: `Alert` nói chuyện gì xảy ra và làm gì tiếp ("Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại."); không lộ mã lỗi.
@@ -321,6 +331,7 @@ Bấm gửi form mà **cả trang chuyển thành skeleton**, form mất dữ li
 - Có lỗi thì mở khóa nút ngay, giữ nguyên dữ liệu để người dùng sửa và thử lại (mục 12, 17).
 
 **Kiểm tra trước khi giao form** (làm bằng tay ở 440×956)
+
 1. Bấm gửi khi để trống: mỗi ô có lỗi riêng, focus vào ô lỗi đầu tiên.
 2. Gửi dữ liệu BE từ chối: thấy đúng thông báo của BE, form không nháy, giá trị còn nguyên.
 3. Tắt BE rồi gửi: có thông báo lỗi kết nối ngay trong form.
@@ -334,10 +345,40 @@ Mockup ASCII đủ các trạng thái của màn đăng nhập: `docs/MOCKUP-AUT
 App dùng chủ yếu trên iPhone nên giao diện phải giống app, không giống trang web thu nhỏ.
 
 - **Tiêu đề trang lớn:** mọi trang dùng `PageHeader` (chữ 28px đậm bên trái, ảnh đại diện bên phải, dòng nhỏ phía trên nếu cần). Không tự viết `h1` riêng. Header web (`AppHeader`) và sidebar chỉ hiện từ `md` trở lên.
-- **Thanh tab dưới:** 4 tab + nút tròn "+" ở giữa (thêm món ở mọi trang). Hôm nay, Nhật ký, nút +, Cân nặng, Program. Hồ sơ, Thực phẩm của tôi, giao diện, đăng xuất nằm trong menu ảnh đại diện (`AvatarMenu`). Trạng thái mở bảng Thêm món nằm ở `stores/ui.store.ts`.
+- **Thanh tab dưới:** 4 tab + nút tròn "+" ở giữa (thêm món ở mọi trang): Dashboard, Food Log, +, Strategy, More (đúng nhãn MacroFactor). Icon 22px, nhãn 11px, nút "+" 44px. Hồ sơ, thực phẩm của tôi, giao diện và đăng xuất nằm trong trang **More** (`/more`); header trang trên điện thoại không còn ảnh đại diện (desktop vẫn có `AvatarMenu`). Trạng thái mở bảng Thêm món nằm ở `stores/ui.store.ts`.
 - **Danh sách thay cho form và bảng:** nhóm dòng dùng `ListSection` + `ListRow` (nhãn trái, giá trị muted phải, mũi tên, vùng chạm ≥ 48px, vạch mảnh giữa dòng, không viền ngoài, nền thẻ bo `2xl` trên nền xám nhạt). Không dựng bảng `Table` cho dữ liệu trên điện thoại; mỗi bản ghi là một dòng có dòng phụ.
 - **Sửa một giá trị = bảng trượt lên:** chạm dòng thì mở `PickerSheet` (đáy màn hình; desktop là hộp thoại giữa) chứa ô nhập hoặc `OptionList` (chọn một, dòng chọn có dấu ✓). Nút **Xong** đóng bảng. Không dùng ô xổ xuống `Select` trong form hồ sơ.
 - **Nút lưu dính đáy, chỉ hiện khi có thay đổi** (`formState.isDirty`), nằm ngay trên thanh tab. Giá trị còn thiếu hiện chữ cam đậm ("Chưa đặt") để mắt tìm ra; lỗi từ BE theo mục 24.
 - **Số liệu chính là tâm điểm:** số lớn (40px đậm, `tabular-nums`) kèm thanh tiến độ và ba macro đúng màu `--mf-*`; vượt target không đổi sang đỏ (BR-18).
 - **Không nút nổi riêng từng trang** trên điện thoại: hành động thêm chính đã có ở nút + giữa thanh tab. Desktop hiện nút "Thêm món" ở tiêu đề trang.
 
+## 26. Quy chuẩn hình ảnh theo app MacroFactor (đối chiếu ảnh trong `Docs/MacroFactor_UI/UI`)
+
+Màn nào làm theo ảnh MacroFactor thì dùng đúng các giá trị dưới đây, không tự đoán lại từng lần.
+
+**Bo góc (đã chỉnh toàn cục, `--radius: 0.5rem` ở `theme.css`)**
+
+- Ô, thẻ, hàng danh sách: `rounded-xl` (≈11px) hoặc `rounded-2xl` (≈14px) là mức lớn nhất. Ô lưới nhỏ (cột macro, ô thói quen): 3–5px. Nút chữ nhật, nút "Xong", ô nhập: `rounded-lg` (8px). Khung chọn cột/ngày: `rounded-md`.
+- Chỉ bo tròn hết (`rounded-full`) cho: công tắc, nút chọn dạng viên thuốc (Đã ăn/Còn lại), nút icon tròn, nút "+" giữa thanh tab, bong bóng chat. Không bo `3xl` cho thẻ.
+
+**Màu**
+
+- Nền trang đen (`--background`), thẻ và dải nhấn xám đậm hơn một bậc (`bg-card`), thẻ nằm trong dải xám thì dùng lại `bg-background`. Chữ phụ `text-muted-foreground`; không dùng viền sáng để tách khối, dùng chênh bậc nền.
+- Dữ liệu dinh dưỡng chỉ dùng bộ `--mf-tile-*`: kcal xanh dương `#5c8def`, protein cam san hô `#ff8261`, fat vàng `#ffd35a`, carb xanh lá `#5dba85`; vi chất tím (`#a78bfa`), khoáng chất hồng (`#fb7185`). Chữ trong ô màu là chữ đen.
+- Công tắc: nền trắng khi bật (`#fff`), xám `zinc-600` khi tắt, núm luôn đen; kích thước bảng chọn 56×32 (núm 28), thẻ nhỏ 40×24 (núm 20).
+
+**Chữ**
+
+- Tiêu đề trang Dashboard: chữ hoa đậm giãn (`PageHeader display`). Tiêu đề nhóm (Phân tích, Thói quen…): 20px đậm. Tiêu đề thanh trên của trang con và bảng trượt: 18–20px `font-medium` (không đậm hơn). Số liệu chính trên ô: 20–24px thường; nhãn phụ 16px xám. Số lớn ở vòng kcal 36px.
+- Tên thẻ nhỏ (thẻ "Tiêu điểm chính"): 14px `font-semibold`, tối đa hai dòng.
+
+**Thành phần**
+
+- **Ô số liệu (`MetricTile`):** tên + kỳ ở trên, hình nhỏ ở giữa (đẩy xuống đáy ô), đường kẻ mảnh, giá trị + đơn vị, chevron xám. Chưa có trang chi tiết thì chevron mờ và không bấm được.
+- **Carousel (`DashboardCarousel`):** một tấm nền bo chung cho cả ba trang, nội dung trượt bên trong; ba trang **cao bằng nhau**, tiêu đề ở trên và công tắc ở dưới, khoảng dư chia vào giữa. Các chấm báo vị trí nằm ngoài tấm nền.
+- **Bảng trượt từ đáy (`SheetFrame`):** nút X trái, tiêu đề (+ phụ đề xám) giữa, đường kẻ dưới đầu, nội dung cuộn, nút "Xong" nền trắng chữ đen `rounded-lg` cao 48px dính đáy. Bảng chỉ chọn một thì chọn xong đóng ngay, không có "Xong".
+- **Màn tuỳ chỉnh:** phần đầu (tiêu đề + Tiêu điểm chính) nằm trong dải xám; thẻ nhỏ 192px cuộn ngang, mũi tên đổi chỗ nằm dưới thẻ và **ẩn** (không làm mờ) ở đầu/cuối; đổi chỗ có hoạt ảnh trượt ~320ms, tắt khi `prefers-reduced-motion`. Mỗi nhóm có mũi tên lên/xuống ở góc, tay cầm "=" để kéo đổi chỗ (có phím mũi tên), nút "Thêm hoặc bớt…" xám bo `lg`; cuối trang có "Đặt lại mặc định" chữ đỏ.
+- **Thanh tab dưới:** nền đặc (không mờ), icon 28px, nhãn 12px, tab đang chọn tô đặc và chữ trắng đậm; nút "+" trắng 64px, không bóng.
+- **Màn nhập liệu nhiều bước (onboarding):** thẻ chọn viền 2px, biểu tượng đặc kiểu MacroFactor (nền khoét), nút dưới đáy bo tròn; hoạt ảnh chat có nhịp nghỉ → "đang gõ" → hiện chữ theo độ dài câu.
+
+**Hoạt ảnh**: luôn `motion-safe:`; chuyển trang/đổi chỗ 300–400ms; không bật chuyển động ở nơi người dùng đang kéo/vuốt.

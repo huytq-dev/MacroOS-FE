@@ -24,7 +24,7 @@ interface QuickAddPanelProps {
 const rangeError = (text: string, max: number) => {
   if (text.trim() === '') return undefined
   const value = Number(text)
-  return value >= 0 && value <= max ? undefined : `Nhập từ 0 đến ${max}`
+  return value >= 0 && value <= max ? undefined : `Enter a value from 0 to ${max}`
 }
 
 /** Khớp BE QuickAddCommandValidator: kcal 0–10000, macro 0–1000. State cục bộ (form 5 ô, không cần RHF). */
@@ -83,11 +83,11 @@ export function QuickAddPanel({ isPending, error, onSubmit }: QuickAddPanelProps
       }}
     >
       <p className="text-muted-foreground text-sm">
-        Nhập thẳng kcal và macro khi không tìm được món. Không lưu để tìm lại (muốn tái dùng hãy tạo
-        ở mục Thực phẩm).
+        Enter calories and macros directly when you can&apos;t find a food. It isn&apos;t saved for
+        search (to reuse it, create it under Foods).
       </p>
-      <FormErrorAlert title="Không thêm nhanh được" message={error} />
-      <FormField label="Tên" hint="Không bắt buộc">
+      <FormErrorAlert title="Couldn't quick add" message={error} />
+      <FormField label="Name" hint="Optional">
         {(field) => (
           <Input
             {...field}
@@ -114,7 +114,7 @@ export function QuickAddPanel({ isPending, error, onSubmit }: QuickAddPanelProps
         aria-busy={isPending}
       >
         {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-        {isPending ? 'Đang thêm...' : 'Thêm nhanh'}
+        {isPending ? 'Adding...' : 'Quick add'}
       </Button>
     </form>
   )

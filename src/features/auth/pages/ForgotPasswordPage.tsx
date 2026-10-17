@@ -52,14 +52,14 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthShell
-      title="Quên mật khẩu"
-      description="Nhập email của bạn, chúng tôi gửi token đặt lại mật khẩu (hiệu lực 15 phút)."
+      title="Forgot password"
+      description="Enter your email and we'll send you a password reset token (valid for 15 minutes)."
       footer={
         <Link
           href={routePath.login}
           className="text-foreground font-medium underline underline-offset-4"
         >
-          Quay lại đăng nhập
+          Back to log in
         </Link>
       }
     >
@@ -70,15 +70,18 @@ export function ForgotPasswordPage() {
             className="bg-mf-pastel-green text-mf-pastel-green-text flex items-start gap-3 rounded-xl p-4 text-sm"
           >
             <MailCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-            <p>Nếu email tồn tại, bạn sẽ nhận được hướng dẫn trong ít phút.</p>
+            <p>
+              If an account exists for that email, you&apos;ll get instructions within a few
+              minutes.
+            </p>
           </div>
           <Button asChild variant="outline" className="w-full">
-            <Link href={routePath.resetPassword}>Tôi đã có token</Link>
+            <Link href={routePath.resetPassword}>I already have a token</Link>
           </Button>
         </div>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-          <FormErrorAlert title="Không gửi được hướng dẫn" message={formError} />
+          <FormErrorAlert title="Couldn't send instructions" message={formError} />
           <FormField label="Email" required error={errors.email?.message}>
             {(field) => (
               <Input
@@ -100,7 +103,7 @@ export function ForgotPasswordPage() {
             aria-busy={isSubmitting}
           >
             {isSubmitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            {isSubmitting ? 'Đang gửi...' : 'Gửi hướng dẫn'}
+            {isSubmitting ? 'Sending...' : 'Send instructions'}
           </Button>
         </form>
       )}

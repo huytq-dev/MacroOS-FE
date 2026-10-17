@@ -33,7 +33,7 @@ const ACTIVITY_OPTIONS = enumOptions(ACTIVITY_LEVEL).map((option) => {
 })
 const UNIT_OPTIONS = enumOptions(UNIT_SYSTEM)
 const TIME_ZONE_PICKER = [
-  { value: '', label: 'Không chọn' },
+  { value: '', label: 'None' },
   ...TIME_ZONE_OPTIONS.map((zone) => ({
     value: zone.value,
     label: zone.label,
@@ -69,62 +69,59 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
 
   return (
     <form onSubmit={handleSubmit(submit)} noValidate className="space-y-5">
-      <FormErrorAlert title="Không lưu được hồ sơ" message={error ?? firstError ?? null} />
+      <FormErrorAlert title="Couldn't save profile" message={error ?? firstError ?? null} />
 
-      <ListSection label="Thông tin cá nhân">
+      <ListSection label="Personal info">
         <ListRow
-          label="Họ và tên"
-          value={fullName || 'Chưa đặt'}
+          label="Name"
+          value={fullName || 'Not set'}
           attention={!fullName || Boolean(errors.firstName || errors.lastName)}
           onClick={() => setSheet('name')}
         />
         <ListRow
-          label="Ngày sinh"
-          hint="Dùng để tính TDEE khởi điểm"
-          value={values.dateOfBirth ? formatDateVi(values.dateOfBirth) : 'Chưa đặt'}
+          label="Date of birth"
+          hint="Used to estimate your starting TDEE"
+          value={values.dateOfBirth ? formatDateVi(values.dateOfBirth) : 'Not set'}
           attention={!values.dateOfBirth || Boolean(errors.dateOfBirth)}
           onClick={() => setSheet('dob')}
         />
+        <ListRow label="Gender" value={GENDER[values.gender]} onClick={() => setSheet('gender')} />
         <ListRow
-          label="Giới tính"
-          value={GENDER[values.gender]}
-          onClick={() => setSheet('gender')}
-        />
-        <ListRow
-          label="Chiều cao"
-          value={Number.isFinite(values.heightCm) ? `${values.heightCm} cm` : 'Chưa đặt'}
+          label="Height"
+          value={Number.isFinite(values.heightCm) ? `${values.heightCm} cm` : 'Not set'}
           attention={Boolean(errors.heightCm)}
           onClick={() => setSheet('height')}
         />
       </ListSection>
 
-      <ListSection label="Hoạt động" footer="Mức hoạt động hằng ngày, không tính buổi tập.">
+      <ListSection label="Activity" footer="Your daily activity level, not counting workouts.">
         <ListRow
-          label="Mức hoạt động"
+          label="Activity level"
           value={ACTIVITY_LEVEL[values.activityLevel].split(' (')[0]}
           onClick={() => setSheet('activity')}
         />
       </ListSection>
 
-      <ListSection label="Hiển thị">
+      <ListSection label="Display">
         <ListRow
-          label="Đơn vị"
+          label="Units"
           value={UNIT_SYSTEM[values.unitPreference]}
           onClick={() => setSheet('unit')}
         />
         <ListRow
-          label="Múi giờ"
-          hint="Quyết định ngày hôm nay của nhật ký"
+          label="Time zone"
+          hint="Determines what counts as today in your log"
           value={
-            TIME_ZONE_OPTIONS.find((zone) => zone.value === values.timeZone)?.label ?? 'Chưa chọn'
+            TIME_ZONE_OPTIONS.find((zone) => zone.value === values.timeZone)?.label ??
+            'Not selected'
           }
           onClick={() => setSheet('timeZone')}
         />
       </ListSection>
 
-      <ListSection label="Tài khoản">
-        <ListRow label="Thực phẩm của tôi" href={routePath.foods} />
-        <ListRow label="Đăng xuất" destructive onClick={onLogout} />
+      <ListSection label="Account">
+        <ListRow label="My foods" href={routePath.foods} />
+        <ListRow label="Sign out" destructive onClick={onLogout} />
       </ListSection>
 
       {/* Dính đáy, nằm trên thanh tab; chỉ hiện khi có thay đổi chưa lưu */}
@@ -137,18 +134,18 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
             aria-busy={isPending}
           >
             {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            {isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
+            {isPending ? 'Saving...' : 'Save changes'}
           </Button>
         </div>
       )}
 
-      <PickerSheet open={sheet === 'name'} onOpenChange={close} title="Họ và tên">
+      <PickerSheet open={sheet === 'name'} onOpenChange={close} title="Name">
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Họ" required error={errors.lastName?.message}>
-            {(field) => <Input {...field} autoComplete="family-name" {...register('lastName')} />}
-          </FormField>
-          <FormField label="Tên" required error={errors.firstName?.message}>
+          <FormField label="First name" required error={errors.firstName?.message}>
             {(field) => <Input {...field} autoComplete="given-name" {...register('firstName')} />}
+          </FormField>
+          <FormField label="Last name" required error={errors.lastName?.message}>
+            {(field) => <Input {...field} autoComplete="family-name" {...register('lastName')} />}
           </FormField>
         </div>
       </PickerSheet>
@@ -156,10 +153,10 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
       <PickerSheet
         open={sheet === 'dob'}
         onOpenChange={close}
-        title="Ngày sinh"
-        description="Dùng để tính TDEE khởi điểm."
+        title="Date of birth"
+        description="Used to estimate your starting TDEE."
       >
-        <FormField label="Ngày sinh" required error={errors.dateOfBirth?.message}>
+        <FormField label="Date of birth" required error={errors.dateOfBirth?.message}>
           {(field) => (
             <DateField
               {...field}
@@ -173,17 +170,17 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
         </FormField>
       </PickerSheet>
 
-      <PickerSheet open={sheet === 'gender'} onOpenChange={close} title="Giới tính">
+      <PickerSheet open={sheet === 'gender'} onOpenChange={close} title="Gender">
         <OptionList
-          aria-label="Giới tính"
+          aria-label="Gender"
           options={GENDER_OPTIONS}
           value={values.gender}
           onValueChange={(value) => pick('gender', value)}
         />
       </PickerSheet>
 
-      <PickerSheet open={sheet === 'height'} onOpenChange={close} title="Chiều cao">
-        <FormField label="Chiều cao (cm)" required error={errors.heightCm?.message}>
+      <PickerSheet open={sheet === 'height'} onOpenChange={close} title="Height">
+        <FormField label="Height (cm)" required error={errors.heightCm?.message}>
           {(field) => (
             <Input
               {...field}
@@ -199,20 +196,20 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
       <PickerSheet
         open={sheet === 'activity'}
         onOpenChange={close}
-        title="Mức hoạt động"
-        description="Không tính buổi tập."
+        title="Activity level"
+        description="Not counting workouts."
       >
         <OptionList
-          aria-label="Mức hoạt động"
+          aria-label="Activity level"
           options={ACTIVITY_OPTIONS}
           value={values.activityLevel}
           onValueChange={(value) => pick('activityLevel', value)}
         />
       </PickerSheet>
 
-      <PickerSheet open={sheet === 'unit'} onOpenChange={close} title="Đơn vị">
+      <PickerSheet open={sheet === 'unit'} onOpenChange={close} title="Units">
         <OptionList
-          aria-label="Đơn vị"
+          aria-label="Units"
           options={UNIT_OPTIONS}
           value={values.unitPreference}
           onValueChange={(value) => pick('unitPreference', value)}
@@ -222,12 +219,12 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
       <PickerSheet
         open={sheet === 'timeZone'}
         onOpenChange={close}
-        title="Múi giờ"
-        description="Quyết định ngày hôm nay của nhật ký."
+        title="Time zone"
+        description="Determines what counts as today in your log."
       >
         <div className="max-h-[45dvh] overflow-y-auto overscroll-contain">
           <OptionList
-            aria-label="Múi giờ"
+            aria-label="Time zone"
             options={TIME_ZONE_PICKER}
             value={values.timeZone ?? ''}
             onValueChange={(value) => pick('timeZone', value)}

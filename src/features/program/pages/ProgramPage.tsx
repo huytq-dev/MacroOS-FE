@@ -46,7 +46,7 @@ export function ProgramPage() {
   }
   const createButton = (
     <Button asChild size="sm">
-      <Link href={routePath.programNew}>Tạo program</Link>
+      <Link href={routePath.programNew}>Create program</Link>
     </Button>
   )
 
@@ -65,8 +65,8 @@ export function ProgramPage() {
         <Card className="rounded-2xl">
           <EmptyState
             icon={Target}
-            title="Chưa có program"
-            description="Tạo program để nhận target kcal và macro hằng tuần."
+            title="No program yet"
+            description="Create a program to get weekly calorie and macro targets."
             action={createButton}
           />
         </Card>

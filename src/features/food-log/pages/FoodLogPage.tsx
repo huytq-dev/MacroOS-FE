@@ -48,7 +48,13 @@ import { IconButton } from '@/components/shared/IconButton'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MEAL_TYPE, type FoodCategory, type MealType } from '@/config/enums'
+import {
+  MEAL_DEFAULT_TIME,
+  MEAL_TYPE,
+  mealForHour,
+  type FoodCategory,
+  type MealType,
+} from '@/config/enums'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useIsClient } from '@/hooks/use-is-client'
 import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
@@ -57,16 +63,12 @@ import { useUiStore } from '@/stores/ui.store'
 const SEARCH_PAGE = 25
 const MEAL_ORDER = Object.keys(MEAL_TYPE) as MealType[]
 
-/** Gợi ý bữa mặc định theo giờ hiện tại (chỉ gọi trong event handler, không trong render). */
-const mealForNow = (): MealType => {
-  const hour = new Date().getHours()
-  if (hour < 10) return 'Breakfast'
-  if (hour < 12) return 'MorningSnack'
-  if (hour < 14) return 'Lunch'
-  if (hour < 17) return 'AfternoonSnack'
-  if (hour < 21) return 'Dinner'
-  return 'EveningSnack'
+/** Giờ hiện tại dạng HH:mm (chỉ gọi trong event handler/khởi tạo state, không trong render). */
+const nowHourMinute = (): string => {
+  const now = new Date()
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 }
+const hourOf = (time: string): number => Number(time.slice(0, 2))
 
 export function FoodLogPage() {
   const isClient = useIsClient()
@@ -78,7 +80,9 @@ export function FoodLogPage() {
   const addOpen = useUiStore((state) => state.addFoodOpen)
   const setAddOpen = useUiStore((state) => state.setAddFoodOpen)
   const [tab, setTab] = useState<AddTab>('search')
-  const [meal, setMeal] = useState<MealType>(mealForNow)
+  // Giờ ăn là nguồn chính; bữa suy ra từ giờ (đổi giờ thì bữa đổi theo, mở từ nút + của bữa thì giờ lấy theo bữa).
+  const [eatenAt, setEatenAt] = useState<string>(nowHourMinute)
+  const [meal, setMeal] = useState<MealType>(() => mealForHour(hourOf(nowHourMinute())))
   const [search, setSearch] = useState('')
   const [view, setView] = useState<FoodView>('all')
   const [category, setCategory] = useState<FoodCategory | null>(null)
@@ -119,7 +123,9 @@ export function FoodLogPage() {
   const clearDay = useClearDay()
 
   const openAdd = (mealOverride?: MealType) => {
-    setMeal(mealOverride ?? mealForNow())
+    const time = mealOverride ? MEAL_DEFAULT_TIME[mealOverride] : nowHourMinute()
+    setEatenAt(time)
+    setMeal(mealOverride ?? mealForHour(hourOf(time)))
     setPickedId(null)
     addEntry.reset()
     quickAdd.reset()
@@ -145,14 +151,14 @@ export function FoodLogPage() {
         await addEntry.mutateAsync({
           logDate: date,
           mealType: meal,
-          eatenAt: null,
+          eatenAt: `${eatenAt}:00`,
           foodItemId: item.foodItemId,
           foodServingId: item.foodServingId,
           quantity: item.quantity,
         })
         setPlate((current) => current.filter((candidate) => candidate.key !== item.key))
       }
-      toast.success(`Đã thêm ${plate.length} món`)
+      toast.success(`Added ${plate.length} ${plate.length === 1 ? 'item' : 'items'}`)
       setAddOpen(false)
     } catch {
       // lỗi hiện inline trong sheet (addEntry.error); các món chưa log vẫn nằm trong plate để thử lại
@@ -164,7 +170,7 @@ export function FoodLogPage() {
   const onQuickAdd = (values: QuickAddValues) => {
     if (!date) return
     quickAdd.mutate(
-      { logDate: date, mealType: meal, eatenAt: null, ...values },
+      { logDate: date, mealType: meal, eatenAt: `${eatenAt}:00`, ...values },
       { onSuccess: () => setAddOpen(false) }
     )
   }
@@ -177,8 +183,8 @@ export function FoodLogPage() {
       onSuccess: (count) => {
         toast.success(
           count === 0
-            ? 'Không có món nào để sao chép'
-            : `Đã sao chép ${count} món sang ${formatDateVi(payload.toDate)}`
+            ? 'Nothing to copy'
+            : `Copied ${count} ${count === 1 ? 'item' : 'items'} to ${formatDateVi(payload.toDate)}`
         )
         setCopyOpen(false)
       },
@@ -193,22 +199,22 @@ export function FoodLogPage() {
 
   const addButton = (
     <Button size="sm" disabled={!date} onClick={() => openAdd()}>
-      <Plus aria-hidden="true" /> Thêm món
+      <Plus aria-hidden="true" /> Add food
     </Button>
   )
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <PageHeader
-        title="Nhật ký"
+        title="Food log"
         action={
           <div className="flex items-center gap-1">
             {entries.length > 0 && (
               <>
-                <IconButton icon={Copy} label="Sao chép nhật ký" onClick={openCopy} />
+                <IconButton icon={Copy} label="Copy food log" onClick={openCopy} />
                 <IconButton
                   icon={Trash2}
-                  label="Xoá nhật ký ngày"
+                  label="Delete day's log"
                   onClick={() => {
                     clearDay.reset()
                     setClearOpen(true)
@@ -222,7 +228,7 @@ export function FoodLogPage() {
       />
 
       <FormErrorAlert
-        title="Không xoá được"
+        title="Couldn't delete"
         message={deleteError ? getFormErrorMessage(deleteError) : null}
       />
 
@@ -240,8 +246,8 @@ export function FoodLogPage() {
             <Card className="rounded-2xl">
               <EmptyState
                 icon={UtensilsCrossed}
-                title="Chưa có món nào"
-                description="Thêm món đầu tiên của ngày để theo dõi kcal và macro."
+                title="No foods logged"
+                description="Add your first food of the day to track calories and macros."
                 action={addButton}
               />
             </Card>
@@ -265,7 +271,11 @@ export function FoodLogPage() {
         tab={tab}
         onTabChange={setTab}
         meal={meal}
-        onMealChange={setMeal}
+        eatenAt={eatenAt}
+        onEatenAtChange={(time) => {
+          setEatenAt(time)
+          setMeal(mealForHour(hourOf(time)))
+        }}
         search={search}
         onSearchChange={(value) => {
           setSearch(value)
@@ -358,14 +368,14 @@ export function FoodLogPage() {
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Xoá món này?"
+        title="Delete this food?"
         description={
           deleteTarget
-            ? `Xoá ${deleteTarget.foodName} (${MEAL_TYPE[deleteTarget.mealType]}) khỏi nhật ký. Thực phẩm gốc vẫn được giữ.`
+            ? `Delete ${deleteTarget.foodName} (${MEAL_TYPE[deleteTarget.mealType]}) from your food log. The original food is kept.`
             : ''
         }
-        confirmLabel="Xoá món"
-        pendingLabel="Đang xoá..."
+        confirmLabel="Delete food"
+        pendingLabel="Deleting..."
         isPending={deleteEntry.isPending}
         onConfirm={() =>
           deleteTarget &&
@@ -379,14 +389,14 @@ export function FoodLogPage() {
       <ConfirmDialog
         open={clearOpen}
         onOpenChange={setClearOpen}
-        title="Xoá nhật ký ngày?"
+        title="Delete this day's log?"
         description={
           date
-            ? `Xoá toàn bộ món của ${formatDateVi(date)}. Thuật toán sẽ coi ngày này là chưa log.`
+            ? `Delete all foods logged on ${formatDateVi(date)}. The algorithm will treat this day as not logged.`
             : ''
         }
-        confirmLabel="Xoá ngày"
-        pendingLabel="Đang xoá..."
+        confirmLabel="Delete day"
+        pendingLabel="Deleting..."
         isPending={clearDay.isPending}
         onConfirm={() =>
           date &&

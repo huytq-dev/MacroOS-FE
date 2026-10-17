@@ -28,11 +28,11 @@ const macro = (label: string, value: number, unit: string, colorClass: string) =
 
 export function CurrentWeekCard({ program }: CurrentWeekCardProps) {
   const week = program.currentWeek
-  const rate = `${Math.abs(program.weeklyWeightChangeTargetPercent)} %/tuần (${program.weeklyWeightChangeTargetKg > 0 ? '+' : ''}${program.weeklyWeightChangeTargetKg} kg)`
+  const rate = `${Math.abs(program.weeklyWeightChangeTargetPercent)} %/week (${program.weeklyWeightChangeTargetKg > 0 ? '+' : ''}${program.weeklyWeightChangeTargetKg} kg)`
   return (
     <Card className="rounded-2xl">
       <CardHeader>
-        <CardTitle className="text-sm font-semibold">Target tuần này</CardTitle>
+        <CardTitle className="text-sm font-semibold">This week&apos;s targets</CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-1.5">
           <Badge variant="secondary">{GOAL_TYPE[program.goalType]}</Badge>
           <Badge variant="secondary">{PROGRAM_TYPE[program.programType].split(' — ')[0]}</Badge>
@@ -49,11 +49,12 @@ export function CurrentWeekCard({ program }: CurrentWeekCardProps) {
           </div>
         ) : (
           <p className="text-muted-foreground text-xs">
-            Program Manual: bạn tự đặt target, app không sinh tuần.
+            Manual program: you set your own targets, so the app doesn&apos;t generate weekly
+            targets.
           </p>
         )}
         <dl className="text-muted-foreground grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px]">
-          <dt>Tốc độ</dt>
+          <dt>Weekly rate</dt>
           <dd className="text-foreground tabular-nums">{rate}</dd>
           <dt>Protein</dt>
           <dd className="text-foreground tabular-nums">
@@ -64,17 +65,17 @@ export function CurrentWeekCard({ program }: CurrentWeekCardProps) {
           <dd className="text-foreground">{DAY_OF_WEEK[program.checkInWeekday]}</dd>
           {week && (
             <>
-              <dt>Hiệu lực</dt>
+              <dt>Effective</dt>
               <dd className="text-foreground tabular-nums">
-                từ {formatDateVi(week.effectiveFrom)} · {ADJUSTMENT_REASON[week.adjustmentReason]}
+                from {formatDateVi(week.effectiveFrom)} · {ADJUSTMENT_REASON[week.adjustmentReason]}
                 {week.previousCaloriesTarget !== null &&
-                  ` · tuần trước ${week.previousCaloriesTarget} kcal`}
+                  ` · last week ${week.previousCaloriesTarget} kcal`}
               </dd>
             </>
           )}
           {program.calorieFloorKcal !== null && (
             <>
-              <dt>Sàn</dt>
+              <dt>Floor</dt>
               <dd className="text-foreground tabular-nums">{program.calorieFloorKcal} kcal</dd>
             </>
           )}

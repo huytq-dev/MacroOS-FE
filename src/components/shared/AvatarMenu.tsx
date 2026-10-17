@@ -22,9 +22,9 @@ import {
 import { cn } from '@/lib/utils'
 
 const THEMES = [
-  { value: 'light', label: 'Sáng', icon: Sun },
-  { value: 'dark', label: 'Tối', icon: Moon },
-  { value: 'system', label: 'Hệ thống', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
 ] as const
 
 /** Ảnh đại diện mở menu tài khoản: hồ sơ, thực phẩm của tôi, giao diện, đăng xuất. Dùng ở header desktop và đầu trang mobile. */
@@ -33,7 +33,7 @@ export function AvatarMenu({ className }: { readonly className?: string }) {
   const { user, logout } = useAuth()
   const mounted = useIsClient()
 
-  const displayName = user?.name || 'Người dùng'
+  const displayName = user?.name || 'User'
   const initials = displayName
     .split(' ')
     .map((part) => part[0])
@@ -46,7 +46,7 @@ export function AvatarMenu({ className }: { readonly className?: string }) {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          aria-label="Tài khoản"
+          aria-label="Account"
           className={cn('size-10 rounded-full p-0 md:size-9 md:border', className)}
         >
           <Avatar className="size-9 md:size-8">
@@ -66,20 +66,20 @@ export function AvatarMenu({ className }: { readonly className?: string }) {
         <DropdownMenuItem asChild>
           <Link href={routePath.profile}>
             <UserRound />
-            <span>Hồ sơ</span>
+            <span>Profile</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href={routePath.foods}>
             <Apple />
-            <span>Thực phẩm của tôi</span>
+            <span>My foods</span>
           </Link>
         </DropdownMenuItem>
         {mounted && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               {theme === 'dark' ? <Moon /> : theme === 'light' ? <Sun /> : <Monitor />}
-              <span>Giao diện</span>
+              <span>Theme</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               {THEMES.map(({ value, label, icon: Icon }) => (
@@ -98,7 +98,7 @@ export function AvatarMenu({ className }: { readonly className?: string }) {
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={logout}>
           <LogOut />
-          <span>Đăng xuất</span>
+          <span>Sign out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

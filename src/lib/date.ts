@@ -9,7 +9,8 @@ export const addDaysIso = (iso: string, days: number): string => {
   return toIsoDate(date)
 }
 
+/** yyyy-MM-dd → MM/dd/yyyy (kiểu Mỹ, giao diện tiếng Anh). Tên hàm giữ nguyên vì còn nhiều nơi gọi. */
 export const formatDateVi = (iso: string): string => {
   const [year, month, day] = iso.split('-')
-  return `${day}/${month}/${year}`
+  return `${month}/${day}/${year}`
 }

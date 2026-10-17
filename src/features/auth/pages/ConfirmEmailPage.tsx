@@ -38,7 +38,7 @@ function ResendSection({ initialEmail }: { readonly initialEmail: string }) {
     event.preventDefault()
     if (isPending || cooldown > 0) return
     if (!emailSchema.safeParse(email.trim()).success) {
-      setEmailError('Email không đúng định dạng')
+      setEmailError('Enter a valid email address')
       return
     }
     setEmailError(undefined)
@@ -59,20 +59,20 @@ function ResendSection({ initialEmail }: { readonly initialEmail: string }) {
     <form onSubmit={onResend} noValidate className="space-y-4">
       <div className="text-muted-foreground flex items-center gap-3 text-xs">
         <span className="bg-border h-px flex-1" />
-        <span>Chưa nhận được email?</span>
+        <span>Didn&apos;t get the email?</span>
         <span className="bg-border h-px flex-1" />
       </div>
-      <FormErrorAlert title="Không gửi lại được" message={error} />
+      <FormErrorAlert title="Couldn't resend email" message={error} />
       {cooldown > 0 && (
         <div
           role="status"
           className="bg-mf-pastel-green text-mf-pastel-green-text flex items-start gap-3 rounded-xl p-3 text-sm"
         >
           <MailCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-          <p>Đã gửi email mới. Kiểm tra hộp thư, kể cả thư rác.</p>
+          <p>New email sent. Check your inbox, including spam.</p>
         </div>
       )}
-      <FormField label="Email đã đăng ký" required error={emailError}>
+      <FormField label="Registered email" required error={emailError}>
         {(field) => (
           <Input
             {...field}
@@ -97,10 +97,10 @@ function ResendSection({ initialEmail }: { readonly initialEmail: string }) {
       >
         {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
         {isPending
-          ? 'Đang gửi...'
+          ? 'Sending...'
           : cooldown > 0
-            ? `Gửi lại sau ${cooldown}s`
-            : 'Gửi lại email xác thực'}
+            ? `Resend in ${cooldown}s`
+            : 'Resend verification email'}
       </Button>
     </form>
   )
@@ -139,7 +139,7 @@ function ConfirmEmailInner() {
     event.preventDefault()
     if (status === 'verifying') return
     if (!token.trim()) {
-      setTokenError('Dán mã nhận qua email')
+      setTokenError('Paste the code from your email')
       return
     }
     setTokenError(undefined)
@@ -150,55 +150,52 @@ function ConfirmEmailInner() {
 
   if (status === 'success')
     return (
-      <AuthShell
-        title="Email đã xác thực"
-        description="Giờ bạn đăng nhập và bắt đầu dùng được rồi."
-      >
+      <AuthShell title="Email verified" description="You can now log in and get started.">
         <div
           role="status"
           className="bg-mf-pastel-green text-mf-pastel-green-text flex items-start gap-3 rounded-xl p-4 text-sm"
         >
           <CheckCircle2 aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-          <p>Tài khoản của bạn đã được kích hoạt.</p>
+          <p>Your account is now active.</p>
         </div>
         <Button asChild className="h-12 w-full text-base md:h-10 md:text-sm">
-          <Link href={routePath.login}>Đăng nhập</Link>
+          <Link href={routePath.login}>Log in</Link>
         </Button>
       </AuthShell>
     )
 
   if (status === 'verifying')
     return (
-      <AuthShell title="Đang xác thực email">
+      <AuthShell title="Verifying your email">
         <div
           role="status"
           aria-busy="true"
           className="text-muted-foreground flex items-center gap-3 py-4 text-sm"
         >
           <Loader2 aria-hidden="true" className="size-5 animate-spin" />
-          Đang xác thực...
+          Verifying...
         </div>
       </AuthShell>
     )
 
   return (
     <AuthShell
-      title="Xác thực email"
-      description="Mở link trong email chúng tôi đã gửi. Link không mở được thì dán mã vào đây."
+      title="Verify email"
+      description="Open the link in the email we sent. If it doesn't open, paste the code here."
       footer={
         <Link
           href={routePath.login}
           className="text-foreground font-medium underline underline-offset-4"
         >
-          Quay lại đăng nhập
+          Back to log in
         </Link>
       }
     >
       <form onSubmit={onSubmit} noValidate className="space-y-4">
-        <FormErrorAlert title="Không xác thực được email" message={error} />
+        <FormErrorAlert title="Couldn't verify email" message={error} />
         <FormField
-          label="Mã xác thực"
-          hint="Có trong email, ngay dưới nút Xác thực email"
+          label="Verification code"
+          hint="It's in the email, just below the Verify email button"
           required
           error={tokenError}
         >
@@ -215,7 +212,7 @@ function ConfirmEmailInner() {
           )}
         </FormField>
         <Button type="submit" className="h-12 w-full text-base md:h-10 md:text-sm">
-          Xác thực email
+          Verify email
         </Button>
       </form>
       <ResendSection initialEmail={initialEmail} />

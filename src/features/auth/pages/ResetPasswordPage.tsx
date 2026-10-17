@@ -43,7 +43,7 @@ function ResetPasswordInner() {
     setFormError(null)
     try {
       await authService.resetPassword({ ...values, token: values.token.trim() })
-      toast.success('Đã đặt lại mật khẩu')
+      toast.success('Password reset')
       router.replace(routePath.login)
     } catch (error) {
       logger.error(error)
@@ -61,23 +61,23 @@ function ResetPasswordInner() {
 
   return (
     <AuthShell
-      title="Đặt lại mật khẩu"
-      description="Dán token nhận qua email rồi nhập mật khẩu mới."
+      title="Reset password"
+      description="Paste the token from your email, then enter a new password."
       footer={
         <Link
           href={routePath.login}
           className="text-foreground font-medium underline underline-offset-4"
         >
-          Quay lại đăng nhập
+          Back to log in
         </Link>
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <FormErrorAlert title="Không đặt lại được mật khẩu" message={formError} />
+        <FormErrorAlert title="Couldn't reset password" message={formError} />
 
         <FormField
           label="Token"
-          hint="Có trong email chúng tôi đã gửi"
+          hint="It's in the email we sent you"
           required
           error={errors.token?.message}
         >
@@ -93,8 +93,8 @@ function ResetPasswordInner() {
         </FormField>
 
         <FormField
-          label="Mật khẩu mới"
-          hint="Tối thiểu 8 ký tự"
+          label="New password"
+          hint="At least 8 characters"
           required
           error={errors.newPassword?.message}
         >
@@ -103,7 +103,7 @@ function ResetPasswordInner() {
           )}
         </FormField>
 
-        <FormField label="Nhập lại mật khẩu" required error={errors.confirmPassword?.message}>
+        <FormField label="Confirm password" required error={errors.confirmPassword?.message}>
           {(field) => (
             <PasswordInput
               {...field}
@@ -120,7 +120,7 @@ function ResetPasswordInner() {
           aria-busy={isSubmitting}
         >
           {isSubmitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-          {isSubmitting ? 'Đang đặt lại...' : 'Đặt lại mật khẩu'}
+          {isSubmitting ? 'Resetting...' : 'Reset password'}
         </Button>
       </form>
     </AuthShell>

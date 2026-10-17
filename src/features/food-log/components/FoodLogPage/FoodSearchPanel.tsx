@@ -23,10 +23,10 @@ import { FavoritesBar } from './FavoritesBar'
 export type FoodView = 'all' | 'recent' | 'favorites' | 'mine'
 
 const VIEWS: readonly { value: FoodView; label: string; title: string }[] = [
-  { value: 'all', label: 'Tất cả', title: 'Thực phẩm' },
-  { value: 'recent', label: 'Gần đây', title: 'Món vừa log' },
-  { value: 'favorites', label: 'Yêu thích', title: 'Yêu thích' },
-  { value: 'mine', label: 'Của tôi', title: 'Món tự tạo' },
+  { value: 'all', label: 'All', title: 'Foods' },
+  { value: 'recent', label: 'Recents', title: 'Recent foods' },
+  { value: 'favorites', label: 'Favorites', title: 'Favorites' },
+  { value: 'mine', label: 'Mine', title: 'Custom foods' },
 ]
 
 interface FoodSearchPanelProps {
@@ -142,7 +142,7 @@ export function FoodSearchPanel({
           type="single"
           value={view}
           onValueChange={(next) => next && onViewChange(next as FoodView)}
-          aria-label="Nguồn thực phẩm"
+          aria-label="Food source"
           className="bg-secondary flex-1 gap-0 rounded-full p-1"
         >
           {VIEWS.map((item) => (
@@ -158,7 +158,7 @@ export function FoodSearchPanel({
         {view !== 'favorites' && (
           <button
             type="button"
-            aria-label="Lọc theo nhóm"
+            aria-label="Filter by category"
             aria-pressed={showFilters || category !== null}
             onClick={() => setShowFilters((current) => !current)}
             className={cn(
@@ -178,18 +178,20 @@ export function FoodSearchPanel({
           onValueChange={(next) =>
             next && onCategoryChange(next === 'all' ? null : (next as FoodCategory))
           }
-          aria-label="Nhóm thực phẩm"
+          aria-label="Food category"
           className="flex justify-start gap-2 overflow-x-auto overscroll-x-contain px-4 pt-3"
         >
-          {[{ value: 'all', label: 'Mọi nhóm' }, ...enumOptions(FOOD_CATEGORY)].map((option) => (
-            <ToggleGroupItem
-              key={option.value}
-              value={option.value}
-              className="bg-secondary data-[state=on]:bg-foreground data-[state=on]:text-background h-9 shrink-0 rounded-full px-4 text-sm"
-            >
-              {option.label}
-            </ToggleGroupItem>
-          ))}
+          {[{ value: 'all', label: 'All categories' }, ...enumOptions(FOOD_CATEGORY)].map(
+            (option) => (
+              <ToggleGroupItem
+                key={option.value}
+                value={option.value}
+                className="bg-secondary data-[state=on]:bg-foreground data-[state=on]:text-background h-9 shrink-0 rounded-full px-4 text-sm"
+              >
+                {option.label}
+              </ToggleGroupItem>
+            )
+          )}
         </ToggleGroup>
       )}
 
@@ -207,7 +209,7 @@ export function FoodSearchPanel({
             <FavoritesBar favorites={favorites} onQuickAdd={quickAddFavorite} />
           )}
           <h3 className="px-4 pt-4 text-lg font-semibold md:text-sm">
-            {isSearching ? 'Kết quả' : title}
+            {isSearching ? 'Results' : title}
           </h3>
           <FoodList
             items={shown}
