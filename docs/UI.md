@@ -344,7 +344,7 @@ Mockup ASCII đủ các trạng thái của màn đăng nhập: `docs/MOCKUP-AUT
 
 App dùng chủ yếu trên iPhone nên giao diện phải giống app, không giống trang web thu nhỏ.
 
-- **Tiêu đề trang lớn:** mọi trang dùng `PageHeader` (chữ 28px đậm bên trái, ảnh đại diện bên phải, dòng nhỏ phía trên nếu cần). Không tự viết `h1` riêng. Header web (`AppHeader`) và sidebar chỉ hiện từ `md` trở lên.
+- **Tiêu đề trang lớn:** mọi trang dùng `PageHeader` (chữ hoa rộng đậm `font-brand` Unbounded 24px như tiêu đề các tab chính của MacroFactor, bên trái, ảnh đại diện bên phải, dòng nhỏ phía trên nếu cần). Không tự viết `h1` riêng. Header web (`AppHeader`) và sidebar chỉ hiện từ `md` trở lên.
 - **Thanh tab dưới:** 4 tab + nút tròn "+" ở giữa (thêm món ở mọi trang): Dashboard, Food Log, +, Strategy, More (đúng nhãn MacroFactor). Icon 22px, nhãn 11px, nút "+" 44px. Hồ sơ, thực phẩm của tôi, giao diện và đăng xuất nằm trong trang **More** (`/more`); header trang trên điện thoại không còn ảnh đại diện (desktop vẫn có `AvatarMenu`). Trạng thái mở bảng Thêm món nằm ở `stores/ui.store.ts`.
 - **Danh sách thay cho form và bảng:** nhóm dòng dùng `ListSection` + `ListRow` (nhãn trái, giá trị muted phải, mũi tên, vùng chạm ≥ 48px, vạch mảnh giữa dòng, không viền ngoài, nền thẻ bo `2xl` trên nền xám nhạt). Không dựng bảng `Table` cho dữ liệu trên điện thoại; mỗi bản ghi là một dòng có dòng phụ.
 - **Sửa một giá trị = bảng trượt lên:** chạm dòng thì mở `PickerSheet` (đáy màn hình; desktop là hộp thoại giữa) chứa ô nhập hoặc `OptionList` (chọn một, dòng chọn có dấu ✓). Nút **Xong** đóng bảng. Không dùng ô xổ xuống `Select` trong form hồ sơ.
@@ -363,7 +363,7 @@ Màn nào làm theo ảnh MacroFactor thì dùng đúng các giá trị dưới 
 
 **Màu**
 
-- Nền trang đen (`--background`), thẻ và dải nhấn xám đậm hơn một bậc (`bg-card`), thẻ nằm trong dải xám thì dùng lại `bg-background`. Chữ phụ `text-muted-foreground`; không dùng viền sáng để tách khối, dùng chênh bậc nền.
+- Nền trang xám đậm (`--background` `#161616` ở chế độ tối, không đen tuyền), thẻ và dải nhấn sáng hơn một bậc (`bg-card` `#222222`), thẻ nằm trong dải xám thì dùng lại `bg-background`; viên thuốc/nút trên thẻ dùng `bg-secondary` (`#2c2c2c`). Màu thanh trạng thái iOS và `manifest` cùng `#161616`. Chữ phụ `text-muted-foreground`; không dùng viền sáng để tách khối, dùng chênh bậc nền.
 - Dữ liệu dinh dưỡng chỉ dùng bộ `--mf-tile-*`: kcal xanh dương `#5c8def`, protein cam san hô `#ff8261`, fat vàng `#ffd35a`, carb xanh lá `#5dba85`; vi chất tím (`#a78bfa`), khoáng chất hồng (`#fb7185`). Chữ trong ô màu là chữ đen.
 - Công tắc: nền trắng khi bật (`#fff`), xám `zinc-600` khi tắt, núm luôn đen; kích thước bảng chọn 56×32 (núm 28), thẻ nhỏ 40×24 (núm 20).
 
@@ -378,7 +378,41 @@ Màn nào làm theo ảnh MacroFactor thì dùng đúng các giá trị dưới 
 - **Carousel (`DashboardCarousel`):** một tấm nền bo chung cho cả ba trang, nội dung trượt bên trong; ba trang **cao bằng nhau**, tiêu đề ở trên và công tắc ở dưới, khoảng dư chia vào giữa. Các chấm báo vị trí nằm ngoài tấm nền.
 - **Bảng trượt từ đáy (`SheetFrame`):** nút X trái, tiêu đề (+ phụ đề xám) giữa, đường kẻ dưới đầu, nội dung cuộn, nút "Xong" nền trắng chữ đen `rounded-lg` cao 48px dính đáy. Bảng chỉ chọn một thì chọn xong đóng ngay, không có "Xong".
 - **Màn tuỳ chỉnh:** phần đầu (tiêu đề + Tiêu điểm chính) nằm trong dải xám; thẻ nhỏ 192px cuộn ngang, mũi tên đổi chỗ nằm dưới thẻ và **ẩn** (không làm mờ) ở đầu/cuối; đổi chỗ có hoạt ảnh trượt ~320ms, tắt khi `prefers-reduced-motion`. Mỗi nhóm có mũi tên lên/xuống ở góc, tay cầm "=" để kéo đổi chỗ (có phím mũi tên), nút "Thêm hoặc bớt…" xám bo `lg`; cuối trang có "Đặt lại mặc định" chữ đỏ.
-- **Thanh tab dưới:** nền đặc (không mờ), icon 28px, nhãn 12px, tab đang chọn tô đặc và chữ trắng đậm; nút "+" trắng 64px, không bóng.
+- **Thanh tab dưới:** nền đặc (không mờ), cao 60px (+ vùng an toàn), icon và nhãn cách viền trên 12px (không dính viền), icon 24px, nhãn 12px, tab đang chọn tô đặc và chữ trắng đậm; nút "+" trắng 64px, không bóng.
 - **Màn nhập liệu nhiều bước (onboarding):** thẻ chọn viền 2px, biểu tượng đặc kiểu MacroFactor (nền khoét), nút dưới đáy bo tròn; hoạt ảnh chat có nhịp nghỉ → "đang gõ" → hiện chữ theo độ dài câu.
 
 **Hoạt ảnh**: luôn `motion-safe:`; chuyển trang/đổi chỗ 300–400ms; không bật chuyển động ở nơi người dùng đang kéo/vuốt.
+
+## 27. Trang chi tiết Dashboard, Food Log và trang cài đặt (quy tắc rút ra khi làm theo MacroFactor)
+
+**Cỡ chữ (không to quá)**
+
+- Trang cài đặt và trang chọn: tiêu đề nhóm **20px đậm** (`text-xl font-bold`), tên dòng/lựa chọn **16px** (`text-base`), mô tả và giá trị phụ **14px** muted (`text-sm`), nút "Edit" 14px. Không dùng `text-lg`/`text-2xl` cho dòng cài đặt.
+- Ô món trên timeline: tên 14–16px theo mật độ, dòng kcal/macro/khẩu phần 13px. Số lớn đầu trang chi tiết 36px, nhãn phụ 16px.
+
+**Tràn ngang (lỗi hay gặp)**
+
+- `main` của layout là flex item nên tự nở theo nội dung `nowrap`/`truncate`/cuộn ngang bên trong (trang rộng hơn màn hình, thẻ bị cắt bên phải). Khối có chữ không xuống dòng hoặc trượt ngang (carousel, preview, header dính) phải có `[contain:inline-size]`; luôn kiểm `document.documentElement.scrollWidth === clientWidth` ở 440px.
+
+**Header dính toàn chiều ngang (Food Log, Timeline Food Tiles)**
+
+- `sticky top-0 z-30 bg-card` và trên điện thoại kéo lên sát đỉnh bằng `max-md:-mx-4 max-md:-mt-[calc(env(safe-area-inset-top)+1.25rem)] max-md:pt-[calc(env(safe-area-inset-top)+0.75rem)]` (huỷ padding của `main`, vùng tai thỏ cùng màu header).
+- Phần co lại khi cuộn dùng `grid-rows-[1fr] ↔ [0fr]` + opacity 300ms, ngưỡng có độ trễ (`useScrolledPast(90, 30)`); khi co, bù chiều cao đã mất bằng `margin-bottom` cùng giá trị để nội dung bên dưới không giật.
+
+**Trang chi tiết (Expenditure, Weight Trend, Energy Balance, Goal Progress)**
+
+- Dùng chung `components/DetailPage`: `RangeBar` (ô trắng trượt 300ms), `StatBlock`, `TutorialCard` (nhiều thẻ, **chỉ nội dung trượt, hàng nút đứng yên**), `UnderlineTabs` (vạch trắng trượt), `MetricRow`, `SourceRow`, icon `ExpandChartIcon`/`CollapseChartIcon`/`WaitingIcon`. Không viết lại từng trang.
+- Màu theo tab (Scale xanh lá ↔ Trend tím): đặt biến CSS ở thẻ gốc của trang và mọi thành phần dùng `var(--…)` kèm `transition-colors`/`transition-[fill] duration-500` để đổi màu dần.
+- Dữ liệu tính ở FE khi BE đã trả sẵn nguyên liệu (trung bình, chênh lệch N ngày, dự báo); BE chỉ thêm API khi thiếu nguyên liệu.
+
+**Cài đặt Food Log**
+
+- Lưu trên server (`GET/PUT /food-logs/settings`, gửi cả object); FE trộn với mặc định để trường mới chưa có vẫn chạy, cập nhật ngay trên màn hình rồi gửi, lỗi thì hoàn lại. Tên trường và giá trị enum dùng đúng chuỗi của BE, cờ bool trong bảng chọn dùng giá trị `'true'`/`'false'`.
+- Một dòng cài đặt = `SettingRow` (tên + giá trị hiện tại, nút "Edit" mở `ChoiceSheet` chọn một và đóng ngay, hoặc `href` mở trang con có mũi tên). Trang con chọn thẳng trên trang dùng `OptionList` (radio) và `CheckList` (ô tick).
+- Mỗi cài đặt phải **có tác dụng thật** trên màn hình dùng nó, hoặc ghi rõ là chỉ lưu (Premove, Optimization). Cái nào ảnh hưởng hiển thị phải xem được trong preview ngay trên trang cài đặt.
+- Hour Range: thanh trượt hai tay cầm, nhãn "7 AM" trong bóng trắng trên tay cầm, nút Save trắng; Calendar Week Banner có dải tuần minh hoạ; Timeline Food Tiles có preview ghim trên cùng.
+
+**Lịch và timeline Food Log**
+
+- Lịch cuộn tuần: mỗi tháng một mảng nền (tháng chẵn `bg-card`, lẻ `bg-background`), góc bo ở chỗ đổi tháng, nhãn tháng trên ngày mùng 1; tuần bắt đầu Thứ Hai (Energy Balance bắt đầu Chủ nhật như ảnh).
+- Tiêu đề ngày: Today / Yesterday / Tomorrow, ngày khác "Thu, Oct 15" (hiện in hoa bằng CSS). Timeline: viên thuốc giờ nằm trên đường dọc, nút + cạnh giờ (hoặc nhấn giữ giờ), món hiện bằng `FoodTile`; ba mật độ Comfort / Standard / Compact và điểm nhấn Edit / Energy / None theo cài đặt.

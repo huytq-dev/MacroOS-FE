@@ -5,9 +5,12 @@ import { toast } from 'sonner'
 import { foodLogService } from '../services/food-log.service'
 import type {
   AddEntryRequest,
+  AddNoteRequest,
   CopyRequest,
+  DayStatus,
   QuickAddRequest,
   UpdateEntryRequest,
+  UpdateNoteRequest,
 } from '../types/food-log.types'
 import { logger } from '@/lib/api'
 
@@ -66,3 +69,22 @@ export const useCopyLog = () =>
   useLogMutation((payload: CopyRequest) => foodLogService.copy(payload))
 export const useClearDay = () =>
   useLogMutation((date: string) => foodLogService.clearDay(date), "Day's log deleted")
+
+/** Đánh dấu ngày (Complete / Partial / Fasting / bỏ dấu); Fasting chỉ cho ngày không có món (BE trả 400 nếu có). */
+export const useSetDayStatus = () =>
+  useLogMutation(
+    ({ date, status }: { date: string; status: DayStatus }) =>
+      foodLogService.setStatus(date, status),
+    'Day updated'
+  )
+
+export const useAddNote = () =>
+  useLogMutation((payload: AddNoteRequest) => foodLogService.addNote(payload), 'Note added')
+export const useUpdateNote = () =>
+  useLogMutation(
+    ({ id, payload }: { id: string; payload: UpdateNoteRequest }) =>
+      foodLogService.updateNote(id, payload),
+    'Note saved'
+  )
+export const useDeleteNote = () =>
+  useLogMutation((id: string) => foodLogService.deleteNote(id), 'Note deleted')

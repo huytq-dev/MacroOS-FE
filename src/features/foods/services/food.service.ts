@@ -12,6 +12,7 @@ export const foodService = {
   search: (params: FoodSearchParams) =>
     apiCall.get<QueryResult<FoodSummary>>(apiRoutes.foods.root, { params }),
   get: (id: string) => apiCall.get<FoodDetail>(apiRoutes.foods.byId(id)),
+  byBarcode: (code: string) => apiCall.get<FoodDetail>(apiRoutes.foods.barcode(code)),
   create: (payload: CustomFoodRequest) => apiCall.post<string>(apiRoutes.foods.root, payload),
   update: (id: string, payload: CustomFoodRequest) =>
     apiCall.put(apiRoutes.foods.byId(id), payload),

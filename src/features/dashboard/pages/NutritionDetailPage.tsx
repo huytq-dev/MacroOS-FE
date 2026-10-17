@@ -20,7 +20,7 @@ export function NutritionDetailPage() {
   const loading = !today || program.isLoading || data.isLoading
 
   return (
-    <div className="flex max-w-2xl flex-col gap-8 pb-16 md:pb-0">
+    <div className="flex max-w-2xl flex-col gap-8 md:pb-0">
       <SubPageHeader title="Nutrition" />
       {loading ? (
         <div className="grid grid-cols-2 gap-3" aria-busy="true">

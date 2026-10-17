@@ -92,13 +92,14 @@ export const MEAL_TYPE = {
 } as const
 export type MealType = keyof typeof MEAL_TYPE
 
-/** Bữa theo giờ trong ngày (giờ ăn là nguồn chính, bữa suy ra từ đó). */
-export const mealForHour = (hour: number): MealType => {
-  if (hour < 10) return 'Breakfast'
-  if (hour < 12) return 'MorningSnack'
-  if (hour < 14) return 'Lunch'
-  if (hour < 17) return 'AfternoonSnack'
-  if (hour < 21) return 'Dinner'
+/** Bữa theo giờ "HH:mm" (giờ ăn là nguồn chính, bữa suy ra từ đó); ngưỡng khớp BE: <10:00, <11:30, <14:00, <17:00, <21:00. */
+export const mealForTime = (time: string): MealType => {
+  const minutes = Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
+  if (minutes < 10 * 60) return 'Breakfast'
+  if (minutes < 11 * 60 + 30) return 'MorningSnack'
+  if (minutes < 14 * 60) return 'Lunch'
+  if (minutes < 17 * 60) return 'AfternoonSnack'
+  if (minutes < 21 * 60) return 'Dinner'
   return 'EveningSnack'
 }
 
@@ -108,8 +109,8 @@ export const MEAL_DEFAULT_TIME: Record<MealType, string> = {
   MorningSnack: '10:00',
   Lunch: '12:00',
   AfternoonSnack: '15:00',
-  Dinner: '19:00',
-  EveningSnack: '21:30',
+  Dinner: '18:30',
+  EveningSnack: '21:00',
 }
 
 export const FOOD_SCOPE = { All: 'All', Mine: 'Mine', System: 'System' } as const

@@ -15,10 +15,29 @@ import { FOOD_CATEGORY, enumOptions, type FoodCategory } from '@/config/enums'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import type { TileOptions } from '../../food-log-settings'
 import type { PlateItem } from '../../types/food-log.types'
+import { FoodTile, type FoodTileData } from './FoodTile'
 import { FoodPicker } from './FoodPicker'
 import { FavoriteList } from './FavoriteList'
 import { FavoritesBar } from './FavoritesBar'
+
+/** Dữ liệu ô món từ kết quả tìm kiếm: số theo khẩu phần mặc định (khẩu phần "1 cup" hoặc gram) và khối lượng của nó. */
+const tileDataOfFood = (food: FoodSummary): FoodTileData => ({
+  name: food.brand ? `${food.name} (${food.brand})` : food.name,
+  calories: scaleNutrition(food.caloriesPer100g, food.defaultServingGrams),
+  protein: scaleNutrition(food.proteinPer100g, food.defaultServingGrams),
+  fat: scaleNutrition(food.fatPer100g, food.defaultServingGrams),
+  carbs: scaleNutrition(food.carbsPer100g, food.defaultServingGrams),
+  servingText: food.defaultServingId
+    ? servingAmountLabel(1, food.defaultServingName)
+    : `${food.defaultServingGrams} g`,
+  weightText: `${Math.round(food.defaultServingGrams)} g`,
+  emoji: food.emoji ?? null,
+})
+
+/** Khoá dòng plate phải khác nhau mỗi lần thêm (cùng món thêm nhiều lần); chỉ gọi trong sự kiện bấm. */
+const newPlateKey = (id: string) => `${id}-${Date.now()}`
 
 export type FoodView = 'all' | 'recent' | 'favorites' | 'mine'
 
@@ -46,6 +65,8 @@ interface FoodSearchPanelProps {
   readonly onPick: (food: FoodSummary) => void
   readonly onBack: () => void
   readonly onAddToPlate: (item: PlateItem) => void
+  /** Cài đặt Logger Food Tiles: cách mỗi món hiện trong kết quả. */
+  readonly tileOptions: TileOptions
   readonly favorites: readonly FavoriteFood[]
   readonly isFavoritePending: boolean
   readonly onAddFavorite: (foodItemId: string, servingId: string | null, quantity: number) => void
@@ -70,6 +91,7 @@ export function FoodSearchPanel({
   onPick,
   onBack,
   onAddToPlate,
+  tileOptions,
   favorites,
   isFavoritePending,
   onAddFavorite,
@@ -96,7 +118,7 @@ export function FoodSearchPanel({
 
   const quickAdd = (food: FoodSummary) =>
     onAddToPlate({
-      key: `${food.id}-${Date.now()}`,
+      key: newPlateKey(food.id),
       foodItemId: food.id,
       name: food.name,
       foodServingId: food.defaultServingId,
@@ -112,7 +134,7 @@ export function FoodSearchPanel({
 
   const quickAddFavorite = (favorite: FavoriteFood) =>
     onAddToPlate({
-      key: `${favorite.id}-${Date.now()}`,
+      key: newPlateKey(favorite.id),
       foodItemId: favorite.foodItemId,
       name: favorite.foodName,
       foodServingId: favorite.foodServingId,
@@ -223,6 +245,15 @@ export function FoodSearchPanel({
             }}
             onSelect={onPick}
             onQuickAdd={quickAdd}
+            renderRow={(food) => (
+              <FoodTile
+                variant="row"
+                food={tileDataOfFood(food)}
+                settings={tileOptions}
+                onSelect={() => onPick(food)}
+                onAdd={() => quickAdd(food)}
+              />
+            )}
             onLoadMore={onLoadMore}
           />
         </>

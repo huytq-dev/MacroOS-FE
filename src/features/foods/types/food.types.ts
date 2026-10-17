@@ -36,6 +36,8 @@ export interface FoodSummary {
   defaultServingGrams: number
   /** Lần log gần nhất của người dùng hiện tại; null nếu chưa từng log món này. */
   lastLoggedAt: string | null
+  /** Emoji đại diện món (BE suy từ nhóm món); null hoặc thiếu thì hiện 🍽️. */
+  emoji?: string | null
 }
 
 export interface FoodDetail {

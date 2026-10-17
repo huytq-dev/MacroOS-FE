@@ -6,7 +6,7 @@ interface IconButtonProps extends Omit<
   React.ComponentProps<typeof Button>,
   'size' | 'children' | 'aria-label'
 > {
-  readonly icon: LucideIcon
+  readonly icon: LucideIcon | React.ComponentType<{ className?: string }>
   /** Nhãn bắt buộc: dùng cho aria-label và chú thích khi rê chuột (UI.md mục 7, 21). */
   readonly label: string
   readonly loading?: boolean

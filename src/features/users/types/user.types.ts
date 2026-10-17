@@ -16,6 +16,8 @@ export interface Profile {
   timeZone: string | null
   locale: string | null
   emailVerified: boolean
+  /** Ngày tạo tài khoản (ISO). BE sẽ trả thêm; chưa có thì undefined. */
+  createdAt?: string
 }
 
 // Khớp BE UpdateProfileCommand (null = giữ nguyên)

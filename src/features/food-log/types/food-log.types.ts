@@ -26,6 +26,9 @@ export interface FoodLogEntry {
   carbs: number
   fat: number
   fiber: number | null
+  /** Biểu tượng emoji của món và tổng khối lượng (g); BE sẽ bổ sung, chưa có thì FE dùng mặc định / suy từ khẩu phần. */
+  emoji?: string | null
+  weightGrams?: number | null
 }
 
 // Khớp BE Contract/Models/FoodLogs/FoodLogModels.cs (WeekLogResponse)
@@ -39,12 +42,38 @@ export interface WeekLog {
   days: WeekDay[]
 }
 
+/** Ghi chú trong ngày. BE đang đổi `notes` từ chuỗi sang mảng này (xem Docs/.../Food_Log/README.md mục 2.3). */
+export interface FoodLogNote {
+  id: string
+  text: string
+  /** Giờ gắn với ghi chú ("HH:mm:ss"), null nếu không có. */
+  notedAt: string | null
+}
+
+/** Trạng thái đánh dấu ngày (BE sẽ trả; chưa có thì coi như Unmarked). */
+export type DayStatus = 'Unmarked' | 'Complete' | 'Partial' | 'Fasting'
+
 export interface DayLog {
   logDate: string
-  notes: string | null
+  /** Chấp nhận cả chuỗi (BE cũ) lẫn mảng (BE mới); dùng `toNotes` để chuẩn hoá. */
+  notes: string | FoodLogNote[] | null
+  isLogged?: boolean
+  status?: DayStatus
   totals: MacroTotals
   target: ProgramWeek | null
   entries: FoodLogEntry[]
+}
+
+// Khớp BE Notes: POST /food-logs/notes, PUT /food-logs/notes/{id} (notedAt "HH:mm:ss" hoặc "HH:mm")
+export interface AddNoteRequest {
+  logDate: string
+  text: string
+  notedAt: string | null
+}
+
+export interface UpdateNoteRequest {
+  text: string
+  notedAt: string | null
 }
 
 // Khớp BE AddFoodLogEntryCommand
@@ -98,3 +127,7 @@ export interface PlateItem {
   carbs: number
   fat: number
 }
+
+/** Chuẩn hoá `DayLog.notes` về mảng, bất kể BE cũ (chuỗi) hay mới (mảng). */
+export const toNotes = (notes: DayLog['notes']): FoodLogNote[] =>
+  Array.isArray(notes) ? notes : notes?.trim() ? [{ id: 'legacy', text: notes, notedAt: null }] : []

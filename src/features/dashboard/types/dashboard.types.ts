@@ -6,6 +6,19 @@ export interface ExpenditurePoint {
   avgCaloriesConsumed: number
   weightChangeRateKgPerWeek: number | null
   windowDays: number
+  /** Dải flux (BE sẽ bổ sung); chưa có thì FE tự ước. */
+  fluxLowKcal?: number | null
+  fluxHighKcal?: number | null
+}
+
+/** Trạng thái điểm: Updating = đang cập nhật (vòng tròn); Holding/Calibrating = số không đang cập nhật (ô vuông). */
+export type ExpenditureStatus = 'Calibrating' | 'Updating' | 'Holding'
+
+export interface ExpenditureChange {
+  days: number
+  /** null khi Waiting (chưa có điểm ở mốc đó hoặc mốc trước ngày bắt đầu theo dõi). */
+  deltaKcal: number | null
+  status: 'Ready' | 'Waiting'
 }
 
 export interface ExpenditureSeries {
@@ -54,4 +67,16 @@ export interface NutrientGroup {
 export interface NutrientValue {
   value: number
   target: number | null
+}
+
+// Khớp BE Contract/Models/Metrics/MetricsModels.cs (GoalProgressResponse); trục cân nặng của BE là xu hướng (trend).
+export interface GoalProgress {
+  goalType: string
+  startDate: string
+  startWeightKg: number | null
+  targetWeightKg: number | null
+  currentTrendKg: number | null
+  progressPercent: number | null
+  deviationKg: number | null
+  estimatedCompletionDate: string | null
 }

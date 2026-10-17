@@ -155,7 +155,7 @@ export function DashboardPage() {
       <Skeleton className="h-72 rounded-2xl" aria-busy="true" />
     ) : (
       <div className="flex flex-1 flex-col justify-between gap-3">
-        <h2 className="text-xl font-bold">Weekly Nutrition</h2>
+        <h2 className="text-lg font-bold">Weekly Nutrition</h2>
         <WeekMatrix
           mode={nutritionMode}
           onModeChange={setNutritionMode}
@@ -197,7 +197,7 @@ export function DashboardPage() {
     .map((key) => ({ key, ...focusPages[key] }))
 
   return (
-    <div className="flex max-w-2xl flex-col gap-8 pb-16 md:pb-0">
+    <div className="flex max-w-2xl flex-col gap-8 pb-12 md:pb-0">
       {header}
       {slides.length > 0 && <DashboardCarousel slides={slides} />}
       {layout.sections.map((section, index) => (

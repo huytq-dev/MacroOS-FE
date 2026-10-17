@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { DM_Sans, Geist_Mono, Unbounded } from 'next/font/google'
+import { Archivo, DM_Sans, Geist_Mono, Unbounded } from 'next/font/google'
 import NextTopLoader from 'nextjs-toploader'
 import { Providers } from '@/lib/providers'
 import './index.css'
@@ -12,6 +12,15 @@ const geistSans = DM_Sans({
 })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 // Chữ rộng, đậm cho wordmark MacroOS (giống phong cách MacroFactor); chỉ nạp 2 độ đậm dùng cho logo
+// Chữ "expanded" cho tiêu đề tab chính (Archivo trục wdth 125, đậm 800): gần font tiêu đề của MacroFactor hơn Unbounded
+const displayFont = Archivo({
+  variable: '--font-display-src',
+  subsets: ['latin', 'latin-ext'],
+  axes: ['wdth'],
+  weight: 'variable',
+  style: 'normal',
+  display: 'swap',
+})
 const brandFont = Unbounded({
   variable: '--font-brand-src',
   subsets: ['latin'],
@@ -36,7 +45,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+    { media: '(prefers-color-scheme: dark)', color: '#161616' },
     { media: '(prefers-color-scheme: light)', color: '#f5f5f5' },
   ],
 }
@@ -45,7 +54,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} ${displayFont.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col font-sans">

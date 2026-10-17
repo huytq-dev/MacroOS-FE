@@ -29,11 +29,16 @@ export const apiRoutes = {
   foods: {
     root: '/foods', // GET ?search&category&scope&top&skip, POST
     byId: (id: string) => `/foods/${id}`, // GET, PUT, DELETE
+    barcode: (code: string) => `/foods/barcode/${code}`, // GET → FoodDetail (8-14 chữ số; 404 không thấy, 502 Open Food Facts lỗi)
   },
   foodLogs: {
     root: '/food-logs', // GET ?date
     week: '/food-logs/week', // GET ?date (Thứ 2 → Chủ nhật của tuần chứa date)
     byDate: (date: string) => `/food-logs/${date}`, // DELETE (xoá cả ngày)
+    settings: '/food-logs/settings', // GET (chưa lưu thì trả mặc định), PUT (cả object)
+    status: (date: string) => `/food-logs/${date}/status`, // PUT { status } (Unmarked|Complete|Partial|Fasting)
+    notes: '/food-logs/notes', // POST { logDate?, text, notedAt? } → Guid
+    note: (id: string) => `/food-logs/notes/${id}`, // PUT { text, notedAt? }, DELETE
     entries: '/food-logs/entries', // POST
     entry: (id: string) => `/food-logs/entries/${id}`, // PUT, DELETE
     quickAdd: '/food-logs/quick-add', // POST
@@ -48,7 +53,11 @@ export const apiRoutes = {
   },
   expenditure: {
     root: '/expenditure', // GET ?from&to
+    changes: '/expenditure/changes', // GET → [{ days, deltaKcal, status }] cho 3/7/14/30/90 ngày
     daily: '/expenditure/daily', // GET ?from&to (mỗi ngày: đã ăn, target, cân xu hướng)
+  },
+  goals: {
+    progress: '/goals/progress', // GET → { goalType, startDate, startWeightKg, targetWeightKg, currentTrendKg, ... }
   },
   weights: {
     root: '/weights', // GET ?from&to, POST

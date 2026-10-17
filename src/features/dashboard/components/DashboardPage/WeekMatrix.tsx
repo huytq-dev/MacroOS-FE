@@ -26,7 +26,7 @@ const ROWS: readonly Row[] = [
 const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 // Mỗi hàng chỉ số cao bằng nhau ở lưới và cột tổng bên phải để các số thẳng hàng với cột của nó.
-const ROW = 'h-[3.25rem]'
+const ROW = 'h-11'
 
 interface WeekMatrixProps {
   readonly mode: NutritionMode
@@ -68,7 +68,7 @@ export function WeekMatrix({ mode, onModeChange, days, selected, onSelect }: Wee
   }
 
   return (
-    <div className="flex flex-1 flex-col justify-between gap-4">
+    <div className="flex flex-1 flex-col justify-between gap-3">
       <div className="flex gap-4">
         <div className="flex flex-1">
           {days.map((day, index) => {
@@ -95,7 +95,7 @@ export function WeekMatrix({ mode, onModeChange, days, selected, onSelect }: Wee
                       rowIndex < ROWS.length - 1 && 'border-foreground/10 border-b'
                     )}
                   >
-                    <span className="bg-foreground/10 relative block h-8 w-[1.15rem] rounded-[3px]">
+                    <span className="bg-foreground/10 relative block h-7 w-4 rounded-[3px]">
                       <span
                         className={cn(
                           'absolute bottom-1 left-1/2 w-2 -translate-x-1/2 rounded-full transition-[height] duration-300',
@@ -109,7 +109,7 @@ export function WeekMatrix({ mode, onModeChange, days, selected, onSelect }: Wee
                 ))}
                 <span
                   className={cn(
-                    'py-2.5 text-center text-base',
+                    'py-2 text-center text-sm',
                     active ? 'text-foreground font-bold' : 'text-muted-foreground'
                   )}
                 >
@@ -126,12 +126,12 @@ export function WeekMatrix({ mode, onModeChange, days, selected, onSelect }: Wee
             return (
               <div key={row.key} className={cn('flex flex-col justify-center', ROW)}>
                 <dt className="sr-only">{row.label}</dt>
-                <dd className="flex items-center gap-1 text-xl leading-none tabular-nums">
+                <dd className="flex items-center gap-1 text-lg leading-none tabular-nums">
                   {value}
                   {row.key === 'calories' ? (
                     <Flame aria-hidden="true" className="size-4" />
                   ) : (
-                    <span className="text-base">{row.label}</span>
+                    <span className="text-sm">{row.label}</span>
                   )}
                 </dd>
                 <dd className="text-muted-foreground mt-0.5 text-sm tabular-nums">
