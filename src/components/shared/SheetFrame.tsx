@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 
 interface SheetFrameProps {
   readonly open: boolean
@@ -19,6 +20,8 @@ interface SheetFrameProps {
   readonly showDone?: boolean
   /** Bấm "Xong" thì gọi hàm này (áp dụng thay đổi) rồi đóng; không có thì "Xong" chỉ đóng. Đóng bằng X/vuốt/Esc không gọi. */
   readonly onDone?: () => void
+  /** Bảng cao gần hết màn hình (chỉ chừa mép trên) thay vì cao theo nội dung; dùng cho bảng có lưới dài như Choose Icon. */
+  readonly tall?: boolean
   readonly children: React.ReactNode
 }
 
@@ -30,13 +33,18 @@ export function SheetFrame({
   subtitle,
   showDone = true,
   onDone,
+  tall = false,
   children,
 }: SheetFrameProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="flex max-h-[88dvh] flex-col gap-0 p-0 sm:max-w-md"
+        className={cn(
+          'flex max-h-[88dvh] flex-col gap-0 p-0 sm:max-w-md',
+          tall &&
+            'max-sm:h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] max-sm:max-h-none sm:h-[85dvh] sm:max-h-[85dvh]'
+        )}
       >
         <DialogHeader className="border-border relative space-y-0 border-b px-4 py-4 text-center">
           <button

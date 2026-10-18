@@ -10,7 +10,7 @@ export interface FoodLogSettings {
   addFoodsToHour: 'PlusIcon' | 'LongPress'
   showTimestamps: boolean
   showHourlyTotals: boolean
-  /** Show = thanh tuần co lại khi cuộn; ShowAndPin = luôn ghim; Hide = ẩn thanh tuần. */
+  /** Show và ShowAndPin cùng nghĩa là luôn hiện (giữ cả hai vì BE đã lưu); Hide = ẩn thanh tuần. */
   weekBanner: 'Show' | 'ShowAndPin' | 'Hide'
   /** Daily = vuốt thanh tuần theo từng ngày; Weekly = mỗi lần vuốt nhảy cả tuần. */
   calendarScrolling: 'Daily' | 'Weekly'
@@ -63,9 +63,9 @@ export const DEFAULT_FOOD_LOG_SETTINGS: FoodLogSettings = {
   timelineShowServing: true,
   timelineHighlight: 'Edit',
   loggerBannerShowCalories: true,
-  loggerBannerShowProtein: false,
-  loggerBannerShowFat: false,
-  loggerBannerShowCarbs: false,
+  loggerBannerShowProtein: true,
+  loggerBannerShowFat: true,
+  loggerBannerShowCarbs: true,
   loggerBannerDisplay: 'PlateOnly',
   loggerTileDensity: 'Standard',
   loggerShowMacros: true,

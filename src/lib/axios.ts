@@ -6,6 +6,8 @@ import { apiRoutes } from '@/config/api-routes'
 
 const API_BASE_URL = '/api' // next.config.ts rewrite → BE
 const DEFAULT_TIMEOUT_MS = 30_000
+// Cổng cho middleware (chỉ xem cookie có hay không); phải sống ít nhất bằng refresh token của BE (14 ngày) để silent refresh còn cơ hội chạy
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 14
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -19,7 +21,7 @@ export const getAccessToken = (): string | null =>
 
 export const setAccessToken = (token: string): void => {
   localStorage.setItem('access_token', token)
-  document.cookie = `access_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict`
+  document.cookie = `access_token=${token}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Strict`
 }
 
 export const clearAccessToken = (): void => {

@@ -19,9 +19,13 @@ export const routePath = {
   weight: '/weight',
   foodLog: '/food-log',
   foodLogSettings: '/food-log/settings',
+  foodLogNutritionOverview: '/food-log/nutrition-overview',
   foodLogLoggerBanner: '/food-log/settings/logger-banner',
   foodLogLoggerTiles: '/food-log/settings/logger-tiles',
   foodLogTimelineTiles: '/food-log/settings/timeline-tiles',
   foods: '/foods',
+  recipeNew: '/recipes/new',
+  /** Trang Create Food; `?from=<foodId>` điền sẵn từ một món ("To Custom"). */
+  foodNew: '/foods/new',
   more: '/more',
 } as const

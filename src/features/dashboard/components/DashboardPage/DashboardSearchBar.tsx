@@ -9,15 +9,22 @@ interface DashboardSearchBarProps {
   readonly onSearch: () => void
   /** Bấm nút mã vạch; không truyền thì chỉ báo "sắp có". */
   readonly onScan?: () => void
+  /** Chỉ Dashboard bật: ẩn khi cuộn xuống, hiện khi cuộn lên. Mặc định luôn hiện. */
+  readonly autoHide?: boolean
 }
 
 /**
  * Thanh tìm món dính trên thanh tab (kiểu MacroFactor): ô tìm (kèm nút quét mã vạch) mở sheet Thêm món, nút tia lấp lánh là ghi món bằng AI.
  * Quét mã vạch và AI chưa có tính năng thật nên bấm chỉ báo "sắp có" (thư viện thực phẩm nằm ở More → My Foods).
- * Cuộn xuống thì mờ dần và trượt xuống, cuộn lên (hoặc về đầu trang) thì hiện lại; ẩn rồi thì không bấm được.
+ * Có `autoHide` thì cuộn xuống mờ dần và trượt xuống, cuộn lên (hoặc về đầu trang) hiện lại; ẩn rồi thì không bấm được.
  */
-export function DashboardSearchBar({ onSearch, onScan }: DashboardSearchBarProps) {
-  const hidden = useScrollHidden()
+export function DashboardSearchBar({
+  onSearch,
+  onScan,
+  autoHide = false,
+}: DashboardSearchBarProps) {
+  const scrollHidden = useScrollHidden()
+  const hidden = autoHide && scrollHidden
   return (
     <div
       inert={hidden}

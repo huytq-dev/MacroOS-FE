@@ -16,7 +16,14 @@ export const useCurrentProgram = () =>
     queryKey: programKeys.current,
     queryFn: async () => {
       try {
-        return await programService.getCurrent()
+        const program = await programService.getCurrent()
+        if (!program) return null
+        // BE cũ chưa trả hai trường này: coi như chưa có thay vì để undefined lọt vào UI
+        return {
+          ...program,
+          targetWeightKg: program.targetWeightKg ?? null,
+          checkInDueInDays: program.checkInDueInDays ?? null,
+        }
       } catch (error) {
         if (error instanceof AxiosError && error.response?.status === 404) return null
         throw error
@@ -35,6 +42,7 @@ const useProgramMutation = <TVariables>(
     onSuccess: () => {
       toast.success(successMessage)
       void queryClient.invalidateQueries({ queryKey: programKeys.current })
+      void queryClient.invalidateQueries({ queryKey: ['goals'] })
     },
     onError: (error) => {
       logger.error(error)
@@ -63,4 +71,23 @@ export const useSetManualExpenditure = () =>
     (tdeeKcal: number) => programService.setManualExpenditure(tdeeKcal),
     'Starting TDEE set'
   )
+/** Lịch sử goal cho mục Goal History; chỉ tải khi đã có program. */
+export const useGoalHistory = (enabled: boolean) =>
+  useQuery({
+    queryKey: ['goals', 'history'],
+    queryFn: () => programService.goalHistory(),
+    enabled,
+    staleTime: 60 * 1000,
+    // Mục phụ: lỗi thì ẩn Goal History, không thử lại nhiều lần
+    retry: false,
+  })
+
+export const useUpdateGoalTarget = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (targetWeightKg: number | null) => programService.updateGoalTarget(targetWeightKg),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['goals'] }),
+    onError: (error) => logger.error(error),
+  })
+}
 export const useEndProgram = () => useProgramMutation(() => programService.end(), 'Program ended')

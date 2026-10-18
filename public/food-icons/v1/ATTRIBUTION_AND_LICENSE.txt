@@ -1,0 +1,11 @@
+MacroOS Food Icon Pack - Colorized Editions
+
+Source silhouettes/line illustrations: Food Icon Pack (Common Ingredient Icons), https://foodiconpack.com/
+Original icons licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+License: https://creativecommons.org/licenses/by/4.0/
+Permission and attribution: https://foodiconpack.com/license
+
+Changes: Restyled original black-and-white icons into a colored, shaded visual system; outlined and filled regions recolored.
+These are derivative works of the Food Icon Pack assets, NOT original MacroFactor assets, and are not associated with MacroFactor.
+You must preserve appropriate source credit and comply with the source license when distributing these assets.
+MacroOS Food Icon Pack is an independent restyling inspired by contemporary colorful food icon UI.

@@ -14,3 +14,15 @@ export const formatDateVi = (iso: string): string => {
   const [year, month, day] = iso.split('-')
   return `${month}/${day}/${year}`
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** yyyy-MM-dd → "Oct 16" (không đi qua Intl để khỏi lệch múi giờ / locale giữa server và client). */
+export const formatMonthDay = (iso: string): string => {
+  const [, month, day] = iso.split('-')
+  return `${MONTHS[Number(month) - 1]} ${Number(day)}`
+}
+
+/** yyyy-MM-dd → "Oct 16, 2026". */
+export const formatMonthDayYear = (iso: string): string =>
+  `${formatMonthDay(iso)}, ${iso.split('-')[0]}`

@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import type { UnitSystem } from '@/config/enums'
 import { StepHeading } from './ChoiceStep'
 import { UnitToggle } from './OptionCard'
-import { WheelPicker } from './WheelPicker'
+import { WheelPicker } from '@/components/shared/WheelPicker'
 
 const CM_PER_INCH = 2.54
 const MIN_CM = 100

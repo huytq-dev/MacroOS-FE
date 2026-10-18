@@ -1,8 +1,20 @@
 'use client'
 
-import { Loader2, Search, Utensils, X, Zap } from 'lucide-react'
+import { useState } from 'react'
+import {
+  ArrowDown,
+  BookOpen,
+  ListFilter,
+  Loader2,
+  Rocket,
+  ScanBarcode,
+  Search,
+  Sparkles,
+  Utensils,
+  X,
+} from 'lucide-react'
+import { FoodIcon } from '@/components/shared/FoodIcon'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
-import { IconButton } from '@/components/shared/IconButton'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,10 +31,20 @@ import type { MacroTotals, PlateItem } from '../../types/food-log.types'
 import { SearchInput } from '@/components/shared/SearchInput'
 import { useKeyboardInset } from '@/hooks/use-keyboard-inset'
 import type { FoodLogSettings } from '../../food-log-settings'
+import { cn } from '@/lib/utils'
 import { AddFoodProgress } from './AddFoodProgress'
 import { MealTimePill } from './MealTimePill'
+import { PlatePanel } from './PlatePanel'
 
-export type AddTab = 'search' | 'quick'
+export type AddTab = 'scan' | 'search' | 'ai' | 'quick' | 'library'
+
+const TABS: readonly { value: AddTab; label: string; icon: typeof Search }[] = [
+  { value: 'scan', label: 'Scan', icon: ScanBarcode },
+  { value: 'search', label: 'Search', icon: Search },
+  { value: 'ai', label: 'AI', icon: Sparkles },
+  { value: 'quick', label: 'Quick Add', icon: Rocket },
+  { value: 'library', label: 'Library', icon: BookOpen },
+]
 
 interface AddFoodDialogProps {
   readonly open: boolean
@@ -30,10 +52,17 @@ interface AddFoodDialogProps {
   readonly tab: AddTab
   readonly onTabChange: (tab: AddTab) => void
   readonly meal: MealType
+  /** Ngày sẽ ghi (yyyy-MM-dd). */
+  readonly logDate: string
   readonly eatenAt: string
-  readonly onEatenAtChange: (time: string) => void
+  /** Bấm ô giờ: mở bảng Select Date and Time. */
+  readonly onTimeClick: () => void
   readonly search: string
   readonly onSearchChange: (value: string) => void
+  /** Màn Food Detail đang mở: chiếm hết khung (ẩn hàng tab và thanh đáy), chỉ giữ thanh calo trên cùng. */
+  readonly detailOpen: boolean
+  /** Ô lọc theo tên ở thanh đáy tab Library (thay ô tìm); chữ gợi ý đổi theo ngăn đang xem. */
+  readonly libraryFilter: { value: string; placeholder: string; onChange: (value: string) => void }
   readonly plate: PlateItem[]
   readonly totals?: MacroTotals
   readonly target?: ProgramWeek | null
@@ -53,17 +82,20 @@ interface AddFoodDialogProps {
   readonly children: React.ReactNode
 }
 
-/** Sheet thêm món: chọn bữa, 2 tab (tìm / nhập nhanh), "plate" gom nhiều món rồi log một lượt ở thanh đáy. */
+/** Sheet thêm món: giờ ăn, 5 tab (Scan mã vạch, Search, AI, Quick Add, Library), "plate" gom nhiều món rồi log một lượt ở thanh đáy. */
 export function AddFoodDialog({
   open,
   onOpenChange,
   tab,
   onTabChange,
   meal,
+  logDate,
   eatenAt,
-  onEatenAtChange,
+  onTimeClick,
   search,
   onSearchChange,
+  detailOpen,
+  libraryFilter,
   plate,
   totals,
   target,
@@ -75,6 +107,13 @@ export function AddFoodDialog({
   children,
 }: AddFoodDialogProps) {
   const keyboardInset = useKeyboardInset(open)
+  const [plateOpen, setPlateOpen] = useState(false)
+  // Đóng bảng Thêm món (kể cả khi ghi xong) thì lần mở sau bắt đầu ở tab, không ở Your Plate.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (!open) setPlateOpen(false)
+  }
   const plateKcal = plate.reduce((sum, item) => sum + item.calories, 0)
   const plateTotals: MacroTotals = {
     calories: plateKcal,
@@ -87,15 +126,17 @@ export function AddFoodDialog({
     <Dialog open={open} onOpenChange={(next) => !isLogging && onOpenChange(next)}>
       <DialogContent
         showCloseButton={false}
-        className="flex h-[92dvh] flex-col gap-0 p-0 sm:h-[80dvh] sm:max-w-lg sm:p-0"
+        // Không tự focus nút đầu tiên (tab Scan) khi mở: tránh vòng focus cam và bàn phím bật ngoài ý muốn trên di động.
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        className="bg-background flex h-dvh max-h-dvh flex-col gap-0 rounded-none p-0 sm:h-[80dvh] sm:max-h-[80dvh] sm:max-w-lg sm:rounded-xl sm:p-0"
         style={keyboardInset > 0 ? { bottom: keyboardInset } : undefined}
       >
         <DialogHeader className="relative z-20 space-y-0">
           <DialogTitle className="sr-only">Add food</DialogTitle>
           <DialogDescription className="sr-only">
-            Search for a food or quick add calories and macros
+            Scan a barcode, search for a food or quick add calories and macros
           </DialogDescription>
-          <div className="flex items-center gap-2 px-3 py-3">
+          <div className="flex items-center gap-2 px-3 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3">
             <button
               type="button"
               aria-label="Close"
@@ -105,11 +146,7 @@ export function AddFoodDialog({
             >
               <X aria-hidden="true" className="size-5" />
             </button>
-            <MealTimePill
-              time={eatenAt}
-              mealLabel={MEAL_TYPE[meal]}
-              onTimeChange={onEatenAtChange}
-            />
+            <MealTimePill time={eatenAt} mealLabel={MEAL_TYPE[meal]} onClick={onTimeClick} />
             <AddFoodProgress
               totals={totals}
               target={target}
@@ -122,93 +159,159 @@ export function AddFoodDialog({
               }}
               display={settings.loggerBannerDisplay}
             />
-            <span
-              role="status"
-              aria-label={`${plate.length} ${plate.length === 1 ? 'item' : 'items'} in plate`}
-              className="bg-secondary flex h-11 shrink-0 items-center gap-1 rounded-full px-3 text-base font-semibold tabular-nums"
-            >
-              <Utensils aria-hidden="true" className="size-5" />
-              {plate.length > 0 && `+${plate.length}`}
-            </span>
+            <div className="bg-secondary flex h-11 shrink-0 items-center rounded-full pl-3">
+              <span
+                role="status"
+                aria-label={`${plate.length} ${plate.length === 1 ? 'item' : 'items'} in plate`}
+                className="flex items-center gap-1.5 text-base tabular-nums"
+              >
+                {plate.length === 0 ? (
+                  <Utensils aria-hidden="true" className="text-muted-foreground size-5" />
+                ) : (
+                  <FoodIcon iconKey={plate[0].iconKey} emoji={plate[0].emoji} size={28} />
+                )}
+                {plate.length > 1 && <span className="font-medium">+{plate.length - 1}</span>}
+              </span>
+              <button
+                type="button"
+                aria-label={plateOpen ? 'Hide plate' : 'Show plate'}
+                aria-expanded={plateOpen}
+                onClick={() => setPlateOpen((current) => !current)}
+                className="bg-foreground/15 focus-visible:ring-ring/50 active:bg-foreground/25 ml-2 flex size-11 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
+              >
+                <ArrowDown
+                  aria-hidden="true"
+                  className={cn(
+                    'size-5 transition-transform duration-300 motion-reduce:transition-none',
+                    plateOpen && 'rotate-180'
+                  )}
+                />
+              </button>
+            </div>
           </div>
-          <Tabs value={tab} onValueChange={(next) => onTabChange(next as AddTab)}>
-            <TabsList variant="line" className="w-full border-b">
-              <TabsTrigger
-                value="search"
-                className="h-11 flex-1 text-base group-data-horizontal/tabs:after:bottom-0 md:text-sm"
-              >
-                <Search aria-hidden="true" /> Search
-              </TabsTrigger>
-              <TabsTrigger
-                value="quick"
-                className="h-11 flex-1 text-base group-data-horizontal/tabs:after:bottom-0 md:text-sm"
-              >
-                <Zap aria-hidden="true" /> Quick add
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
         </DialogHeader>
 
-        {error && (
-          <div className="px-4 pb-2">
-            <FormErrorAlert title="Couldn't add food" message={error} />
-          </div>
-        )}
-
-        <ScrollArea className="min-h-0 flex-1">{children}</ScrollArea>
-
-        <div className="bg-card space-y-2 rounded-t-2xl px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-1px_0_var(--border)]">
-          {plate.length > 0 && (
-            <ul className="max-h-24 space-y-1 overflow-y-auto text-sm">
-              {plate.map((item) => (
-                <li key={item.key} className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate">
-                    {item.name}{' '}
-                    <span className="text-muted-foreground text-xs">· {item.servingLabel}</span>
-                  </span>
-                  <span className="text-muted-foreground text-xs tabular-nums">
-                    {item.calories} kcal
-                  </span>
-                  <IconButton
-                    icon={X}
-                    label={`Remove ${item.name}`}
-                    disabled={isLogging}
-                    onClick={() => onRemoveFromPlate(item.key)}
-                  />
-                </li>
-              ))}
-            </ul>
+        {/*
+          Your Plate và tấm sheet tab chia chiều cao bằng flex-grow (đổi 0 ↔ 1 trong 300ms): mở plate thì plate trượt xuống chiếm
+          chỗ, sheet thu thành thanh nhỏ (tay nắm + hàng tab) ở đáy; đóng thì ngược lại. Cả hai luôn mount nên hoạt ảnh đóng kịp chạy.
+        */}
+        <div
+          inert={!plateOpen}
+          aria-hidden={!plateOpen}
+          className={cn(
+            'min-h-0 basis-0 overflow-hidden transition-[flex-grow] duration-300 ease-out motion-reduce:transition-none',
+            plateOpen ? 'grow' : 'grow-0'
           )}
-          <div className="flex items-center gap-3">
-            {tab === 'search' && (
-              <div className="min-w-0 flex-1">
-                <SearchInput
-                  value={search}
-                  onValueChange={onSearchChange}
-                  placeholder="Search for a food"
-                  aria-label="Search for a food"
-                />
+        >
+          <PlatePanel
+            open={plateOpen}
+            date={logDate}
+            plate={plate}
+            plateTotals={plateTotals}
+            dayTotals={totals}
+            target={target}
+            isLogging={isLogging}
+            onRemove={onRemoveFromPlate}
+            onAddFoods={() => setPlateOpen(false)}
+            onLog={() => {
+              if (!isLogging) onLogPlate()
+            }}
+          />
+        </div>
+
+        <div
+          className={cn(
+            'bg-card flex min-h-0 flex-col rounded-t-3xl transition-[flex-grow] duration-300 ease-out motion-reduce:transition-none',
+            plateOpen ? 'grow-0' : 'grow'
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className="bg-foreground/20 mx-auto mt-2 mb-1 h-1 w-10 shrink-0 rounded-full"
+          />
+          {(!detailOpen || plateOpen) && (
+            <Tabs value={tab} onValueChange={(next) => onTabChange(next as AddTab)}>
+              <TabsList variant="line" className="w-full overflow-x-auto border-b">
+                {TABS.map(({ value, label, icon: Icon }) => (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    onClick={() => setPlateOpen(false)}
+                    className="h-11 flex-1 gap-1 px-1 text-[13px] whitespace-nowrap group-data-horizontal/tabs:after:bottom-0 focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline-none"
+                  >
+                    <Icon aria-hidden="true" className="size-3.5" /> {label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
+          {/* Thân tab thu về 0 khi plate mở nhưng vẫn mount để giữ trạng thái (camera, ô tìm, món đang xem). */}
+          <div
+            inert={plateOpen}
+            className={cn(
+              'flex min-h-0 basis-0 flex-col overflow-hidden transition-[flex-grow,opacity] duration-300 ease-out motion-reduce:transition-none',
+              plateOpen ? 'grow-0 opacity-0' : 'grow opacity-100'
+            )}
+          >
+            {error && (
+              <div className="px-4 pb-2">
+                <FormErrorAlert title="Couldn't add food" message={error} />
               </div>
             )}
-            {plate.length > 0 && (
-              <Button
-                className={
-                  tab === 'search'
-                    ? 'h-12 shrink-0 rounded-full px-5 text-base'
-                    : 'h-12 w-full rounded-full text-base'
-                }
-                disabled={isLogging}
-                aria-busy={isLogging}
-                onClick={() => {
-                  if (!isLogging) onLogPlate()
-                }}
-              >
-                {isLogging && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-                {isLogging
-                  ? 'Logging...'
-                  : `Log ${plate.length} ${plate.length === 1 ? 'item' : 'items'}`}
-              </Button>
+
+            {tab === 'scan' || tab === 'ai' || detailOpen ? (
+              <div className="min-h-0 flex-1">{children}</div>
+            ) : (
+              <ScrollArea className="min-h-0 flex-1">{children}</ScrollArea>
             )}
+
+            {!detailOpen &&
+              (tab === 'search' || tab === 'library' || tab === 'quick' || plate.length > 0) && (
+                <div className="bg-card space-y-2 rounded-t-2xl px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-1px_0_var(--border)]">
+                  <div className="flex items-center gap-3">
+                    {tab === 'search' && (
+                      <div className="min-w-0 flex-1">
+                        <SearchInput
+                          value={search}
+                          onValueChange={onSearchChange}
+                          placeholder="Search for a food"
+                          aria-label="Search for a food"
+                        />
+                      </div>
+                    )}
+                    {tab === 'library' && (
+                      <div className="min-w-0 flex-1">
+                        <SearchInput
+                          icon={ListFilter}
+                          value={libraryFilter.value}
+                          onValueChange={libraryFilter.onChange}
+                          placeholder={libraryFilter.placeholder}
+                          aria-label={libraryFilter.placeholder}
+                        />
+                      </div>
+                    )}
+                    {(plate.length > 0 || tab === 'search' || tab === 'library') && (
+                      <Button
+                        className={
+                          tab === 'search' || tab === 'library'
+                            ? 'h-12 shrink-0 rounded-full px-5 text-base'
+                            : 'h-12 w-full rounded-full text-base'
+                        }
+                        disabled={isLogging || plate.length === 0}
+                        aria-busy={isLogging}
+                        onClick={() => {
+                          if (!isLogging) onLogPlate()
+                        }}
+                      >
+                        {isLogging && (
+                          <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                        )}
+                        {isLogging ? 'Logging...' : 'Log Foods'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
           </div>
         </div>
       </DialogContent>

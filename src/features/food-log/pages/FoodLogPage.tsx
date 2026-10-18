@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+import { routePath } from '@/config/route-path'
 import {
   useAddEntry,
   useAddNote,
@@ -10,25 +12,32 @@ import {
   useDayLog,
   useDeleteEntry,
   useDeleteNote,
+  useAiPlate,
+  useLibrary,
   useQuickAdd,
-  useSetDayStatus,
   useUpdateEntry,
   useUpdateNote,
 } from '../hooks/use-food-log'
 import {
   AddFoodDialog,
+  AiPanel,
   BarcodeSheet,
+  ScanPanel,
+  LibraryPanel,
   CalendarSheet,
   CopyDialog,
+  DateTimeSheet,
   DayTimeline,
   EntryEditDialog,
   FoodLogHeader,
+  MoreSheet,
   FoodSearchPanel,
-  type FoodView,
   NoteSheet,
   NotesSection,
   QuickAddPanel,
+  targetsByKey,
   type AddTab,
+  type LibraryView,
   type QuickAddValues,
 } from '../components/FoodLogPage'
 import type {
@@ -40,14 +49,20 @@ import type {
   UpdateEntryRequest,
 } from '../types/food-log.types'
 import { toNotes } from '../types/food-log.types'
-import { useBarcodeLookup, useFoodDetail, useFoodSearch } from '@/features/foods/hooks/use-foods'
+import {
+  useBarcodeLookup,
+  useFoodDetail,
+  useFoodNutrients,
+  useFoodSearch,
+} from '@/features/foods/hooks/use-foods'
+import type { FoodDetail } from '@/features/foods/types/food.types'
 import {
   useAddFavorite,
   useFavorites,
   useRemoveFavorite,
-  useReorderFavorites,
 } from '@/features/foods/hooks/use-favorites'
-import { loggerTileOptions, timelineTileOptions } from '../food-log-settings'
+import { loggerTileOptions, timelineTileOptions, type TileOptions } from '../food-log-settings'
+import { usePersistedChoice } from '@/features/dashboard/hooks/use-dashboard'
 import { useFoodLogSettings } from '../hooks/use-food-log-settings'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -55,13 +70,22 @@ import { ErrorState } from '@/components/shared/ErrorState'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { DashboardSearchBar } from '@/features/dashboard/components/DashboardPage'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MEAL_TYPE, mealForTime, type FoodCategory, type MealType } from '@/config/enums'
+import { mealForTime, type MealType } from '@/config/enums'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useIsClient } from '@/hooks/use-is-client'
+import { useSheet } from '@/hooks/use-sheet'
 import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
 import { useUiStore } from '@/stores/ui.store'
 
 const SEARCH_PAGE = 25
+const VISIBILITY = ['show', 'hide'] as const
+/** Hide Food Details: ô món chỉ còn tên và kcal (tắt macro, khẩu phần, khối lượng). */
+const HIDDEN_DETAILS = (options: TileOptions): TileOptions => ({
+  ...options,
+  showMacros: false,
+  showWeight: false,
+  showServing: false,
+})
 const EMPTY_TOTALS: MacroTotals = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
 
 /** Giờ hiện tại dạng HH:mm (chỉ gọi trong event handler/khởi tạo state, không trong render). */
@@ -82,22 +106,39 @@ export function FoodLogPage() {
   const [tab, setTab] = useState<AddTab>('search')
   // Giờ ăn là nguồn chính; bữa suy ra từ giờ (đổi giờ thì bữa đổi theo, mở từ nút + của bữa thì giờ lấy theo bữa).
   const [eatenAt, setEatenAt] = useState<string>(nowHourMinute)
+  // Ngày ghi do bảng Select Date and Time chọn; null = ngày đang xem trên timeline.
+  const [logDate, setLogDate] = useState<string | null>(null)
   const [meal, setMeal] = useState<MealType>(() => mealForTime(nowHourMinute()))
   const [search, setSearch] = useState('')
-  const [view, setView] = useState<FoodView>('all')
-  const [category, setCategory] = useState<FoodCategory | null>(null)
   const [top, setTop] = useState(SEARCH_PAGE)
+  const [libraryView, setLibraryView] = useState<LibraryView>('foods')
+  const [libraryFilter, setLibraryFilter] = useState('')
+  const [libraryTop, setLibraryTop] = useState(SEARCH_PAGE)
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [plate, setPlate] = useState<PlateItem[]>([])
   const [isLoggingPlate, setIsLoggingPlate] = useState(false)
-  const [editing, setEditing] = useState<FoodLogEntry | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<FoodLogEntry | null>(null)
+  // Bảng này còn mount sau khi đóng để hoạt ảnh trượt xuống kịp chạy (useSheet).
+  const editSheet = useSheet<FoodLogEntry>()
+  const editing = editSheet.value ?? null
   const [copyOpen, setCopyOpen] = useState(false)
   const [clearOpen, setClearOpen] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
-  const [barcodeOpen, setBarcodeOpen] = useState(false)
+  const barcodeSheet = useSheet<true>()
+  const dateTimeSheet = useSheet<true>()
+  const moreSheet = useSheet<true>()
+  const [hideDetails, setHideDetails] = usePersistedChoice(
+    'food-log.hideDetails',
+    'show',
+    VISIBILITY
+  )
+  const [hideEmptyHours, setHideEmptyHours] = usePersistedChoice(
+    'food-log.hideEmptyHours',
+    'show',
+    VISIBILITY
+  )
   // Ghi chú đang mở trong bảng: undefined = đóng, null = thêm mới, còn lại = sửa.
-  const [noteEditor, setNoteEditor] = useState<FoodLogNote | null | undefined>(undefined)
+  const noteSheet = useSheet<FoodLogNote | null>()
+  const noteEditor = noteSheet.value
   const [settings] = useFoodLogSettings()
   // Giờ hiện tại cho chấm "Now" trên timeline: chốt lúc mở trang (đổi giờ thì lần mở sau sẽ cập nhật).
   const [currentHour] = useState(() => new Date().getHours())
@@ -108,19 +149,33 @@ export function FoodLogPage() {
   const foods = useFoodSearch(
     {
       search: debouncedSearch || undefined,
-      category: category ?? undefined,
-      scope: view === 'mine' ? 'Mine' : 'All',
       top,
     },
-    addOpen && tab === 'search' && view !== 'favorites'
+    addOpen && tab === 'search'
   )
-  // Lazy: yêu thích chỉ tải khi sheet Thêm món mở ở tab tìm món.
-  const favorites = useFavorites(addOpen && tab === 'search')
+  // Lazy: món tự tạo chỉ tải khi Library mở ở ngăn Foods; yêu thích khi ở tab tìm món hoặc ngăn ♥.
+  const myFoods = useFoodSearch(
+    { scope: 'Mine', top: libraryTop },
+    addOpen && tab === 'library' && libraryView === 'foods'
+  )
+  const favorites = useFavorites(
+    editSheet.open ||
+      (addOpen && (tab === 'search' || (tab === 'library' && libraryView === 'favorites')))
+  )
+  // Recipe lọc tên ở server; debounce để không gọi lại mỗi phím.
+  const debouncedLibraryFilter = useDebounce(libraryFilter.trim(), 300)
+  const recipes = useLibrary(
+    { scope: 'Recipes', search: debouncedLibraryFilter || undefined, top: libraryTop },
+    addOpen && tab === 'library' && libraryView === 'recipes'
+  )
   const addFavorite = useAddFavorite()
   const removeFavorite = useRemoveFavorite()
-  const reorderFavorites = useReorderFavorites()
   const picked = useFoodDetail(pickedId)
+  // Target/floor/ceiling của ngày đang log, một lần cho mỗi món xem; lỗi (BE chưa có) thì các chất hiện "No Target".
+  const foodNutrients = useFoodNutrients(pickedId, date)
+  const router = useRouter()
   const editingFood = useFoodDetail(editing?.foodItemId ?? null)
+  const editingNutrients = useFoodNutrients(editing?.foodItemId ?? null, date)
 
   const addEntry = useAddEntry()
   const updateEntry = useUpdateEntry()
@@ -128,21 +183,33 @@ export function FoodLogPage() {
   const quickAdd = useQuickAdd()
   const copyLog = useCopyLog()
   const clearDay = useClearDay()
-  const setStatus = useSetDayStatus()
   const addNote = useAddNote()
   const updateNote = useUpdateNote()
   const deleteNote = useDeleteNote()
   const barcode = useBarcodeLookup()
+  const aiPlate = useAiPlate()
 
   /** Mở bảng Thêm món; `time` (HH:mm) là giờ ăn, mặc định giờ hiện tại, bữa suy ra từ giờ. */
   const openAdd = (time: string = nowHourMinute()) => {
     setEatenAt(time)
+    setLogDate(null)
     setMeal(mealForTime(time))
     setPickedId(null)
     addEntry.reset()
     quickAdd.reset()
     setAddOpen(true)
   }
+
+  /** Tra mã vạch (quét hoặc nhập tay): tìm thấy thì chuyển sang tab Search với món đó đang được chọn. */
+  const lookupBarcode = (code: string, onFound?: () => void) =>
+    barcode.mutate(code, {
+      onSuccess: (food) => {
+        if (!food) return
+        onFound?.()
+        setTab('search')
+        setPickedId(food.id)
+      },
+    })
 
   const openCopy = () => {
     copyLog.reset()
@@ -151,26 +218,56 @@ export function FoodLogPage() {
 
   const openEdit = (entry: FoodLogEntry) => {
     updateEntry.reset()
-    setEditing(entry)
+    editSheet.show(entry)
   }
 
-  const logPlate = async () => {
-    if (!date || plate.length === 0) return
+  /** `when` ghi đè ngày giờ cho lần này ("Log to Date and Time"); không có thì dùng ngày giờ đang chọn ở bảng Thêm món. */
+  const logPlate = async (
+    items: PlateItem[] = plate,
+    when?: { readonly date: string; readonly time: string }
+  ) => {
+    if (!date || items.length === 0) return
+    const targetDate = when?.date ?? logDate ?? date
+    const targetTime = when?.time ?? eatenAt
+    const targetMeal = when ? mealForTime(when.time) : meal
     setIsLoggingPlate(true)
     try {
       // Tuần tự: song song sẽ cùng tạo FoodLog của ngày và đụng unique (UserId, LogDate)
-      for (const item of plate) {
-        await addEntry.mutateAsync({
-          logDate: date,
-          mealType: meal,
-          eatenAt: `${eatenAt}:00`,
-          foodItemId: item.foodItemId,
-          foodServingId: item.foodServingId,
-          quantity: item.quantity,
-        })
+      for (const item of items) {
+        if (item.recipeId) {
+          // Recipe: chỉ gửi recipeId + số khẩu phần, gửi thêm foodServingId/foodItemId là BE trả 400
+          await addEntry.mutateAsync({
+            logDate: targetDate,
+            mealType: targetMeal,
+            eatenAt: `${targetTime}:00`,
+            recipeId: item.recipeId,
+            quantity: item.quantity,
+          })
+        } else if (item.foodItemId) {
+          await addEntry.mutateAsync({
+            logDate: targetDate,
+            mealType: targetMeal,
+            eatenAt: `${targetTime}:00`,
+            foodItemId: item.foodItemId,
+            foodServingId: item.foodServingId,
+            quantity: item.quantity,
+          })
+        } else {
+          // Ước lượng của AI không có món trong thư viện: log bằng Quick Add
+          await quickAdd.mutateAsync({
+            logDate: targetDate,
+            mealType: targetMeal,
+            eatenAt: `${targetTime}:00`,
+            name: item.name,
+            calories: item.calories,
+            protein: item.protein,
+            carbs: item.carbs,
+            fat: item.fat,
+          })
+        }
         setPlate((current) => current.filter((candidate) => candidate.key !== item.key))
       }
-      toast.success(`Added ${plate.length} ${plate.length === 1 ? 'item' : 'items'}`)
+      toast.success(`Added ${items.length} ${items.length === 1 ? 'item' : 'items'}`)
       setAddOpen(false)
     } catch {
       // lỗi hiện inline trong sheet (addEntry.error); các món chưa log vẫn nằm trong plate để thử lại
@@ -179,16 +276,39 @@ export function FoodLogPage() {
     }
   }
 
-  const onQuickAdd = (values: QuickAddValues) => {
-    if (!date) return
-    quickAdd.mutate(
-      { logDate: date, mealType: meal, eatenAt: `${eatenAt}:00`, ...values },
-      { onSuccess: () => setAddOpen(false) }
-    )
+  /** "Log Foods" ở Food Detail: thêm món đang xem vào plate rồi ghi cả plate (món lỗi vẫn nằm trong plate để thử lại). */
+  const logFromDetail = (item: PlateItem) => {
+    setPlate((current) => [...current, item])
+    setPickedId(null)
+    void logPlate([...plate, item])
   }
 
+  /** "To Custom": mở trang Create Food điền sẵn từ món này (sửa tuỳ ý rồi Create / Create & Add). */
+  const copyToCustom = (food: FoodDetail) => {
+    setAddOpen(false)
+    router.push(`${routePath.foodNew}?from=${food.id}`)
+  }
+
+  /** Quick Add thêm vào plate (như món khác); ghi vào nhật ký khi bấm Log Foods (món không có foodItemId log bằng Quick Add). */
+  const onQuickAdd = (values: QuickAddValues) =>
+    setPlate((current) => [
+      ...current,
+      {
+        key: `quick-${Date.now()}`,
+        foodItemId: null,
+        name: values.name ?? 'Quick add',
+        foodServingId: null,
+        servingLabel: 'Quick add',
+        quantity: 1,
+        calories: values.calories,
+        protein: values.protein,
+        carbs: values.carbs,
+        fat: values.fat,
+      },
+    ])
+
   const onSaveEntry = (id: string, payload: UpdateEntryRequest) =>
-    updateEntry.mutate({ id, payload }, { onSuccess: () => setEditing(null) })
+    updateEntry.mutate({ id, payload }, { onSuccess: () => editSheet.hide() })
 
   const onCopy = (payload: CopyRequest) =>
     copyLog.mutate(payload, {
@@ -224,19 +344,7 @@ export function FoodLogPage() {
       calendarScrolling={settings.calendarScrolling}
       calendarOpen={calendarOpen}
       onCalendarToggle={() => setCalendarOpen((open) => !open)}
-      status={day.data?.status ?? 'Unmarked'}
-      onStatusChange={(status) =>
-        setStatus.mutate(
-          { date, status },
-          { onError: (error) => toast.error(getFormErrorMessage(error)) }
-        )
-      }
-      hasEntries={entries.length > 0}
-      onCopy={openCopy}
-      onClear={() => {
-        clearDay.reset()
-        setClearOpen(true)
-      }}
+      onMore={() => moreSheet.show(true)}
     />
   )
 
@@ -269,6 +377,7 @@ export function FoodLogPage() {
       ) : (
         <>
           <DayTimeline
+            key={date}
             entries={entries}
             firstHour={settings.hourRangeFirst}
             lastHour={settings.hourRangeLast}
@@ -277,7 +386,12 @@ export function FoodLogPage() {
             showHourlyTotals={settings.showHourlyTotals}
             alignRight={settings.alignment === 'Right'}
             longPressToAdd={settings.addFoodsToHour === 'LongPress'}
-            tileSettings={timelineTileOptions(settings)}
+            tileSettings={
+              hideDetails === 'hide'
+                ? HIDDEN_DETAILS(timelineTileOptions(settings))
+                : timelineTileOptions(settings)
+            }
+            hideEmptyHours={hideEmptyHours === 'hide'}
             onAddAt={openAdd}
             onSelectEntry={openEdit}
           />
@@ -285,11 +399,11 @@ export function FoodLogPage() {
             notes={toNotes(day.data.notes)}
             onAdd={() => {
               addNote.reset()
-              setNoteEditor(null)
+              noteSheet.show(null)
             }}
             onSelect={(note) => {
               updateNote.reset()
-              setNoteEditor(note)
+              noteSheet.show(note)
             }}
           />
         </>
@@ -300,15 +414,36 @@ export function FoodLogPage() {
           onSearch={() => openAdd()}
           onScan={() => {
             barcode.reset()
-            setBarcodeOpen(true)
+            setTab('scan')
+            openAdd()
+          }}
+        />
+      )}
+
+      {moreSheet.value && date && (
+        <MoreSheet
+          key={moreSheet.id}
+          open={moreSheet.open}
+          onOpenChange={moreSheet.onOpenChange}
+          hasEntries={entries.length > 0}
+          hideFoodDetails={hideDetails === 'hide'}
+          hideEmptyHours={hideEmptyHours === 'hide'}
+          onHideFoodDetailsChange={(hide) => setHideDetails(hide ? 'hide' : 'show')}
+          onHideEmptyHoursChange={(hide) => setHideEmptyHours(hide ? 'hide' : 'show')}
+          onCopyDay={openCopy}
+          onSelectAll={() => toast('Selecting foods is coming soon')}
+          onClearDay={() => {
+            clearDay.reset()
+            setClearOpen(true)
           }}
         />
       )}
 
       {noteEditor !== undefined && date && (
         <NoteSheet
-          open
-          onOpenChange={(open) => !open && setNoteEditor(undefined)}
+          key={noteSheet.id}
+          open={noteSheet.open}
+          onOpenChange={noteSheet.onOpenChange}
           note={noteEditor}
           defaultTime={nowHourMinute()}
           isPending={addNote.isPending || updateNote.isPending || deleteNote.isPending}
@@ -321,36 +456,51 @@ export function FoodLogPage() {
             noteEditor
               ? updateNote.mutate(
                   { id: noteEditor.id, payload: { text, notedAt } },
-                  { onSuccess: () => setNoteEditor(undefined) }
+                  { onSuccess: () => noteSheet.hide() }
                 )
               : addNote.mutate(
                   { logDate: date, text, notedAt },
-                  { onSuccess: () => setNoteEditor(undefined) }
+                  { onSuccess: () => noteSheet.hide() }
                 )
           }
-          onDelete={(note) =>
-            deleteNote.mutate(note.id, { onSuccess: () => setNoteEditor(undefined) })
+          onDelete={(note) => deleteNote.mutate(note.id, { onSuccess: () => noteSheet.hide() })}
+        />
+      )}
+
+      {barcodeSheet.value && (
+        <BarcodeSheet
+          key={barcodeSheet.id}
+          open={barcodeSheet.open}
+          onOpenChange={barcodeSheet.onOpenChange}
+          isPending={barcode.isPending}
+          error={barcode.error ? getFormErrorMessage(barcode.error) : null}
+          onLookup={(code) =>
+            lookupBarcode(code, () => {
+              barcodeSheet.hide()
+            })
           }
         />
       )}
 
-      {barcodeOpen && (
-        <BarcodeSheet
-          open
-          onOpenChange={(open) => !open && setBarcodeOpen(false)}
-          isPending={barcode.isPending}
-          error={barcode.error ? getFormErrorMessage(barcode.error) : null}
-          onLookup={(code) =>
-            barcode.mutate(code, {
-              onSuccess: (food) => {
-                if (!food) return
-                setBarcodeOpen(false)
-                setTab('search')
-                openAdd()
-                setPickedId(food.id)
-              },
-            })
-          }
+      {dateTimeSheet.value && date && today && (
+        <DateTimeSheet
+          key={dateTimeSheet.id}
+          open={dateTimeSheet.open}
+          onOpenChange={dateTimeSheet.onOpenChange}
+          today={today}
+          date={logDate ?? date}
+          time={eatenAt}
+          canLog={plate.length > 0}
+          isLogging={isLoggingPlate}
+          onSelect={(nextDate, time) => {
+            setLogDate(nextDate)
+            setEatenAt(time)
+            setMeal(mealForTime(time))
+          }}
+          onLog={(nextDate, time) => {
+            dateTimeSheet.hide()
+            void logPlate(plate, { date: nextDate, time })
+          }}
         />
       )}
 
@@ -360,39 +510,107 @@ export function FoodLogPage() {
         tab={tab}
         onTabChange={setTab}
         meal={meal}
+        logDate={logDate ?? date ?? ''}
         eatenAt={eatenAt}
-        onEatenAtChange={(time) => {
-          setEatenAt(time)
-          setMeal(mealForTime(time))
-        }}
+        onTimeClick={() => dateTimeSheet.show(true)}
         search={search}
         onSearchChange={(value) => {
           setSearch(value)
           setTop(SEARCH_PAGE)
+        }}
+        detailOpen={tab === 'search' && Boolean(pickedId)}
+        libraryFilter={{
+          value: libraryFilter,
+          placeholder: `Filter ${libraryView}`,
+          onChange: (value) => {
+            setLibraryFilter(value)
+            setLibraryTop(SEARCH_PAGE)
+          },
         }}
         plate={plate}
         totals={day.data?.totals}
         target={day.data?.target}
         settings={settings}
         isLogging={isLoggingPlate}
-        error={addEntry.error ? getFormErrorMessage(addEntry.error) : null}
+        error={
+          addEntry.error
+            ? getFormErrorMessage(addEntry.error)
+            : quickAdd.error && tab !== 'quick'
+              ? getFormErrorMessage(quickAdd.error)
+              : null
+        }
         onRemoveFromPlate={(key) =>
           setPlate((current) => current.filter((item) => item.key !== key))
         }
         onLogPlate={() => void logPlate()}
       >
-        {tab === 'search' ? (
-          <FoodSearchPanel
-            view={view}
+        {tab === 'scan' ? (
+          <ScanPanel
+            active={addOpen && !barcodeSheet.open}
+            isLookingUp={barcode.isPending}
+            error={barcode.error ? getFormErrorMessage(barcode.error) : null}
+            onCode={(code) => lookupBarcode(code)}
+            onManual={() => {
+              barcode.reset()
+              barcodeSheet.show(true)
+            }}
+          />
+        ) : tab === 'ai' ? (
+          <AiPanel
+            active={addOpen && tab === 'ai'}
+            isAnalyzing={aiPlate.isAnalyzing}
+            error={aiPlate.error ? getFormErrorMessage(aiPlate.error) : null}
+            dishes={aiPlate.dishes}
+            states={aiPlate.states}
+            dayTotals={day.data?.totals}
+            target={day.data?.target}
+            onAnalyze={aiPlate.analyze}
+            onRetryIngredient={aiPlate.retryIngredient}
+            onStartOver={aiPlate.reset}
+            onLog={(items, confirmations) => {
+              setPlate((current) => [...current, ...items])
+              aiPlate.confirm(confirmations)
+              aiPlate.reset()
+              setTab('search')
+            }}
+            onPreviewSample={
+              process.env.NODE_ENV === 'development' ? aiPlate.previewSample : undefined
+            }
+          />
+        ) : tab === 'library' ? (
+          <LibraryPanel
+            view={libraryView}
             onViewChange={(next) => {
-              setView(next)
-              setTop(SEARCH_PAGE)
+              setLibraryView(next)
+              setLibraryFilter('')
+              setLibraryTop(SEARCH_PAGE)
             }}
-            category={category}
-            onCategoryChange={(next) => {
-              setCategory(next)
-              setTop(SEARCH_PAGE)
+            filter={libraryFilter}
+            onClearFilter={() => setLibraryFilter('')}
+            recipes={recipes.data?.items ? [...recipes.data.items] : []}
+            recipesTotal={recipes.data?.totalCount ?? null}
+            isRecipesLoading={recipes.isLoading}
+            isRecipesFetching={recipes.isFetching}
+            onLoadMoreRecipes={() => setLibraryTop((current) => current + SEARCH_PAGE)}
+            foods={myFoods.data?.items ? [...myFoods.data.items] : []}
+            foodsTotal={myFoods.data?.totalCount ?? null}
+            isFoodsLoading={myFoods.isLoading}
+            isFoodsFetching={myFoods.isFetching}
+            onLoadMoreFoods={() => setLibraryTop((current) => current + SEARCH_PAGE)}
+            favorites={favorites.data ?? []}
+            isFavoritesLoading={favorites.isLoading}
+            tileOptions={loggerTileOptions(settings)}
+            createFoodHref={routePath.foodNew}
+            createRecipeHref={routePath.recipeNew}
+            onNavigate={() => setAddOpen(false)}
+            onPickFood={(food) => {
+              setPickedId(food.id)
+              setTab('search')
             }}
+            onAddToPlate={(item) => setPlate((current) => [...current, item])}
+          />
+        ) : tab === 'search' ? (
+          <FoodSearchPanel
             search={search}
             onSearchChange={(value) => {
               setSearch(value)
@@ -413,34 +631,66 @@ export function FoodLogPage() {
               addFavorite.mutate({ foodItemId, foodServingId, quantity })
             }
             onRemoveFavorite={(id) => removeFavorite.mutate(id)}
-            onReorderFavorites={(ids) => reorderFavorites.mutate(ids)}
             tileOptions={loggerTileOptions(settings)}
             onAddToPlate={(item) => {
               setPlate((current) => [...current, item])
               setPickedId(null)
             }}
+            detail={{
+              targets: targetsByKey(foodNutrients.data?.items),
+              isTargetsLoading: foodNutrients.isLoading,
+              isLogging: isLoggingPlate,
+              onLogFoods: logFromDetail,
+              onCopyToCustom: copyToCustom,
+              isCopyPending: false,
+            }}
           />
         ) : (
-          <QuickAddPanel
-            isPending={quickAdd.isPending}
-            error={quickAdd.error ? getFormErrorMessage(quickAdd.error) : null}
-            onSubmit={onQuickAdd}
-          />
+          <QuickAddPanel onAdd={onQuickAdd} />
         )}
       </AddFoodDialog>
 
       <EntryEditDialog
+        key={editSheet.id}
         entry={editing}
+        open={editSheet.open}
         food={editingFood.data ?? undefined}
         isFoodLoading={editingFood.isLoading}
         isPending={updateEntry.isPending}
         error={updateEntry.error ? getFormErrorMessage(updateEntry.error) : null}
-        onOpenChange={(open) => !open && setEditing(null)}
+        totals={day.data?.totals}
+        target={day.data?.target}
+        banner={settings}
+        today={date ?? ''}
+        targets={targetsByKey(editingNutrients.data?.items)}
+        isTargetsLoading={editingNutrients.isLoading}
+        favorites={favorites.data ?? []}
+        isFavoritePending={addFavorite.isPending || removeFavorite.isPending}
+        onAddFavorite={(foodItemId, foodServingId, quantity) =>
+          addFavorite.mutate({ foodItemId, foodServingId, quantity })
+        }
+        onRemoveFavorite={(id) => removeFavorite.mutate(id)}
+        onCopyToCustom={(food) => {
+          editSheet.hide()
+          // Dòng không có món trong thư viện (Quick Add / AI / recipe): điền sẵn tên và macro của dòng thay vì mở theo id món
+          if (editing && editing.foodItemId === null) {
+            const query = new URLSearchParams({
+              name: editing.foodName,
+              calories: String(editing.calories),
+              protein: String(editing.protein),
+              carbs: String(editing.carbs),
+              fat: String(editing.fat),
+            })
+            router.push(`${routePath.foodNew}?${query.toString()}`)
+          } else router.push(`${routePath.foodNew}?from=${food.id}`)
+        }}
+        onOpenChange={editSheet.onOpenChange}
         onSave={onSaveEntry}
         onRequestDelete={(entry) => {
+          // Xoá luôn không hỏi: đóng màn sửa (trượt xuống) và món co lại trên timeline
           deleteEntry.reset()
-          setEditing(null)
-          setDeleteTarget(entry)
+          editSheet.hide()
+          deleteEntry.mutate(entry.id)
         }}
       />
 
@@ -455,27 +705,6 @@ export function FoodLogPage() {
           onCopy={onCopy}
         />
       )}
-
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete this food?"
-        description={
-          deleteTarget
-            ? `Delete ${deleteTarget.foodName} (${MEAL_TYPE[deleteTarget.mealType]}) from your food log. The original food is kept.`
-            : ''
-        }
-        confirmLabel="Delete food"
-        pendingLabel="Deleting..."
-        isPending={deleteEntry.isPending}
-        onConfirm={() =>
-          deleteTarget &&
-          deleteEntry.mutate(deleteTarget.id, {
-            onSuccess: () => setDeleteTarget(null),
-            onError: () => setDeleteTarget(null),
-          })
-        }
-      />
 
       <ConfirmDialog
         open={clearOpen}

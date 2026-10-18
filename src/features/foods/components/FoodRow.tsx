@@ -21,7 +21,7 @@ export function FoodRow({ food, onSelect, onQuickAdd, trailing }: FoodRowProps) 
         onClick={() => onSelect(food)}
         className="hover:bg-muted/60 active:bg-muted focus-visible:ring-ring/50 flex min-h-16 min-w-0 flex-1 items-center gap-3 py-2.5 pr-2 pl-4 text-left transition-colors focus-visible:ring-1 focus-visible:outline-none focus-visible:ring-inset"
       >
-        <FoodIcon name={food.name} category={food.category} />
+        <FoodIcon name={food.name} category={food.category} iconKey={food.iconKey} />
         <span className="min-w-0 flex-1">
           <span className="line-clamp-2 text-base leading-snug font-medium md:text-sm">
             {food.name}

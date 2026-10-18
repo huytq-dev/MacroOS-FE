@@ -211,7 +211,7 @@ export function DashboardPage() {
         />
       ))}
       <MoreSection />
-      <DashboardSearchBar onSearch={searchFood} />
+      <DashboardSearchBar onSearch={searchFood} autoHide />
     </div>
   )
 }

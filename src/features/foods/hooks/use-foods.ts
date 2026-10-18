@@ -30,6 +30,19 @@ export const useFoodDetail = (id: string | null) =>
     staleTime: 5 * 60 * 1000,
   })
 
+/**
+ * Target/floor/ceiling hiệu lực của ngày `date` cho mọi chất (màn Food Detail). Không phụ thuộc số lượng nên gọi một lần theo
+ * món + ngày; lượng từng chất do FE tính tại chỗ từ `nutrientsPer100g`.
+ */
+export const useFoodNutrients = (id: string | null, date: string | null) =>
+  useQuery({
+    queryKey: [...foodKeys.detail(id ?? ''), 'nutrients', date],
+    queryFn: () => foodService.nutrients(id ?? '', date ?? ''),
+    enabled: Boolean(id) && Boolean(date),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+
 const useFoodMutation = <TVariables>(
   mutationFn: (variables: TVariables) => Promise<unknown>,
   successMessage: string
@@ -48,8 +61,8 @@ const useFoodMutation = <TVariables>(
   })
 }
 
-export const useCreateFood = () =>
-  useFoodMutation((payload: CustomFoodRequest) => foodService.create(payload), 'Food created')
+export const useCreateFood = (successMessage = 'Food created') =>
+  useFoodMutation((payload: CustomFoodRequest) => foodService.create(payload), successMessage)
 export const useUpdateFood = () =>
   useFoodMutation(
     ({ id, payload }: { id: string; payload: CustomFoodRequest }) =>
