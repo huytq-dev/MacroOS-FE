@@ -37,6 +37,7 @@ const emptyForm: CustomFoodFormValues = {
   proteinPer100g: Number.NaN,
   carbsPer100g: Number.NaN,
   fatPer100g: Number.NaN,
+  iconKey: null,
   servingName: '',
   servingGrams: undefined,
 }
@@ -82,6 +83,7 @@ export function FoodsPage() {
       proteinPer100g: food.nutrition.proteinPer100g,
       carbsPer100g: food.nutrition.carbsPer100g,
       fatPer100g: food.nutrition.fatPer100g,
+      iconKey: food.iconKey ?? null,
       servingName: '',
       servingGrams: undefined,
     })
@@ -98,6 +100,7 @@ export function FoodsPage() {
       brand: values.brand?.trim() || null,
       category: values.category,
       barcode: null,
+      iconKey: values.iconKey ?? null,
       nutrition: {
         caloriesPer100g: values.caloriesPer100g,
         proteinPer100g: values.proteinPer100g,

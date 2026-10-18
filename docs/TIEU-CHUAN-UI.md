@@ -3,23 +3,25 @@
 Nguồn: đo thực tế trên các trang chuẩn của app (Nhân sự, Hệ thống) và trang Tuyển dụng sau khi đã chỉnh.
 App là công cụ nghiệp vụ nhiều dữ liệu, nên **chữ nhỏ, gọn, mật độ cao**. Không dùng cỡ chữ của trang marketing.
 Quy tắc chọn thành phần (dropdown có tìm kiếm, trường form, tệp đính kèm, trang công khai) nằm ở `UI.md`.
+
 > **Ưu tiên mobile**: app dùng chủ yếu trên iPhone 17 Pro Max (440×956). Số đo `h-8`, `text-xs` dưới đây là của **desktop (≥ md)**; trên mobile control cao `h-11`, chữ input `text-base` (16px, tránh iOS zoom), chạm ≥ 44px, dialog dạng bottom sheet — xem mục "Mobile-first" trong `.rules`.
-Bổ sung cho `.rules` (mục Styling, Focus Ring, Animation, Fixed Viewport Layout), không thay thế.
+> Bổ sung cho `.rules` (mục Styling, Focus Ring, Animation, Fixed Viewport Layout), không thay thế.
 
 ## 1. Thang cỡ chữ
 
 Gốc `html` là 16px. Chỉ dùng các cỡ dưới đây; không tự đặt `text-[Npx]` ngoài danh sách.
 
-| Vai trò | Class | Px | Weight | Dùng cho |
-|---|---|---|---|---|
-| Tiêu đề trang | `text-base font-semibold` | 16 | 600 | `h1` duy nhất của trang, tiêu đề dialog/sheet |
-| Tiêu đề mục | `text-sm font-semibold` | 14 | 600 | `h2` trong form, tiêu đề card/panel |
-| Nội dung chính | `text-xs` | 12 | 400/500 | Label, input, ô bảng, tab, menu, nút phụ, mô tả |
-| Chữ phụ | `text-[11px]` | 11 | 400 | Gợi ý dưới ô nhập, chú thích, thời gian, badge nhỏ |
-| Nhấn nút chính | `text-sm font-medium` | 14 | 500 | Nút hành động chính (Thêm, Lưu), tiêu đề empty state |
-| Số liệu tổng quan (KPI) | `text-lg font-semibold tabular-nums` | 18 | 600 | Số trên thẻ thống kê; **tối đa 18px**, riêng số lớn duy nhất của trang tổng quan được `text-2xl` |
+| Vai trò                 | Class                                | Px  | Weight  | Dùng cho                                                                                         |
+| ----------------------- | ------------------------------------ | --- | ------- | ------------------------------------------------------------------------------------------------ |
+| Tiêu đề trang           | `text-base font-semibold`            | 16  | 600     | `h1` duy nhất của trang, tiêu đề dialog/sheet                                                    |
+| Tiêu đề mục             | `text-sm font-semibold`              | 14  | 600     | `h2` trong form, tiêu đề card/panel                                                              |
+| Nội dung chính          | `text-xs`                            | 12  | 400/500 | Label, input, ô bảng, tab, menu, nút phụ, mô tả                                                  |
+| Chữ phụ                 | `text-[11px]`                        | 11  | 400     | Gợi ý dưới ô nhập, chú thích, thời gian, badge nhỏ                                               |
+| Nhấn nút chính          | `text-sm font-medium`                | 14  | 500     | Nút hành động chính (Thêm, Lưu), tiêu đề empty state                                             |
+| Số liệu tổng quan (KPI) | `text-lg font-semibold tabular-nums` | 18  | 600     | Số trên thẻ thống kê; **tối đa 18px**, riêng số lớn duy nhất của trang tổng quan được `text-2xl` |
 
 Quy tắc:
+
 - Không dùng `text-xl` trở lên cho nội dung thường. Trang không có "hero".
 - Một trang chỉ có một `h1`. Không dùng `text-2xl` làm tiêu đề trang.
 - Số trong bảng, thống kê, phân trang dùng `tabular-nums`.
@@ -30,13 +32,13 @@ Quy tắc:
 
 ## 2. Kích thước control
 
-| Thành phần | Chiều cao | Ghi chú |
-|---|---|---|
-| Input, select, combobox | `h-8` (32px) | Chữ `text-xs`; ô nhập nhiều dòng `min-h-20` |
-| Nút thường / nút chính | `h-8` (32px) | Icon `size-4`, khoảng cách `gap-1.5` |
-| Tab / chip lọc | `h-7` (28px) | Chữ `text-xs font-medium`, đếm số đi kèm cùng dòng |
-| Thanh tiêu đề trang | `h-6` dòng chữ, `py` nhỏ | Không padding lớn quanh `h1` |
-| Hàng bảng | 24 – 32px | Header `text-xs` màu `text-muted-foreground` |
+| Thành phần              | Chiều cao                | Ghi chú                                            |
+| ----------------------- | ------------------------ | -------------------------------------------------- |
+| Input, select, combobox | `h-8` (32px)             | Chữ `text-xs`; ô nhập nhiều dòng `min-h-20`        |
+| Nút thường / nút chính  | `h-8` (32px)             | Icon `size-4`, khoảng cách `gap-1.5`               |
+| Tab / chip lọc          | `h-7` (28px)             | Chữ `text-xs font-medium`, đếm số đi kèm cùng dòng |
+| Thanh tiêu đề trang     | `h-6` dòng chữ, `py` nhỏ | Không padding lớn quanh `h1`                       |
+| Hàng bảng               | 24 – 32px                | Header `text-xs` màu `text-muted-foreground`       |
 
 Focus, `aria-invalid`, animation theo `.rules`. Không tự đặt `ring-2`.
 

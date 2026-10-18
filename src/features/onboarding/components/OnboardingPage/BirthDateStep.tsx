@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { StepHeading } from './ChoiceStep'
 import { BadgeAlert } from './SolidIcons'
-import { WheelPicker } from './WheelPicker'
+import { WheelPicker } from '@/components/shared/WheelPicker'
 import { ageOn } from '../../onboarding.utils'
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => ({

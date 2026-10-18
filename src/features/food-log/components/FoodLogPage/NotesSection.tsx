@@ -1,5 +1,7 @@
 import { Plus } from 'lucide-react'
+import { CollapseItem } from '@/components/shared/CollapseItem'
 import { Button } from '@/components/ui/button'
+import { useExitingList } from '@/hooks/use-exiting-list'
 import type { FoodLogNote } from '../../types/food-log.types'
 
 interface NotesSectionProps {
@@ -10,6 +12,7 @@ interface NotesSectionProps {
 
 /** Ghi chú của ngày: tiêu đề + nút + tròn trắng, bên dưới là các ghi chú (chạm để sửa) hoặc "No notes to display". */
 export function NotesSection({ notes, onAdd, onSelect }: NotesSectionProps) {
+  const rows = useExitingList(notes, (note) => note.id)
   return (
     <section aria-labelledby="notes-heading" className="space-y-3">
       <div className="flex items-center justify-between">
@@ -24,14 +27,14 @@ export function NotesSection({ notes, onAdd, onSelect }: NotesSectionProps) {
           <Plus aria-hidden="true" className="size-6" />
         </Button>
       </div>
-      {notes.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="bg-card text-muted-foreground rounded-xl px-4 py-4 text-base">
           No notes to display
         </p>
       ) : (
-        <ul className="space-y-2">
-          {notes.map((note) => (
-            <li key={note.id}>
+        <ul>
+          {rows.map(({ item: note, key, entering, leaving }) => (
+            <CollapseItem key={key} gap entering={entering} leaving={leaving}>
               <button
                 type="button"
                 onClick={() => onSelect(note)}
@@ -44,7 +47,7 @@ export function NotesSection({ notes, onAdd, onSelect }: NotesSectionProps) {
                 )}
                 <span className="block whitespace-pre-wrap">{note.text}</span>
               </button>
-            </li>
+            </CollapseItem>
           ))}
         </ul>
       )}

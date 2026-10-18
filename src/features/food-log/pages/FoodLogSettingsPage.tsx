@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { toast } from 'sonner'
 import {
   ChoiceSheet,
@@ -16,6 +15,7 @@ import {
   type FoodLogSettings,
   type SettingChoice,
 } from '../food-log-settings'
+import { useSheet } from '@/hooks/use-sheet'
 import { useFoodLogSettings } from '../hooks/use-food-log-settings'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
 import { routePath } from '@/config/route-path'
@@ -77,7 +77,8 @@ const currentLabel = (key: ChoiceKey, settings: FoodLogSettings) =>
  */
 export function FoodLogSettingsPage() {
   const [settings, update] = useFoodLogSettings()
-  const [editing, setEditing] = useState<ChoiceKey | 'hourRange' | null>(null)
+  const sheet = useSheet<ChoiceKey | 'hourRange'>()
+  const editing = sheet.value
   const comingSoon = () => toast('This setting is coming soon')
 
   /** Cờ bool trong bảng chọn dùng giá trị chuỗi 'true' / 'false'; còn lại là chuỗi enum của BE. */
@@ -102,14 +103,14 @@ export function FoodLogSettingsPage() {
         <SettingRow
           title="Hour Range"
           detail={`${hourLabel(settings.hourRangeFirst)} - ${hourLabel(settings.hourRangeLast)}`}
-          onEdit={() => setEditing('hourRange')}
+          onEdit={() => sheet.show('hourRange')}
         />
         {TIMELINE_ROWS.map(([key, title]) => (
           <SettingRow
             key={key}
             title={title}
             detail={currentLabel(key, settings)}
-            onEdit={() => setEditing(key)}
+            onEdit={() => sheet.show(key)}
           />
         ))}
       </SettingsSection>
@@ -120,7 +121,7 @@ export function FoodLogSettingsPage() {
             key={key}
             title={title}
             detail={currentLabel(key, settings)}
-            onEdit={() => setEditing(key)}
+            onEdit={() => sheet.show(key)}
           />
         ))}
       </SettingsSection>
@@ -150,22 +151,47 @@ export function FoodLogSettingsPage() {
         <SettingRow
           title="Optimization"
           detail={currentLabel('optimization', settings)}
-          onEdit={() => setEditing('optimization')}
+          onEdit={() => sheet.show('optimization')}
         />
       </SettingsSection>
 
+      {/* Ghi công bộ icon món ăn: CC BY 4.0 bắt buộc nêu nguồn, giấy phép và việc đã chỉnh sửa (tô màu lại) */}
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        Food icons ©{' '}
+        <a
+          href="https://foodiconpack.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-foreground underline underline-offset-2"
+        >
+          foodiconpack.com
+        </a>
+        , licensed under{' '}
+        <a
+          href="https://creativecommons.org/licenses/by/4.0/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-foreground underline underline-offset-2"
+        >
+          CC BY 4.0
+        </a>
+        . Recolored for MacroOS.
+      </p>
+
       {editing === 'hourRange' && (
         <HourRangeSheet
-          open
-          onOpenChange={(open) => !open && setEditing(null)}
+          key={sheet.id}
+          open={sheet.open}
+          onOpenChange={sheet.onOpenChange}
           value={{ first: settings.hourRangeFirst, last: settings.hourRangeLast }}
           onSave={(range) => update({ hourRangeFirst: range.first, hourRangeLast: range.last })}
         />
       )}
       {editing && editing !== 'hourRange' && (
         <ChoiceSheet
-          open
-          onOpenChange={(open) => !open && setEditing(null)}
+          key={sheet.id}
+          open={sheet.open}
+          onOpenChange={sheet.onOpenChange}
           title={titleOf(editing)}
           subtitle={FOOD_LOG_SUBTITLE[editing]}
           preview={editing === 'weekBanner' ? <WeekBannerPreview /> : undefined}

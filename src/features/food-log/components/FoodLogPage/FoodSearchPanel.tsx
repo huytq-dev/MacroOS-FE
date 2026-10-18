@@ -8,18 +8,11 @@ import {
   type FoodSummary,
 } from '@/features/foods/types/food.types'
 import type { FavoriteFood } from '@/features/foods/types/favorite.types'
-import { normalizeSearchText } from '@/components/shared/searchable-options'
-import { ListFilter } from 'lucide-react'
-import { useState } from 'react'
-import { FOOD_CATEGORY, enumOptions, type FoodCategory } from '@/config/enums'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { TileOptions } from '../../food-log-settings'
 import type { PlateItem } from '../../types/food-log.types'
 import { FoodTile, type FoodTileData } from './FoodTile'
-import { FoodPicker } from './FoodPicker'
-import { FavoriteList } from './FavoriteList'
+import { FoodDetailView, type FoodDetailExtras } from './FoodDetail'
 import { FavoritesBar } from './FavoritesBar'
 
 /** Dữ liệu ô món từ kết quả tìm kiếm: số theo khẩu phần mặc định (khẩu phần "1 cup" hoặc gram) và khối lượng của nó. */
@@ -34,27 +27,16 @@ const tileDataOfFood = (food: FoodSummary): FoodTileData => ({
     : `${food.defaultServingGrams} g`,
   weightText: `${Math.round(food.defaultServingGrams)} g`,
   emoji: food.emoji ?? null,
+  iconKey: food.iconKey ?? null,
 })
 
 /** Khoá dòng plate phải khác nhau mỗi lần thêm (cùng món thêm nhiều lần); chỉ gọi trong sự kiện bấm. */
 const newPlateKey = (id: string) => `${id}-${Date.now()}`
 
-export type FoodView = 'all' | 'recent' | 'favorites' | 'mine'
-
-const VIEWS: readonly { value: FoodView; label: string; title: string }[] = [
-  { value: 'all', label: 'All', title: 'Foods' },
-  { value: 'recent', label: 'Recents', title: 'Recent foods' },
-  { value: 'favorites', label: 'Favorites', title: 'Favorites' },
-  { value: 'mine', label: 'Mine', title: 'Custom foods' },
-]
-
 interface FoodSearchPanelProps {
-  readonly view: FoodView
-  readonly onViewChange: (view: FoodView) => void
-  readonly category: FoodCategory | null
-  readonly onCategoryChange: (category: FoodCategory | null) => void
   readonly search: string
   readonly onSearchChange: (value: string) => void
+  /** Kết quả tìm kiếm; khi chưa gõ gì thì BE đã xếp theo lần log gần nhất và panel chỉ giữ các món từng log làm "History". */
   readonly items: FoodSummary[]
   readonly totalCount: number | null
   readonly isLoading: boolean
@@ -71,14 +53,16 @@ interface FoodSearchPanelProps {
   readonly isFavoritePending: boolean
   readonly onAddFavorite: (foodItemId: string, servingId: string | null, quantity: number) => void
   readonly onRemoveFavorite: (id: string) => void
-  readonly onReorderFavorites: (ids: string[]) => void
+  /** Phần của màn Food Detail do trang quyết định (mục tiêu, ghi log ngay, sao chép thành món tự tạo). */
+  readonly detail: FoodDetailExtras
 }
 
+/**
+ * Tab Search (kiểu MacroFactor): chưa gõ thì hiện Favorites (nếu có) và "History" — các món đã từng log, mới nhất trước; chưa có
+ * món nào thì thẻ "No history yet / Search for foods below". Gõ ở ô tìm dưới đáy thì hiện "Results". Chọn một món để chọn
+ * khẩu phần, hoặc nút + để thêm ngay khẩu phần mặc định vào plate. Không có bộ lọc nguồn/nhóm món.
+ */
 export function FoodSearchPanel({
-  view,
-  onViewChange,
-  category,
-  onCategoryChange,
   search,
   onSearchChange,
   items,
@@ -96,14 +80,12 @@ export function FoodSearchPanel({
   isFavoritePending,
   onAddFavorite,
   onRemoveFavorite,
-  onReorderFavorites,
+  detail,
 }: FoodSearchPanelProps) {
-  const [showFilters, setShowFilters] = useState(false)
-
   if (pickedId) {
     if (!picked) return <Skeleton className="m-4 h-56 rounded-2xl" aria-busy="true" />
     return (
-      <FoodPicker
+      <FoodDetailView
         key={picked.id}
         food={picked}
         onBack={onBack}
@@ -112,6 +94,7 @@ export function FoodSearchPanel({
         isFavoritePending={isFavoritePending}
         onAddFavorite={(servingId, quantity) => onAddFavorite(picked.id, servingId, quantity)}
         onRemoveFavorite={onRemoveFavorite}
+        {...detail}
       />
     )
   }
@@ -130,6 +113,9 @@ export function FoodSearchPanel({
       protein: scaleNutrition(food.proteinPer100g, food.defaultServingGrams),
       carbs: scaleNutrition(food.carbsPer100g, food.defaultServingGrams),
       fat: scaleNutrition(food.fatPer100g, food.defaultServingGrams),
+      emoji: food.emoji ?? null,
+      iconKey: food.iconKey ?? null,
+      grams: food.defaultServingGrams,
     })
 
   const quickAddFavorite = (favorite: FavoriteFood) =>
@@ -149,100 +135,27 @@ export function FoodSearchPanel({
     })
 
   const isSearching = search.trim() !== ''
-  const shownFavorites = isSearching
-    ? favorites.filter((item) =>
-        normalizeSearchText(item.foodName).includes(normalizeSearchText(search))
-      )
-    : favorites
-  const shown = view === 'recent' ? items.filter((item) => item.lastLoggedAt) : items
-  const title = VIEWS.find((item) => item.value === view)?.title
+  const shown = isSearching ? items : items.filter((item) => item.lastLoggedAt)
+  const noHistory = !isSearching && !isLoading && shown.length === 0
 
   return (
-    <div>
-      <div className="flex items-center gap-3 px-4 pt-3">
-        <ToggleGroup
-          type="single"
-          value={view}
-          onValueChange={(next) => next && onViewChange(next as FoodView)}
-          aria-label="Food source"
-          className="bg-secondary flex-1 gap-0 rounded-full p-1"
-        >
-          {VIEWS.map((item) => (
-            <ToggleGroupItem
-              key={item.value}
-              value={item.value}
-              className="data-[state=on]:bg-foreground data-[state=on]:text-background h-10 flex-1 rounded-full px-1 text-sm md:h-8"
-            >
-              {item.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        {view !== 'favorites' && (
-          <button
-            type="button"
-            aria-label="Filter by category"
-            aria-pressed={showFilters || category !== null}
-            onClick={() => setShowFilters((current) => !current)}
-            className={cn(
-              'bg-secondary focus-visible:ring-ring/50 flex size-12 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none md:size-9',
-              category !== null && 'bg-foreground text-background'
-            )}
-          >
-            <ListFilter aria-hidden="true" className="size-5" />
-          </button>
-        )}
-      </div>
-
-      {showFilters && view !== 'favorites' && (
-        <ToggleGroup
-          type="single"
-          value={category ?? 'all'}
-          onValueChange={(next) =>
-            next && onCategoryChange(next === 'all' ? null : (next as FoodCategory))
-          }
-          aria-label="Food category"
-          className="flex justify-start gap-2 overflow-x-auto overscroll-x-contain px-4 pt-3"
-        >
-          {[{ value: 'all', label: 'All categories' }, ...enumOptions(FOOD_CATEGORY)].map(
-            (option) => (
-              <ToggleGroupItem
-                key={option.value}
-                value={option.value}
-                className="bg-secondary data-[state=on]:bg-foreground data-[state=on]:text-background h-9 shrink-0 rounded-full px-4 text-sm"
-              >
-                {option.label}
-              </ToggleGroupItem>
-            )
-          )}
-        </ToggleGroup>
-      )}
-
-      {view === 'favorites' ? (
-        <FavoriteList
-          favorites={shownFavorites}
-          isFiltered={isSearching}
-          onQuickAdd={quickAddFavorite}
-          onReorder={onReorderFavorites}
-          onRemove={onRemoveFavorite}
-        />
+    <div className="pb-4">
+      {!isSearching && <FavoritesBar favorites={favorites} onQuickAdd={quickAddFavorite} />}
+      {noHistory ? (
+        <div className="bg-card mx-4 mt-4 rounded-xl px-4 py-4">
+          <p className="text-base font-medium">No history yet</p>
+          <p className="text-muted-foreground text-sm">Search for foods below</p>
+        </div>
       ) : (
         <>
-          {view === 'all' && !isSearching && category === null && (
-            <FavoritesBar favorites={favorites} onQuickAdd={quickAddFavorite} />
-          )}
-          <h3 className="px-4 pt-4 text-lg font-semibold md:text-sm">
-            {isSearching ? 'Results' : title}
-          </h3>
+          <h3 className="px-4 pt-4 text-xl font-bold">{isSearching ? 'Results' : 'History'}</h3>
           <FoodList
             items={shown}
-            totalCount={view === 'recent' ? shown.length : totalCount}
+            totalCount={isSearching ? totalCount : shown.length}
             isLoading={isLoading}
             isFetching={isFetching}
-            isFiltered={isSearching || category !== null}
-            onClearFilters={() => {
-              onSearchChange('')
-              onCategoryChange(null)
-            }}
+            isFiltered={isSearching}
+            onClearFilters={() => onSearchChange('')}
             onSelect={onPick}
             onQuickAdd={quickAdd}
             renderRow={(food) => (

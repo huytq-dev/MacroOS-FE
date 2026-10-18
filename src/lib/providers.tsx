@@ -10,10 +10,15 @@ import { queryClient } from './query-client'
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <NextThemesProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <NextThemesProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
         <TooltipProvider>
           {children}
-          <Toaster richColors position="bottom-right" />
+          <Toaster position="top-center" />
           {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
         </TooltipProvider>
       </NextThemesProvider>

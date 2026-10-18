@@ -1,3 +1,4 @@
+import { Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import type { MacroTotals } from '../../types/food-log.types'
@@ -13,6 +14,8 @@ interface AddFoodProgressProps {
   /** Chất nào hiện trên banner (Logger Banner); mặc định chỉ kcal như MacroFactor. */
   readonly show: { calories: boolean; protein: boolean; fat: boolean; carbs: boolean }
   readonly display: BannerDisplay
+  /** stack = hai hàng theo cột (kcal, P / F, C) trong thanh đầu bảng Thêm món; row = một hàng ngang rộng (màn sửa món đã log). */
+  readonly layout?: 'stack' | 'row'
 }
 
 interface Cell {
@@ -29,7 +32,14 @@ const STUB = ' '
  * chất có số và thanh mảnh. PlateOnly: "plate / mục tiêu"; AllDayAndPlate: "cả ngày + plate / mục tiêu"; RemainingAfterPlate:
  * "còn lại sau plate". Chỉ một chất thì hiện trong viên thuốc viền. Vượt mục tiêu không đổi đỏ (BR-18), thanh dừng ở đầy.
  */
-export function AddFoodProgress({ totals, target, plate, show, display }: AddFoodProgressProps) {
+export function AddFoodProgress({
+  totals,
+  target,
+  plate,
+  show,
+  display,
+  layout = 'stack',
+}: AddFoodProgressProps) {
   const all: (Cell & { on: boolean })[] = [
     {
       key: 'calories',
@@ -65,8 +75,14 @@ export function AddFoodProgress({ totals, target, plate, show, display }: AddFoo
   }
   return (
     <dl
+      style={
+        layout === 'row'
+          ? { gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }
+          : undefined
+      }
       className={cn(
-        'grid min-w-0 flex-1 grid-flow-col grid-rows-2 gap-x-3 gap-y-1.5 transition-[grid-template-columns] duration-300',
+        'grid min-w-0 flex-1 gap-x-3 gap-y-1.5 transition-[grid-template-columns] duration-300',
+        layout === 'row' ? 'grid-flow-row grid-rows-1' : 'grid-flow-col grid-rows-2',
         single && 'grid-rows-1'
       )}
       aria-label="Daily progress"
@@ -84,28 +100,44 @@ export function AddFoodProgress({ totals, target, plate, show, display }: AddFoo
             key={cell.key}
             className={cn(
               'motion-safe:animate-in motion-safe:fade-in-0 min-w-0 motion-safe:duration-300',
-              single &&
-                'border-foreground/15 flex items-center justify-center rounded-full border-2 px-4 py-2'
+              single && 'flex flex-col justify-center'
             )}
           >
             <dt className="sr-only">{cell.key}</dt>
-            <dd className="truncate text-xs tabular-nums">
-              <span className={cn(single ? 'text-base' : 'font-medium')}>{text}</span>
-              {cell.suffix && (
+            <dd
+              className={cn('truncate tabular-nums', single ? 'text-center text-base' : 'text-xs')}
+            >
+              {/* Hàng ngang (màn sửa món): ký hiệu đứng trước số, calo là ngọn lửa; hai hàng (thanh Thêm món): chữ đứng sau */}
+              {layout === 'row' &&
+                (cell.key === 'calories' ? (
+                  <Flame
+                    aria-hidden="true"
+                    fill="currentColor"
+                    className="mr-1 mb-0.5 inline size-3.5"
+                  />
+                ) : (
+                  <span className="mr-1 font-bold">{cell.suffix}</span>
+                ))}
+              <span className="font-medium">{text}</span>
+              {layout !== 'row' && cell.suffix && (
                 <span className="text-muted-foreground">
                   {STUB}
                   {cell.suffix}
                 </span>
               )}
             </dd>
-            {!single && (
-              <div className="bg-muted h-1 overflow-hidden rounded-full" aria-hidden="true">
-                <div
-                  className={cn('h-full rounded-full transition-[width] duration-300', cell.bar)}
-                  style={{ width: `${percent}%` }}
-                />
-              </div>
-            )}
+            <div
+              className={cn(
+                'bg-muted overflow-hidden rounded-full',
+                single ? 'mt-1.5 h-1.5' : 'h-1'
+              )}
+              aria-hidden="true"
+            >
+              <div
+                className={cn('h-full rounded-full transition-[width] duration-300', cell.bar)}
+                style={{ width: `${percent}%` }}
+              />
+            </div>
           </div>
         )
       })}

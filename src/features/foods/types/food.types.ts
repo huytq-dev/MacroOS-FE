@@ -38,6 +38,8 @@ export interface FoodSummary {
   lastLoggedAt: string | null
   /** Emoji đại diện món (BE suy từ nhóm món); null hoặc thiếu thì hiện 🍽️. */
   emoji?: string | null
+  /** Khoá icon trong bộ icon món ăn (BE sẽ trả); có thì thay emoji bằng ảnh (xem `FoodIcon`). */
+  iconKey?: string | null
 }
 
 export interface FoodDetail {
@@ -50,8 +52,44 @@ export interface FoodDetail {
   isVerified: boolean
   isMine: boolean
   imageUrl: string | null
+  /** Emoji đại diện món (BE sẽ thêm vào chi tiết món); thiếu thì hiện 🍽️. */
+  emoji?: string | null
+  /** Khoá icon trong bộ icon món ăn (BE sẽ trả). */
+  iconKey?: string | null
   nutrition: FoodNutrition
+  /** Mọi chất trên 100 g theo khoá danh mục dinh dưỡng của FE (đơn vị theo danh mục); null = chưa có dữ liệu, 0 = biết bằng 0. */
+  nutrientsPer100g?: Record<string, number | null>
   servings: FoodServing[]
+}
+
+// Khớp BE NutrientAmountModel / FoodNutrientsResponse (GET /foods/{id}/nutrients): target hiệu lực của ngày hỏi
+export interface NutrientAmount {
+  code: string
+  name: string
+  unit: string
+  group: string
+  displayOrder: number
+  displayPrecision: number
+  /** null = chưa có dữ liệu (khác 0). */
+  amount: number | null
+  floor: number | null
+  target: number | null
+  ceiling: number | null
+  percentOfTarget: number | null
+  isCore: boolean
+  /** Khoá của danh mục dinh dưỡng FE; null với chất không thuộc danh mục. */
+  key: string | null
+}
+
+export interface FoodNutrientsResponse {
+  foodItemId: string
+  foodName: string
+  servingId: string | null
+  servingName: string
+  quantity: number
+  grams: number
+  date: string
+  items: NutrientAmount[]
 }
 
 // Khớp BE SearchFoodsQuery
@@ -75,7 +113,11 @@ export interface CustomFoodRequest {
   brand: string | null
   category: FoodCategory
   barcode: string | null
+  /** Khoá icon trong bộ icon món ăn (tuỳ chọn); null/thiếu = BE tự gán theo tên món. */
+  iconKey?: string | null
   nutrition: FoodNutrition
+  /** Các chất ngoài 4 macro (trên 100 g, theo mã chất của BE); thiếu = chỉ dùng `nutrition`. */
+  nutrients?: { code: string; amountPer100g: number }[] | null
   servings: FoodServingInput[] | null
 }
 

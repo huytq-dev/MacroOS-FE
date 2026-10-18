@@ -19,6 +19,8 @@ export const customFoodSchema = z
     proteinPer100g: macro('protein', 100),
     carbsPer100g: macro('carbs', 100),
     fatPer100g: macro('fat', 100),
+    /** Khoá icon trong bộ icon món ăn; null = để BE tự gán theo tên món. */
+    iconKey: z.string().max(64).nullable().optional(),
     servingName: z.string().max(100).optional(),
     servingGrams: z.number().min(0.1, 'At least 0.1 g').max(10000, 'Max 10000 g').optional(),
   })

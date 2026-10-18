@@ -3,6 +3,7 @@ import { apiRoutes } from '@/config/api-routes'
 import type { ProgramType } from '@/config/enums'
 import type {
   CreateProgramRequest,
+  GoalHistoryItem,
   Program,
   UpdateProgramGoalRequest,
 } from '../types/program.types'
@@ -15,4 +16,7 @@ export const programService = {
   setManualExpenditure: (tdeeKcal: number) =>
     apiCall.put(apiRoutes.programs.expenditure, { tdeeKcal }),
   end: () => apiCall.delete(apiRoutes.programs.current),
+  goalHistory: () => apiCall.get<GoalHistoryItem[]>(apiRoutes.goals.history),
+  updateGoalTarget: (targetWeightKg: number | null) =>
+    apiCall.put(apiRoutes.goals.target, { targetWeightKg }),
 }

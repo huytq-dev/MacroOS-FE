@@ -1,0 +1,290 @@
+'use client'
+
+import { useRef, useState } from 'react'
+import { ArrowLeftRight, Flame, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { MACRO_KEYS, type EntryMode, type MacroKey, type QuantityUnit } from './food-detail.utils'
+
+const UNIT_LABEL: Record<Exclude<QuantityUnit, 'serving'>, string> = { g: 'g', oz: 'oz' }
+
+const CHIP =
+  'focus-visible:ring-ring/50 h-11 shrink-0 rounded-full px-4 text-base transition-colors focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100'
+
+const FIELD =
+  'bg-secondary focus-within:ring-foreground flex h-12 min-w-0 items-center rounded-lg transition-shadow focus-within:ring-2'
+
+const MACRO_LABEL: Record<MacroKey, string> = {
+  calories: 'Calories',
+  protein: 'P',
+  fat: 'F',
+  carbs: 'C',
+}
+
+interface QuantityBarProps {
+  readonly quantity: string
+  readonly onQuantityChange: (value: string) => void
+  readonly unit: QuantityUnit
+  readonly onUnitChange: (unit: Exclude<QuantityUnit, 'serving'>) => void
+  /** Các khẩu phần của món (chip cuộn ngang); rỗng = món chỉ nhập gram / oz. */
+  readonly servings: readonly { readonly id: string; readonly name: string }[]
+  readonly servingId: string
+  readonly onSelectServing: (id: string) => void
+  /** Tên khẩu phần đang chọn; null = món chưa có khẩu phần. */
+  readonly servingName: string | null
+  /** Khối lượng của lượng đang nhập (g), hiện cạnh tên khẩu phần khi ô nhập đang focus. */
+  readonly grams: number
+  readonly valid: boolean
+  readonly isLogging: boolean
+  readonly onLogFoods: () => void
+  readonly onAdd: () => void
+  readonly mode: EntryMode
+  readonly onModeChange: (mode: EntryMode) => void
+  readonly macroKey: MacroKey
+  readonly onMacroKeyChange: (key: MacroKey) => void
+  /** Số calo / gram macro đang gõ ở chế độ macro. */
+  readonly macroText: string
+  readonly onMacroTextChange: (text: string) => void
+  /** Chất nào món có dữ liệu (>0 trên 100 g); chip chất thiếu bị khoá vì không suy ngược ra lượng được. */
+  readonly macroAvailable: Readonly<Record<MacroKey, boolean>>
+  /** add = Log Foods + Add (thêm món); edit = chỉ nút Done (sửa món đã log, `onAdd` là hàm lưu). */
+  readonly variant?: 'add' | 'edit'
+  /** Hiện chip g / oz; tắt cho món không rõ khối lượng (dòng Quick Add / AI) — chỉ còn chip "serving" như MacroFactor. */
+  readonly showWeightUnits?: boolean
+}
+
+/**
+ * Thanh đáy dính của Food Detail. Chế độ lượng: ô số lượng + tên khẩu phần (bấm mở bảng chọn), chip g / oz / các khẩu phần mở ra
+ * phía trên khi ô đang focus. Chế độ macro (nút đảo ↔): hai ô, trái là calo hoặc macro muốn ăn (chip 🔥 P F C), phải là lượng suy
+ * ra theo khẩu phần; gõ 200 kcal thì lượng tự tính. Chip và nút đảo giữ focus của ô nhập khi bấm.
+ */
+export function QuantityBar({
+  quantity,
+  onQuantityChange,
+  unit,
+  onUnitChange,
+  servings,
+  servingId,
+  onSelectServing,
+  servingName,
+  grams,
+  valid,
+  isLogging,
+  onLogFoods,
+  onAdd,
+  mode,
+  onModeChange,
+  macroKey,
+  onMacroKeyChange,
+  macroText,
+  onMacroTextChange,
+  macroAvailable,
+  variant = 'add',
+  showWeightUnits = true,
+}: QuantityBarProps) {
+  const [focused, setFocused] = useState(false)
+  const amountInput = useRef<HTMLInputElement>(null)
+  const macroInput = useRef<HTMLInputElement>(null)
+  const keepFocus = (event: React.PointerEvent) => event.preventDefault()
+  const suffix = unit === 'serving' ? (servingName ?? '') : UNIT_LABEL[unit]
+
+  // Đổi chế độ thì ô nhập đổi (gỡ ô cũ, dựng ô mới) nên chuyển focus sang ô mới để bàn phím và hàng chip không đóng.
+  const toggleMode = () => {
+    const next: EntryMode = mode === 'amount' ? 'macro' : 'amount'
+    onModeChange(next)
+    requestAnimationFrame(() => {
+      const target = next === 'macro' ? macroInput.current : amountInput.current
+      target?.focus()
+      target?.select()
+    })
+  }
+
+  // `fill`: ở chế độ macro hai nút nằm hàng riêng và chia đều chiều ngang
+  const actions = (fill: boolean) =>
+    variant === 'edit' ? (
+      <Button
+        className={cn('h-12 shrink-0 rounded-lg px-6 text-base', fill && 'flex-1')}
+        disabled={!valid || isLogging}
+        aria-busy={isLogging}
+        onClick={onAdd}
+      >
+        {isLogging && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+        Done
+      </Button>
+    ) : (
+      <>
+        <Button
+          variant="secondary"
+          className={cn('h-12 shrink-0 rounded-lg px-4 text-base', fill && 'flex-1')}
+          disabled={!valid || isLogging}
+          aria-busy={isLogging}
+          onClick={onLogFoods}
+        >
+          {isLogging && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+          Log Foods
+        </Button>
+        <Button
+          className={cn('h-12 shrink-0 rounded-lg px-5 text-base', fill && 'flex-1')}
+          disabled={!valid || isLogging}
+          onClick={onAdd}
+        >
+          Add
+        </Button>
+      </>
+    )
+
+  return (
+    <div className="bg-card border-border shrink-0 border-t px-3 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
+          focused ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="overflow-hidden" inert={!focused}>
+          <div className="flex [scrollbar-width:none] items-center gap-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden">
+            <button
+              type="button"
+              aria-label={mode === 'amount' ? 'Enter by calories or macros' : 'Enter by amount'}
+              aria-pressed={mode === 'macro'}
+              onPointerDown={keepFocus}
+              onClick={toggleMode}
+              className={cn(CHIP, 'flex items-center bg-transparent px-2')}
+            >
+              <ArrowLeftRight aria-hidden="true" className="size-4 rotate-90" />
+            </button>
+            {mode === 'amount' ? (
+              <>
+                {(showWeightUnits ? (['g', 'oz'] as const) : []).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    aria-pressed={unit === item}
+                    onPointerDown={keepFocus}
+                    onClick={() => onUnitChange(item)}
+                    className={cn(
+                      CHIP,
+                      unit === item ? 'bg-foreground text-background font-medium' : 'bg-secondary'
+                    )}
+                  >
+                    {item}
+                  </button>
+                ))}
+                {showWeightUnits && servings.length > 0 && (
+                  <span aria-hidden="true" className="bg-border mx-1 h-8 w-px shrink-0" />
+                )}
+                {servings.map((item) => {
+                  const selected = unit === 'serving' && servingId === item.id
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onPointerDown={keepFocus}
+                      onClick={() => onSelectServing(item.id)}
+                      className={cn(
+                        CHIP,
+                        'whitespace-nowrap',
+                        selected ? 'bg-foreground text-background font-medium' : 'bg-secondary'
+                      )}
+                    >
+                      {item.name}
+                    </button>
+                  )
+                })}
+              </>
+            ) : (
+              MACRO_KEYS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={macroKey === key}
+                  aria-label={MACRO_LABEL[key]}
+                  disabled={!macroAvailable[key]}
+                  onPointerDown={keepFocus}
+                  onClick={() => onMacroKeyChange(key)}
+                  className={cn(
+                    CHIP,
+                    'min-w-14 disabled:opacity-40',
+                    macroKey === key ? 'bg-foreground text-background font-medium' : 'bg-secondary'
+                  )}
+                >
+                  {key === 'calories' ? (
+                    <Flame aria-hidden="true" fill="currentColor" className="mx-auto size-5" />
+                  ) : (
+                    MACRO_LABEL[key]
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {mode === 'amount' ? (
+        <div className="flex items-center gap-2">
+          {/* Cả ô là một nhãn: chạm đâu cũng focus ô số; đơn vị nằm bên phải, chọn đơn vị bằng chip phía trên */}
+          <label className={cn(FIELD, 'flex-1 cursor-text gap-2 px-4')}>
+            <input
+              ref={amountInput}
+              type="number"
+              inputMode="decimal"
+              step="any"
+              aria-label="Amount"
+              aria-invalid={!valid}
+              value={quantity}
+              onChange={(event) => onQuantityChange(event.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              className="w-16 shrink-0 bg-transparent text-base tabular-nums outline-none"
+            />
+            <span className="text-muted-foreground min-w-0 flex-1 truncate text-right text-base">
+              {suffix}
+              {focused && unit === 'serving' && valid && (
+                <span className="tabular-nums"> • {Math.round(grams)} g</span>
+              )}
+            </span>
+          </label>
+          {actions(false)}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className={cn(FIELD, 'w-32 shrink-0 pl-4')}>
+              <input
+                ref={macroInput}
+                type="number"
+                inputMode="decimal"
+                step="any"
+                aria-label={`${MACRO_LABEL[macroKey]} to eat`}
+                aria-invalid={!valid}
+                value={macroText}
+                onChange={(event) => onMacroTextChange(event.target.value)}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                className="min-w-0 flex-1 bg-transparent text-base tabular-nums outline-none"
+              />
+              <span className="text-muted-foreground flex w-9 shrink-0 items-center justify-center text-base">
+                {macroKey === 'calories' ? (
+                  <Flame
+                    aria-hidden="true"
+                    fill="currentColor"
+                    className="text-foreground size-5"
+                  />
+                ) : (
+                  'g'
+                )}
+              </span>
+            </div>
+            {/* Lượng suy ra theo macro (chỉ đọc): số bên trái, đơn vị đang chọn bên phải, như MacroFactor */}
+            <div className={cn(FIELD, 'text-muted-foreground flex-1 gap-3 px-4 text-base')}>
+              <span className="text-foreground tabular-nums">{quantity || '0'}</span>
+              <span className="min-w-0 flex-1 truncate text-right">{suffix}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">{actions(true)}</div>
+        </div>
+      )}
+    </div>
+  )
+}

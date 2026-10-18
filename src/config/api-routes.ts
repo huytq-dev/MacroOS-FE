@@ -29,6 +29,7 @@ export const apiRoutes = {
   foods: {
     root: '/foods', // GET ?search&category&scope&top&skip, POST
     byId: (id: string) => `/foods/${id}`, // GET, PUT, DELETE
+    nutrients: (id: string) => `/foods/${id}/nutrients`, // GET ?servingId&quantity&date → FoodNutrientsResponse (mọi chất + floor/target/ceiling của ngày)
     barcode: (code: string) => `/foods/barcode/${code}`, // GET → FoodDetail (8-14 chữ số; 404 không thấy, 502 Open Food Facts lỗi)
   },
   foodLogs: {
@@ -36,13 +37,23 @@ export const apiRoutes = {
     week: '/food-logs/week', // GET ?date (Thứ 2 → Chủ nhật của tuần chứa date)
     byDate: (date: string) => `/food-logs/${date}`, // DELETE (xoá cả ngày)
     settings: '/food-logs/settings', // GET (chưa lưu thì trả mặc định), PUT (cả object)
-    status: (date: string) => `/food-logs/${date}/status`, // PUT { status } (Unmarked|Complete|Partial|Fasting)
     notes: '/food-logs/notes', // POST { logDate?, text, notedAt? } → Guid
     note: (id: string) => `/food-logs/notes/${id}`, // PUT { text, notedAt? }, DELETE
     entries: '/food-logs/entries', // POST
     entry: (id: string) => `/food-logs/entries/${id}`, // PUT, DELETE
     quickAdd: '/food-logs/quick-add', // POST
     copy: '/food-logs/copy', // POST
+    aiAnalyze: '/food-logs/ai/analyze', // POST multipart { photos[], description } → { dishes[{ id, name, ingredients[{ id, name, grams }] }] }
+    aiConfirm: '/food-logs/ai/confirm', // POST { scanId, ingredients[{ name, foodItemId?, canonicalFoodId? }] } → { scanId, status: "Confirmed", remembered }; 404 scan lạ, 409 hết hạn
+    plateNutrients: '/food-logs/plate/nutrients', // POST { date, items[{ foodItemId?|recipeId?, foodServingId?, quantity, name?, calories?… }] } → { date, plate[], day[] } NutrientAmountModel (không ghi DB); foodServingId null = quantity là gram
+    aiResolveIngredient: '/food-logs/ai/resolve-ingredient', // POST { name, grams } → { matched, foodItemId, foodName, emoji, servingId?, quantity, unitLabel, weightGrams, calories, protein, fat, carbs, estimated? }
+  },
+  library: '/library', // GET ?scope=All|Foods|Recipes&search&top&skip → QueryResult<{ kind, id, name, brand, emoji, defaultServingId, servingName, calories, protein, carbs, fat (1 khẩu phần), updatedAt }>
+  recipes: {
+    root: '/recipes', // POST { name, servingsCount, mealType?, ingredients[{ foodItemId, foodServingId, quantity }] } → Guid; GET/PUT/DELETE /recipes/{id}
+  },
+  nutrition: {
+    overview: '/nutrition/overview', // GET ?range=today|week|month|quarter|year&date= → { items[{ key, value, target }], contributors }
   },
   onboarding: {
     root: '/onboarding', // GET (trạng thái wizard)
@@ -57,6 +68,8 @@ export const apiRoutes = {
     daily: '/expenditure/daily', // GET ?from&to (mỗi ngày: đã ăn, target, cân xu hướng)
   },
   goals: {
+    history: '/goals/history', // GET → [{ id, goalType, targetWeightKg, startWeightKg, ratePerWeekKg, startDate, endDate, status }]
+    target: '/goals/target', // PUT { targetWeightKg } (null = xoá)
     progress: '/goals/progress', // GET → { goalType, startDate, startWeightKg, targetWeightKg, currentTrendKg, ... }
   },
   weights: {

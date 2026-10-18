@@ -78,6 +78,8 @@ export const FOOD_CATEGORY = {
   Snacks: 'Snacks',
   FastFood: 'Fast food',
   Supplements: 'Supplements',
+  Spices: 'Spices',
+  Condiments: 'Condiments',
   Other: 'Other',
 } as const
 export type FoodCategory = keyof typeof FOOD_CATEGORY

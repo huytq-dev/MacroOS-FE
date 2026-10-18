@@ -1,7 +1,9 @@
 'use client'
 
 import { Controller, type UseFormReturn } from 'react-hook-form'
-import { Loader2 } from 'lucide-react'
+import { ChevronRight, Loader2 } from 'lucide-react'
+import { ChooseIconSheet } from '@/components/shared/ChooseIconSheet'
+import { FoodIcon } from '@/components/shared/FoodIcon'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { FormField } from '@/components/shared/FormField'
 import { SearchableSelect } from '@/components/shared/SearchableSelect'
@@ -16,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { FOOD_CATEGORY, enumOptions } from '@/config/enums'
+import { useSheet } from '@/hooks/use-sheet'
 import type { CustomFoodFormValues } from '../../schemas/custom-food.schema'
 
 interface CustomFoodDialogProps {
@@ -64,6 +67,8 @@ export function CustomFoodDialog({
     </FormField>
   )
 
+  const iconSheet = useSheet<true>()
+
   const submit = (values: CustomFoodFormValues) => {
     if (isPending) return
     onSubmit(values)
@@ -83,6 +88,36 @@ export function CustomFoodDialog({
           </DialogHeader>
 
           <FormErrorAlert title="Couldn't save food" message={error} />
+
+          <Controller
+            control={control}
+            name="iconKey"
+            render={({ field: { value, onChange } }) => (
+              <>
+                <button
+                  type="button"
+                  onClick={() => iconSheet.show(true)}
+                  className="bg-secondary focus-visible:ring-ring/50 active:bg-muted flex h-14 w-full items-center gap-3 rounded-lg px-3 text-left transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-[0.99]"
+                >
+                  <FoodIcon iconKey={value} size={36} />
+                  <span className="flex-1 text-base">Icon</span>
+                  <span className="text-muted-foreground flex items-center text-sm">
+                    {value ? 'Custom' : 'Auto'}
+                    <ChevronRight aria-hidden="true" className="size-4" />
+                  </span>
+                </button>
+                {iconSheet.value && (
+                  <ChooseIconSheet
+                    key={iconSheet.id}
+                    open={iconSheet.open}
+                    onOpenChange={iconSheet.onOpenChange}
+                    value={value ?? null}
+                    onSelect={onChange}
+                  />
+                )}
+              </>
+            )}
+          />
 
           <FormField
             label="Name"

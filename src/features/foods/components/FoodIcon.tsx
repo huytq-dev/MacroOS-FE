@@ -1,3 +1,4 @@
+import { FoodIcon as SharedFoodIcon } from '@/components/shared/FoodIcon'
 import { cn } from '@/lib/utils'
 import { normalizeSearchText } from '@/components/shared/searchable-options'
 import type { FoodCategory } from '@/config/enums'
@@ -71,6 +72,8 @@ const CATEGORY_EMOJI: Record<FoodCategory, string> = {
   Snacks: '🍫',
   FastFood: '🍔',
   Supplements: '💪',
+  Spices: '🧂',
+  Condiments: '🥫',
   Other: '🍽️',
 }
 
@@ -83,19 +86,18 @@ const emojiFor = (name: string, category: FoodCategory): string => {
 interface FoodIconProps {
   readonly name: string
   readonly category: FoodCategory
+  /** Khoá icon của món (BE); có thì dùng ảnh trong bộ icon, không thì emoji suy theo tên/nhóm. */
+  readonly iconKey?: string | null
   readonly className?: string
 }
 
-export function FoodIcon({ name, category, className }: FoodIconProps) {
+export function FoodIcon({ name, category, iconKey, className }: FoodIconProps) {
   return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        'flex size-12 shrink-0 items-center justify-center text-4xl leading-none',
-        className
-      )}
-    >
-      {emojiFor(name, category)}
-    </span>
+    <SharedFoodIcon
+      iconKey={iconKey}
+      emoji={emojiFor(name, category)}
+      size={48}
+      className={cn('size-12', className)}
+    />
   )
 }

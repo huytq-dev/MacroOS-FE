@@ -51,7 +51,7 @@ export function FoodDetailDialog({
             {food ? (
               <>
                 {food.brand && <span>{food.brand}</span>}
-                <Badge variant="outline">{FOOD_CATEGORY[food.category]}</Badge>
+                <Badge variant="outline">{FOOD_CATEGORY[food.category] ?? food.category}</Badge>
                 {food.isMine && (
                   <Badge
                     variant="secondary"

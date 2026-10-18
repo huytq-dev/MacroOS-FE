@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Flame } from 'lucide-react'
+import { FoodIcon } from '@/components/shared/FoodIcon'
 import type { TileOptions } from '../../food-log-settings'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +17,8 @@ export interface FoodTileData {
   /** "140 g" (tổng khối lượng); null = chưa biết. */
   readonly weightText: string | null
   readonly emoji: string | null
+  /** Khoá icon trong bộ icon món ăn; có thì hiện ảnh thay emoji. */
+  readonly iconKey?: string | null
 }
 
 export type FoodTileSettings = TileOptions
@@ -32,9 +35,10 @@ interface FoodTileProps {
 }
 
 const DENSITY = {
-  Comfort: { padding: 'px-4 py-4', emoji: 'text-4xl', name: 'text-base', gap: 'gap-4' },
-  Standard: { padding: 'px-4 py-3', emoji: 'text-3xl', name: 'text-[15px]', gap: 'gap-3' },
-  Compact: { padding: 'px-3 py-2', emoji: 'text-2xl', name: 'text-sm', gap: 'gap-3' },
+  // icon: cạnh icon món (px)
+  Comfort: { padding: 'px-4 py-4', icon: 44, name: 'text-[17px]', gap: 'gap-4' },
+  Standard: { padding: 'px-4 py-3', icon: 36, name: 'text-base', gap: 'gap-3' },
+  Compact: { padding: 'px-3 py-2', icon: 28, name: 'text-[15px]', gap: 'gap-3' },
 } as const
 
 const NAME_CLAMP = {
@@ -132,17 +136,17 @@ export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: 
 
   const main = (
     <>
-      <span
-        aria-hidden="true"
-        className={cn('shrink-0 leading-none transition-[font-size] duration-300', density.emoji)}
-      >
-        {food.emoji ?? '🍽️'}
-      </span>
+      <FoodIcon
+        iconKey={food.iconKey}
+        emoji={food.emoji}
+        size={density.icon}
+        className="transition-[width,height,font-size] duration-300"
+      />
       <span className="min-w-0 flex-1">
         <span className="flex items-start gap-2">
           <span
             className={cn(
-              'block min-w-0 flex-1 leading-snug font-medium transition-[font-size] duration-300',
+              'block min-w-0 flex-1 leading-snug font-normal transition-[font-size] duration-300',
               density.name,
               NAME_CLAMP[settings.density]
             )}
@@ -152,7 +156,7 @@ export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: 
           {highlight === 'Energy' && (
             <span
               className={cn(
-                'inline-flex shrink-0 items-center leading-snug font-medium tabular-nums',
+                'inline-flex shrink-0 items-center leading-snug font-normal tabular-nums',
                 density.name,
                 FADE_IN
               )}
@@ -162,7 +166,7 @@ export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: 
             </span>
           )}
         </span>
-        <span className="text-muted-foreground flex items-center gap-x-2 text-[13px]">
+        <span className="text-muted-foreground flex items-center gap-x-2 text-[13px] font-light">
           {hasStats && (
             <span className="inline-flex items-center gap-2 whitespace-nowrap tabular-nums">
               {showKcalInline && (

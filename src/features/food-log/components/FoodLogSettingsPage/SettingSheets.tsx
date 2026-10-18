@@ -1,10 +1,13 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SheetFrame } from '@/components/shared/SheetFrame'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { hour12Label, type SettingChoice } from '../../food-log-settings'
+
+/** Thời gian giữ bảng sau khi chọn trước khi trượt xuống, đủ để nhìn thấy lựa chọn mới. */
+const CLOSE_DELAY_MS = 180
 
 interface ChoiceSheetProps {
   readonly open: boolean
@@ -31,6 +34,13 @@ export function ChoiceSheet({
   value,
   onSelect,
 }: ChoiceSheetProps) {
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current)
+    },
+    []
+  )
   return (
     <SheetFrame
       open={open}
@@ -51,7 +61,9 @@ export function ChoiceSheet({
               aria-checked={selected}
               onClick={() => {
                 onSelect(choice.value)
-                onOpenChange(false)
+                // Chờ một nhịp để thấy vòng radio đổi sang lựa chọn mới rồi mới trượt xuống.
+                if (closeTimer.current) clearTimeout(closeTimer.current)
+                closeTimer.current = setTimeout(() => onOpenChange(false), CLOSE_DELAY_MS)
               }}
               className={cn(
                 'focus-visible:ring-ring/50 mx-4 flex min-h-16 w-[calc(100%-2rem)] items-center justify-between gap-3 py-3 text-left focus-visible:ring-1 focus-visible:outline-none',
