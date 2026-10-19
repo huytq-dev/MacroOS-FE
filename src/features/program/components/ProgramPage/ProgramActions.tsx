@@ -25,26 +25,17 @@ export interface ActionState {
   readonly error: string | null
 }
 
-export type ActionKind = 'menu' | 'goal' | 'program' | 'style' | 'tdee' | 'end'
-
-export interface GoalValues {
-  /** Cân mục tiêu (kg); null = xoá / không đặt. */
-  readonly targetWeightKg: number | null
-  /** Tốc độ %/tuần; null khi duy trì cân. */
-  readonly ratePercent: number | null
-}
+export type ActionKind = 'menu' | 'program' | 'style' | 'tdee' | 'end'
 
 interface ProgramActionsProps {
   /** Bảng đang mở; null = đóng hết. */
   readonly open: ActionKind | null
   readonly onOpenChange: (next: ActionKind | null) => void
   readonly program: Program
-  readonly goal: ActionState
   readonly programEdit: ActionState
   readonly style: ActionState
   readonly tdee: ActionState
   readonly end: ActionState
-  readonly onSaveGoal: (values: GoalValues, onDone: () => void) => void
   readonly onSaveProgram: (payload: UpdateProgramGoalRequest, onDone: () => void) => void
   readonly onChangeStyle: (programType: ProgramType, onDone: () => void) => void
   readonly onSetManualTdee: (tdeeKcal: number, onDone: () => void) => void
@@ -95,88 +86,6 @@ function Footer({
 const STYLE_CHOICES = toChoices(PROGRAM_TYPE)
 const DIET_CHOICES = toChoices(DIET_STYLE)
 const PROTEIN_CHOICES = toChoices(PROTEIN_LEVEL)
-
-function GoalBody({
-  program,
-  state,
-  onCancel,
-  onSubmit,
-}: BodyProps & { program: Program; onSubmit: (values: GoalValues) => void }) {
-  const [target, setTarget] = useState(
-    program.targetWeightKg === null ? '' : String(program.targetWeightKg)
-  )
-  const [rate, setRate] = useState(String(Math.abs(program.weeklyWeightChangeTargetPercent)))
-  const maintenance = program.goalType === 'Maintenance'
-  const targetNumber = Number(target)
-  const targetError =
-    target.trim() === '' || (targetNumber >= 20 && targetNumber <= 400)
-      ? undefined
-      : 'Enter 20 to 400 kg'
-  const rateNumber = Number(rate)
-  const rateError =
-    maintenance || (rate.trim() !== '' && rateNumber >= 0 && rateNumber <= 1.5)
-      ? undefined
-      : 'Enter 0 to 1.5 %/week'
-  return (
-    <form
-      noValidate
-      className="flex min-h-full flex-col"
-      onSubmit={(event) => {
-        event.preventDefault()
-        if (state.isPending || targetError || rateError) return
-        onSubmit({
-          targetWeightKg: target.trim() === '' ? null : targetNumber,
-          ratePercent: maintenance ? null : rateNumber,
-        })
-      }}
-    >
-      <div className="space-y-4 p-4">
-        <FormErrorAlert title="Couldn't update goal" message={state.error} />
-        <FormField label="Goal weight (kg)" hint="Optional" error={targetError}>
-          {(field) => (
-            <Input
-              {...field}
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              className={INPUT}
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
-            />
-          )}
-        </FormField>
-        {!maintenance && (
-          <FormField
-            label="Weekly rate (%/week)"
-            hint="Takes effect right away. Changing direction needs a new goal."
-            error={rateError}
-          >
-            {(field) => (
-              <Input
-                {...field}
-                type="number"
-                inputMode="decimal"
-                step="0.05"
-                min={0}
-                max={1.5}
-                className={INPUT}
-                value={rate}
-                onChange={(event) => setRate(event.target.value)}
-              />
-            )}
-          </FormField>
-        )}
-      </div>
-      <Footer
-        state={state}
-        onCancel={onCancel}
-        label="Save"
-        pendingLabel="Saving..."
-        disabled={Boolean(targetError || rateError)}
-      />
-    </form>
-  )
-}
 
 function ProgramBody({
   program,
@@ -336,19 +245,17 @@ function TdeeBody({
 
 /**
  * Các bảng trượt của tab Strategy, điều khiển từ ngoài (`open`): menu ba chấm (đổi kiểu program, TDEE thủ công, kết thúc program),
- * Edit Goal (cân mục tiêu + tốc độ), Edit Program (diet style, protein, calorie floor) và hộp xác nhận kết thúc program. Thân mỗi
+ * Edit Program (diet style, protein, calorie floor) và hộp xác nhận kết thúc program. Thân mỗi
  * bảng dựng mới sau mỗi lần mở (`session`) nên ô nhập luôn lấy lại giá trị từ program.
  */
 export function ProgramActions({
   open,
   onOpenChange,
   program,
-  goal,
   programEdit,
   style,
   tdee,
   end,
-  onSaveGoal,
   onSaveProgram,
   onChangeStyle,
   onSetManualTdee,
@@ -391,21 +298,6 @@ export function ProgramActions({
             </button>
           </li>
         </ul>
-      </SheetFrame>
-
-      <SheetFrame
-        open={isOpen('goal')}
-        onOpenChange={onChange('goal', goal)}
-        title="Edit Goal"
-        showDone={false}
-      >
-        <GoalBody
-          key={session}
-          program={program}
-          state={goal}
-          onCancel={close}
-          onSubmit={(values) => onSaveGoal(values, close)}
-        />
       </SheetFrame>
 
       <SheetFrame

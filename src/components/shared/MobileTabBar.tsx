@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { Apple, CircleEllipsis, LayoutDashboard, Plus, type LucideIcon } from 'lucide-react'
 import { routePath } from '@/config/route-path'
 import { useUiStore } from '@/stores/ui.store'
@@ -47,13 +47,7 @@ const RIGHT_TABS: readonly TabItem[] = [
 
 export function MobileTabBar() {
   const pathname = usePathname()
-  const router = useRouter()
-  const setAddFoodOpen = useUiStore((state) => state.setAddFoodOpen)
-
-  const openAddFood = () => {
-    setAddFoodOpen(true)
-    if (pathname !== routePath.foodLog) router.push(routePath.foodLog)
-  }
+  const setShortcutsOpen = useUiStore((state) => state.setShortcutsOpen)
 
   const renderTab = ({ icon: Icon, label, href }: TabItem) => {
     const active = pathname === href || pathname.startsWith(`${href}/`)
@@ -87,8 +81,9 @@ export function MobileTabBar() {
       <div className="flex flex-1 justify-center">
         <button
           type="button"
-          onClick={openAddFood}
-          aria-label="Add food"
+          onClick={() => setShortcutsOpen(true)}
+          aria-label="Shortcuts"
+          aria-haspopup="dialog"
           className="bg-primary text-primary-foreground focus-visible:ring-ring/50 mt-2 flex size-11 items-center justify-center rounded-full transition-transform focus-visible:ring-1 focus-visible:outline-none active:scale-95"
         >
           <Plus className="size-6" strokeWidth={2} aria-hidden="true" />

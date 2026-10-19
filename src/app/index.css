@@ -52,6 +52,13 @@
   --color-mf-pastel-red-text: var(--mf-pastel-red-text);
   --color-mf-pastel-purple: var(--mf-pastel-purple);
   --color-mf-pastel-purple-text: var(--mf-pastel-purple-text);
+  --color-shortcut-red: var(--shortcut-red);
+  --color-shortcut-orange: var(--shortcut-orange);
+  --color-shortcut-yellow: var(--shortcut-yellow);
+  --color-shortcut-green: var(--shortcut-green);
+  --color-shortcut-teal: var(--shortcut-teal);
+  --color-shortcut-blue: var(--shortcut-blue);
+  --color-shortcut-purple: var(--shortcut-purple);
   --color-mf-warning-bg: var(--mf-warning-bg);
   --color-mf-warning-border: var(--mf-warning-border);
   --color-mf-warning-text: var(--mf-warning-text);
@@ -92,5 +99,21 @@
   }
   html {
     @apply font-sans;
+    /* Cảm giác như app: bỏ chờ 300ms của double-tap-zoom, bỏ ô sáng khi chạm, không tự phóng chữ khi xoay ngang */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  /* Phản hồi tức thì khi chạm cho mọi nút (kể cả nút tự viết chưa có active:*); màn cảm ứng mới áp dụng */
+  @media (pointer: coarse) {
+    button:not(:disabled):active,
+    [role='button']:not([aria-disabled='true']):active {
+      opacity: 0.8;
+    }
+  }
+  body {
+    /* Không bao giờ cuộn ngang trang (clip không tạo vùng cuộn nên sticky vẫn chạy) */
+    overflow-x: clip;
   }
 }

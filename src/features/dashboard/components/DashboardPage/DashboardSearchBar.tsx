@@ -1,21 +1,22 @@
 'use client'
 
-import { ScanBarcode, Search, Sparkles } from 'lucide-react'
-import { toast } from 'sonner'
+import { ShortcutToolbarContent } from '@/features/shortcuts/components/ShortcutToolbarContent'
+import { useShortcutRunner } from '@/features/shortcuts/hooks/use-shortcut-runner'
+import { useShortcuts } from '@/features/shortcuts/hooks/use-shortcuts'
 import { useScrollHidden } from '@/hooks/use-scroll-hidden'
 import { cn } from '@/lib/utils'
 
 interface DashboardSearchBarProps {
   readonly onSearch: () => void
-  /** Bấm nút mã vạch; không truyền thì chỉ báo "sắp có". */
+  /** Bấm nút mã vạch; không truyền thì chạy shortcut Barcode (mở Thêm món ở tab quét). */
   readonly onScan?: () => void
   /** Chỉ Dashboard bật: ẩn khi cuộn xuống, hiện khi cuộn lên. Mặc định luôn hiện. */
   readonly autoHide?: boolean
 }
 
 /**
- * Thanh tìm món dính trên thanh tab (kiểu MacroFactor): ô tìm (kèm nút quét mã vạch) mở sheet Thêm món, nút tia lấp lánh là ghi món bằng AI.
- * Quét mã vạch và AI chưa có tính năng thật nên bấm chỉ báo "sắp có" (thư viện thực phẩm nằm ở More → My Foods).
+ * Toolbar dính trên thanh tab (kiểu MacroFactor): nội dung theo Toolbar Style user chọn ở Customize (Search and Barcode, thêm một nút
+ * tuỳ chọn, bốn nút tuỳ chọn, hoặc ẩn hẳn). Ô tìm mở sheet Thêm món, các nút tròn chạy shortcut tương ứng.
  * Có `autoHide` thì cuộn xuống mờ dần và trượt xuống, cuộn lên (hoặc về đầu trang) hiện lại; ẩn rồi thì không bấm được.
  */
 export function DashboardSearchBar({
@@ -24,7 +25,10 @@ export function DashboardSearchBar({
   autoHide = false,
 }: DashboardSearchBarProps) {
   const scrollHidden = useScrollHidden()
+  const { config } = useShortcuts()
+  const run = useShortcutRunner()
   const hidden = autoHide && scrollHidden
+  if (config.toolbarStyle === 'None') return null
   return (
     <div
       inert={hidden}
@@ -34,36 +38,13 @@ export function DashboardSearchBar({
         hidden ? 'pointer-events-none translate-y-3 opacity-0' : 'translate-y-0 opacity-100'
       )}
     >
-      <div className="bg-foreground/12 flex h-12 min-w-0 flex-1 items-center rounded-full">
-        <button
-          type="button"
-          onClick={onSearch}
-          className="text-muted-foreground focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center gap-3 rounded-full pl-5 text-left text-base font-normal focus-visible:ring-1 focus-visible:outline-none"
-        >
-          <Search
-            aria-hidden="true"
-            className="text-foreground/80 size-5 shrink-0"
-            strokeWidth={2}
-          />
-          <span className="truncate">Search for a food</span>
-        </button>
-        <button
-          type="button"
-          aria-label="Scan barcode"
-          onClick={onScan ?? (() => toast('Barcode scanning is coming soon'))}
-          className="focus-visible:ring-ring/50 flex size-12 shrink-0 items-center justify-center rounded-full focus-visible:ring-1 focus-visible:outline-none"
-        >
-          <ScanBarcode aria-hidden="true" className="size-6" strokeWidth={1.8} />
-        </button>
-      </div>
-      <button
-        type="button"
-        aria-label="Log with AI"
-        onClick={() => toast('AI food logging is coming soon')}
-        className="bg-foreground/12 active:bg-foreground/20 focus-visible:ring-ring/50 flex size-12 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
-      >
-        <Sparkles aria-hidden="true" className="size-5" strokeWidth={2} />
-      </button>
+      <ShortcutToolbarContent
+        style={config.toolbarStyle}
+        items={config.items}
+        onSearch={onSearch}
+        onScan={onScan ?? (() => run('barcode'))}
+        onRun={run}
+      />
     </div>
   )
 }

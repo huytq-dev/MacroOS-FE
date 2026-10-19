@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Flame } from 'lucide-react'
 import { FoodIcon } from '@/components/shared/FoodIcon'
 import type { TileOptions } from '../../food-log-settings'
+import { HighlightedText } from '@/lib/search-highlight'
 import { cn } from '@/lib/utils'
 
 export interface FoodTileData {
@@ -19,6 +20,8 @@ export interface FoodTileData {
   readonly emoji: string | null
   /** Khoá icon trong bộ icon món ăn; có thì hiện ảnh thay emoji. */
   readonly iconKey?: string | null
+  /** Từ khoá tìm kiếm: phần khớp trong tên được in đậm (chỉ kết quả tìm kiếm). */
+  readonly highlight?: string
 }
 
 export type FoodTileSettings = TileOptions
@@ -151,7 +154,7 @@ export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: 
               NAME_CLAMP[settings.density]
             )}
           >
-            {food.name}
+            <HighlightedText text={food.name} query={food.highlight} />
           </span>
           {highlight === 'Energy' && (
             <span

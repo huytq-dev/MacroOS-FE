@@ -13,7 +13,13 @@ interface CalendarSheetProps {
   readonly date: string
   readonly today: string | null
   readonly onSelect: (date: string) => void
+  /** false = đang đóng: mờ và trượt lên 200ms rồi gọi `onExited` để cha gỡ lịch khỏi cây. */
+  readonly open: boolean
+  readonly onExited: () => void
 }
+
+/** Thời gian hoạt ảnh đóng, khớp `duration-200` bên dưới. */
+const EXIT_MS = 200
 
 const monthName = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short' })
@@ -26,7 +32,12 @@ const monthOf = (iso: string) => Number(iso.slice(5, 7))
  * đang chọn nằm ở đầu. Mỗi tháng là một mảng nền riêng (xen kẽ sáng/tối, góc bo ở chỗ đổi tháng) và nhãn tháng nằm trên ngày
  * mùng 1. Chọn một ngày thì chuyển ngày và đóng lịch (trang cha lo phần đóng).
  */
-export function CalendarSheet({ date, today, onSelect }: CalendarSheetProps) {
+export function CalendarSheet({ date, today, onSelect, open, onExited }: CalendarSheetProps) {
+  useEffect(() => {
+    if (open) return
+    const timer = setTimeout(onExited, EXIT_MS)
+    return () => clearTimeout(timer)
+  }, [open, onExited])
   const selectedRow = useRef<HTMLLIElement>(null)
   const anchor = mondayOf(today ?? date)
   const weeks = Array.from({ length: WEEKS_EACH_SIDE * 2 + 1 }, (_, index) =>
@@ -50,7 +61,11 @@ export function CalendarSheet({ date, today, onSelect }: CalendarSheetProps) {
     <div
       role="dialog"
       aria-label="Calendar"
-      className="bg-background motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2 fixed inset-x-0 top-[calc(env(safe-area-inset-top)+4.25rem)] bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-20 overflow-y-auto overscroll-contain motion-safe:duration-200"
+      inert={!open}
+      className={cn(
+        'bg-background motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2 fixed inset-x-0 top-[calc(env(safe-area-inset-top)+4.25rem)] bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-20 overflow-y-auto overscroll-contain transition-[opacity,translate] duration-200 ease-in motion-reduce:transition-none',
+        !open && 'pointer-events-none -translate-y-2 opacity-0'
+      )}
     >
       <ol>
         {weeks.map((monday) => (

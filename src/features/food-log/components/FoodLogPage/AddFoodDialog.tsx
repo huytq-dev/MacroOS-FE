@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils'
 import { AddFoodProgress } from './AddFoodProgress'
 import { MealTimePill } from './MealTimePill'
 import { PlatePanel } from './PlatePanel'
+import { QUICK_ADD_FORM_ID } from './QuickAddPanel'
 
 export type AddTab = 'scan' | 'search' | 'ai' | 'quick' | 'library'
 
@@ -64,6 +65,8 @@ interface AddFoodDialogProps {
   /** Ô lọc theo tên ở thanh đáy tab Library (thay ô tìm); chữ gợi ý đổi theo ngăn đang xem. */
   readonly libraryFilter: { value: string; placeholder: string; onChange: (value: string) => void }
   readonly plate: PlateItem[]
+  /** Món đang xem nhưng chưa vào plate (kết quả AI Plate): chỉ cộng vào tổng ở thanh trên cùng. */
+  readonly previewItems?: readonly PlateItem[]
   readonly totals?: MacroTotals
   readonly target?: ProgramWeek | null
   /** Cài đặt Logger Banner (chất hiện trên banner và cách tính). */
@@ -97,6 +100,7 @@ export function AddFoodDialog({
   detailOpen,
   libraryFilter,
   plate,
+  previewItems = [],
   totals,
   target,
   settings,
@@ -114,12 +118,13 @@ export function AddFoodDialog({
     setWasOpen(open)
     if (!open) setPlateOpen(false)
   }
-  const plateKcal = plate.reduce((sum, item) => sum + item.calories, 0)
+  const counted = [...plate, ...previewItems]
+  const plateKcal = counted.reduce((sum, item) => sum + item.calories, 0)
   const plateTotals: MacroTotals = {
     calories: plateKcal,
-    protein: plate.reduce((sum, item) => sum + item.protein, 0),
-    carbs: plate.reduce((sum, item) => sum + item.carbs, 0),
-    fat: plate.reduce((sum, item) => sum + item.fat, 0),
+    protein: counted.reduce((sum, item) => sum + item.protein, 0),
+    carbs: counted.reduce((sum, item) => sum + item.carbs, 0),
+    fat: counted.reduce((sum, item) => sum + item.fat, 0),
     fiber: 0,
   }
   return (
@@ -268,35 +273,19 @@ export function AddFoodDialog({
             {!detailOpen &&
               (tab === 'search' || tab === 'library' || tab === 'quick' || plate.length > 0) && (
                 <div className="bg-card space-y-2 rounded-t-2xl px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-1px_0_var(--border)]">
-                  <div className="flex items-center gap-3">
-                    {tab === 'search' && (
-                      <div className="min-w-0 flex-1">
-                        <SearchInput
-                          value={search}
-                          onValueChange={onSearchChange}
-                          placeholder="Search for a food"
-                          aria-label="Search for a food"
-                        />
-                      </div>
-                    )}
-                    {tab === 'library' && (
-                      <div className="min-w-0 flex-1">
-                        <SearchInput
-                          icon={ListFilter}
-                          value={libraryFilter.value}
-                          onValueChange={libraryFilter.onChange}
-                          placeholder={libraryFilter.placeholder}
-                          aria-label={libraryFilter.placeholder}
-                        />
-                      </div>
-                    )}
-                    {(plate.length > 0 || tab === 'search' || tab === 'library') && (
+                  {tab === 'quick' ? (
+                    // Như MacroFactor: "Quick Add" xám (thêm vào plate) nằm trên "Log Foods" trắng, cả hai rộng hết hàng.
+                    <>
                       <Button
-                        className={
-                          tab === 'search' || tab === 'library'
-                            ? 'h-12 shrink-0 rounded-full px-5 text-base'
-                            : 'h-12 w-full rounded-full text-base'
-                        }
+                        type="submit"
+                        form={QUICK_ADD_FORM_ID}
+                        variant="secondary"
+                        className="h-14 w-full rounded-lg text-base"
+                      >
+                        Quick Add
+                      </Button>
+                      <Button
+                        className="bg-foreground text-background h-14 w-full rounded-lg text-base"
                         disabled={isLogging || plate.length === 0}
                         aria-busy={isLogging}
                         onClick={() => {
@@ -308,8 +297,51 @@ export function AddFoodDialog({
                         )}
                         {isLogging ? 'Logging...' : 'Log Foods'}
                       </Button>
-                    )}
-                  </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      {tab === 'search' && (
+                        <div className="min-w-0 flex-1">
+                          <SearchInput
+                            value={search}
+                            onValueChange={onSearchChange}
+                            placeholder="Search for a food"
+                            aria-label="Search for a food"
+                          />
+                        </div>
+                      )}
+                      {tab === 'library' && (
+                        <div className="min-w-0 flex-1">
+                          <SearchInput
+                            icon={ListFilter}
+                            value={libraryFilter.value}
+                            onValueChange={libraryFilter.onChange}
+                            placeholder={libraryFilter.placeholder}
+                            aria-label={libraryFilter.placeholder}
+                          />
+                        </div>
+                      )}
+                      {(plate.length > 0 || tab === 'search' || tab === 'library') && (
+                        <Button
+                          className={
+                            tab === 'search' || tab === 'library'
+                              ? 'h-12 shrink-0 rounded-full px-5 text-base'
+                              : 'h-12 w-full rounded-full text-base'
+                          }
+                          disabled={isLogging || plate.length === 0}
+                          aria-busy={isLogging}
+                          onClick={() => {
+                            if (!isLogging) onLogPlate()
+                          }}
+                        >
+                          {isLogging && (
+                            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                          )}
+                          {isLogging ? 'Logging...' : 'Log Foods'}
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
           </div>

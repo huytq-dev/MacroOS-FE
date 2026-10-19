@@ -216,7 +216,7 @@ export function DayTimeline({
                     type="button"
                     aria-label={`Add food at ${pad(hour)}:00`}
                     onClick={() => onAddAt(`${pad(hour)}:00`)}
-                    className="bg-secondary active:bg-muted focus-visible:ring-ring/50 flex size-9 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
+                    className="bg-secondary active:bg-muted focus-visible:ring-ring/50 relative flex size-9 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 before:absolute before:-inset-1 before:content-[''] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
                   >
                     <Plus aria-hidden="true" className="size-5" />
                   </button>

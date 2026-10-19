@@ -177,7 +177,7 @@ export function HourRangeSheet({ open, onOpenChange, value, onSave }: HourRangeS
                   move(handle, range[handle] + 1)
               }}
               style={{ left: percent(range[handle]) }}
-              className="bg-foreground focus-visible:ring-ring/50 absolute top-1/2 size-10 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full focus-visible:ring-4 focus-visible:outline-none active:cursor-grabbing"
+              className="bg-foreground focus-visible:ring-ring/50 absolute top-1/2 size-11 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full focus-visible:ring-4 focus-visible:outline-none active:cursor-grabbing"
             >
               <HandleBubble hour={range[handle]} />
             </button>

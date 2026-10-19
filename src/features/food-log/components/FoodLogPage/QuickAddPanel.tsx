@@ -1,15 +1,17 @@
 'use client'
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { useRef, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { ChoiceSheet } from '../FoodLogSettingsPage'
+
+/** id của form: nút "Quick Add" nằm ở thanh đáy AddFoodDialog (ngoài form) gửi form qua thuộc tính `form`. */
+export const QUICK_ADD_FORM_ID = 'quick-add-form'
+
+const UNIT_CHOICES = [
+  { value: 'kcal', label: 'kcal' },
+  { value: 'kJ', label: 'kJ' },
+] as const
 
 export interface QuickAddValues {
   name: string | null
@@ -79,6 +81,8 @@ function GramField({
  */
 export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
   const [unit, setUnit] = useState<EnergyUnit>('kcal')
+  const [unitOpen, setUnitOpen] = useState(false)
+  const energyRef = useRef<HTMLInputElement>(null)
   const [energy, setEnergy] = useState('')
   const [protein, setProtein] = useState('')
   const [fat, setFat] = useState('')
@@ -104,6 +108,16 @@ export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
   const hasEnergy = energy.trim() !== '' && toNumber(energy) > 0
   const valid = hasEnergy && !Object.values(invalid).some(Boolean)
 
+  /** Đổi đơn vị thì quy đổi số đang nhập để năng lượng thực không đổi. */
+  const changeUnit = (next: EnergyUnit) => {
+    if (next === unit) return
+    if (energy.trim() !== '' && !Number.isNaN(Number(energy))) {
+      const value = next === 'kJ' ? Number(energy) * KJ_PER_KCAL : Number(energy) / KJ_PER_KCAL
+      setEnergy(String(Math.round(value)))
+    }
+    setUnit(next)
+  }
+
   const reset = () => {
     setEnergy('')
     setProtein('')
@@ -115,11 +129,15 @@ export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
 
   return (
     <form
+      id={QUICK_ADD_FORM_ID}
       noValidate
       className="space-y-5 p-4"
       onSubmit={(event) => {
         event.preventDefault()
-        if (!valid) return
+        if (!valid) {
+          energyRef.current?.focus()
+          return
+        }
         onAdd({
           name: name.trim() || null,
           calories: Math.round(kcal * 10) / 10,
@@ -136,6 +154,7 @@ export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
         </label>
         <div className="flex gap-3">
           <Input
+            ref={energyRef}
             id="quick-add-energy"
             autoFocus
             type="number"
@@ -147,19 +166,25 @@ export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
             onChange={(event) => setEnergy(event.target.value)}
             className="h-12 flex-1 rounded-lg text-base tabular-nums"
           />
-          <Select value={unit} onValueChange={(next) => setUnit(next as EnergyUnit)}>
-            <SelectTrigger
-              aria-label="Energy unit"
-              className="bg-secondary h-12! w-28 rounded-lg text-base"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="kcal">kcal</SelectItem>
-              <SelectItem value="kJ">kJ</SelectItem>
-            </SelectContent>
-          </Select>
+          <button
+            type="button"
+            aria-label={`Energy unit: ${unit}`}
+            aria-haspopup="dialog"
+            onClick={() => setUnitOpen(true)}
+            className="bg-secondary focus-visible:ring-ring/50 active:bg-foreground/20 flex h-12 w-28 shrink-0 items-center justify-between rounded-lg px-4 text-base transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100"
+          >
+            {unit}
+            <ChevronDown aria-hidden="true" className="text-muted-foreground size-4" />
+          </button>
         </div>
+        <ChoiceSheet
+          open={unitOpen}
+          onOpenChange={setUnitOpen}
+          title="Unit"
+          choices={UNIT_CHOICES}
+          value={unit}
+          onSelect={(next) => changeUnit(next as EnergyUnit)}
+        />
         <p className="text-muted-foreground text-sm">
           Macro sum is {macroSum} {unit}
         </p>
@@ -189,15 +214,6 @@ export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
           className="h-12 rounded-lg text-base"
         />
       </label>
-
-      <Button
-        type="submit"
-        variant="secondary"
-        disabled={!valid}
-        className="h-14 w-full rounded-lg text-base"
-      >
-        Quick Add
-      </Button>
     </form>
   )
 }

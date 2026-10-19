@@ -1,5 +1,5 @@
 /**
- * Bộ icon món ăn (300 icon, CC BY 4.0 từ foodiconpack.com, đã tô màu): file tĩnh ở `public/food-icons/<phiên bản>/`. BE chỉ lưu
+ * Bộ icon món ăn (529 icon: 300 gốc CC BY 4.0 từ foodiconpack.com đã tô màu + 229 icon bổ sung, một phần dựng từ Noto Emoji Apache 2.0; xem `public/food-icons/v1/ATTRIBUTION_AND_LICENSE.txt`): file tĩnh ở `public/food-icons/<phiên bản>/`. BE chỉ lưu
  * khoá (`iconKey`, snake_case như `apple`); FE ghép URL. Đổi bộ icon thì tăng `FOOD_ICON_VERSION` để bỏ cache cũ (file được cache
  * immutable một năm, xem next.config.ts).
  */
@@ -19,7 +19,7 @@ export interface FoodIconDef {
   readonly category: string
 }
 
-/** Các tab của bảng "Choose Icon" theo MacroFactor (sau tab All). */
+/** Các tab của bảng "Choose Icon" (sau tab All): chín tab của MacroFactor rồi các nhóm riêng của bộ icon mở rộng. */
 export const FOOD_ICON_TABS = [
   'Baked Goods',
   'Meats',
@@ -30,41 +30,62 @@ export const FOOD_ICON_TABS = [
   'Dairy and Eggs',
   'Drinks',
   'Sweets',
+  'Meals',
+  'Snacks',
+  'Grains and Legumes',
+  'Pantry',
+  'Supplements',
   'Other',
 ] as const
 export type FoodIconTab = (typeof FOOD_ICON_TABS)[number]
 
-// Bộ icon có 9 nhóm gốc, chưa có bánh nướng và đồ ngọt: gom các nguyên liệu làm bánh / đồ ngọt về hai tab đó, còn lại vào Other.
-const BAKED_KEYS = new Set([
-  'flour',
-  'bread_flour',
-  'whole_wheat_flour',
-  'almond_flour',
-  'cornmeal',
-  'lasagna_sheet',
-])
-const SWEET_KEYS = new Set([
-  'sugar',
-  'brown_sugar',
-  'honey',
-  'maple_syrup',
-  'chocolate_chips',
-  'cocoa_powder',
-])
-const SOURCE_TAB: Readonly<Record<string, FoodIconTab>> = {
-  Vegetables: 'Vegetables',
-  Fruit: 'Fruit',
+// Nhóm `category` của icons.json → tab. Nhóm "Extra Foods" gom lẫn nhiều loại nên chia theo khoá ở EXTRA_TAB.
+const CATEGORY_TAB: Readonly<Record<string, FoodIconTab>> = {
+  'Baked Goods': 'Baked Goods',
   Meats: 'Meats',
+  Vegetables: 'Vegetables',
   Seafood: 'Seafood',
+  Fruit: 'Fruit',
   'Nuts and Seeds': 'Nuts and Seeds',
   'Dairy and Eggs': 'Dairy and Eggs',
   Drinks: 'Drinks',
+  Sweets: 'Sweets',
+  'Prepared Meals - Western': 'Meals',
+  'Prepared Meals - Asian': 'Meals',
+  Snacks: 'Snacks',
+  'Grains and Legumes': 'Grains and Legumes',
+  'Herbs and Pantry': 'Pantry',
+  'Pantry & Other': 'Pantry',
+  Supplements: 'Supplements',
 }
+
+const keysTo = (tab: FoodIconTab, keys: string) =>
+  Object.fromEntries(keys.split(' ').map((key) => [key, tab]))
+
+const EXTRA_TAB: Readonly<Record<string, FoodIconTab>> = {
+  ...keysTo(
+    'Baked Goods',
+    'cinnamon_roll garlic_bread brioche focaccia rye_bread cornbread pretzel_bun breadsticks'
+  ),
+  ...keysTo('Sweets', 'fruit_tart creme_brulee chocolate_truffle ice_cream_sandwich fruit_gelato'),
+  ...keysTo(
+    'Drinks',
+    'americano herbal_tea mango_smoothie strawberry_smoothie iced_matcha fruit_tea'
+  ),
+  ...keysTo(
+    'Meals',
+    'pad_thai bibimbap chicken_rice grilled_fish fried_noodles teriyaki_chicken mapo_tofu rice_bowl sushi_bowl'
+  ),
+  ...keysTo('Snacks', 'mixed_nuts cheese_crackers roasted_chickpeas dried_mango'),
+  ...keysTo('Supplements', 'magnesium_capsules vitamin_c pre_workout shaker_cup'),
+  ...keysTo('Pantry', 'ketchup_bottle mustard_bottle'),
+}
+
+// Đồ đựng (bowl, cup, jar...) nằm trong "Pantry & Other" nhưng không phải thực phẩm: gom vào Other.
+const OTHER_KEYS = new Set(['bowl', 'cup', 'jar', 'bottle', 'takeout_box'])
 
 /** Tab của một icon trong bảng chọn icon. */
 export const foodIconTab = (icon: FoodIconDef): FoodIconTab =>
-  BAKED_KEYS.has(icon.key)
-    ? 'Baked Goods'
-    : SWEET_KEYS.has(icon.key)
-      ? 'Sweets'
-      : (SOURCE_TAB[icon.category] ?? 'Other')
+  OTHER_KEYS.has(icon.key)
+    ? 'Other'
+    : (EXTRA_TAB[icon.key] ?? CATEGORY_TAB[icon.category] ?? 'Other')

@@ -72,61 +72,71 @@
   --mf-pastel-red-text: #a12a22;
   --mf-pastel-purple: #e8e1f4;
   --mf-pastel-purple-text: #5b2a9e;
+  /* Bảy màu của Choose Color (shortcut), dùng chung sáng/tối */
+  --shortcut-red: #ef4444;
+  --shortcut-orange: #f97316;
+  --shortcut-yellow: #facc15;
+  --shortcut-green: #22c55e;
+  --shortcut-teal: #14b8a6;
+  --shortcut-blue: #3b82f6;
+  --shortcut-purple: #a855f7;
 }
 
 .dark {
   color-scheme: dark;
-  --background: #161616;
+  /* Đo từ screenshot MacroFactor: 3 bậc nền #141414 (dải lõm) → #1f1f1f (bề mặt, thẻ, sheet) → #383838 (ô nhập, chip, nút xám) */
+  --background: #141414;
   --foreground: #ffffff;
-  --card: #222222;
+  --card: #1f1f1f;
   --card-foreground: #ffffff;
-  --popover: #242424;
+  --popover: #1f1f1f;
   --popover-foreground: #ffffff;
   --primary: #ffffff;
   --primary-foreground: #000000;
-  --secondary: #2c2c2c;
+  --secondary: #383838;
   --secondary-foreground: #ffffff;
-  --muted: #2c2c2c;
+  --muted: #383838;
   --muted-foreground: #a3a3a3;
   --accent: #2a1a10;
   --accent-foreground: #ff8b41;
   --destructive: #f97066;
-  --border: #2f2f2f;
-  --input: #2f2f2f;
+  --border: #383838;
+  --input: #383838;
   --ring: #ff8b41;
 
   --chart-1: #ff8b41;
-  --chart-2: #4d7fe6;
-  --chart-3: #2ddc62;
+  --chart-2: #4e8dff;
+  --chart-3: #62ba88;
   --chart-4: #c04df0;
   --chart-5: #ffbc7d;
 
-  --sidebar: #121212;
+  --sidebar: #141414;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #ffffff;
   --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #2c2c2c;
+  --sidebar-accent: #383838;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2f2f2f;
+  --sidebar-border: #383838;
   --sidebar-ring: #ff8b41;
 
+  /* Xanh lá (vòng goal, icon Goal) và xanh dương (vòng hoàn thành module) đo từ MacroFactor; bản cũ neon hơn */
   --mf-orange: #ff8b41;
-  --mf-blue: #4d7fe6;
+  --mf-blue: #4e8dff;
   --mf-purple: #c04df0;
-  --mf-green: #2ddc62;
+  --mf-green: #62ba88;
   --mf-calories: #ff8b41;
-  --mf-protein: #4d7fe6;
-  --mf-carbs: #2ddc62;
+  --mf-protein: #4e8dff;
+  --mf-carbs: #62ba88;
   --mf-fat: #c04df0;
   --mf-trend: #c04df0;
   --mf-tile-calories: #5c8def;
-  --mf-tile-protein: #ff8261;
+  --mf-tile-protein: #ff8660;
   --mf-tile-fat: #ffd35a;
-  --mf-tile-carbs: #5dba85;
+  --mf-tile-carbs: #5dbb86;
   --mf-tile-calories-text: #5c8def;
-  --mf-tile-protein-text: #ff8261;
+  --mf-tile-protein-text: #ff8660;
   --mf-tile-fat-text: #ffd35a;
-  --mf-tile-carbs-text: #5dba85;
+  --mf-tile-carbs-text: #5dbb86;
   --mf-warning-bg: var(--mf-pastel-yellow);
   --mf-warning-border: #7a4a20;
   --mf-warning-text: var(--mf-pastel-yellow-text);

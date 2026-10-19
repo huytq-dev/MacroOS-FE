@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { routePath } from '@/config/route-path'
@@ -74,8 +74,9 @@ import { mealForTime, type MealType } from '@/config/enums'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useSheet } from '@/hooks/use-sheet'
+import { liveIngredients, toPlateItem } from '../ai-plate.utils'
 import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
-import { useUiStore } from '@/stores/ui.store'
+import { useUiStore, type AddFoodRequest } from '@/stores/ui.store'
 
 const SEARCH_PAGE = 25
 const VISIBILITY = ['show', 'hide'] as const
@@ -123,6 +124,9 @@ export function FoodLogPage() {
   const [copyOpen, setCopyOpen] = useState(false)
   const [clearOpen, setClearOpen] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
+  // Lịch còn mount thêm một nhịp sau khi đóng để chạy hoạt ảnh đóng (CalendarSheet gọi onExited khi xong)
+  const [calendarMounted, setCalendarMounted] = useState(false)
+  if (calendarOpen && !calendarMounted) setCalendarMounted(true)
   const barcodeSheet = useSheet<true>()
   const dateTimeSheet = useSheet<true>()
   const moreSheet = useSheet<true>()
@@ -189,6 +193,31 @@ export function FoodLogPage() {
   const barcode = useBarcodeLookup()
   const aiPlate = useAiPlate()
 
+  // Shortcut / toolbar ở trang khác mở bảng Thêm món ở một tab: áp dụng ngay trong render (như mở từ nút giờ), rồi xoá yêu cầu.
+  const addRequest = useUiStore((state) => state.addFoodRequest)
+  const clearAddRequest = useUiStore((state) => state.clearAddFoodRequest)
+  const [appliedRequest, setAppliedRequest] = useState<AddFoodRequest | null>(null)
+  if (addRequest && addRequest !== appliedRequest) {
+    setAppliedRequest(addRequest)
+    const time = nowHourMinute()
+    setEatenAt(time)
+    setLogDate(null)
+    setMeal(mealForTime(time))
+    setPickedId(null)
+    setTab(addRequest.tab)
+    if (addRequest.libraryView) {
+      setLibraryView(addRequest.libraryView)
+      setLibraryFilter('')
+    }
+  }
+  useEffect(() => {
+    if (!addRequest) return
+    addEntry.reset()
+    quickAdd.reset()
+    if (addRequest.tab === 'scan') barcode.reset()
+    clearAddRequest()
+  }, [addRequest, addEntry, quickAdd, barcode, clearAddRequest])
+
   /** Mở bảng Thêm món; `time` (HH:mm) là giờ ăn, mặc định giờ hiện tại, bữa suy ra từ giờ. */
   const openAdd = (time: string = nowHourMinute()) => {
     setEatenAt(time)
@@ -226,7 +255,7 @@ export function FoodLogPage() {
     items: PlateItem[] = plate,
     when?: { readonly date: string; readonly time: string }
   ) => {
-    if (!date || items.length === 0) return
+    if (!date || items.length === 0) return false
     const targetDate = when?.date ?? logDate ?? date
     const targetTime = when?.time ?? eatenAt
     const targetMeal = when ? mealForTime(when.time) : meal
@@ -269,8 +298,10 @@ export function FoodLogPage() {
       }
       toast.success(`Added ${items.length} ${items.length === 1 ? 'item' : 'items'}`)
       setAddOpen(false)
+      return true
     } catch {
       // lỗi hiện inline trong sheet (addEntry.error); các món chưa log vẫn nằm trong plate để thử lại
+      return false
     } finally {
       setIsLoggingPlate(false)
     }
@@ -325,6 +356,13 @@ export function FoodLogPage() {
   if (day.isError) return <ErrorState error={day.error} onRetry={() => void day.refetch()} />
 
   const entries = day.data?.entries ?? []
+  // Kết quả AI đang xem (chưa log) cộng vào tổng ở thanh trên cùng, cập nhật theo mọi chỉnh sửa
+  const aiPreviewItems =
+    tab === 'ai' && aiPlate.dishes
+      ? liveIngredients(aiPlate.dishes, aiPlate.states, aiPlate.edits).map((item) =>
+          toPlateItem(item, item.ingredient.id)
+        )
+      : []
   const isLoading = !date || day.isLoading
   // Lỗi xoá hiện inline ở đầu trang (xác nhận xoá đã đóng)
   const deleteError = deleteEntry.error ?? clearDay.error
@@ -357,8 +395,10 @@ export function FoodLogPage() {
         message={deleteError ? getFormErrorMessage(deleteError) : null}
       />
 
-      {calendarOpen && date && (
+      {calendarMounted && date && (
         <CalendarSheet
+          open={calendarOpen}
+          onExited={() => setCalendarMounted(false)}
           date={date}
           today={today}
           onSelect={(next) => {
@@ -528,6 +568,7 @@ export function FoodLogPage() {
           },
         }}
         plate={plate}
+        previewItems={aiPreviewItems}
         totals={day.data?.totals}
         target={day.data?.target}
         settings={settings}
@@ -562,16 +603,24 @@ export function FoodLogPage() {
             error={aiPlate.error ? getFormErrorMessage(aiPlate.error) : null}
             dishes={aiPlate.dishes}
             states={aiPlate.states}
+            date={logDate ?? date ?? ''}
+            edits={aiPlate.edits}
+            tileOptions={loggerTileOptions(settings)}
+            onSetGrams={aiPlate.setIngredientGrams}
+            onRemoveIngredient={aiPlate.removeIngredient}
+            onReplaceIngredient={aiPlate.replaceIngredient}
+            onSetDishScale={aiPlate.setDishScale}
             dayTotals={day.data?.totals}
             target={day.data?.target}
             onAnalyze={aiPlate.analyze}
             onRetryIngredient={aiPlate.retryIngredient}
             onStartOver={aiPlate.reset}
-            onLog={(items, confirmations) => {
-              setPlate((current) => [...current, ...items])
+            onLog={async (items, confirmations) => {
+              // Ghi cả plate đang có + các nguyên liệu AI đã sửa; thành công mới báo BE món user chọn (lỗi confirm không chặn log)
+              const logged = await logPlate([...plate, ...items])
+              if (!logged) return
               aiPlate.confirm(confirmations)
               aiPlate.reset()
-              setTab('search')
             }}
             onPreviewSample={
               process.env.NODE_ENV === 'development' ? aiPlate.previewSample : undefined

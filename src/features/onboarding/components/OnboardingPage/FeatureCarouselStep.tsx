@@ -12,7 +12,13 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const SLIDES: readonly { icon: LucideIcon; title: string; points: readonly string[] }[] = [
+export interface CarouselSlide {
+  readonly icon: LucideIcon
+  readonly title: string
+  readonly points: readonly string[]
+}
+
+const SLIDES: readonly CarouselSlide[] = [
   {
     icon: Zap,
     title: 'Log food faster',
@@ -54,15 +60,19 @@ const SLIDES: readonly { icon: LucideIcon; title: string; points: readonly strin
 const arrow =
   'bg-secondary focus-visible:ring-ring/50 flex size-11 items-center justify-center rounded-full transition-opacity focus-visible:ring-1 focus-visible:outline-none disabled:opacity-30'
 
-/** Bốn trang giới thiệu tính năng: vuốt ngang (scroll-snap) hoặc bấm mũi tên, có chấm báo vị trí. */
-export function FeatureCarouselStep() {
+/** Các trang giới thiệu (mặc định là bốn trang tính năng của onboarding; truyền `slides` để dùng lại cho màn khác): vuốt ngang (scroll-snap) hoặc bấm mũi tên, có chấm báo vị trí. */
+export function FeatureCarouselStep({
+  slides = SLIDES,
+}: {
+  readonly slides?: readonly CarouselSlide[]
+}) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [page, setPage] = useState(0)
 
   const goTo = (next: number) => {
     const track = trackRef.current
     if (!track) return
-    const clamped = Math.min(SLIDES.length - 1, Math.max(0, next))
+    const clamped = Math.min(slides.length - 1, Math.max(0, next))
     track.scrollTo({ left: clamped * track.clientWidth, behavior: 'smooth' })
   }
 
@@ -79,7 +89,7 @@ export function FeatureCarouselStep() {
           aria-label="Feature overview"
           role="region"
         >
-          {SLIDES.map((slide, index) => (
+          {slides.map((slide, index) => (
             <section
               key={slide.title}
               aria-hidden={index !== page}
@@ -111,7 +121,7 @@ export function FeatureCarouselStep() {
           <ChevronLeft aria-hidden="true" />
         </button>
         <div className="flex gap-2" aria-hidden="true">
-          {SLIDES.map((slide, index) => (
+          {slides.map((slide, index) => (
             <span
               key={slide.title}
               className={cn(
@@ -124,7 +134,7 @@ export function FeatureCarouselStep() {
         <button
           type="button"
           aria-label="Trang sau"
-          disabled={page === SLIDES.length - 1}
+          disabled={page === slides.length - 1}
           onClick={() => goTo(page + 1)}
           className={arrow}
         >

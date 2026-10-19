@@ -23,6 +23,7 @@ export const useCurrentProgram = () =>
           ...program,
           targetWeightKg: program.targetWeightKg ?? null,
           checkInDueInDays: program.checkInDueInDays ?? null,
+          checkInDue: program.checkInDue ?? false,
         }
       } catch (error) {
         if (error instanceof AxiosError && error.response?.status === 404) return null
@@ -43,6 +44,7 @@ const useProgramMutation = <TVariables>(
       toast.success(successMessage)
       void queryClient.invalidateQueries({ queryKey: programKeys.current })
       void queryClient.invalidateQueries({ queryKey: ['goals'] })
+      void queryClient.invalidateQueries({ queryKey: ['check-in'] })
     },
     onError: (error) => {
       logger.error(error)
@@ -50,6 +52,30 @@ const useProgramMutation = <TVariables>(
     },
   })
 }
+
+/** Số liệu nền của wizard New Program (cân nặng, sàn calo, trần nhập); tải một lần khi vào wizard. */
+export const useProgramSetup = () =>
+  useQuery({
+    queryKey: ['program', 'setup'],
+    queryFn: async () => {
+      const setup = await programService.setup()
+      if (!setup) throw new Error('Empty setup response')
+      return setup
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+
+/** Xem trước program theo lựa chọn của wizard (không ghi DB): bảy ngày + số cho màn Review và khởi tạo editor. */
+export const usePreviewProgram = () =>
+  useMutation({
+    mutationFn: async (payload: CreateProgramRequest) => {
+      const preview = await programService.preview(payload)
+      if (!preview) throw new Error('Empty preview response')
+      return preview
+    },
+    onError: (error) => logger.error(error),
+  })
 
 export const useCreateProgram = () =>
   useProgramMutation(
@@ -82,12 +108,4 @@ export const useGoalHistory = (enabled: boolean) =>
     retry: false,
   })
 
-export const useUpdateGoalTarget = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (targetWeightKg: number | null) => programService.updateGoalTarget(targetWeightKg),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['goals'] }),
-    onError: (error) => logger.error(error),
-  })
-}
 export const useEndProgram = () => useProgramMutation(() => programService.end(), 'Program ended')

@@ -36,34 +36,41 @@ interface ScanPanelProps {
 export function ScanPanel({ active, isLookingUp, error, onCode, onManual }: ScanPanelProps) {
   const [mode, setMode] = useState<ScanMode>('barcode')
   const fileInput = useRef<HTMLInputElement>(null)
-  const camera = useCameraScanner({
+  const {
+    videoRef,
+    status: cameraStatus,
+    torchOn,
+    torchSupported,
+    toggleTorch,
+    detectorSupported,
+  } = useCameraScanner({
     active,
     detect: mode === 'barcode' && !isLookingUp,
     onCode,
   })
   const comingSoon = () => toast('Label scanning is coming soon')
-  const unavailable = camera.status === 'denied' || camera.status === 'unsupported'
+  const unavailable = cameraStatus === 'denied' || cameraStatus === 'unsupported'
 
   return (
     <div className="relative h-full min-h-[24rem] overflow-hidden bg-black">
       <video
-        ref={camera.videoRef}
+        ref={videoRef}
         playsInline
         muted
         aria-hidden="true"
         className={cn(
           'absolute inset-0 size-full object-cover transition-opacity duration-300',
-          camera.status === 'ready' ? 'opacity-100' : 'opacity-0'
+          cameraStatus === 'ready' ? 'opacity-100' : 'opacity-0'
         )}
       />
 
       {unavailable && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-8 text-center">
           <p className="text-base font-medium">
-            {camera.status === 'denied' ? 'Camera access is blocked' : 'Camera is not available'}
+            {cameraStatus === 'denied' ? 'Camera access is blocked' : 'Camera is not available'}
           </p>
           <p className="text-muted-foreground text-sm">
-            {camera.status === 'denied'
+            {cameraStatus === 'denied'
               ? 'Allow camera access in your browser settings, or enter the barcode manually.'
               : 'The camera needs a secure (HTTPS) connection. You can enter the barcode manually.'}
           </p>
@@ -100,13 +107,13 @@ export function ScanPanel({ active, isLookingUp, error, onCode, onManual }: Scan
           )}
           <button
             type="button"
-            aria-label={camera.torchOn ? 'Turn flash off' : 'Turn flash on'}
-            aria-pressed={camera.torchOn}
-            disabled={!camera.torchSupported}
-            onClick={camera.toggleTorch}
-            className={cn(ROUND, !camera.torchSupported && 'opacity-60')}
+            aria-label={torchOn ? 'Turn flash off' : 'Turn flash on'}
+            aria-pressed={torchOn}
+            disabled={!torchSupported}
+            onClick={toggleTorch}
+            className={cn(ROUND, !torchSupported && 'opacity-60')}
           >
-            {camera.torchOn ? (
+            {torchOn ? (
               <Flashlight aria-hidden="true" className="size-5" />
             ) : (
               <FlashlightOff aria-hidden="true" className="size-5" />
@@ -133,15 +140,12 @@ export function ScanPanel({ active, isLookingUp, error, onCode, onManual }: Scan
         </button>
       )}
 
-      {mode === 'barcode' &&
-        !unavailable &&
-        !camera.detectorSupported &&
-        camera.status === 'ready' && (
-          <p className="bg-background/80 absolute inset-x-6 bottom-6 rounded-xl px-4 py-3 text-center text-sm backdrop-blur-sm">
-            Automatic barcode reading is not supported in this browser. Tap the keyboard button to
-            enter the number.
-          </p>
-        )}
+      {mode === 'barcode' && !unavailable && !detectorSupported && cameraStatus === 'ready' && (
+        <p className="bg-background/80 absolute inset-x-6 bottom-6 rounded-xl px-4 py-3 text-center text-sm backdrop-blur-sm">
+          Automatic barcode reading is not supported in this browser. Tap the keyboard button to
+          enter the number.
+        </p>
+      )}
       {error && (
         <p
           role="alert"

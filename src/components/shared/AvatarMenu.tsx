@@ -47,7 +47,7 @@ export function AvatarMenu({ className }: { readonly className?: string }) {
         <Button
           variant="ghost"
           aria-label="Account"
-          className={cn('size-10 rounded-full p-0 md:size-9 md:border', className)}
+          className={cn('size-11 rounded-full p-0 md:size-9 md:border', className)}
         >
           <Avatar className="size-9 md:size-8">
             <AvatarImage src={user?.avatar} alt="" />

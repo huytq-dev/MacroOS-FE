@@ -13,7 +13,6 @@ const TITLE: Record<GoalType, string> = {
 
 interface GoalCardProps {
   readonly program: Program
-  readonly onEdit: () => void
 }
 
 function Stat({
@@ -40,7 +39,7 @@ function Stat({
  * Thẻ "<Loại> Goal" của tab Strategy (như MacroFactor): tên + khoảng ngày, ba số (Goal Weight, Goal Rate kg, Goal Rate %) và hai
  * nút New Goal / Edit Goal. Duy trì cân thì không có tốc độ nên chỉ hiện cân mục tiêu.
  */
-export function GoalCard({ program, onEdit }: GoalCardProps) {
+export function GoalCard({ program }: GoalCardProps) {
   const maintaining = program.goalType === 'Maintenance'
   const sign = program.goalType === 'WeightLoss' ? '−' : '+'
   const target = program.targetWeightKg
@@ -69,7 +68,7 @@ export function GoalCard({ program, onEdit }: GoalCardProps) {
 
       <div className="border-border mt-5 flex flex-wrap gap-2 border-t pt-4">
         <ActionChip icon={Plus} label="New Goal" href={routePath.programNew} />
-        <ActionChip icon={Pencil} label="Edit Goal" onClick={onEdit} />
+        <ActionChip icon={Pencil} label="Edit Goal" href={routePath.programGoalEdit} />
       </div>
     </section>
   )
