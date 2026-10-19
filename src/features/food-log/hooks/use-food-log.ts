@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { SAMPLE_AI_PLATE } from '../components/FoodLogPage/ai-sample'
+import { EMPTY_AI_EDITS, type AiPlateEdits, type IngredientEdit } from '../ai-plate.utils'
 import { foodLogService } from '../services/food-log.service'
 import type {
   AddEntryRequest,
@@ -18,6 +19,7 @@ import type {
   LibraryParams,
   PlateNutrientsRequest,
   QuickAddRequest,
+  ResolvedIngredient,
   UpdateEntryRequest,
   UpdateNoteRequest,
 } from '../types/food-log.types'
@@ -184,6 +186,8 @@ export const useAiPlate = () => {
   const [states, setStates] = useState<Record<string, IngredientState>>({})
   // Mã lần phân tích hiện tại cho bước confirm; reset cùng kết quả.
   const [scanId, setScanId] = useState<string | null>(null)
+  // Chỉnh sửa của user (gram, xoá, thay món, số "plate"); mất khi phân tích lại hoặc bắt đầu lại
+  const [edits, setEdits] = useState<AiPlateEdits>(EMPTY_AI_EDITS)
   const run = useRef(0)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
 
@@ -220,6 +224,7 @@ export const useAiPlate = () => {
       onSuccess: (response) => {
         const runId = ++run.current
         setStates({})
+        setEdits(EMPTY_AI_EDITS)
         const found = response?.dishes ?? []
         setDishes(found)
         setScanId(response?.scanId ?? null)
@@ -233,8 +238,15 @@ export const useAiPlate = () => {
     setDishes(null)
     setStates({})
     setScanId(null)
+    setEdits(EMPTY_AI_EDITS)
     analyzeMutation.reset()
   }
+
+  const editIngredient = (id: string, patch: IngredientEdit) =>
+    setEdits((current) => ({
+      ...current,
+      ingredients: { ...current.ingredients, [id]: { ...current.ingredients[id], ...patch } },
+    }))
 
   /**
    * Báo BE món user đã chọn cho từng nguyên liệu AI khi log kết quả. Best-effort: chỉ gọi khi có scanId, và lỗi (404 scan lạ,
@@ -242,7 +254,9 @@ export const useAiPlate = () => {
    */
   const confirm = (ingredients: AiConfirmIngredient[]) => {
     if (!scanId || ingredients.length === 0) return
-    void foodLogService.aiConfirm({ scanId, ingredients }).catch(() => undefined)
+    void foodLogService
+      .aiConfirm({ scanId, ingredients })
+      .catch((error: unknown) => logger.warn('AI confirm failed (ignored):', error))
   }
 
   // ponytail: chỉ để xem thiết kế khi BE chưa có API; xoá cùng ai-sample.ts khi BE có endpoint.
@@ -276,6 +290,16 @@ export const useAiPlate = () => {
     isAnalyzing: analyzeMutation.isPending,
     error: analyzeMutation.error,
     analyze,
+    edits,
+    setIngredientGrams: (id: string, grams: number) => editIngredient(id, { grams }),
+    removeIngredient: (id: string) => editIngredient(id, { removed: true }),
+    replaceIngredient: (id: string, replacement: ResolvedIngredient) =>
+      editIngredient(id, { replacement, grams: undefined }),
+    setDishScale: (dishId: string, scale: number) =>
+      setEdits((current) => ({
+        ...current,
+        dishScales: { ...current.dishScales, [dishId]: scale },
+      })),
     retryIngredient: (item: AiIngredient) => resolve(item, run.current),
     confirm,
     reset,

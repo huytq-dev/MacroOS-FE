@@ -1,2 +1,8 @@
+export { ChoiceStep, StepHeading } from './ChoiceStep'
+export { DistributionStep } from './DistributionStep'
+export { FeatureCarouselStep, type CarouselSlide } from './FeatureCarouselStep'
+export { GoalSummaryStep } from './GoalSummaryStep'
+export { GoalTargetStep } from './GoalTargetStep'
+export { ProgramReadyStep } from './ProgramReadyStep'
 export { StepRenderer } from './StepRenderer'
 export { WizardShell } from './WizardShell'

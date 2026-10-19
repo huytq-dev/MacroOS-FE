@@ -60,7 +60,10 @@ export function SlidingSwitch<T extends string>({
           onClick={() => onChange(option.value)}
           className={cn(
             'focus-visible:ring-ring/50 relative z-10 flex items-center justify-center px-4 text-center transition-[color,transform] duration-300 focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100',
-            block ? 'h-11 rounded-lg text-base' : 'h-9 min-w-20 rounded-full text-sm',
+            // Viên nhỏ cao 36px như MacroFactor, vùng chạm mở rộng lên 44px bằng lớp ::before vô hình
+            block
+              ? 'h-11 rounded-lg text-base'
+              : "h-9 min-w-20 rounded-full text-sm before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']",
             option.value === value ? 'text-background font-medium' : 'text-foreground'
           )}
         >

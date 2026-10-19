@@ -100,7 +100,7 @@ export function WeightPage() {
               <ToggleGroupItem
                 key={range.label}
                 value={String(range.days)}
-                className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground h-8 shrink-0 rounded-full px-3.5 text-xs"
+                className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground h-11 shrink-0 rounded-full px-3.5 text-sm md:h-8 md:text-xs"
               >
                 {range.label}
               </ToggleGroupItem>

@@ -41,6 +41,10 @@ export interface Program {
   isActive: boolean
   currentWeek: ProgramWeek | null
   weeks: ProgramWeek[]
+  /** Mục tiêu từng ngày trong tuần (BE trả khi các ngày khác nhau); thiếu thì mọi ngày = currentWeek. */
+  days?: DayTarget[]
+  /** BE: đã tới ngày check-in và chưa check-in hôm nay → Strategy hiện nút Check In thay vòng đếm ngược. */
+  checkInDue?: boolean
 }
 
 /** active = đang chạy; Achieved = đạt mục tiêu; Superseded = bị goal mới thay; Cancelled = huỷ. */
@@ -56,6 +60,58 @@ export interface GoalHistoryItem {
   startDate: string
   endDate: string | null
   status: GoalStatus
+}
+
+export type TrainingType = 'None' | 'Lifting' | 'Cardio' | 'Both'
+
+/** Mục tiêu một ngày (calo + macro gram). `isLocked`: ngày khoá không bị check-in / Reset All Days đụng tới. */
+export interface DayTarget {
+  dayOfWeek: DayOfWeek
+  calories: number
+  proteinG: number
+  carbsG: number
+  fatG: number
+  isLocked?: boolean
+  /** Ngày nhịn ăn (BE hỗ trợ, wizard chưa dùng): calo hiệu lực = 0. */
+  isFastingDay?: boolean
+}
+
+// Khớp BE GET /programs/setup: mọi số wizard New Program cần để vẽ và chặn nhập (FE không tự tính)
+export interface ProgramSetup {
+  weightKg: number
+  estimatedTdeeKcal: number
+  floors: { standardKcal: number; lowKcal: number }
+  kcalMax: number
+  proteinPerKgMax: number
+  /** Bảy ngày giữ cân (Balanced, protein vừa) ở TDEE hiện tại: điểm xuất phát của Manual. */
+  defaults: DayTarget[]
+  /** Goal của program đang chạy (hoặc đã kết thúc gần nhất); null = chưa từng có program. */
+  goal: { goalType: string; weeklyRatePercent: number; targetWeightKg: number | null } | null
+  /** Ngày check-in của program (chưa có program = thứ của hôm nay). */
+  checkInWeekday: DayOfWeek
+}
+
+// Khớp BE POST /programs/preview (không ghi DB): bảy ngày + số cho màn Review
+export interface ProgramPreview {
+  days: DayTarget[]
+  averageCalories: number
+  weeklyBudgetKcal: number
+  averageProteinG: number
+  averageCarbsG: number
+  averageFatG: number
+  macroKcalAverage: number
+  estimatedTdeeKcal: number
+  /** Suy ra từ calo trung bình so với TDEE: dương = tăng cân, âm = giảm. */
+  weeklyChangeKg: number
+  weeklyChangePercent: number
+  projectedEndDate: string | null
+  warnings: ProgramDraftWarning[]
+}
+
+/** MACRO_KCAL_MISMATCH (calo từ macro lệch quá 15% calo đã nhập) | BELOW_FLOOR (calo ngày thấp hơn sàn đã chọn). */
+export interface ProgramDraftWarning {
+  code: string
+  dayOfWeek: DayOfWeek | null
 }
 
 // Khớp BE CreateProgramCommand
@@ -74,6 +130,8 @@ export interface CreateProgramRequest {
   calorieShiftMode?: 'Even' | 'Custom' | null
   calorieShiftDays?: DayOfWeek[] | null
   calorieShiftPercent?: number | null
+  /** Collaborative / Manual: mục tiêu theo ngày (7 phần tử); bỏ trống = đồng nhất cả tuần. */
+  dayTargets?: DayTarget[] | null
 }
 
 // Khớp BE UpdateProgramGoalCommand (null = giữ nguyên)

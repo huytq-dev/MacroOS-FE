@@ -101,7 +101,8 @@ export function NutrientCard({ nutrient, value, target, tone, contributors }: Nu
                 Top 3 Contributors
                 <ChevronRight aria-hidden="true" className="text-muted-foreground size-5" />
               </p>
-              {open && contributors.length > 0 ? (
+              {/* Không phụ thuộc `open`: khi đang co lại danh sách vẫn còn đó, không nháy sang "No contributors" */}
+              {contributors?.length ? (
                 <ul className="text-muted-foreground mt-2 space-y-1 text-sm">
                   {contributors.map((item) => (
                     <li key={item.name} className="flex justify-between gap-3">

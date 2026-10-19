@@ -123,7 +123,7 @@ function DesktopSearchableSelect({
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => choose(item.value)}
                 className={cn(
-                  'flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm',
+                  'flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-base md:min-h-10 md:text-sm',
                   index === activeIndex && 'bg-muted',
                   item.value === '' && 'text-muted-foreground'
                 )}

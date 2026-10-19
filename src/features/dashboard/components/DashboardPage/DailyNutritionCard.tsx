@@ -32,7 +32,7 @@ export function ModeToggle<T extends string>({
         <ToggleGroupItem
           key={optionValue}
           value={optionValue}
-          className="data-[state=on]:bg-foreground data-[state=on]:text-background focus-visible:ring-foreground/40 h-9 rounded-full px-4 text-sm shadow-none transition-colors focus-visible:ring-1"
+          className="data-[state=on]:bg-foreground data-[state=on]:text-background focus-visible:ring-foreground/40 h-11 rounded-full px-4 text-sm shadow-none transition-colors focus-visible:ring-1 md:h-9"
         >
           {label}
         </ToggleGroupItem>

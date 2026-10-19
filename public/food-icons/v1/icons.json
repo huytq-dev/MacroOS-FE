@@ -1498,5 +1498,1150 @@
     "key": "pesto",
     "name": "Pesto",
     "category": "Herbs and Pantry"
+  },
+  {
+    "key": "bread_loaf",
+    "name": "Bread Loaf",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "white_bread_slice",
+    "name": "White Bread Slice",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "whole_wheat_bread",
+    "name": "Whole Wheat Bread",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "toast",
+    "name": "Toast",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "sourdough",
+    "name": "Sourdough",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "baguette",
+    "name": "Baguette",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "ciabatta",
+    "name": "Ciabatta",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "croissant",
+    "name": "Croissant",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "bagel",
+    "name": "Bagel",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "english_muffin",
+    "name": "English Muffin",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "pita",
+    "name": "Pita",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "naan",
+    "name": "Naan",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "tortilla",
+    "name": "Tortilla",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "flatbread",
+    "name": "Flatbread",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "hamburger_bun",
+    "name": "Hamburger Bun",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "hot_dog_bun",
+    "name": "Hot Dog Bun",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "bread_roll",
+    "name": "Bread Roll",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "muffin",
+    "name": "Muffin",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "scone",
+    "name": "Scone",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "danish_pastry",
+    "name": "Danish Pastry",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "donut",
+    "name": "Donut",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "cupcake",
+    "name": "Cupcake",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "cake_slice",
+    "name": "Cake Slice",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "pie_slice",
+    "name": "Pie Slice",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "cookie",
+    "name": "Cookie",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "brownie",
+    "name": "Brownie",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "pancakes",
+    "name": "Pancakes",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "waffle",
+    "name": "Waffle",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "french_toast",
+    "name": "French Toast",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "banh_mi",
+    "name": "Banh Mi",
+    "category": "Baked Goods"
+  },
+  {
+    "key": "ice_cream_cone",
+    "name": "Ice Cream Cone",
+    "category": "Sweets"
+  },
+  {
+    "key": "ice_cream_scoop",
+    "name": "Ice Cream Scoop",
+    "category": "Sweets"
+  },
+  {
+    "key": "popsicle",
+    "name": "Popsicle",
+    "category": "Sweets"
+  },
+  {
+    "key": "chocolate_bar",
+    "name": "Chocolate Bar",
+    "category": "Sweets"
+  },
+  {
+    "key": "candy",
+    "name": "Candy",
+    "category": "Sweets"
+  },
+  {
+    "key": "lollipop",
+    "name": "Lollipop",
+    "category": "Sweets"
+  },
+  {
+    "key": "gummy_bears",
+    "name": "Gummy Bears",
+    "category": "Sweets"
+  },
+  {
+    "key": "jelly",
+    "name": "Jelly",
+    "category": "Sweets"
+  },
+  {
+    "key": "pudding",
+    "name": "Pudding",
+    "category": "Sweets"
+  },
+  {
+    "key": "custard",
+    "name": "Custard",
+    "category": "Sweets"
+  },
+  {
+    "key": "caramel",
+    "name": "Caramel",
+    "category": "Sweets"
+  },
+  {
+    "key": "marshmallow",
+    "name": "Marshmallow",
+    "category": "Sweets"
+  },
+  {
+    "key": "cotton_candy",
+    "name": "Cotton Candy",
+    "category": "Sweets"
+  },
+  {
+    "key": "macaron",
+    "name": "Macaron",
+    "category": "Sweets"
+  },
+  {
+    "key": "churro",
+    "name": "Churro",
+    "category": "Sweets"
+  },
+  {
+    "key": "mochi",
+    "name": "Mochi",
+    "category": "Sweets"
+  },
+  {
+    "key": "baklava",
+    "name": "Baklava",
+    "category": "Sweets"
+  },
+  {
+    "key": "tiramisu",
+    "name": "Tiramisu",
+    "category": "Sweets"
+  },
+  {
+    "key": "cheesecake",
+    "name": "Cheesecake",
+    "category": "Sweets"
+  },
+  {
+    "key": "jam_jar",
+    "name": "Jam Jar",
+    "category": "Sweets"
+  },
+  {
+    "key": "peanut_butter_jar",
+    "name": "Peanut Butter Jar",
+    "category": "Sweets"
+  },
+  {
+    "key": "chocolate_spread_jar",
+    "name": "Chocolate Spread Jar",
+    "category": "Sweets"
+  },
+  {
+    "key": "syrup_bottle",
+    "name": "Syrup Bottle",
+    "category": "Sweets"
+  },
+  {
+    "key": "che_dessert",
+    "name": "Che Dessert",
+    "category": "Sweets"
+  },
+  {
+    "key": "orange_juice",
+    "name": "Orange Juice",
+    "category": "Drinks"
+  },
+  {
+    "key": "apple_juice",
+    "name": "Apple Juice",
+    "category": "Drinks"
+  },
+  {
+    "key": "juice_box",
+    "name": "Juice Box",
+    "category": "Drinks"
+  },
+  {
+    "key": "lemonade",
+    "name": "Lemonade",
+    "category": "Drinks"
+  },
+  {
+    "key": "smoothie",
+    "name": "Smoothie",
+    "category": "Drinks"
+  },
+  {
+    "key": "milkshake",
+    "name": "Milkshake",
+    "category": "Drinks"
+  },
+  {
+    "key": "protein_shake",
+    "name": "Protein Shake",
+    "category": "Drinks"
+  },
+  {
+    "key": "soda_can",
+    "name": "Soda Can",
+    "category": "Drinks"
+  },
+  {
+    "key": "cola_bottle",
+    "name": "Cola Bottle",
+    "category": "Drinks"
+  },
+  {
+    "key": "energy_drink",
+    "name": "Energy Drink",
+    "category": "Drinks"
+  },
+  {
+    "key": "sports_drink",
+    "name": "Sports Drink",
+    "category": "Drinks"
+  },
+  {
+    "key": "bubble_tea",
+    "name": "Bubble Tea",
+    "category": "Drinks"
+  },
+  {
+    "key": "iced_coffee",
+    "name": "Iced Coffee",
+    "category": "Drinks"
+  },
+  {
+    "key": "latte",
+    "name": "Latte",
+    "category": "Drinks"
+  },
+  {
+    "key": "cappuccino",
+    "name": "Cappuccino",
+    "category": "Drinks"
+  },
+  {
+    "key": "hot_chocolate",
+    "name": "Hot Chocolate",
+    "category": "Drinks"
+  },
+  {
+    "key": "green_tea",
+    "name": "Green Tea",
+    "category": "Drinks"
+  },
+  {
+    "key": "matcha",
+    "name": "Matcha",
+    "category": "Drinks"
+  },
+  {
+    "key": "iced_tea",
+    "name": "Iced Tea",
+    "category": "Drinks"
+  },
+  {
+    "key": "sparkling_water",
+    "name": "Sparkling Water",
+    "category": "Drinks"
+  },
+  {
+    "key": "water_bottle",
+    "name": "Water Bottle",
+    "category": "Drinks"
+  },
+  {
+    "key": "coconut_water",
+    "name": "Coconut Water",
+    "category": "Drinks"
+  },
+  {
+    "key": "sugarcane_juice",
+    "name": "Sugarcane Juice",
+    "category": "Drinks"
+  },
+  {
+    "key": "vietnamese_coffee_milk",
+    "name": "Vietnamese Coffee Milk",
+    "category": "Drinks"
+  },
+  {
+    "key": "whiskey",
+    "name": "Whiskey",
+    "category": "Drinks"
+  },
+  {
+    "key": "vodka",
+    "name": "Vodka",
+    "category": "Drinks"
+  },
+  {
+    "key": "cocktail",
+    "name": "Cocktail",
+    "category": "Drinks"
+  },
+  {
+    "key": "margarita",
+    "name": "Margarita",
+    "category": "Drinks"
+  },
+  {
+    "key": "champagne",
+    "name": "Champagne",
+    "category": "Drinks"
+  },
+  {
+    "key": "rice_wine",
+    "name": "Rice Wine",
+    "category": "Drinks"
+  },
+  {
+    "key": "hamburger",
+    "name": "Hamburger",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "cheeseburger",
+    "name": "Cheeseburger",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "pizza_slice",
+    "name": "Pizza Slice",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "hot_dog",
+    "name": "Hot Dog",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "sandwich",
+    "name": "Sandwich",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "sub_sandwich",
+    "name": "Sub Sandwich",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "club_sandwich",
+    "name": "Club Sandwich",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "burrito",
+    "name": "Burrito",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "taco",
+    "name": "Taco",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "quesadilla",
+    "name": "Quesadilla",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "nachos",
+    "name": "Nachos",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "french_fries",
+    "name": "French Fries",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "fried_chicken",
+    "name": "Fried Chicken",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "chicken_nuggets",
+    "name": "Chicken Nuggets",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "chicken_wings",
+    "name": "Chicken Wings",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "roast_chicken",
+    "name": "Roast Chicken",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "meatballs",
+    "name": "Meatballs",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "spaghetti",
+    "name": "Spaghetti",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "mac_and_cheese",
+    "name": "Mac And Cheese",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "lasagna",
+    "name": "Lasagna",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "omelette",
+    "name": "Omelette",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "fried_egg",
+    "name": "Fried Egg",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "boiled_egg",
+    "name": "Boiled Egg",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "scrambled_eggs",
+    "name": "Scrambled Eggs",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "oatmeal_bowl",
+    "name": "Oatmeal Bowl",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "cereal_bowl",
+    "name": "Cereal Bowl",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "granola",
+    "name": "Granola",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "soup_bowl",
+    "name": "Soup Bowl",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "salad_bowl",
+    "name": "Salad Bowl",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "caesar_salad",
+    "name": "Caesar Salad",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "curry",
+    "name": "Curry",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "stir_fry",
+    "name": "Stir Fry",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "kebab",
+    "name": "Kebab",
+    "category": "Prepared Meals - Western"
+  },
+  {
+    "key": "ramen_bowl",
+    "name": "Ramen Bowl",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "pho",
+    "name": "Pho",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "fried_rice",
+    "name": "Fried Rice",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "sushi_roll",
+    "name": "Sushi Roll",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "nigiri",
+    "name": "Nigiri",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "sashimi",
+    "name": "Sashimi",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "dumplings",
+    "name": "Dumplings",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "spring_rolls",
+    "name": "Spring Rolls",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "bun_cha",
+    "name": "Bun Cha",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "com_tam",
+    "name": "Com Tam",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "banh_xeo",
+    "name": "Banh Xeo",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "goi_cuon",
+    "name": "Goi Cuon",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "bun_bo_hue",
+    "name": "Bun Bo Hue",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "hu_tieu",
+    "name": "Hu Tieu",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "xoi",
+    "name": "Xoi",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "congee",
+    "name": "Congee",
+    "category": "Prepared Meals - Asian"
+  },
+  {
+    "key": "potato_chips",
+    "name": "Potato Chips",
+    "category": "Snacks"
+  },
+  {
+    "key": "popcorn",
+    "name": "Popcorn",
+    "category": "Snacks"
+  },
+  {
+    "key": "trail_mix",
+    "name": "Trail Mix",
+    "category": "Snacks"
+  },
+  {
+    "key": "granola_bar",
+    "name": "Granola Bar",
+    "category": "Snacks"
+  },
+  {
+    "key": "protein_bar",
+    "name": "Protein Bar",
+    "category": "Snacks"
+  },
+  {
+    "key": "rice_cake",
+    "name": "Rice Cake",
+    "category": "Snacks"
+  },
+  {
+    "key": "pretzel",
+    "name": "Pretzel",
+    "category": "Snacks"
+  },
+  {
+    "key": "cracker",
+    "name": "Cracker",
+    "category": "Snacks"
+  },
+  {
+    "key": "pork_rinds",
+    "name": "Pork Rinds",
+    "category": "Snacks"
+  },
+  {
+    "key": "seaweed_snack",
+    "name": "Seaweed Snack",
+    "category": "Snacks"
+  },
+  {
+    "key": "jerky",
+    "name": "Jerky",
+    "category": "Snacks"
+  },
+  {
+    "key": "dried_fruit",
+    "name": "Dried Fruit",
+    "category": "Snacks"
+  },
+  {
+    "key": "fruit_snack",
+    "name": "Fruit Snack",
+    "category": "Snacks"
+  },
+  {
+    "key": "energy_gel",
+    "name": "Energy Gel",
+    "category": "Snacks"
+  },
+  {
+    "key": "protein_powder",
+    "name": "Protein Powder",
+    "category": "Supplements"
+  },
+  {
+    "key": "whey_scoop",
+    "name": "Whey Scoop",
+    "category": "Supplements"
+  },
+  {
+    "key": "creatine",
+    "name": "Creatine",
+    "category": "Supplements"
+  },
+  {
+    "key": "bcaa",
+    "name": "Bcaa",
+    "category": "Supplements"
+  },
+  {
+    "key": "multivitamin",
+    "name": "Multivitamin",
+    "category": "Supplements"
+  },
+  {
+    "key": "vitamin_pills",
+    "name": "Vitamin Pills",
+    "category": "Supplements"
+  },
+  {
+    "key": "fish_oil",
+    "name": "Fish Oil",
+    "category": "Supplements"
+  },
+  {
+    "key": "collagen",
+    "name": "Collagen",
+    "category": "Supplements"
+  },
+  {
+    "key": "electrolyte_powder",
+    "name": "Electrolyte Powder",
+    "category": "Supplements"
+  },
+  {
+    "key": "fiber_supplement",
+    "name": "Fiber Supplement",
+    "category": "Supplements"
+  },
+  {
+    "key": "vinegar",
+    "name": "Vinegar",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "ranch_dressing",
+    "name": "Ranch Dressing",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "salad_dressing",
+    "name": "Salad Dressing",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "curry_powder",
+    "name": "Curry Powder",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "nutmeg",
+    "name": "Nutmeg",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "baking_soda",
+    "name": "Baking Soda",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "baking_powder",
+    "name": "Baking Powder",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "stevia",
+    "name": "Stevia",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "sucralose",
+    "name": "Sucralose",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "shortening",
+    "name": "Shortening",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "coconut_oil",
+    "name": "Coconut Oil",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "canola_oil",
+    "name": "Canola Oil",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "sesame_oil",
+    "name": "Sesame Oil",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "peanut_butter",
+    "name": "Peanut Butter",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "tahini",
+    "name": "Tahini",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "hummus",
+    "name": "Hummus",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "salsa",
+    "name": "Salsa",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "guacamole",
+    "name": "Guacamole",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "relish",
+    "name": "Relish",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "wasabi",
+    "name": "Wasabi",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "miso",
+    "name": "Miso",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "tomato_sauce",
+    "name": "Tomato Sauce",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "tomato_paste",
+    "name": "Tomato Paste",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "tofu",
+    "name": "Tofu",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "tempeh",
+    "name": "Tempeh",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "seitan",
+    "name": "Seitan",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "plant_burger",
+    "name": "Plant Burger",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "broth",
+    "name": "Broth",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "bouillon_cube",
+    "name": "Bouillon Cube",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "bowl",
+    "name": "Bowl",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "cup",
+    "name": "Cup",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "jar",
+    "name": "Jar",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "bottle",
+    "name": "Bottle",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "takeout_box",
+    "name": "Takeout Box",
+    "category": "Pantry & Other"
+  },
+  {
+    "key": "cinnamon_roll",
+    "name": "Cinnamon Roll",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "garlic_bread",
+    "name": "Garlic Bread",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "brioche",
+    "name": "Brioche",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "focaccia",
+    "name": "Focaccia",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "rye_bread",
+    "name": "Rye Bread",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "cornbread",
+    "name": "Cornbread",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "pretzel_bun",
+    "name": "Pretzel Bun",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "breadsticks",
+    "name": "Breadsticks",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "fruit_tart",
+    "name": "Fruit Tart",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "creme_brulee",
+    "name": "Creme Brulee",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "chocolate_truffle",
+    "name": "Chocolate Truffle",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "ice_cream_sandwich",
+    "name": "Ice Cream Sandwich",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "fruit_gelato",
+    "name": "Fruit Gelato",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "americano",
+    "name": "Americano",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "herbal_tea",
+    "name": "Herbal Tea",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "mango_smoothie",
+    "name": "Mango Smoothie",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "strawberry_smoothie",
+    "name": "Strawberry Smoothie",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "iced_matcha",
+    "name": "Iced Matcha",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "fruit_tea",
+    "name": "Fruit Tea",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "pad_thai",
+    "name": "Pad Thai",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "bibimbap",
+    "name": "Bibimbap",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "chicken_rice",
+    "name": "Chicken Rice",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "grilled_fish",
+    "name": "Grilled Fish",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "fried_noodles",
+    "name": "Fried Noodles",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "teriyaki_chicken",
+    "name": "Teriyaki Chicken",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "mapo_tofu",
+    "name": "Mapo Tofu",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "rice_bowl",
+    "name": "Rice Bowl",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "sushi_bowl",
+    "name": "Sushi Bowl",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "mixed_nuts",
+    "name": "Mixed Nuts",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "cheese_crackers",
+    "name": "Cheese Crackers",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "roasted_chickpeas",
+    "name": "Roasted Chickpeas",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "dried_mango",
+    "name": "Dried Mango",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "magnesium_capsules",
+    "name": "Magnesium Capsules",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "vitamin_c",
+    "name": "Vitamin C",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "pre_workout",
+    "name": "Pre Workout",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "shaker_cup",
+    "name": "Shaker Cup",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "ketchup_bottle",
+    "name": "Ketchup Bottle",
+    "category": "Extra Foods"
+  },
+  {
+    "key": "mustard_bottle",
+    "name": "Mustard Bottle",
+    "category": "Extra Foods"
   }
 ]

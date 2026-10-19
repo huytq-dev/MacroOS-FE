@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { usePlateNutrients } from '../../../hooks/use-food-log'
 import { MACRO_BAR, buildOverviewValues } from '../../../nutrition-overview.utils'
@@ -147,8 +148,14 @@ export function PlateNutrition({
         />
       </label>
 
-      {showAll && (
-        <div className="motion-safe:animate-in motion-safe:fade-in-0 space-y-6 motion-safe:duration-300">
+      {/* Mở/đóng bằng grid-rows 1fr ↔ 0fr (300ms) thay vì gỡ khỏi cây, để có cả hoạt ảnh đóng */}
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none',
+          showAll ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="min-h-0 space-y-6 overflow-hidden" inert={!showAll}>
           {SECTION_GROUPS.map((group) => (
             <section key={group.key} aria-labelledby={`plate-${group.key}`} className="space-y-3">
               <h3 id={`plate-${group.key}`} className="text-xl font-bold">
@@ -171,7 +178,7 @@ export function PlateNutrition({
             </section>
           ))}
         </div>
-      )}
+      </div>
     </section>
   )
 }

@@ -41,7 +41,7 @@ function Arc({
       strokeDasharray={circumference}
       strokeDashoffset={ready ? circumference * (1 - fraction) : circumference}
       transform={`rotate(-90 ${CENTER} ${CENTER})`}
-      className={`${className} motion-safe:transition-[stroke-dashoffset] motion-safe:duration-700 motion-safe:ease-out`}
+      className={`${className} motion-safe:animation-duration-700 motion-safe:transition-[stroke-dashoffset] motion-safe:ease-out`}
     />
   )
 }

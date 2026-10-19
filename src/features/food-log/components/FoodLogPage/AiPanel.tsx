@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Camera, Flashlight, FlashlightOff, Loader2, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import type { ProgramWeek } from '@/features/program/types/program.types'
+import type { AiPlateEdits } from '../../ai-plate.utils'
+import type { TileOptions } from '../../food-log-settings'
 import { useCameraScanner } from '@/hooks/use-camera-scanner'
 import { cn } from '@/lib/utils'
 import type {
@@ -14,6 +16,7 @@ import type {
   IngredientState,
   MacroTotals,
   PlateItem,
+  ResolvedIngredient,
 } from '../../types/food-log.types'
 import { AiPlateView } from './AiPlateView'
 import { SlidingSwitch } from './SlidingSwitch'
@@ -45,6 +48,14 @@ interface AiPanelProps {
   /** Có `dishes` thì panel hiện kết quả AI Plate thay cho form. */
   readonly dishes: AiDish[] | null
   readonly states: Record<string, IngredientState>
+  /** Ngày sẽ ghi (yyyy-MM-dd) cho thẻ Nutrition của kết quả. */
+  readonly date: string
+  readonly edits: AiPlateEdits
+  readonly tileOptions: TileOptions
+  readonly onSetGrams: (ingredientId: string, grams: number) => void
+  readonly onRemoveIngredient: (ingredientId: string) => void
+  readonly onReplaceIngredient: (ingredientId: string, data: ResolvedIngredient) => void
+  readonly onSetDishScale: (dishId: string, scale: number) => void
   readonly dayTotals?: MacroTotals
   readonly target?: ProgramWeek | null
   readonly onAnalyze: (input: AiAnalyzeInput) => void
@@ -56,19 +67,19 @@ interface AiPanelProps {
 }
 
 function PhotoRow({ file, onRemove }: { readonly file: File; readonly onRemove: () => void }) {
-  const [url, setUrl] = useState<string | null>(null)
-  useEffect(() => {
-    const objectUrl = URL.createObjectURL(file)
-    setUrl(objectUrl)
-    return () => URL.revokeObjectURL(objectUrl)
-  }, [file])
+  // Tạo URL xem trước lúc render; thu hồi khi ảnh đã vẽ xong (onLoad) chứ không ở cleanup của effect, vì StrictMode (dev) chạy
+  // cleanup giữa chừng làm hỏng ảnh đang hiển thị. Ảnh đã giải mã nên thu hồi URL không làm mất hình.
+  const url = useMemo(() => URL.createObjectURL(file), [file])
   return (
     <li className="border-border flex items-center gap-3 rounded-xl border p-2">
       <div className="bg-secondary size-14 shrink-0 overflow-hidden rounded-lg">
-        {url && (
-          // eslint-disable-next-line @next/next/no-img-element -- blob URL cục bộ, next/image không tối ưu được
-          <img src={url} alt="" className="size-full object-cover" />
-        )}
+        {/* eslint-disable-next-line @next/next/no-img-element -- blob URL cục bộ, next/image không tối ưu được */}
+        <img
+          src={url}
+          alt=""
+          onLoad={() => URL.revokeObjectURL(url)}
+          className="size-full object-cover"
+        />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-base">{file.name}</p>
@@ -78,7 +89,7 @@ function PhotoRow({ file, onRemove }: { readonly file: File; readonly onRemove: 
         type="button"
         aria-label={`Remove ${file.name}`}
         onClick={onRemove}
-        className="bg-secondary focus-visible:ring-ring/50 active:bg-foreground/20 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
+        className="bg-secondary focus-visible:ring-ring/50 active:bg-foreground/20 flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
       >
         <Trash2 aria-hidden="true" fill="currentColor" className="size-5" />
       </button>
@@ -97,6 +108,13 @@ export function AiPanel({
   error,
   dishes,
   states,
+  date,
+  edits,
+  tileOptions,
+  onSetGrams,
+  onRemoveIngredient,
+  onReplaceIngredient,
+  onSetDishScale,
   dayTotals,
   target,
   onAnalyze,
@@ -109,12 +127,18 @@ export function AiPanel({
   const [photos, setPhotos] = useState<File[]>([])
   const [description, setDescription] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
-  const camera = useCameraScanner({
+  const {
+    videoRef,
+    status: cameraStatus,
+    torchOn,
+    torchSupported,
+    toggleTorch,
+  } = useCameraScanner({
     active: active && mode === 'snap' && !dishes,
     detect: false,
     onCode: () => undefined,
   })
-  const unavailable = camera.status === 'denied' || camera.status === 'unsupported'
+  const unavailable = cameraStatus === 'denied' || cameraStatus === 'unsupported'
   const full = photos.length >= MAX_PHOTOS
   const canAnalyze = photos.length > 0 || description.trim().length > 0
 
@@ -127,7 +151,7 @@ export function AiPanel({
   }
 
   const capture = () => {
-    const video = camera.videoRef.current
+    const video = videoRef.current
     if (!video || !video.videoWidth) return
     const canvas = document.createElement('canvas')
     canvas.width = video.videoWidth
@@ -160,10 +184,17 @@ export function AiPanel({
   if (dishes) {
     return (
       <AiPlateView
+        date={date}
         dishes={dishes}
         states={states}
+        edits={edits}
         dayTotals={dayTotals}
         target={target}
+        tileOptions={tileOptions}
+        onSetGrams={onSetGrams}
+        onRemoveIngredient={onRemoveIngredient}
+        onReplaceIngredient={onReplaceIngredient}
+        onSetDishScale={onSetDishScale}
         onRetry={onRetryIngredient}
         onStartOver={onStartOver}
         onLog={onLog}
@@ -296,23 +327,23 @@ export function AiPanel({
   return (
     <div className="relative h-full min-h-[24rem] overflow-hidden bg-black">
       <video
-        ref={camera.videoRef}
+        ref={videoRef}
         playsInline
         muted
         aria-hidden="true"
         className={cn(
           'absolute inset-0 size-full object-cover transition-opacity duration-300',
-          camera.status === 'ready' ? 'opacity-100' : 'opacity-0'
+          cameraStatus === 'ready' ? 'opacity-100' : 'opacity-0'
         )}
       />
 
       {unavailable && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-8 text-center">
           <p className="text-base font-medium">
-            {camera.status === 'denied' ? 'Camera access is blocked' : 'Camera is not available'}
+            {cameraStatus === 'denied' ? 'Camera access is blocked' : 'Camera is not available'}
           </p>
           <p className="text-muted-foreground text-sm">
-            {camera.status === 'denied'
+            {cameraStatus === 'denied'
               ? 'Allow camera access in your browser settings, or upload a photo instead.'
               : 'The camera needs a secure (HTTPS) connection. You can upload a photo instead.'}
           </p>
@@ -339,13 +370,13 @@ export function AiPanel({
           </button>
           <button
             type="button"
-            aria-label={camera.torchOn ? 'Turn flash off' : 'Turn flash on'}
-            aria-pressed={camera.torchOn}
-            disabled={!camera.torchSupported}
-            onClick={camera.toggleTorch}
-            className={cn(ROUND, !camera.torchSupported && 'opacity-60')}
+            aria-label={torchOn ? 'Turn flash off' : 'Turn flash on'}
+            aria-pressed={torchOn}
+            disabled={!torchSupported}
+            onClick={toggleTorch}
+            className={cn(ROUND, !torchSupported && 'opacity-60')}
           >
-            {camera.torchOn ? (
+            {torchOn ? (
               <Flashlight aria-hidden="true" className="size-5" />
             ) : (
               <FlashlightOff aria-hidden="true" className="size-5" />
@@ -357,7 +388,7 @@ export function AiPanel({
       <button
         type="button"
         aria-label="Take photo"
-        disabled={full || camera.status !== 'ready'}
+        disabled={full || cameraStatus !== 'ready'}
         onClick={capture}
         className="focus-visible:ring-ring/50 absolute bottom-6 left-1/2 flex size-[4.5rem] -translate-x-1/2 items-center justify-center rounded-full border-4 border-white focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
       >

@@ -55,7 +55,7 @@ export function DashboardCarousel({ slides }: DashboardCarouselProps) {
             aria-selected={index === page}
             aria-label={slide.label}
             onClick={() => goTo(index)}
-            className="focus-visible:ring-ring/50 flex size-6 items-center justify-center rounded-full focus-visible:ring-1 focus-visible:outline-none"
+            className="focus-visible:ring-ring/50 flex h-11 w-7 items-center justify-center rounded-full focus-visible:ring-1 focus-visible:outline-none"
           >
             <span
               className={cn(

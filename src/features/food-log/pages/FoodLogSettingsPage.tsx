@@ -175,7 +175,16 @@ export function FoodLogSettingsPage() {
         >
           CC BY 4.0
         </a>
-        . Recolored for MacroOS.
+        . Recolored for MacroOS. Additional icons include artwork derived from{' '}
+        <a
+          href="https://github.com/googlefonts/noto-emoji"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-foreground underline underline-offset-2"
+        >
+          Noto Emoji
+        </a>{' '}
+        © Google, licensed under Apache 2.0.
       </p>
 
       {editing === 'hourRange' && (

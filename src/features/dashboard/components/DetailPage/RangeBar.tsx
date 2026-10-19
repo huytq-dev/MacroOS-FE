@@ -45,7 +45,7 @@ export function RangeBar({ range, onRangeChange, averaging, onAveragingChange }:
             aria-checked={option === range}
             onClick={() => onRangeChange(option)}
             className={cn(
-              'focus-visible:ring-ring/50 relative h-10 flex-1 rounded-full text-base transition-colors duration-300 focus-visible:ring-1 focus-visible:outline-none',
+              'focus-visible:ring-ring/50 relative h-11 flex-1 rounded-full text-base transition-colors duration-300 focus-visible:ring-1 focus-visible:outline-none',
               option === range ? 'text-background font-medium' : 'text-foreground'
             )}
           >

@@ -170,7 +170,7 @@ export function FoodsPage() {
             key={option.value}
             value={option.value}
             variant="outline"
-            className="data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground h-9 shrink-0 rounded-full px-4 text-sm"
+            className="data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground h-11 shrink-0 rounded-full px-4 text-sm md:h-9"
           >
             {option.label}
           </ToggleGroupItem>

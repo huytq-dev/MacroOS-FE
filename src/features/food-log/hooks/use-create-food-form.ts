@@ -26,7 +26,8 @@ import { useAddEntry } from './use-food-log'
 
 const withoutKey = (errors: FieldErrors, key: string): FieldErrors => {
   if (!(key in errors)) return errors
-  const { [key]: _removed, ...rest } = errors
+  const rest = { ...errors }
+  delete rest[key]
   return rest
 }
 

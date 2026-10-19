@@ -3,16 +3,15 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { EllipsisVertical, Target } from 'lucide-react'
-import { toast } from 'sonner'
 import {
   useChangeProgramStyle,
   useCurrentProgram,
   useEndProgram,
   useGoalHistory,
   useSetManualExpenditure,
-  useUpdateGoalTarget,
   useUpdateProgramGoal,
 } from '../hooks/use-program'
+import { CheckInButton } from '../components/CheckInPage'
 import {
   CheckInDial,
   GoalCard,
@@ -20,7 +19,6 @@ import {
   ProgramActions,
   ProgramCard,
   type ActionKind,
-  type GoalValues,
 } from '../components/ProgramPage'
 import { useGoalProgress } from '@/features/dashboard/hooks/use-dashboard'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
@@ -33,7 +31,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { routePath } from '@/config/route-path'
 
 const ENTER =
-  'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-300'
+  'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-300'
 
 /**
  * Tab Strategy (như MacroFactor): vòng đếm ngược check-in kèm tiến độ goal, mục In Progress với thẻ Program (biểu đồ bảy ngày) và
@@ -44,9 +42,7 @@ export function ProgramPage() {
   const program = useCurrentProgram()
   const goalProgress = useGoalProgress()
   const history = useGoalHistory(Boolean(program.data))
-  const updateGoal = useUpdateProgramGoal()
   const updateProgram = useUpdateProgramGoal()
-  const updateTarget = useUpdateGoalTarget()
   const changeStyle = useChangeProgramStyle()
   const setManualTdee = useSetManualExpenditure()
   const endProgram = useEndProgram()
@@ -60,10 +56,6 @@ export function ProgramPage() {
     error: mutation.error ? getFormErrorMessage(mutation.error) : null,
   })
   const resetFor = (kind: ActionKind) => {
-    if (kind === 'goal') {
-      updateGoal.reset()
-      updateTarget.reset()
-    }
     if (kind === 'program') updateProgram.reset()
     if (kind === 'style') changeStyle.reset()
     if (kind === 'tdee') setManualTdee.reset()
@@ -75,24 +67,6 @@ export function ProgramPage() {
   }
 
   const current = program.data
-  const saveGoal = async (values: GoalValues, onDone: () => void) => {
-    if (!current) return
-    const rateChanged =
-      values.ratePercent !== null &&
-      values.ratePercent !== Math.abs(current.weeklyWeightChangeTargetPercent)
-    try {
-      if (values.targetWeightKg !== current.targetWeightKg)
-        await updateTarget.mutateAsync(values.targetWeightKg)
-      if (rateChanged)
-        await updateGoal.mutateAsync({ weeklyWeightChangeTargetPercent: values.ratePercent })
-      else toast.success('Goal updated')
-      onDone()
-    } catch {
-      // lỗi hiện inline trong bảng (state của updateGoal / updateTarget)
-    }
-  }
-  const goalError = updateGoal.error ?? updateTarget.error
-
   const createButton = (
     <Button asChild size="sm">
       <Link href={routePath.programNew}>Create program</Link>
@@ -137,13 +111,19 @@ export function ProgramPage() {
 
       {current && (
         <>
-          {current.checkInDueInDays !== null && (
+          {current.checkInDue ? (
             <div className={ENTER}>
-              <CheckInDial
-                days={current.checkInDueInDays}
-                goalPercent={goalProgress.data?.progressPercent ?? null}
-              />
+              <CheckInButton />
             </div>
+          ) : (
+            current.checkInDueInDays !== null && (
+              <div className={ENTER}>
+                <CheckInDial
+                  days={current.checkInDueInDays}
+                  goalPercent={goalProgress.data?.progressPercent ?? null}
+                />
+              </div>
+            )
           )}
 
           <section aria-labelledby="in-progress" className={`${ENTER} space-y-3`}>
@@ -151,7 +131,7 @@ export function ProgramPage() {
               In Progress
             </h2>
             <ProgramCard program={current} onEdit={() => openSheet('program')} />
-            <GoalCard program={current} onEdit={() => openSheet('goal')} />
+            <GoalCard program={current} />
           </section>
 
           <div className={ENTER}>
@@ -162,15 +142,10 @@ export function ProgramPage() {
             open={open}
             onOpenChange={openSheet}
             program={current}
-            goal={{
-              isPending: updateGoal.isPending || updateTarget.isPending,
-              error: goalError ? getFormErrorMessage(goalError) : null,
-            }}
             programEdit={stateOf(updateProgram)}
             style={stateOf(changeStyle)}
             tdee={stateOf(setManualTdee)}
             end={stateOf(endProgram)}
-            onSaveGoal={(values, onDone) => void saveGoal(values, onDone)}
             onSaveProgram={(payload, onDone) =>
               updateProgram.mutate(payload, { onSuccess: onDone })
             }

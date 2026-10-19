@@ -40,14 +40,13 @@ export function useCameraScanner({
     onCodeRef.current = onCode
   }, [onCode])
 
+  // Không có getUserMedia (HTTP thường, trình duyệt cũ) thì suy ra 'unsupported' lúc render, không set state trong effect
+  const cameraSupported =
+    typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia)
+
   useEffect(() => {
-    if (!active) return
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setStatus('unsupported')
-      return
-    }
+    if (!active || !cameraSupported) return
     let cancelled = false
-    setStatus('starting')
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
       .then((stream) => {
@@ -76,7 +75,7 @@ export function useCameraScanner({
       setTorchOn(false)
       setStatus('idle')
     }
-  }, [active])
+  }, [active, cameraSupported])
 
   const Detector = (
     typeof window === 'undefined'
@@ -116,5 +115,19 @@ export function useCameraScanner({
       .catch(() => undefined)
   }, [torchOn])
 
-  return { videoRef, status, torchSupported, torchOn, toggleTorch, detectorSupported }
+  // 'starting' = đang cần camera nhưng luồng chưa sẵn sàng (thay cho setStatus('starting') trong effect)
+  const effectiveStatus: CameraStatus = !cameraSupported
+    ? 'unsupported'
+    : active && status === 'idle'
+      ? 'starting'
+      : status
+
+  return {
+    videoRef,
+    status: effectiveStatus,
+    torchSupported,
+    torchOn,
+    toggleTorch,
+    detectorSupported,
+  }
 }

@@ -2,6 +2,7 @@ import type { ChoiceOption } from '@/components/shared/ChoiceGroup'
 
 /** Nhãn enum dạng "Tên — mô tả" hoặc "Tên (mô tả)" → tách thành tiêu đề và dòng phụ cho ChoiceGroup. */
 export const toChoices = <T extends string>(labels: Record<T, string>): ChoiceOption<T>[] =>
+  // Object.keys luôn trả string[]; khoá của `labels` chính là T nên ép kiểu an toàn
   (Object.keys(labels) as T[]).map((value) => {
     const match = /^(.*?)(?: — | \()(.*?)\)?$/.exec(labels[value])
     return match

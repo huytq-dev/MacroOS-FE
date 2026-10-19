@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Keyboard, ScanBarcode } from 'lucide-react'
-import { toast } from 'sonner'
+import { Keyboard, ScanBarcode, X } from 'lucide-react'
 import { FoodIcon } from '@/components/shared/FoodIcon'
-import { cn } from '@/lib/utils'
+import { SheetFrame } from '@/components/shared/SheetFrame'
+import { BarcodeSheet } from '../FoodLogPage/BarcodeSheet'
+import { ScanPanel } from '../FoodLogPage/ScanPanel'
 import type { CreateFoodState, FieldErrors } from '../../create-food.utils'
 import { FIELD_CLASS, FieldError, FieldLabel } from './field'
 
@@ -19,8 +20,8 @@ interface GeneralSectionProps {
 }
 
 /**
- * "General Information": thẻ Food Icon (icon + tên + hãng, nút Edit Icon), tên món, hãng và mã vạch (quét hoặc gõ tay). Quét bằng
- * camera chưa có ở trang này nên nút Scan báo "sắp có"; nút bàn phím mở ô nhập mã.
+ * "General Information": thẻ Food Icon (icon + tên + hãng, nút Edit Icon), tên món, hãng và mã vạch: Scan mở camera quét
+ * (`ScanPanel`), nút bàn phím mở bảng "Manual Barcode" (`BarcodeSheet`); có mã rồi thì nút Scan hiện mã, nút X để xoá.
  */
 export function GeneralSection({
   name,
@@ -31,7 +32,11 @@ export function GeneralSection({
   onChange,
   onEditIcon,
 }: GeneralSectionProps) {
-  const [manual, setManual] = useState(barcode !== '')
+  const [sheet, setSheet] = useState<'scan' | 'manual' | null>(null)
+  const setCode = (code: string) => {
+    onChange({ barcode: code })
+    setSheet(null)
+  }
   return (
     <section aria-labelledby="create-general" className="space-y-5">
       <h2 id="create-general" className="text-xl font-bold">
@@ -90,49 +95,65 @@ export function GeneralSection({
       </div>
 
       <div>
-        <FieldLabel htmlFor="create-food-barcode">Barcode</FieldLabel>
+        <FieldLabel>Barcode</FieldLabel>
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => toast('Barcode scanning is coming soon')}
+            aria-haspopup="dialog"
+            onClick={() => setSheet('scan')}
             className="bg-secondary focus-visible:ring-ring/50 active:bg-foreground/20 flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg text-base transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-[0.99]"
           >
-            <ScanBarcode aria-hidden="true" className="size-5" />
-            Scan
+            <ScanBarcode aria-hidden="true" className="size-5 shrink-0" />
+            <span className="truncate tabular-nums">{barcode || 'Scan'}</span>
           </button>
-          <button
-            type="button"
-            aria-label="Enter barcode manually"
-            aria-pressed={manual}
-            onClick={() => setManual((current) => !current)}
-            className={cn(
-              'focus-visible:ring-ring/50 flex h-14 w-16 shrink-0 items-center justify-center rounded-lg transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-95',
-              manual ? 'bg-foreground text-background' : 'bg-secondary'
-            )}
-          >
-            <Keyboard aria-hidden="true" className="size-5" />
-          </button>
-        </div>
-        <div
-          className={cn(
-            'grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none',
-            manual ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          {barcode ? (
+            <button
+              type="button"
+              aria-label="Remove barcode"
+              onClick={() => onChange({ barcode: '' })}
+              className="bg-secondary focus-visible:ring-ring/50 active:bg-foreground/20 flex h-14 w-16 shrink-0 items-center justify-center rounded-lg transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-95"
+            >
+              <X aria-hidden="true" className="size-5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="Enter barcode manually"
+              aria-haspopup="dialog"
+              onClick={() => setSheet('manual')}
+              className="bg-secondary focus-visible:ring-ring/50 active:bg-foreground/20 flex h-14 w-16 shrink-0 items-center justify-center rounded-lg transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-95"
+            >
+              <Keyboard aria-hidden="true" className="size-5" />
+            </button>
           )}
-        >
-          <div className="overflow-hidden" inert={!manual}>
-            <input
-              id="create-food-barcode"
-              value={barcode}
-              inputMode="numeric"
-              maxLength={64}
-              autoComplete="off"
-              placeholder="Barcode number"
-              onChange={(event) => onChange({ barcode: event.target.value })}
-              className={cn(FIELD_CLASS, 'mt-2')}
-            />
-          </div>
         </div>
       </div>
+
+      {/* Dùng lại đúng hai màn của tab Scan trong bảng Thêm món: camera quét và bảng "Manual Barcode" (mount mới mỗi lần mở). */}
+      <SheetFrame
+        open={sheet === 'scan'}
+        onOpenChange={(open) => !open && setSheet(null)}
+        title="Scan Barcode"
+        showDone={false}
+        tall
+      >
+        <ScanPanel
+          active={sheet === 'scan'}
+          isLookingUp={false}
+          error={null}
+          onCode={setCode}
+          onManual={() => setSheet('manual')}
+        />
+      </SheetFrame>
+      {sheet === 'manual' && (
+        <BarcodeSheet
+          open
+          onOpenChange={(open) => !open && setSheet(null)}
+          isPending={false}
+          error={null}
+          onLookup={setCode}
+        />
+      )}
     </section>
   )
 }

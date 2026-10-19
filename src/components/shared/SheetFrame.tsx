@@ -22,6 +22,8 @@ interface SheetFrameProps {
   readonly onDone?: () => void
   /** Bảng cao gần hết màn hình (chỉ chừa mép trên) thay vì cao theo nội dung; dùng cho bảng có lưới dài như Choose Icon. */
   readonly tall?: boolean
+  /** Nút ở góc phải tiêu đề (vd. biểu tượng thanh trượt mở Customize); chừa chỗ để tiêu đề căn giữa không bị đè. */
+  readonly headerAction?: React.ReactNode
   readonly children: React.ReactNode
 }
 
@@ -34,6 +36,7 @@ export function SheetFrame({
   showDone = true,
   onDone,
   tall = false,
+  headerAction,
   children,
 }: SheetFrameProps) {
   return (
@@ -55,6 +58,9 @@ export function SheetFrame({
           >
             <X aria-hidden="true" className="size-6" />
           </button>
+          {headerAction && (
+            <div className="absolute top-1/2 right-2 -translate-y-1/2">{headerAction}</div>
+          )}
           <DialogTitle className="font-sans text-xl font-semibold">{title}</DialogTitle>
           {subtitle ? (
             <DialogDescription className="text-muted-foreground text-base">

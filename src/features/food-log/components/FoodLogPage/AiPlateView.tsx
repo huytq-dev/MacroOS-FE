@@ -1,10 +1,24 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, Flame, Search } from 'lucide-react'
+import { ChevronDown, Flame, Search, Trash2 } from 'lucide-react'
+import { CollapseItem } from '@/components/shared/CollapseItem'
+import { FoodIcon } from '@/components/shared/FoodIcon'
 import { Button } from '@/components/ui/button'
 import type { ProgramWeek } from '@/features/program/types/program.types'
+import { useExitingList } from '@/hooks/use-exiting-list'
+import { useSheet } from '@/hooks/use-sheet'
 import { cn } from '@/lib/utils'
+import {
+  baseDataOf,
+  liveIngredients,
+  sumLive,
+  toPlateItem,
+  totalsOf,
+  type AiPlateEdits,
+  type LiveIngredient,
+} from '../../ai-plate.utils'
+import type { TileOptions } from '../../food-log-settings'
 import type {
   AiConfirmIngredient,
   AiDish,
@@ -14,49 +28,21 @@ import type {
   PlateItem,
   ResolvedIngredient,
 } from '../../types/food-log.types'
-import { SlidingSwitch } from './SlidingSwitch'
-
-type Scope = 'plate' | 'day'
-
-const SCOPES: readonly { value: Scope; label: string }[] = [
-  { value: 'plate', label: 'Plate' },
-  { value: 'day', label: 'Day' },
-]
-
-const NUTRIENTS = [
-  {
-    key: 'calories',
-    label: 'Calories',
-    unit: 'kcal',
-    bar: 'bg-mf-tile-calories',
-    goal: 'caloriesTarget',
-  },
-  { key: 'protein', label: 'Protein', unit: 'g', bar: 'bg-mf-tile-protein', goal: 'proteinTarget' },
-  { key: 'fat', label: 'Fat', unit: 'g', bar: 'bg-mf-tile-fat', goal: 'fatTarget' },
-  { key: 'carbs', label: 'Carbs', unit: 'g', bar: 'bg-mf-tile-carbs', goal: 'carbsTarget' },
-] as const
+import { AmountSheet, type AmountUnit } from './AmountSheet'
+import { IngredientSearchSheet } from './IngredientSearchSheet'
+import { PlateNutrition } from './PlatePanel/PlateNutrition'
 
 const BONE = 'bg-foreground/10 motion-safe:animate-pulse rounded-full'
 const FADE_IN = 'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300'
-const QUANTITY_BOX =
-  'bg-background min-w-16 shrink-0 rounded-lg px-3 py-2 text-center text-sm tabular-nums'
+const QUANTITY_BUTTON =
+  'bg-background focus-visible:ring-ring/50 active:bg-foreground/20 flex h-14 w-20 shrink-0 flex-col items-center justify-center rounded-lg px-2 leading-tight transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100'
+const TRASH_BUTTON =
+  'text-muted-foreground active:bg-foreground/10 focus-visible:ring-ring/50 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none'
 
 const statusOf = (states: Record<string, IngredientState>, id: string) =>
   states[id]?.status ?? 'searching'
 
-const sumOf = (list: readonly ResolvedIngredient[]) => ({
-  calories: list.reduce((sum, item) => sum + item.calories, 0),
-  protein: list.reduce((sum, item) => sum + item.protein, 0),
-  fat: list.reduce((sum, item) => sum + item.fat, 0),
-  carbs: list.reduce((sum, item) => sum + item.carbs, 0),
-  weightGrams: list.reduce((sum, item) => sum + item.weightGrams, 0),
-})
-
-const matchedOf = (ingredients: readonly AiIngredient[], states: Record<string, IngredientState>) =>
-  ingredients.flatMap((ingredient) => {
-    const state = states[ingredient.id]
-    return state?.status === 'matched' ? [{ ingredient, data: state.data }] : []
-  })
+const oneDecimal = (value: number) => Number(value.toFixed(1))
 
 function MacroLine({
   calories,
@@ -64,19 +50,16 @@ function MacroLine({
   fat,
   carbs,
   weightGrams,
-  estimated,
 }: {
   readonly calories: number
   readonly protein: number
   readonly fat: number
   readonly carbs: number
   readonly weightGrams: number
-  readonly estimated?: boolean
 }) {
   return (
-    <span className="text-muted-foreground flex items-center gap-2 text-[13px] whitespace-nowrap tabular-nums">
+    <span className="text-muted-foreground flex items-center gap-1.5 overflow-hidden text-[13px] whitespace-nowrap tabular-nums">
       <span className="inline-flex items-center">
-        {estimated && '~'}
         {Math.round(calories)}
         <Flame aria-hidden="true" fill="currentColor" className="size-3.5" />
       </span>
@@ -89,18 +72,90 @@ function MacroLine({
   )
 }
 
+/** Ô lượng bên phải: số lớn + đơn vị nhỏ; bấm để sửa. */
+function QuantityButton({
+  quantity,
+  unit,
+  label,
+  onClick,
+}: {
+  readonly quantity: number
+  readonly unit: string
+  readonly label: string
+  readonly onClick: () => void
+}) {
+  return (
+    <button type="button" aria-label={label} onClick={onClick} className={QUANTITY_BUTTON}>
+      <span className="text-base tabular-nums">{oneDecimal(quantity)}</span>
+      <span className="text-muted-foreground w-full truncate text-center text-xs">{unit}</span>
+    </button>
+  )
+}
+
+interface IngredientRowProps {
+  readonly ingredient: AiIngredient
+  readonly state: IngredientState | undefined
+  readonly live: LiveIngredient | undefined
+  readonly onEdit: () => void
+  readonly onRemove: () => void
+  readonly onRetry: () => void
+  readonly onSearch: () => void
+}
+
 function IngredientRow({
   ingredient,
   state,
+  live,
+  onEdit,
+  onRemove,
   onRetry,
-}: {
-  readonly ingredient: AiIngredient
-  readonly state: IngredientState | undefined
-  readonly onRetry: () => void
-}) {
+  onSearch,
+}: IngredientRowProps) {
+  if (live) {
+    const { data } = live
+    return (
+      <div className={cn('flex items-center gap-3 px-4 py-3', FADE_IN)}>
+        <FoodIcon iconKey={data.iconKey} emoji={data.emoji ?? '🍽️'} size={36} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-base leading-snug">
+              {data.foodName ?? ingredient.name}
+            </span>
+            {data.estimated && (
+              <span className="bg-foreground/10 text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[11px] leading-none">
+                Estimated
+              </span>
+            )}
+          </span>
+          <MacroLine
+            calories={data.calories}
+            protein={data.protein}
+            fat={data.fat}
+            carbs={data.carbs}
+            weightGrams={data.weightGrams}
+          />
+        </span>
+        <QuantityButton
+          quantity={data.quantity}
+          unit={data.unitLabel}
+          label={`Edit amount of ${ingredient.name}`}
+          onClick={onEdit}
+        />
+        <button
+          type="button"
+          aria-label={`Remove ${ingredient.name}`}
+          onClick={onRemove}
+          className={TRASH_BUTTON}
+        >
+          <Trash2 aria-hidden="true" className="size-5" />
+        </button>
+      </div>
+    )
+  }
+
   if (!state || state.status === 'searching') {
     return (
-      <li className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-3 px-4 py-3">
         <span aria-hidden="true" className={cn('size-9 shrink-0', BONE)} />
         <span className="min-w-0 flex-1 space-y-2">
           <span className="flex items-center gap-1.5 text-base">
@@ -109,92 +164,106 @@ function IngredientRow({
           </span>
           <span aria-hidden="true" className={cn('block h-3 w-3/5', BONE)} />
         </span>
-        <span aria-hidden="true" className={cn('h-9 w-16 shrink-0 rounded-lg', BONE)} />
-      </li>
+        <span aria-hidden="true" className={cn('h-14 w-20 shrink-0 rounded-lg', BONE)} />
+      </div>
     )
   }
-  if (state.status !== 'matched') {
-    return (
-      <li className="flex items-center gap-3 px-4 py-3">
-        <span className="text-muted-foreground min-w-0 flex-1 truncate text-base">
-          {state.status === 'error' ? 'Couldn’t search' : 'Couldn’t find'} &ldquo;{ingredient.name}
-          &rdquo;
-        </span>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="bg-background focus-visible:ring-ring/50 h-9 shrink-0 rounded-lg px-3 text-sm font-medium focus-visible:ring-1 focus-visible:outline-none"
-        >
-          Retry
-        </button>
-      </li>
-    )
-  }
-  const { data } = state
+
+  // not-found: AI không tìm được và không ước lượng được → "No data yet" + chọn món thay thế; error: tra lỗi → thử lại
   return (
-    <li className={cn('flex items-center gap-3 px-4 py-3', FADE_IN)}>
+    <div className={cn('flex items-center gap-3 px-4 py-3', FADE_IN)}>
       <span aria-hidden="true" className="w-9 shrink-0 text-center text-2xl leading-none">
-        {data.emoji ?? '🍽️'}
+        🍽️
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-base leading-snug">
-          {data.foodName ?? ingredient.name}
+        <span className="block truncate text-base leading-snug">{ingredient.name}</span>
+        <span className="text-muted-foreground block text-[13px]">
+          {state.status === 'error' ? 'Couldn’t search' : 'No data yet'}
         </span>
-        <MacroLine
-          calories={data.calories}
-          protein={data.protein}
-          fat={data.fat}
-          carbs={data.carbs}
-          weightGrams={data.weightGrams}
-          estimated={data.estimated}
-        />
       </span>
-      <span className={QUANTITY_BOX}>
-        {Number(data.quantity.toFixed(2))} / {data.unitLabel}
-      </span>
-    </li>
+      <button
+        type="button"
+        onClick={state.status === 'error' ? onRetry : onSearch}
+        className="bg-background focus-visible:ring-ring/50 active:bg-foreground/20 h-11 shrink-0 rounded-lg px-4 text-base font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none"
+      >
+        {state.status === 'error' ? 'Retry' : 'Search'}
+      </button>
+      <button
+        type="button"
+        aria-label={`Remove ${ingredient.name}`}
+        onClick={onRemove}
+        className={TRASH_BUTTON}
+      >
+        <Trash2 aria-hidden="true" className="size-5" />
+      </button>
+    </div>
   )
+}
+
+interface DishCardProps {
+  readonly dish: AiDish
+  readonly states: Record<string, IngredientState>
+  readonly edits: AiPlateEdits
+  readonly live: readonly LiveIngredient[]
+  readonly onEditDish: () => void
+  readonly onEditIngredient: (ingredient: AiIngredient) => void
+  readonly onRemoveIngredient: (ingredient: AiIngredient) => void
+  readonly onRetry: (ingredient: AiIngredient) => void
+  readonly onSearch: (ingredient: AiIngredient) => void
 }
 
 function DishCard({
   dish,
   states,
+  edits,
+  live,
+  onEditDish,
+  onEditIngredient,
+  onRemoveIngredient,
   onRetry,
-}: {
-  readonly dish: AiDish
-  readonly states: Record<string, IngredientState>
-  readonly onRetry: (ingredient: AiIngredient) => void
-}) {
+  onSearch,
+}: DishCardProps) {
   const [open, setOpen] = useState(false)
-  const searching = dish.ingredients.some((item) => statusOf(states, item.id) === 'searching')
+  const remaining = dish.ingredients.filter((item) => !edits.ingredients[item.id]?.removed)
+  // Nguyên liệu vừa xoá còn giữ 300ms để co lại rồi mới biến mất
+  const rows = useExitingList(remaining, (item) => item.id)
+  const searching = remaining.some(
+    (item) => !edits.ingredients[item.id]?.replacement && statusOf(states, item.id) === 'searching'
+  )
   const expanded = searching || open
-  const matched = matchedOf(dish.ingredients, states)
-  const total = sumOf(matched.map((item) => item.data))
+  const mine = live.filter((item) => item.dishId === dish.id)
+  const total = sumLive(mine)
+  const scale = edits.dishScales[dish.id] ?? 1
+  const lead = mine[0]?.data
+  const bare = searching && mine.length === 0
+
   return (
-    <li className="bg-secondary overflow-hidden rounded-2xl">
+    <div className="bg-secondary overflow-hidden rounded-2xl">
       <div className="flex items-center gap-3 px-4 py-3">
-        {searching ? (
-          <span aria-hidden="true" className={cn('size-9 shrink-0', BONE)} />
+        {bare ? (
+          <span aria-hidden="true" className={cn('size-10 shrink-0', BONE)} />
         ) : (
-          <span
-            aria-hidden="true"
-            className={cn('w-9 shrink-0 text-center text-3xl leading-none', FADE_IN)}
-          >
-            {matched[0]?.data.emoji ?? '🍽️'}
+          <span className={FADE_IN}>
+            <FoodIcon iconKey={lead?.iconKey} emoji={lead?.emoji ?? '🍽️'} size={40} />
           </span>
         )}
         <span className="min-w-0 flex-1 space-y-1">
           <span className="block text-base leading-snug font-medium">{dish.name}</span>
-          {searching ? (
+          {bare ? (
             <span aria-hidden="true" className={cn('block h-3 w-3/5', BONE)} />
           ) : (
             <MacroLine {...total} />
           )}
         </span>
-        {searching ? (
-          <span aria-hidden="true" className={cn('h-9 w-16 shrink-0 rounded-lg', BONE)} />
+        {bare ? (
+          <span aria-hidden="true" className={cn('h-14 w-20 shrink-0 rounded-lg', BONE)} />
         ) : (
-          <span className={cn(QUANTITY_BOX, FADE_IN)}>1 / plate</span>
+          <QuantityButton
+            quantity={scale}
+            unit="plate"
+            label={`Edit servings of ${dish.name}`}
+            onClick={onEditDish}
+          />
         )}
       </div>
 
@@ -223,72 +292,126 @@ function DishCard({
       >
         <div className="overflow-hidden" inert={!expanded}>
           <ul className="divide-border border-border divide-y border-t">
-            {dish.ingredients.map((item) => (
-              <IngredientRow
-                key={item.id}
-                ingredient={item}
-                state={states[item.id]}
-                onRetry={() => onRetry(item)}
-              />
+            {rows.map(({ item, key, entering, leaving }) => (
+              <CollapseItem key={key} entering={entering} leaving={leaving}>
+                <IngredientRow
+                  ingredient={item}
+                  state={states[item.id]}
+                  live={mine.find((entry) => entry.ingredient.id === item.id)}
+                  onEdit={() => onEditIngredient(item)}
+                  onRemove={() => onRemoveIngredient(item)}
+                  onRetry={() => onRetry(item)}
+                  onSearch={() => onSearch(item)}
+                />
+              </CollapseItem>
             ))}
           </ul>
         </div>
       </div>
-    </li>
+    </div>
   )
 }
 
 interface AiPlateViewProps {
+  /** Ngày sẽ ghi (yyyy-MM-dd): thẻ Nutrition lấy số liệu và mục tiêu theo ngày này. */
+  readonly date: string
   readonly dishes: AiDish[]
   readonly states: Record<string, IngredientState>
+  readonly edits: AiPlateEdits
   /** Tổng đã log trong ngày và mục tiêu, cho chế độ Day của phần Nutrition. */
   readonly dayTotals?: MacroTotals
   readonly target?: ProgramWeek | null
+  readonly tileOptions: TileOptions
   readonly onRetry: (ingredient: AiIngredient) => void
+  readonly onSetGrams: (ingredientId: string, grams: number) => void
+  readonly onRemoveIngredient: (ingredientId: string) => void
+  readonly onReplaceIngredient: (ingredientId: string, data: ResolvedIngredient) => void
+  readonly onSetDishScale: (dishId: string, scale: number) => void
   readonly onStartOver: () => void
-  /** `confirmations`: tên nguyên liệu AI + món user đã chọn, để cha báo BE (best-effort) trước khi vào plate. */
+  /** `confirmations`: tên nguyên liệu AI + món user đã chọn, để cha báo BE (best-effort) sau khi log. */
   readonly onLog: (items: PlateItem[], confirmations: AiConfirmIngredient[]) => void
 }
 
+type AmountTarget =
+  | { readonly kind: 'dish'; readonly dish: AiDish }
+  | { readonly kind: 'ingredient'; readonly ingredient: AiIngredient }
+
+const dishIdOf = (dishes: readonly AiDish[], ingredientId: string) =>
+  dishes.find((dish) => dish.ingredients.some((item) => item.id === ingredientId))?.id ?? ''
+
 /**
- * Kết quả "AI Plate": thẻ món (tên, tổng macro, số lượng, danh sách nguyên liệu mở/thu bằng grid-rows 300ms). Khi nguyên liệu còn
- * đang tra thì dòng hiện skeleton "Searching for…" và thẻ món khoá ở trạng thái mở; tra xong hết thì món tự gom tổng, hiện phần
- * Nutrition (Plate | Day) và nút Log Foods đưa các nguyên liệu khớp vào plate.
+ * Kết quả "AI Plate": thẻ món (icon, tên, tổng macro, ô "1 plate" sửa được, danh sách nguyên liệu mở/thu 300ms). Từng nguyên
+ * liệu có icon, macro, ô lượng sửa được và nút xoá; chưa tìm được thì hiện skeleton "Searching for…", không có dữ liệu thì "No
+ * data yet" kèm Search để chọn món thay. Mọi chỉnh sửa tính lại tổng món, thẻ Nutrition (Plate | Day, Show all nutrients) tức thì;
+ * Log Foods đưa các nguyên liệu vào nhật ký.
  */
 export function AiPlateView({
+  date,
   dishes,
   states,
+  edits,
   dayTotals,
   target,
+  tileOptions,
   onRetry,
+  onSetGrams,
+  onRemoveIngredient,
+  onReplaceIngredient,
+  onSetDishScale,
   onStartOver,
   onLog,
 }: AiPlateViewProps) {
-  const [scope, setScope] = useState<Scope>('plate')
-  const ingredients = dishes.flatMap((dish) => dish.ingredients)
-  const done = ingredients.every((item) => statusOf(states, item.id) !== 'searching')
-  const matched = matchedOf(ingredients, states)
-  const plate = sumOf(matched.map((item) => item.data))
+  const amountSheet = useSheet<AmountTarget>()
+  const searchSheet = useSheet<AiIngredient>()
+  const live = liveIngredients(dishes, states, edits)
+  const visibleDishes = dishes.filter((dish) =>
+    dish.ingredients.some((item) => !edits.ingredients[item.id]?.removed)
+  )
+  const pending = dishes
+    .flatMap((dish) => dish.ingredients)
+    .some(
+      (item) =>
+        !edits.ingredients[item.id]?.removed &&
+        !edits.ingredients[item.id]?.replacement &&
+        statusOf(states, item.id) === 'searching'
+    )
+  const plateItems = live.map((item) => toPlateItem(item, item.ingredient.id))
 
   const logFoods = () =>
     onLog(
-      matched.map(({ ingredient, data }) => ({
-        key: `${ingredient.id}-${Date.now()}`,
-        foodItemId: data.foodItemId,
-        name: data.foodName ?? ingredient.name,
-        foodServingId: data.servingId ?? null,
-        servingLabel: data.unitLabel,
-        quantity: data.quantity,
-        calories: data.calories,
-        protein: data.protein,
-        carbs: data.carbs,
-        fat: data.fat,
-      })),
+      live.map((item) => toPlateItem(item, `${item.ingredient.id}-${Date.now()}`)),
       // Ước lượng (không có món thật) không có foodItemId nên không gửi confirm.
-      matched.flatMap(({ ingredient, data }) =>
+      live.flatMap(({ ingredient, data }) =>
         data.foodItemId ? [{ name: ingredient.name, foodItemId: data.foodItemId }] : []
       )
     )
+
+  // Gram hiện tại và các đơn vị có thể nhập của mục đang sửa
+  const amountValue = amountSheet.value
+  const amountSetup = (): { title: string; units: AmountUnit[]; grams: number } | null => {
+    if (!amountValue) return null
+    if (amountValue.kind === 'dish') {
+      return {
+        title: amountValue.dish.name,
+        units: [{ label: 'plate', gramsPerUnit: 1 }],
+        grams: edits.dishScales[amountValue.dish.id] ?? 1,
+      }
+    }
+    const { ingredient } = amountValue
+    const data =
+      live.find((item) => item.ingredient.id === ingredient.id)?.data ??
+      baseDataOf(states[ingredient.id], edits.ingredients[ingredient.id])
+    if (!data) return null
+    const units: AmountUnit[] =
+      data.unitLabel !== 'g' && data.quantity > 0
+        ? [
+            { label: data.unitLabel, gramsPerUnit: data.weightGrams / data.quantity },
+            { label: 'g', gramsPerUnit: 1 },
+          ]
+        : [{ label: 'g', gramsPerUnit: 1 }]
+    return { title: ingredient.name, units, grams: data.weightGrams }
+  }
+  const amount = amountSetup()
 
   return (
     <div className="flex h-full min-h-[24rem] flex-col">
@@ -304,79 +427,83 @@ export function AiPlateView({
           </button>
         </div>
 
-        <ul className="space-y-3">
-          {dishes.map((dish) => (
-            <DishCard key={dish.id} dish={dish} states={states} onRetry={onRetry} />
+        <div className="space-y-3">
+          {visibleDishes.map((dish) => (
+            <DishCard
+              key={dish.id}
+              dish={dish}
+              states={states}
+              edits={edits}
+              live={live}
+              onEditDish={() => amountSheet.show({ kind: 'dish', dish })}
+              onEditIngredient={(ingredient) =>
+                amountSheet.show({ kind: 'ingredient', ingredient })
+              }
+              onRemoveIngredient={(ingredient) => onRemoveIngredient(ingredient.id)}
+              onRetry={onRetry}
+              onSearch={(ingredient) => searchSheet.show(ingredient)}
+            />
           ))}
-        </ul>
+        </div>
         <p className="text-muted-foreground text-center text-sm">
-          AI can make mistakes, so always verify its results.
+          MacroOS AI can make mistakes, so always verify its results.
         </p>
 
-        {done && (
-          <section className={cn('space-y-3', FADE_IN)}>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-bold">Nutrition</h2>
-              <SlidingSwitch
-                options={SCOPES}
-                value={scope}
-                onChange={setScope}
-                label="Nutrition scope"
-                className="bg-secondary"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {NUTRIENTS.map((nutrient) => {
-                const value =
-                  scope === 'plate'
-                    ? plate[nutrient.key]
-                    : (dayTotals?.[nutrient.key] ?? 0) + plate[nutrient.key]
-                const goal = target?.[nutrient.goal]
-                const scale = Math.max(value, goal ?? 0, 1)
-                return (
-                  <div key={nutrient.key} className="bg-secondary space-y-2 rounded-xl p-3">
-                    <p className="text-base font-medium">{nutrient.label}</p>
-                    <p className="text-muted-foreground text-sm tabular-nums">
-                      {scope === 'plate'
-                        ? `${Math.round(value)} ${nutrient.unit} in plate`
-                        : goal
-                          ? `${Math.round(value)} / ${Math.round(goal)} ${nutrient.unit}`
-                          : `${Math.round(value)} ${nutrient.unit}`}
-                    </p>
-                    <div className="bg-foreground/10 relative h-1.5 rounded-full">
-                      <div
-                        className={cn(
-                          'h-full rounded-full transition-[width] duration-300',
-                          nutrient.bar
-                        )}
-                        style={{ width: `${(value / scale) * 100}%` }}
-                      />
-                      {goal ? (
-                        <span
-                          aria-hidden="true"
-                          className="bg-foreground absolute -top-0.5 h-2.5 w-0.5 rounded-full"
-                          style={{ left: `calc(${(goal / scale) * 100}% - 1px)` }}
-                        />
-                      ) : null}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
+        {!pending && live.length > 0 && (
+          <div className={cn('[&_.bg-card]:bg-secondary', FADE_IN)}>
+            <PlateNutrition
+              date={date}
+              plate={plateItems}
+              plateTotals={totalsOf(live)}
+              dayTotals={dayTotals}
+              target={target}
+            />
+          </div>
         )}
       </div>
 
-      {done && (
+      {!pending && (
         <div className="flex justify-end px-4 pt-2 pb-4">
           <Button
             className="h-12 shrink-0 rounded-full px-5 text-base"
-            disabled={matched.length === 0}
+            disabled={live.length === 0}
             onClick={logFoods}
           >
             Log Foods
           </Button>
         </div>
+      )}
+
+      {amountSheet.value && amount && (
+        <AmountSheet
+          key={amountSheet.id}
+          open={amountSheet.open}
+          onOpenChange={amountSheet.onOpenChange}
+          title={amount.title}
+          units={amount.units}
+          grams={amount.grams}
+          onSave={(value) => {
+            if (amountValue?.kind === 'dish') onSetDishScale(amountValue.dish.id, value)
+            else if (amountValue) {
+              // Gram nhập là lượng đã nhân hệ số của món; lưu theo gram gốc để hệ số món vẫn nhân đúng
+              const scale = edits.dishScales[dishIdOf(dishes, amountValue.ingredient.id)] ?? 1
+              onSetGrams(amountValue.ingredient.id, value / scale)
+            }
+          }}
+        />
+      )}
+
+      {searchSheet.value && (
+        <IngredientSearchSheet
+          key={searchSheet.id}
+          open={searchSheet.open}
+          onOpenChange={searchSheet.onOpenChange}
+          ingredient={searchSheet.value}
+          tileOptions={tileOptions}
+          onSelect={(data) => {
+            if (searchSheet.value) onReplaceIngredient(searchSheet.value.id, data)
+          }}
+        />
       )}
     </div>
   )

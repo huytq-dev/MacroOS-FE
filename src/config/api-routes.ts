@@ -15,11 +15,30 @@ export const apiRoutes = {
     me: '/users/me', // GET, PUT
   },
   programs: {
+    setup: '/programs/setup', // GET → { weightKg, estimatedTdeeKcal, floors, kcalMax, proteinPerKgMax } cho wizard New Program
+    preview: '/programs/preview', // POST body như create, không ghi DB
     root: '/programs', // POST
     current: '/programs/current', // GET, DELETE
     goal: '/programs/current/goal', // PUT
     style: '/programs/current/style', // PUT
     expenditure: '/programs/current/expenditure', // PUT
+  },
+  shortcuts: {
+    root: '/shortcuts', // GET, PUT { toolbarStyle, items[] } → { toolbarStyle, items[12], isDefault }
+    reset: '/shortcuts/reset', // POST → mặc định
+  },
+  bodyMetrics: {
+    fullBody: '/body-metrics/full-body', // GET, PUT, DELETE ?date= → { date, visualBodyFatPercent, tape, hasData }
+  },
+  progressPhotos: {
+    root: '/progress-photos', // GET ?date=, PUT multipart { file, angle, date?, consent }, DELETE ?date=
+  },
+  checkIns: {
+    session: '/check-ins/session', // GET → hub check-in: module + 7 ngày kcal + preview đề xuất
+    incompleteDays: '/check-ins/incomplete-days', // PUT { dates[] } → session mới
+    modules: '/check-ins/modules', // PUT { introSeen?, partialLoggingHidden? }
+    accept: '/check-ins/accept', // POST
+    reject: '/check-ins/reject', // POST
   },
   foodFavorites: {
     root: '/food-favorites', // GET, POST
@@ -69,6 +88,8 @@ export const apiRoutes = {
   },
   goals: {
     history: '/goals/history', // GET → [{ id, goalType, targetWeightKg, startWeightKg, ratePerWeekKg, startDate, endDate, status }]
+    editPreview: '/goals/edit-preview', // POST { targetWeightKg?, weeklyRatePercent? } → mọi số màn Edit Goal, không ghi DB
+    edit: '/goals/edit', // PUT { targetWeightKg, weeklyRatePercent } → { requiresNewProgram }, một lệnh atomic
     target: '/goals/target', // PUT { targetWeightKg } (null = xoá)
     progress: '/goals/progress', // GET → { goalType, startDate, startWeightKg, targetWeightKg, currentTrendKg, ... }
   },
