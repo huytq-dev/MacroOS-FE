@@ -1,28 +1,26 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2, Trash2 } from 'lucide-react'
-import { DateField } from '@/components/shared/DateField'
+import { Loader2 } from 'lucide-react'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { NumericKeypad } from '@/components/shared/NumericKeypad'
 import { SheetFrame } from '@/components/shared/SheetFrame'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SelectDateSheet } from '@/features/weight/components/BodyMetricPage/SelectDateSheet'
 import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
+import { formatDate } from '@/lib/date'
 import { cn, normalizeDecimal } from '@/lib/utils'
-import type {
-  FullBodyData,
-  FullBodyRequest,
-  TapeField,
-  TapeMeasurements,
-} from '../types/body-metrics.types'
+import { TAPE_GROUPS } from '../full-body.config'
+import type { FullBodyData, FullBodyRequest, TapeMeasurements } from '../types/body-metrics.types'
 import { BodyFatReferenceSheet } from './BodyFatReferenceSheet'
 
 interface FullBodySheetProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly date: string
+  readonly today: string
   readonly onDateChange: (date: string) => void
   readonly data: FullBodyData | null | undefined
   /** Đổi mỗi lần dữ liệu của ngày tải xong, để form dựng lại và điền sẵn. */
@@ -35,44 +33,14 @@ interface FullBodySheetProps {
   readonly onDelete: () => void
 }
 
-const GROUPS: readonly {
-  readonly title: string
-  readonly fields: readonly { readonly key: TapeField; readonly label: string }[]
-}[] = [
-  {
-    title: 'Upper Body',
-    fields: [
-      { key: 'neckCm', label: 'Neck' },
-      { key: 'shouldersCm', label: 'Shoulders' },
-      { key: 'bustCm', label: 'Bust' },
-      { key: 'chestCm', label: 'Chest' },
-      { key: 'waistCm', label: 'Waist' },
-      { key: 'hipCm', label: 'Hips' },
-    ],
-  },
-  {
-    title: 'Arms',
-    fields: [
-      { key: 'leftArmCm', label: 'Left Bicep' },
-      { key: 'rightArmCm', label: 'Right Bicep' },
-      { key: 'leftForearmCm', label: 'Left Forearm' },
-      { key: 'rightForearmCm', label: 'Right Forearm' },
-      { key: 'leftWristCm', label: 'Left Wrist' },
-      { key: 'rightWristCm', label: 'Right Wrist' },
-    ],
-  },
-  {
-    title: 'Legs',
-    fields: [
-      { key: 'leftThighCm', label: 'Left Thigh' },
-      { key: 'rightThighCm', label: 'Right Thigh' },
-      { key: 'leftCalfCm', label: 'Left Calf' },
-      { key: 'rightCalfCm', label: 'Right Calf' },
-      { key: 'leftAnkleCm', label: 'Left Ankle' },
-      { key: 'rightAnkleCm', label: 'Right Ankle' },
-    ],
-  },
-]
+/** Thùng rác đặc như MacroFactor. */
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-6">
+      <path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+    </svg>
+  )
+}
 
 const text = (value: number | null | undefined) =>
   value === null || value === undefined ? '' : String(value)
@@ -81,23 +49,24 @@ const parse = (value: string) => (value.trim() === '' || value === '.' ? null : 
 const DECIMAL_TEXT = /^\d{0,3}(\.\d?)?$/
 const BODY_FAT = 'bodyFat'
 
-type FormProps = Omit<FullBodySheetProps, 'open' | 'onOpenChange' | 'dataVersion' | 'isLoading'>
+/** Mỗi nhóm hiện dần, lệch nhau một nhịp khi bảng mở. */
+const SECTION_IN =
+  'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300'
+
+interface FormProps {
+  readonly date: string
+  readonly data: FullBodyData | null | undefined
+  readonly isSaving: boolean
+  readonly error: string | null
+  readonly onSave: (payload: FullBodyRequest) => void
+}
 
 /** Form của một ngày; dựng lại (key) khi đổi ngày hoặc dữ liệu của ngày đó tải xong để ô được điền sẵn. */
-function FullBodyForm({
-  date,
-  onDateChange,
-  data: initial,
-  isSaving,
-  isDeleting,
-  error,
-  onSave,
-  onDelete,
-}: FormProps) {
+function FullBodyForm({ date, data: initial, isSaving, error, onSave }: FormProps) {
   const [bodyFat, setBodyFat] = useState(text(initial?.visualBodyFatPercent))
   const [tape, setTape] = useState<Record<string, string>>(() =>
     Object.fromEntries(
-      GROUPS.flatMap((group) =>
+      TAPE_GROUPS.flatMap((group) =>
         group.fields.map((field) => [field.key, text(initial?.tape?.[field.key])])
       )
     )
@@ -115,127 +84,99 @@ function FullBodyForm({
     else setTape((current) => ({ ...current, [key]: next }))
   }
   const keypadOpen = coarse && active !== null
-  const fieldProps = (key: string) => ({
-    type: 'text' as const,
-    inputMode: coarse ? ('none' as const) : ('decimal' as const),
-    autoComplete: 'off',
-    value: valueOf(key),
-    onChange: (event: React.ChangeEvent<HTMLInputElement>) => setField(key, event.target.value),
-    onFocus: (event: React.FocusEvent<HTMLInputElement>) => {
-      setActive(key)
-      // Bàn phím số trượt ra che nửa dưới: cuộn ô đang nhập vào giữa vùng nhìn thấy
-      const field = event.currentTarget
-      window.setTimeout(() => field.scrollIntoView({ block: 'center', behavior: 'smooth' }), 220)
-    },
-    onBlur: () => setActive(null),
-  })
+
+  const field = (key: string, label: string, unit: string) => (
+    <label className="block min-w-0 space-y-1.5">
+      <span className="block text-base font-semibold">{label}</span>
+      <span
+        className={cn(
+          'bg-secondary flex h-14 items-center gap-2 rounded-lg px-4 transition-shadow duration-200 motion-reduce:transition-none',
+          active === key && 'ring-foreground ring-2'
+        )}
+      >
+        <input
+          type="text"
+          inputMode={coarse ? 'none' : 'decimal'}
+          autoComplete="off"
+          value={valueOf(key)}
+          onChange={(event) => setField(key, event.target.value)}
+          onFocus={(event) => {
+            setActive(key)
+            // Bàn phím số trượt ra che nửa dưới: cuộn ô đang nhập vào giữa vùng nhìn thấy
+            const input = event.currentTarget
+            window.setTimeout(
+              () => input.scrollIntoView({ block: 'center', behavior: 'smooth' }),
+              220
+            )
+          }}
+          onBlur={() => setActive((current) => (current === key ? null : current))}
+          aria-label={`${label} (${unit})`}
+          className="w-0 min-w-0 flex-1 bg-transparent text-right text-lg tabular-nums outline-none"
+        />
+        <span className="text-muted-foreground text-base">{unit}</span>
+      </span>
+    </label>
+  )
 
   const submit = () => {
     const tapeValues: Partial<TapeMeasurements> = {}
-    for (const group of GROUPS)
-      for (const field of group.fields) tapeValues[field.key] = parse(tape[field.key] ?? '')
+    for (const group of TAPE_GROUPS)
+      for (const item of group.fields) tapeValues[item.key] = parse(tape[item.key] ?? '')
     const hasTape = Object.values(tapeValues).some((value) => value !== null)
     onSave({ date, visualBodyFatPercent: parse(bodyFat), tape: hasTape ? tapeValues : null })
   }
 
   return (
     <>
-      <div className="flex items-center gap-3 px-4 pt-4">
-        <div className="min-w-0 flex-1">
-          <DateField value={date} onValueChange={onDateChange} aria-describedby="metrics-date" />
-        </div>
-        {initial?.hasData && (
-          <button
-            type="button"
-            aria-label="Delete this day's metrics"
-            disabled={isDeleting}
-            onClick={onDelete}
-            className="text-destructive focus-visible:ring-ring/50 active:bg-foreground/10 flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
-          >
-            <Trash2 aria-hidden="true" className="size-5" />
-          </button>
-        )}
-      </div>
-
       <form
         noValidate
         onSubmit={(event) => {
           event.preventDefault()
           submit()
         }}
-        className="space-y-6 px-4 pt-5 pb-4"
+        className="space-y-7 px-4 pt-5"
       >
         <FormErrorAlert title="Couldn't save metrics" message={error} />
-        <section aria-labelledby="body-fat-heading" className="space-y-3">
-          <h2 id="body-fat-heading" className="text-xl font-bold">
+        <section aria-labelledby="body-fat-heading" className={cn('space-y-3', SECTION_IN)}>
+          <h2 id="body-fat-heading" className="text-xl font-semibold">
             Body Fat
           </h2>
-          <div className="flex items-center gap-3">
-            <label className="bg-secondary flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg px-4 text-base">
-              <span className="text-muted-foreground shrink-0">Visual Body Fat</span>
-              <input
-                {...fieldProps(BODY_FAT)}
-                className="min-w-0 flex-1 bg-transparent text-right tabular-nums outline-none"
-                aria-label="Visual body fat percent"
-              />
-              <span className="text-muted-foreground">%</span>
-            </label>
-            <Button
+          <div className="grid grid-cols-[1fr_auto] items-end gap-3">
+            {field(BODY_FAT, 'Visual Body Fat', '%')}
+            <button
               type="button"
-              variant="secondary"
-              className="h-12 rounded-lg px-4 text-base"
               onClick={() => setReferenceOpen(true)}
+              className="bg-secondary active:bg-muted focus-visible:ring-ring/50 flex h-14 items-center justify-center gap-2 rounded-lg px-4 text-base transition-colors focus-visible:ring-1 focus-visible:outline-none"
             >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-5">
+                <path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z" />
+              </svg>
               Reference
-            </Button>
+            </button>
           </div>
         </section>
 
-        {GROUPS.map((group) => (
+        {TAPE_GROUPS.map((group, index) => (
           <section
             key={group.title}
             aria-labelledby={`${group.title}-heading`}
-            className="space-y-3"
+            style={{ animationDelay: `${(index + 1) * 60}ms` }}
+            className={cn('space-y-4', SECTION_IN)}
           >
-            <h2 id={`${group.title}-heading`} className="text-xl font-bold">
+            <h2 id={`${group.title}-heading`} className="text-xl font-semibold">
               {group.title}
             </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {group.fields.map((field) => (
-                <label key={field.key} className="space-y-1.5 text-base">
-                  <span className="text-muted-foreground">{field.label}</span>
-                  <span className="bg-secondary focus-within:ring-ring/50 flex h-12 items-center gap-2 rounded-lg px-3 transition-shadow focus-within:ring-1">
-                    <Input
-                      {...fieldProps(field.key)}
-                      className="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 text-right tabular-nums shadow-none focus-visible:ring-0"
-                    />
-                    <span className="text-muted-foreground text-sm">cm</span>
-                  </span>
-                </label>
-              ))}
-            </div>
+            {group.fields.map((item) => (
+              <div key={item.key}>{field(item.key, item.label, 'cm')}</div>
+            ))}
           </section>
         ))}
 
-        <div className="bg-popover sticky bottom-0 -mx-4 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {coarse && (
-            <div
-              className={cn(
-                'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
-                keypadOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-              )}
-            >
-              <div className="overflow-hidden" inert={!keypadOpen}>
-                <div className="pb-3">
-                  <NumericKeypad
-                    allowFraction={false}
-                    onKey={(key) => active && setField(active, valueOf(active) + key)}
-                    onBackspace={() => active && setField(active, valueOf(active).slice(0, -1))}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+        {/* Giữ focus ở ô đang nhập khi bấm Save / bàn phím: blur làm bàn phím thu lại, Save trượt xuống và cú bấm trượt khỏi nút */}
+        <div
+          onMouseDown={(event) => event.preventDefault()}
+          className="bg-popover sticky bottom-0 -mx-4 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        >
           <Button
             type="submit"
             className="bg-foreground text-background h-12 w-full rounded-lg text-base"
@@ -245,6 +186,24 @@ function FullBodyForm({
             {isSaving && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
             Save
           </Button>
+          {coarse && (
+            <div
+              className={cn(
+                'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
+                keypadOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+              )}
+            >
+              <div className="overflow-hidden" inert={!keypadOpen}>
+                <div className="pt-3">
+                  <NumericKeypad
+                    allowFraction={false}
+                    onKey={(key) => active && setField(active, valueOf(active) + key)}
+                    onBackspace={() => active && setField(active, valueOf(active).slice(0, -1))}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </form>
 
@@ -257,24 +216,94 @@ function FullBodyForm({
   )
 }
 
-/** Shortcut Metrics: số đo cơ thể đầy đủ của một ngày (Body Fat + Reference, Upper Body, Arms, Legs, cm), mọi ô tuỳ chọn; lưu / xoá cả ngày một lần. */
+/**
+ * Bảng nhập Full Body kiểu MacroFactor: ✕, ngày ▾ (mở Select Date, ngày tương lai tắt), "Full Body", thùng rác khi ngày đã
+ * có số đo (hỏi lại trước khi xoá); Body Fat (+ Reference), Upper Body, Arms, Legs — mọi ô tuỳ chọn, ô trống = xoá số đo đó.
+ */
 export function FullBodySheet({
   open,
   onOpenChange,
+  date,
+  today,
+  onDateChange,
   dataVersion,
   isLoading,
-  ...form
+  data,
+  isSaving,
+  isDeleting,
+  error,
+  onSave,
+  onDelete,
 }: FullBodySheetProps) {
+  const [dateOpen, setDateOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   return (
-    <SheetFrame open={open} onOpenChange={onOpenChange} title="Metrics" showDone={false} tall>
-      {isLoading ? (
-        <div className="space-y-3 p-4" aria-busy="true">
-          <Skeleton className="h-12 rounded-lg" />
-          <Skeleton className="h-40 rounded-2xl" />
-        </div>
-      ) : (
-        <FullBodyForm key={`${form.date}-${dataVersion}`} {...form} />
-      )}
-    </SheetFrame>
+    <>
+      <SheetFrame
+        open={open}
+        onOpenChange={onOpenChange}
+        title={formatDate(date)}
+        onTitleClick={() => setDateOpen(true)}
+        subtitle="Full Body"
+        showDone={false}
+        tall
+        headerAction={
+          data?.hasData && (
+            <button
+              type="button"
+              aria-label="Delete this day's metrics"
+              disabled={isDeleting}
+              onClick={() => setConfirmOpen(true)}
+              className="focus-visible:ring-ring/50 active:bg-foreground/10 flex size-11 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            >
+              <DeleteIcon />
+            </button>
+          )
+        }
+      >
+        {isLoading ? (
+          <div className="space-y-4 p-4" aria-busy="true">
+            <Skeleton className="h-6 w-28 rounded" />
+            <Skeleton className="h-14 rounded-lg" />
+            <Skeleton className="h-14 rounded-lg" />
+            <Skeleton className="h-14 rounded-lg" />
+          </div>
+        ) : (
+          <div
+            key={`${date}-${dataVersion}`}
+            className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+          >
+            <FullBodyForm
+              date={date}
+              data={data}
+              isSaving={isSaving}
+              error={error}
+              onSave={onSave}
+            />
+          </div>
+        )}
+      </SheetFrame>
+      <SelectDateSheet
+        key={date}
+        open={dateOpen}
+        onOpenChange={setDateOpen}
+        value={date}
+        today={today}
+        onSelect={onDateChange}
+      />
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Delete metrics?"
+        description={`All Full Body metrics for ${formatDate(date)} will be deleted.`}
+        confirmLabel="Delete"
+        pendingLabel="Deleting..."
+        isPending={isDeleting}
+        onConfirm={() => {
+          setConfirmOpen(false)
+          onDelete()
+        }}
+      />
+    </>
   )
 }

@@ -5,7 +5,7 @@ import {
   daysBetween,
   entryDayLabel,
   xAxisLabels,
-  zeroBasedScale,
+  metricScale,
   type MetricPoint,
 } from '../../body-metric.utils'
 
@@ -23,6 +23,8 @@ interface MetricChartProps {
   readonly height: number
   /** Số khoảng chia trục y mong muốn (thu gọn 3, phóng to 6). */
   readonly tickCount: number
+  /** Trục y vừa dữ liệu thay vì từ 0. */
+  readonly fit: boolean
 }
 
 /**
@@ -37,18 +39,20 @@ export function MetricChart({
   label,
   height,
   tickCount,
+  fit,
 }: MetricChartProps) {
   const [selected, setSelected] = useState<number | null>(null)
-  const { ticks, max } = zeroBasedScale(
+  const { ticks, min, max } = metricScale(
     points.map((point) => point.value),
-    tickCount
+    tickCount,
+    fit
   )
   const plotW = WIDTH - PAD.left - PAD.right
   const plotH = height - PAD.top - PAD.bottom
   const slots = daysBetween(from, to) + 1
   const slotW = plotW / slots
   const xOf = (date: string) => PAD.left + slotW * (daysBetween(from, date) + 0.5)
-  const yOf = (value: number) => PAD.top + (1 - value / max) * plotH
+  const yOf = (value: number) => PAD.top + (1 - (value - min) / (max - min)) * plotH
   const line = points.map((point) => `${xOf(point.date)},${yOf(point.value)}`).join(' ')
   const active = selected === null ? null : points[selected]
 
@@ -70,11 +74,11 @@ export function MetricChart({
       aria-label={`${label} chart`}
       onPointerDown={pick}
       onPointerMove={(event) => event.buttons > 0 && pick(event)}
-      className="w-full touch-pan-y transition-[height] duration-300 select-none motion-reduce:transition-none"
+      className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-300 w-full touch-pan-y select-none"
     >
       {ticks.map((tick) => (
         <g key={tick}>
-          {tick > 0 && (
+          {tick > min && (
             <line
               x1="0"
               x2={WIDTH - PAD.right + 6}
@@ -97,8 +101,8 @@ export function MetricChart({
       <line
         x1="0"
         x2={WIDTH - PAD.right + 6}
-        y1={yOf(0)}
-        y2={yOf(0)}
+        y1={yOf(min)}
+        y2={yOf(min)}
         className="stroke-foreground/50"
       />
       {xAxisLabels(from, to).map(({ date, text }) => (
@@ -106,8 +110,8 @@ export function MetricChart({
           <line
             x1={xOf(date)}
             x2={xOf(date)}
-            y1={yOf(0)}
-            y2={yOf(0) + 5}
+            y1={yOf(min)}
+            y2={yOf(min) + 5}
             className="stroke-foreground/50"
           />
           <text
@@ -146,12 +150,15 @@ export function MetricChart({
       </g>
 
       {active && (
-        <g className="pointer-events-none">
+        <g
+          key={active.date}
+          className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-150 pointer-events-none"
+        >
           <line
             x1={xOf(active.date)}
             x2={xOf(active.date)}
             y1={PAD.top - 4}
-            y2={yOf(0)}
+            y2={yOf(min)}
             className="stroke-foreground/60"
             strokeDasharray="2 2"
           />

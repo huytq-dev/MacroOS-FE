@@ -2,6 +2,7 @@ import { apiCall } from '@/lib/api'
 import { apiRoutes } from '@/config/api-routes'
 import type {
   FullBodyData,
+  FullBodyHistory,
   FullBodyRequest,
   PhotoAngle,
   ProgressPhotosData,
@@ -10,6 +11,7 @@ import type {
 export const bodyMetricsService = {
   getFullBody: (date: string) =>
     apiCall.get<FullBodyData>(apiRoutes.bodyMetrics.fullBody, { params: { date } }),
+  getFullBodyHistory: () => apiCall.get<FullBodyHistory>(apiRoutes.bodyMetrics.fullBodyHistory),
   saveFullBody: (payload: FullBodyRequest) =>
     apiCall.put<FullBodyData>(apiRoutes.bodyMetrics.fullBody, payload),
   deleteFullBody: (date: string) =>

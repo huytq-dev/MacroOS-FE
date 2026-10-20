@@ -31,6 +31,21 @@ export interface FullBodyData {
   hasData: boolean
 }
 
+// Khớp BE GET /api/body-metrics/full-body/history (ngày có dữ liệu, mới nhất trước)
+export interface FullBodyHistoryItem {
+  date: string
+  /** Số ô có giá trị: % mỡ Visual + các ô đo vòng. */
+  metricCount: number
+  visualBodyFatPercent: number | null
+  tape: TapeMeasurements | null
+  scaleWeightKg: number | null
+  trendWeightKg: number | null
+}
+
+export interface FullBodyHistory {
+  items: FullBodyHistoryItem[]
+}
+
 export interface FullBodyRequest {
   date: string
   visualBodyFatPercent: number | null

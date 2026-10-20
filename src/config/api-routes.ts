@@ -32,6 +32,9 @@ export const apiRoutes = {
     fullBodyHistory: '/body-metrics/full-body/history', // GET ?from&to → { items: [{ date, metricCount, visualBodyFatPercent, tape, scaleWeightKg, trendWeightKg }] } mới nhất trước
     visualBodyFat: '/body-metrics/visual-body-fat', // GET ?from&to&granularity&all, POST { date?, percent }
     visualBodyFatByDate: (date: string) => `/body-metrics/visual-body-fat/${date}`, // DELETE
+    measurementsOverview: '/body-metrics/measurements/overview', // GET ?entries=7 → { metrics: [{ key, group, latestDate, latestCm, entries: [{ date, valueCm }] }] } chỉ số đo đã có dữ liệu, entries mới nhất trước
+    measurement: (key: string) => `/body-metrics/measurements/${key}`, // GET ?to&all, POST { date, valueCm }
+    measurementByDate: (key: string, date: string) => `/body-metrics/measurements/${key}/${date}`, // DELETE
   },
   progressPhotos: {
     root: '/progress-photos', // GET ?date=, PUT multipart { file, angle, date?, consent }, DELETE ?date=&angle?

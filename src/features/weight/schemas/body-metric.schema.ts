@@ -10,3 +10,7 @@ export const weightValueSchema = (unit: 'kg' | 'lb') =>
 
 // Khớp BE UpsertBodyFatCommandValidator (2–70 %)
 export const bodyFatValueSchema = z.number().min(2, 'At least 2%').max(70, 'Max 70%')
+
+// Khớp BE UpsertMeasurementCommandValidator: khoảng cm theo từng số đo (BodyMeasurementCatalog)
+export const measurementValueSchema = (min: number, max: number) =>
+  z.number().min(min, `At least ${min} cm`).max(max, `Max ${max} cm`)

@@ -1,6 +1,8 @@
 import { apiCall } from '@/lib/api'
 import { apiRoutes } from '@/config/api-routes'
 import type {
+  MeasurementSeries,
+  UpsertMeasurementRequest,
   UpsertVisualBodyFatRequest,
   UpsertWeightRequest,
   VisualBodyFatEntries,
@@ -24,4 +26,13 @@ export const weightService = {
     apiCall.post<string>(apiRoutes.bodyMetrics.visualBodyFat, payload),
   removeVisualBodyFat: (date: string) =>
     apiCall.delete(apiRoutes.bodyMetrics.visualBodyFatByDate(date)),
+
+  listMeasurement: (key: string, to: string) =>
+    apiCall.get<MeasurementSeries>(apiRoutes.bodyMetrics.measurement(key), {
+      params: { to, all: true },
+    }),
+  upsertMeasurement: (key: string, payload: UpsertMeasurementRequest) =>
+    apiCall.post(apiRoutes.bodyMetrics.measurement(key), payload),
+  removeMeasurement: (key: string, date: string) =>
+    apiCall.delete(apiRoutes.bodyMetrics.measurementByDate(key, date)),
 }

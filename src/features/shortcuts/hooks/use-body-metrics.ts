@@ -8,6 +8,7 @@ import type { FullBodyRequest, PhotoAngle } from '../types/body-metrics.types'
 
 export const bodyMetricKeys = {
   fullBody: (date: string) => ['body-metrics', 'full-body', date] as const,
+  fullBodyHistory: ['body-metrics', 'full-body-history'] as const,
   photos: (date: string) => ['progress-photos', date] as const,
 }
 
@@ -17,6 +18,14 @@ export const useFullBody = (date: string, enabled: boolean) =>
     queryKey: bodyMetricKeys.fullBody(date),
     queryFn: () => bodyMetricsService.getFullBody(date),
     enabled,
+  })
+
+/** Mọi ngày có số đo Full Body (danh sách theo tháng, tab ngày của All Metrics, Compare); lưu / xoá invalidate cả nhóm 'body-metrics'. */
+export const useFullBodyHistory = () =>
+  useQuery({
+    queryKey: bodyMetricKeys.fullBodyHistory,
+    queryFn: () => bodyMetricsService.getFullBodyHistory(),
+    select: (data) => data?.items ?? [],
   })
 
 export const useSaveFullBody = () => {

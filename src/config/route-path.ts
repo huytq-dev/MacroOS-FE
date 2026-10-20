@@ -25,6 +25,8 @@ export const routePath = {
   programGoalEdit: '/program/goal/edit',
   weight: '/weight',
   visualBodyFat: '/body-fat',
+  /** Trang một số đo vòng: khoá theo `features/weight/body-measurements.ts` (neck, leftBicep…). */
+  bodyMeasurement: (key: string) => `/body-metrics/${key}`,
   /** Full Body: danh sách ngày có số đo; `/all` = All Metrics, `/compare` = Compare All Metrics. */
   fullBody: '/full-body',
   fullBodyAll: '/full-body/all',

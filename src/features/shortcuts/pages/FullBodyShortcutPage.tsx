@@ -11,11 +11,18 @@ import type { FullBodyRequest } from '../types/body-metrics.types'
 interface FullBodyShortcutPageProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
+  /** Ngày mở sẵn (bấm một hàng ở trang Full Body); mặc định hôm nay. Trang cha đổi `key` để mở lại với ngày khác. */
+  readonly initialDate?: string
 }
 
 /** Shortcut Metrics: số đo cơ thể của một ngày. Chỉ tải khi sheet mở; kiểm tra khoảng giá trị bằng Zod trước khi gửi (khớp validator BE). */
-export function FullBodyShortcutPage({ open, onOpenChange }: FullBodyShortcutPageProps) {
-  const [date, setDate] = useState(() => todayIso())
+export function FullBodyShortcutPage({
+  open,
+  onOpenChange,
+  initialDate,
+}: FullBodyShortcutPageProps) {
+  const [today] = useState(() => todayIso())
+  const [date, setDate] = useState(() => initialDate ?? today)
   const [validationError, setValidationError] = useState<string | null>(null)
   const query = useFullBody(date, open)
   const save = useSaveFullBody()
@@ -38,6 +45,7 @@ export function FullBodyShortcutPage({ open, onOpenChange }: FullBodyShortcutPag
       open={open}
       onOpenChange={onOpenChange}
       date={date}
+      today={today}
       onDateChange={(next) => {
         setValidationError(null)
         setDate(next)

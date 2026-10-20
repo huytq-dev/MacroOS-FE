@@ -4,7 +4,7 @@ import { useState } from 'react'
 import {
   BodyMetricView,
   MetricEntrySheet,
-  VISUAL_BODY_FAT_TUTORIAL,
+  MEASUREMENT_TUTORIAL,
 } from '../components/BodyMetricPage'
 import {
   useDeleteVisualBodyFat,
@@ -71,7 +71,7 @@ export function VisualBodyFatPage() {
         points={points}
         today={today}
         isLoading={history.isLoading}
-        tutorial={tutorial === 'show' ? VISUAL_BODY_FAT_TUTORIAL : null}
+        tutorial={tutorial === 'show' ? MEASUREMENT_TUTORIAL : null}
         onDismissTutorial={() => setTutorial('hidden')}
         onAdd={() => today && openSheet(today)}
         onEdit={openSheet}

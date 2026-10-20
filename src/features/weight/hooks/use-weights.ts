@@ -3,7 +3,11 @@
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { weightService } from '../services/weight.service'
-import type { UpsertVisualBodyFatRequest, UpsertWeightRequest } from '../types/weight.types'
+import type {
+  UpsertMeasurementRequest,
+  UpsertVisualBodyFatRequest,
+  UpsertWeightRequest,
+} from '../types/weight.types'
 import { logger } from '@/lib/api'
 
 export const weightKeys = {
@@ -15,6 +19,11 @@ export const weightKeys = {
 export const visualBodyFatKeys = {
   all: ['visual-body-fat'] as const,
   history: (to: string) => ['visual-body-fat', 'all', to] as const,
+}
+
+export const measurementKeys = {
+  all: ['measurements'] as const,
+  history: (key: string, to: string) => ['measurements', key, to] as const,
 }
 
 export const useWeights = (from: string | null, to: string | null) =>
@@ -82,4 +91,28 @@ export const useDeleteVisualBodyFat = () =>
     (date: string) => weightService.removeVisualBodyFat(date),
     'Deleted',
     VISUAL_INVALIDATE
+  )
+
+/** Toàn bộ lịch sử một số đo vòng (cm) tới hôm nay. */
+export const useMeasurement = (key: string, today: string | null) =>
+  useQuery({
+    queryKey: measurementKeys.history(key, today ?? ''),
+    queryFn: () => weightService.listMeasurement(key, today ?? ''),
+    enabled: Boolean(today),
+  })
+
+// Full Body (sheet + trang) đọc cùng hàng Tape
+const MEASUREMENT_INVALIDATE = [measurementKeys.all, ['body-metrics']] as const
+
+export const useUpsertMeasurement = (key: string) =>
+  useMetricMutation(
+    (payload: UpsertMeasurementRequest) => weightService.upsertMeasurement(key, payload),
+    'Measurement logged',
+    MEASUREMENT_INVALIDATE
+  )
+export const useDeleteMeasurement = (key: string) =>
+  useMetricMutation(
+    (date: string) => weightService.removeMeasurement(key, date),
+    'Deleted',
+    MEASUREMENT_INVALIDATE
   )

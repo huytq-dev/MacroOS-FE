@@ -53,18 +53,31 @@ export function summarizeMetric(points: readonly MetricPoint[]) {
   }
 }
 
+const NICE_STEPS = [1, 2, 2.5, 5, 10]
+const round2 = (value: number) => Math.round(value * 100) / 100
+
 /**
- * Trục y luôn từ 0 (như MacroFactor) tới số tròn ≥ giá trị lớn nhất; số vạch theo chiều cao biểu đồ
- * (thu gọn ≈ 0/50/100, phóng to ≈ 0/20/…/80).
+ * Trục y: thu gọn = từ 0 tới số tròn ≥ giá trị lớn nhất (≈ 0/50/100); phóng to = vừa dữ liệu (Neck 17/18/19/20 như MF).
+ * `tickCount` là số khoảng chia mong muốn (thu gọn 3, phóng to 6).
  */
-export function zeroBasedScale(values: readonly number[], tickCount: number) {
-  const hi = values.length > 0 ? Math.max(1, ...values) : 10
-  const rough = hi / tickCount
+export function metricScale(values: readonly number[], tickCount: number, fit: boolean) {
+  if (values.length === 0) return metricScale([10], tickCount, false)
+  const hi = Math.max(...values)
+  const lo = fit ? Math.min(...values) : 0
+  const rough = Math.max((hi - lo) / tickCount, fit ? 0.5 : 1 / tickCount)
   const magnitude = 10 ** Math.floor(Math.log10(rough))
-  const step =
-    [1, 2, 2.5, 5, 10].map((n) => n * magnitude).find((n) => n * tickCount >= hi) ?? rough
-  const ticks = Array.from({ length: Math.ceil(hi / step) + 1 }, (_, index) => index * step)
-  return { ticks, max: ticks[ticks.length - 1] }
+  const step = NICE_STEPS.map((n) => n * magnitude).find((n) => n >= rough) ?? rough
+  let min = fit ? Math.floor(lo / step) * step : 0
+  let max = Math.ceil(hi / step) * step
+  // Ít hơn 3 vạch (dữ liệu gần như phẳng): nới mỗi phía một bước để đường không dính mép
+  if (max - min < step * 2) {
+    min = fit ? min - step : min
+    max += step
+  }
+  const ticks = Array.from({ length: Math.round((max - min) / step) + 1 }, (_, index) =>
+    round2(min + index * step)
+  )
+  return { ticks, min: ticks[0], max: ticks[ticks.length - 1] }
 }
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']

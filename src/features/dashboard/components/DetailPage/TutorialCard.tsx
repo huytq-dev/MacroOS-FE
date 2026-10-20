@@ -21,7 +21,7 @@ interface TutorialCardProps {
 }
 
 const PILL =
-  'focus-visible:ring-ring/50 min-h-11 rounded-full px-6 text-base transition-colors duration-500 focus-visible:ring-1 focus-visible:outline-none'
+  'focus-visible:ring-ring/50 min-h-11 whitespace-nowrap rounded-full px-4 text-base transition-colors duration-500 focus-visible:ring-1 focus-visible:outline-none'
 
 /**
  * Hướng dẫn nhiều bước (nền nâu đỏ cho Expenditure, tím cho Weight Trend): chỉ phần nội dung trượt ngang (vuốt tay hoặc
@@ -64,11 +64,11 @@ export function TutorialCard({ steps, tone, onDismiss }: TutorialCardProps) {
           </article>
         ))}
       </div>
-      <div className="flex items-center justify-between px-4 pt-3 pb-4">
+      <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-4">
         <button
           type="button"
           onClick={onDismiss}
-          className="focus-visible:ring-ring/50 min-h-11 px-2 text-base focus-visible:ring-1 focus-visible:outline-none"
+          className="focus-visible:ring-ring/50 min-h-11 shrink-0 text-base whitespace-nowrap focus-visible:ring-1 focus-visible:outline-none"
         >
           Dismiss Tutorial
         </button>

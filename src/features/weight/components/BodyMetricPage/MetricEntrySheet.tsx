@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Grid3x3, Loader2, Trash2 } from 'lucide-react'
+import { Grid3x3, Loader2 } from 'lucide-react'
 import type { z } from 'zod'
 import { SelectDateSheet } from './SelectDateSheet'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
@@ -120,7 +120,9 @@ export function MetricEntrySheet({
               onClick={onDelete}
               className="focus-visible:ring-ring/50 active:bg-foreground/10 flex size-11 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
             >
-              <Trash2 aria-hidden="true" className="size-5" />
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6 fill-current">
+                <path d="M9 3h6l1 1.5h4V7H4V4.5h4L9 3Zm-3.5 5h13l-1 12.2A2 2 0 0 1 15.5 22h-7a2 2 0 0 1-2-1.8L5.5 8Zm4 3v8h1.6v-8H9.5Zm3.4 0v8h1.6v-8h-1.6Z" />
+              </svg>
             </button>
           )
         }
@@ -185,8 +187,9 @@ export function MetricEntrySheet({
             Save
           </Button>
           {coarse && (
-            <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-300">
+            <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 -mx-2.5 -mb-[max(1rem,env(safe-area-inset-bottom))]">
               <NumericKeypad
+                layout="phone"
                 allowFraction={false}
                 onKey={(key) => setField(active, (texts[active] ?? '') + key)}
                 onBackspace={() => setField(active, (texts[active] ?? '').slice(0, -1))}

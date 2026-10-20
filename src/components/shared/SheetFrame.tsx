@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -52,7 +52,12 @@ export function SheetFrame({
             'max-sm:h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] max-sm:max-h-none sm:h-[85dvh] sm:max-h-[85dvh]'
         )}
       >
-        <DialogHeader className="border-border relative space-y-0 border-b px-4 py-4 text-center">
+        {/* Tay nắm trên đầu bảng như MacroFactor (chỉ trên điện thoại, nơi bảng trượt từ đáy) */}
+        <span
+          aria-hidden="true"
+          className="bg-foreground/30 mx-auto mt-2 block h-1 w-10 shrink-0 rounded-full sm:hidden"
+        />
+        <DialogHeader className="border-border relative space-y-0 border-b px-4 pt-2 pb-4 text-center sm:pt-4">
           <button
             type="button"
             aria-label="Close"
@@ -69,10 +74,13 @@ export function SheetFrame({
               <button
                 type="button"
                 onClick={onTitleClick}
-                className="focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded-md px-2 focus-visible:ring-1 focus-visible:outline-none"
+                // -my-2: vùng chạm vẫn 44px nhưng phụ đề nằm sát dưới ngày như MacroFactor
+                className="focus-visible:ring-ring/50 -my-2 inline-flex min-h-11 items-center gap-0.5 rounded-md px-2 focus-visible:ring-1 focus-visible:outline-none"
               >
                 {title}
-                <ChevronDown aria-hidden="true" className="size-5" />
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-6">
+                  <path d="M7 10l5 5 5-5z" />
+                </svg>
               </button>
             ) : (
               title

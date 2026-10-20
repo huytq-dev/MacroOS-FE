@@ -1,4 +1,12 @@
-import { CalendarDays, Lightbulb, PersonStanding } from 'lucide-react'
+import {
+  Calendar1,
+  CalendarDays,
+  Camera,
+  Grip,
+  Images,
+  PersonStanding,
+  Settings,
+} from 'lucide-react'
 import {
   ScaleIcon,
   SparkChartIcon,
@@ -24,15 +32,36 @@ export const SCALE_WEIGHT_TUTORIAL: readonly TutorialStep[] = [
   },
 ]
 
-export const VISUAL_BODY_FAT_TUTORIAL: readonly TutorialStep[] = [
+/** Hướng dẫn 6 bước của các trang số đo cơ thể (Visual Body Fat, Neck…Ankle), như MacroFactor. */
+export const MEASUREMENT_TUTORIAL: readonly TutorialStep[] = [
   {
     icon: <PersonStanding aria-hidden="true" className={TUTORIAL_ICON} />,
     title: 'Tracking Your Progress',
     text: 'Progress photos and body measurements can be a useful tool for tracking your progress.',
   },
   {
-    icon: <Lightbulb aria-hidden="true" fill="currentColor" className={TUTORIAL_ICON} />,
-    title: 'Estimating Visually',
-    text: 'Open Reference and pick the picture closest to how you look. Consistent lighting and timing matter more than precision.',
+    icon: <Settings aria-hidden="true" fill="currentColor" className={TUTORIAL_ICON} />,
+    title: 'Configuration',
+    text: 'We recommend focusing on a handful of metrics that you can track consistently.',
+  },
+  {
+    icon: <Calendar1 aria-hidden="true" className={TUTORIAL_ICON} />,
+    title: 'Measurement Frequency',
+    text: 'Taking measurements once a week (or even once a month) is sufficient for most goals.',
+  },
+  {
+    icon: <Grip aria-hidden="true" className={TUTORIAL_ICON} />,
+    title: 'Metric Focus',
+    text: 'You can swap the metric in focus by using the selector above the chart.',
+  },
+  {
+    icon: <Images aria-hidden="true" className={TUTORIAL_ICON} />,
+    title: 'Photo Gallery',
+    text: 'After you take your first progress photo, gallery view will become available below.',
+  },
+  {
+    icon: <Camera aria-hidden="true" fill="currentColor" className={TUTORIAL_ICON} />,
+    title: 'Before & After',
+    text: 'You can use the gallery to view and compare your photos and metrics over time.',
   },
 ]

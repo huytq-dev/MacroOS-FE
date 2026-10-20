@@ -41,7 +41,7 @@ interface BodyMetricViewProps {
 
 /**
  * Bố cục chung của Scale Weight / Visual Body Fat (kiểu MacroFactor): ‹ tiêu đề +, Average / Difference / khoảng ngày,
- * nút phóng to biểu đồ, biểu đồ, 1W…All + D/W/M (bảng), chú thích, hướng dẫn và lịch sử theo tháng.
+ * nút phóng to biểu đồ (cao hơn, trục y vừa dữ liệu), biểu đồ, 1W…All + D/W/M (bảng), chú thích, hướng dẫn và lịch sử theo tháng.
  */
 export function BodyMetricView({
   title,
@@ -86,7 +86,13 @@ export function BodyMetricView({
       <div className="flex items-start justify-between gap-3">
         <div className="flex gap-10">
           <StatBlock label="Average" value={average?.toFixed(1) ?? null} unit={unit} />
-          <StatBlock label="Difference" value={difference?.toFixed(1) ?? null} unit={unit} />
+          <StatBlock
+            label="Difference"
+            value={
+              difference === null ? null : `${difference > 0 ? '+' : ''}${difference.toFixed(1)}`
+            }
+            unit={unit}
+          />
         </div>
         <IconButton
           icon={expanded ? CollapseChartIcon : ExpandChartIcon}
@@ -103,14 +109,16 @@ export function BodyMetricView({
       <p className="text-muted-foreground -mt-4 text-lg">{rangeLabel(win.from, win.to)}</p>
 
       <MetricChart
-        key={`${range}-${averaging}`}
+        // Đổi kỳ / gộp / phóng to thì vẽ lại từ đầu (đường chạy + mờ dần) thay vì nhảy cục
+        key={`${range}-${averaging}-${expanded}`}
         points={shown}
         from={win.from}
         to={win.to}
         unit={unit}
         label={title}
         height={expanded ? 460 : 300}
-        tickCount={expanded ? 6 : 3}
+        tickCount={expanded ? 4 : 3}
+        fit={expanded}
       />
       <RangeBar
         range={range}
@@ -120,7 +128,7 @@ export function BodyMetricView({
       />
 
       {!expanded && (
-        <>
+        <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
           <div className="bg-card flex items-center justify-center gap-2 rounded-xl px-4 py-4 text-base">
             <span aria-hidden="true" className="relative flex h-4 w-6 items-center">
               <span className="bg-mf-green h-0.5 w-full" />
@@ -130,7 +138,7 @@ export function BodyMetricView({
           </div>
           {tutorial && <TutorialCard steps={tutorial} tone="green" onDismiss={onDismissTutorial} />}
           <MetricHistoryList points={points} unit={unit} icon={historyIcon} onEdit={onEdit} />
-        </>
+        </div>
       )}
     </div>
   )

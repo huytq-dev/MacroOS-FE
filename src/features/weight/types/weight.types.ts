@@ -43,3 +43,21 @@ export interface UpsertVisualBodyFatRequest {
   date: string
   percent: number
 }
+
+// Khớp BE GET/POST/DELETE /api/body-metrics/measurements/{key} (MeasurementSeriesResponse, MeasurementEntryModel)
+export interface MeasurementEntry {
+  date: string
+  valueCm: number
+}
+
+export interface MeasurementSeries {
+  key: string
+  group: string
+  items: MeasurementEntry[]
+  latestCm: number | null
+}
+
+export interface UpsertMeasurementRequest {
+  date: string
+  valueCm: number
+}
