@@ -287,7 +287,7 @@ export function TargetBar({ value, target, kind, tone }: TargetBarProps) {
       {kind === 'target' && (
         <span
           className={cn(
-            'absolute inset-y-0 left-0 rounded-sm transition-[width] duration-500',
+            'motion-safe:animate-bar-grow absolute inset-y-0 left-0 rounded-sm transition-[width] duration-500',
             tone
           )}
           style={{ width: `${ratio * TICK_AT}%` }}

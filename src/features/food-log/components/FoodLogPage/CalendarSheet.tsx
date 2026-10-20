@@ -3,10 +3,9 @@
 import { useEffect, useRef } from 'react'
 import { addDaysIso } from '@/lib/date'
 import { cn } from '@/lib/utils'
-import { DayPill, WEEKDAYS, mondayOf } from './WeekStrip'
+import type { WeekDay } from '../../types/food-log.types'
+import { DayPill, WEEKDAYS, kcalPercent, mondayOf, weeksAround } from './WeekStrip'
 
-/** Số tuần hiển thị trước/sau tuần hiện tại. */
-const WEEKS_EACH_SIDE = 26
 const COLUMNS = 7
 
 interface CalendarSheetProps {
@@ -16,6 +15,10 @@ interface CalendarSheetProps {
   /** false = đang đóng: mờ và trượt lên 200ms rồi gọi `onExited` để cha gỡ lịch khỏi cây. */
   readonly open: boolean
   readonly onExited: () => void
+  /** Tổng theo ngày (map iso → WeekDay) cho vòng kcal. */
+  readonly days: Readonly<Record<string, WeekDay>>
+  /** Báo các tuần (Thứ Hai) đang thấy để trang cha tải số liệu vòng kcal. */
+  readonly onWeeksView: (mondays: readonly string[]) => void
 }
 
 /** Thời gian hoạt ảnh đóng, khớp `duration-200` bên dưới. */
@@ -27,26 +30,43 @@ const monthName = (iso: string) =>
 /** Số tháng (1–12) của ngày iso; tháng chẵn nền sáng, tháng lẻ nền tối nên ranh giới tháng hiện rõ như MacroFactor. */
 const monthOf = (iso: string) => Number(iso.slice(5, 7))
 
+/** Các hàng tuần đang nằm trong khung cuộn (mọi hàng cao bằng nhau). */
+const visibleWeeks = (element: HTMLElement, weeks: readonly string[]) => {
+  const rowHeight = element.querySelector('li')?.offsetHeight ?? 0
+  if (rowHeight === 0) return []
+  const first = Math.floor(element.scrollTop / rowHeight)
+  return weeks.slice(first, Math.ceil((element.scrollTop + element.clientHeight) / rowHeight) + 1)
+}
+
 /**
  * Lịch cuộn theo tuần phủ kín phần dưới header: mỗi hàng là một tuần Mo→Su (±26 tuần quanh hôm nay), mở ra thì tuần của ngày
  * đang chọn nằm ở đầu. Mỗi tháng là một mảng nền riêng (xen kẽ sáng/tối, góc bo ở chỗ đổi tháng) và nhãn tháng nằm trên ngày
- * mùng 1. Chọn một ngày thì chuyển ngày và đóng lịch (trang cha lo phần đóng).
+ * mùng 1, mỗi viên ngày có vòng kcal như thanh tuần (chỉ tải số liệu của các tuần đang thấy). Chọn một ngày thì chuyển ngày và đóng lịch (trang cha lo phần đóng).
  */
-export function CalendarSheet({ date, today, onSelect, open, onExited }: CalendarSheetProps) {
+export function CalendarSheet({
+  date,
+  today,
+  onSelect,
+  open,
+  onExited,
+  days,
+  onWeeksView,
+}: CalendarSheetProps) {
   useEffect(() => {
     if (open) return
     const timer = setTimeout(onExited, EXIT_MS)
     return () => clearTimeout(timer)
   }, [open, onExited])
   const selectedRow = useRef<HTMLLIElement>(null)
-  const anchor = mondayOf(today ?? date)
-  const weeks = Array.from({ length: WEEKS_EACH_SIDE * 2 + 1 }, (_, index) =>
-    addDaysIso(anchor, (index - WEEKS_EACH_SIDE) * 7)
-  )
+  const weeks = weeksAround(mondayOf(today ?? date), mondayOf(date))
   const selectedWeek = mondayOf(date)
 
   useEffect(() => {
-    selectedRow.current?.scrollIntoView({ block: 'start' })
+    const row = selectedRow.current
+    row?.scrollIntoView({ block: 'start' })
+    if (row?.parentElement?.parentElement)
+      onWeeksView(visibleWeeks(row.parentElement.parentElement, weeks))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ cuộn tới tuần đang chọn lúc mở
   }, [])
 
   useEffect(() => {
@@ -62,6 +82,7 @@ export function CalendarSheet({ date, today, onSelect, open, onExited }: Calenda
       role="dialog"
       aria-label="Calendar"
       inert={!open}
+      onScroll={(event) => onWeeksView(visibleWeeks(event.currentTarget, weeks))}
       className={cn(
         'bg-background motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2 fixed inset-x-0 top-[calc(env(safe-area-inset-top)+4.25rem)] bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-20 overflow-y-auto overscroll-contain transition-[opacity,translate] duration-200 ease-in motion-reduce:transition-none',
         !open && 'pointer-events-none -translate-y-2 opacity-0'
@@ -104,6 +125,7 @@ export function CalendarSheet({ date, today, onSelect, open, onExited }: Calenda
                     weekday={weekday}
                     selected={day === date}
                     isToday={day === today}
+                    percent={kcalPercent(days[day], today)}
                     onSelect={onSelect}
                   />
                 </div>

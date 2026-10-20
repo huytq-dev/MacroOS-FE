@@ -60,6 +60,9 @@ export const apiRoutes = {
     note: (id: string) => `/food-logs/notes/${id}`, // PUT { text, notedAt? }, DELETE
     entries: '/food-logs/entries', // POST
     entry: (id: string) => `/food-logs/entries/${id}`, // PUT, DELETE
+    bulkCopy: '/food-logs/entries/bulk-copy', // POST { ids[], toDate, toTime?, toMealType? } → số entry đã copy (toTime thiếu = giữ giờ gốc)
+    bulkMove: '/food-logs/entries/bulk-move', // POST { ids[], toDate?, toTime?, toMealType? } (≥ 1 trường) → số entry đã chuyển
+    bulkDelete: '/food-logs/entries/bulk-delete', // POST { ids[] } → số entry đã xoá
     quickAdd: '/food-logs/quick-add', // POST
     copy: '/food-logs/copy', // POST
     aiAnalyze: '/food-logs/ai/analyze', // POST multipart { photos[], description } → { dishes[{ id, name, ingredients[{ id, name, grams }] }] }

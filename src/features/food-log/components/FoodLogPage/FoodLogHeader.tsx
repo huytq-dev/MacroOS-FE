@@ -8,7 +8,7 @@ import { routePath } from '@/config/route-path'
 import { addDaysIso } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import type { FoodLogSettings } from '../../food-log-settings'
-import type { MacroTotals } from '../../types/food-log.types'
+import type { MacroTotals, WeekDay } from '../../types/food-log.types'
 import { MacroSummary } from './MacroSummary'
 import { WeekStrip } from './WeekStrip'
 
@@ -54,6 +54,9 @@ interface FoodLogHeaderProps {
   /** Calendar Week Banner: Show và ShowAndPin = luôn hiện, Hide = ẩn thanh tuần. */
   readonly weekBanner: FoodLogSettings['weekBanner']
   readonly calendarScrolling: FoodLogSettings['calendarScrolling']
+  /** Tổng theo ngày cho vòng kcal của thanh tuần và báo tuần đang thấy để tải thêm. */
+  readonly weekDays: Readonly<Record<string, WeekDay>>
+  readonly onWeeksView: (mondays: readonly string[]) => void
   /** Lịch cuộn đang mở: ẩn thanh tuần và macro, nút lịch sáng trắng. */
   readonly calendarOpen: boolean
   readonly onCalendarToggle: () => void
@@ -86,6 +89,8 @@ export function FoodLogHeader({
   showOverages,
   weekBanner,
   calendarScrolling,
+  weekDays,
+  onWeeksView,
   calendarOpen,
   onCalendarToggle,
   onMore,
@@ -94,7 +99,7 @@ export function FoodLogHeader({
   return (
     <header className="bg-card sticky top-0 z-30 px-4 pb-3 max-md:-mx-4 max-md:-mt-[calc(env(safe-area-inset-top)+1.25rem)] max-md:pt-[calc(env(safe-area-inset-top)+0.75rem)] md:rounded-2xl md:pt-4">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="font-display text-3xl leading-tight font-extrabold tracking-wide uppercase [font-stretch:125%]">
+        <h1 className="font-display text-3xl leading-tight font-extrabold tracking-wide uppercase [font-stretch:125%] max-[359px]:text-2xl">
           {titleOf(date, today)}
         </h1>
         <div className="flex items-center gap-3">
@@ -135,6 +140,8 @@ export function FoodLogHeader({
                 today={today}
                 onSelect={onDateChange}
                 scrolling={calendarScrolling}
+                days={weekDays}
+                onWeeksView={onWeeksView}
               />
             </div>
           </div>
@@ -149,7 +156,7 @@ export function FoodLogHeader({
       >
         <div className="overflow-hidden" inert={calendarOpen}>
           <div className="pt-3">
-            <MacroSummary totals={totals} target={target} showOverages={showOverages} />
+            <MacroSummary date={date} totals={totals} target={target} showOverages={showOverages} />
           </div>
         </div>
       </div>

@@ -9,6 +9,16 @@ export interface AddFoodRequest {
   readonly libraryView?: LibraryView
 }
 
+/** Một nguyên liệu điền sẵn: lượng theo đúng entry đã log (khẩu phần + số lượng, hoặc gram khi `foodServingId` null). */
+export interface RecipeDraftLine {
+  readonly foodItemId: string
+  readonly name: string
+  readonly foodServingId: string | null
+  readonly quantity: number
+  readonly emoji?: string | null
+  readonly iconKey?: string | null
+}
+
 interface UiStore {
   /** Bảng "Thêm món": mở được từ shortcut / toolbar ở mọi trang, màn Nhật ký lắng nghe để hiện bảng. */
   addFoodOpen: boolean
@@ -19,6 +29,10 @@ interface UiStore {
   requestAddFood: (request: AddFoodRequest) => void
   /** Màn Nhật ký đã áp dụng yêu cầu: xoá nó nhưng KHÔNG đóng bảng. */
   clearAddFoodRequest: () => void
+  /** Nguyên liệu điền sẵn cho trang Create Recipe (Create Recipe từ các món đã chọn trên timeline); trang đọc rồi xoá. */
+  recipeDraft: readonly RecipeDraftLine[] | null
+  setRecipeDraft: (lines: readonly RecipeDraftLine[]) => void
+  clearRecipeDraft: () => void
   /** Ngày Food Log cần mở sẵn (bấm một ngày ở lịch Habits); màn Nhật ký đọc rồi xoá. */
   foodLogDate: string | null
   openFoodLogDate: (date: string) => void
@@ -39,6 +53,9 @@ export const useUiStore = create<UiStore>()((set) => ({
   addFoodRequest: null,
   requestAddFood: (addFoodRequest) => set({ addFoodRequest, addFoodOpen: true }),
   clearAddFoodRequest: () => set({ addFoodRequest: null }),
+  recipeDraft: null,
+  setRecipeDraft: (recipeDraft) => set({ recipeDraft }),
+  clearRecipeDraft: () => set({ recipeDraft: null }),
   foodLogDate: null,
   openFoodLogDate: (foodLogDate) => set({ foodLogDate }),
   clearFoodLogDate: () => set({ foodLogDate: null }),

@@ -151,7 +151,10 @@ export function DailyNutritionCard({
               <p className="text-muted-foreground text-sm">{macro.label}</p>
               <div className="bg-muted-foreground/25 h-1 overflow-hidden rounded-full">
                 <div
-                  className={cn('h-full rounded-full transition-[width] duration-500', macro.bar)}
+                  className={cn(
+                    'motion-safe:animate-bar-grow h-full rounded-full transition-[width] duration-500',
+                    macro.bar
+                  )}
                   style={{ width: `${fill * 100}%` }}
                 />
               </div>

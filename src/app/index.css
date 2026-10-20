@@ -125,6 +125,15 @@
     transform: scaleX(0);
   }
 }
+/* Thanh dinh dưỡng chạy từ 0 tới độ rộng của nó khi vừa hiện; đổi giá trị về sau do `transition-[width]` của thanh. */
+@keyframes bar-grow {
+  from {
+    width: 0;
+  }
+}
+@utility animate-bar-grow {
+  animation: bar-grow 500ms ease-out both;
+}
 @utility animate-chart-grow {
   transform-origin: left;
   animation: chart-grow 700ms ease-out both;

@@ -37,6 +37,8 @@ export interface FoodLogEntry {
 // Khớp BE Contract/Models/FoodLogs/FoodLogModels.cs (WeekLogResponse)
 export interface WeekDay {
   logDate: string
+  /** Ngày có nhật ký (BE `IsLogged`); false thì không vẽ vòng kcal. */
+  isLogged: boolean
   totals: MacroTotals
   target: ProgramWeek | null
 }
@@ -45,9 +47,16 @@ export interface WeekLog {
   days: WeekDay[]
 }
 
+/** Màu ghi chú theo BE (chuỗi PascalCase, mặc định Gray = không màu). */
+export type NoteColor = 'Gray' | 'Red' | 'Blue' | 'Green' | 'Yellow' | 'Purple' | 'Orange'
+
 /** Ghi chú trong ngày. BE đang đổi `notes` từ chuỗi sang mảng này (xem Docs/.../Food_Log/README.md mục 2.3). */
 export interface FoodLogNote {
   id: string
+  /** Tên ghi chú ("Note Name", ≤ 60), tuỳ chọn; null nếu không có. */
+  name?: string | null
+  /** Màu ghi chú; thiếu = Gray. */
+  color?: NoteColor | null
   text: string
   /** Giờ gắn với ghi chú ("HH:mm:ss"), null nếu không có. */
   notedAt: string | null
@@ -57,6 +66,8 @@ export interface DayLog {
   logDate: string
   /** Chấp nhận cả chuỗi (BE cũ) lẫn mảng (BE mới); dùng `toNotes` để chuẩn hoá. */
   notes: string | FoodLogNote[] | null
+  /** Số ghi chú tối đa mỗi ngày (BE = 5) cho nhãn "n / 5"; thiếu thì dùng mặc định. */
+  notesMaxPerDay?: number
   isLogged?: boolean
   totals: MacroTotals
   target: ProgramWeek | null
@@ -64,14 +75,38 @@ export interface DayLog {
 }
 
 // Khớp BE Notes: POST /food-logs/notes, PUT /food-logs/notes/{id} (notedAt "HH:mm:ss" hoặc "HH:mm")
+/** Khớp BE POST /food-logs/entries/bulk-copy: copy nguyên snapshot sang `toDate`; `toTime` thiếu thì giữ giờ gốc của từng entry. */
+export interface BulkCopyRequest {
+  ids: string[]
+  /** Một ngày đích; nhiều ngày thì dùng `toDates` (≤ 62, ids × ngày ≤ 1000). */
+  toDate?: string
+  toDates?: string[]
+  /** HH:mm:ss. */
+  toTime?: string
+}
+
+/** Khớp BE POST /food-logs/entries/bulk-move (cần ít nhất `toDate` hoặc `toTime`): giữ Id; chỉ `toTime` thì mỗi entry giữ ngày của mình. */
+export interface BulkMoveRequest {
+  ids: string[]
+  toDate?: string
+  toTime?: string
+}
+
 export interface AddNoteRequest {
   logDate: string
+  /** Bắt buộc, ≤ 1000 ký tự. */
   text: string
+  /** Tuỳ chọn, ≤ 60 ký tự; rỗng / null = không tên. */
+  name: string | null
+  color: NoteColor
   notedAt: string | null
 }
 
 export interface UpdateNoteRequest {
   text: string
+  /** Chuỗi rỗng xoá tên; trường không gửi thì BE giữ cũ. */
+  name: string
+  color: NoteColor
   notedAt: string | null
 }
 
@@ -258,7 +293,8 @@ export interface LibraryParams {
 export interface CreateRecipeRequest {
   name: string
   servingsCount: number
-  ingredients: { foodItemId: string; foodServingId: string; quantity: number }[]
+  /** `foodServingId` null = `quantity` là gram (BE giữ đúng số gram). */
+  ingredients: { foodItemId: string; foodServingId: string | null; quantity: number }[]
 }
 
 /**

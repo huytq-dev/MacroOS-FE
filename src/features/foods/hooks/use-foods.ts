@@ -1,9 +1,15 @@
 'use client'
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { foodService } from '../services/food.service'
-import type { CustomFoodRequest, FoodSearchParams } from '../types/food.types'
+import type { CustomFoodRequest, FoodDetail, FoodSearchParams } from '../types/food.types'
 import { logger } from '@/lib/api'
 
 export const foodKeys = {
@@ -38,8 +44,24 @@ export const useFoodDetail = (id: string | null) =>
     staleTime: 5 * 60 * 1000,
   })
 
+/** Chi tiết nhiều món một lượt (cùng khoá cache với `useFoodDetail`): trang Create Recipe cần khẩu phần + gramsPerMl của từng nguyên liệu. */
+export const useFoodDetails = (ids: readonly string[]) =>
+  useQueries({
+    queries: ids.map((id) => ({
+      queryKey: foodKeys.detail(id),
+      queryFn: () => foodService.get(id),
+      staleTime: 5 * 60 * 1000,
+    })),
+    combine: (results) => ({
+      byId: Object.fromEntries(
+        results.flatMap((result, index) => (result.data ? [[ids[index], result.data]] : []))
+      ) as Record<string, FoodDetail>,
+      isLoading: results.some((result) => result.isLoading),
+    }),
+  })
+
 /**
- * Target/floor/ceiling hiệu lực của ngày `date` cho mọi chất (màn Food Detail). Không phụ thuộc số lượng nên gọi một lần theo
+ *Target/floor/ceiling hiệu lực của ngày `date` cho mọi chất (màn Food Detail). Không phụ thuộc số lượng nên gọi một lần theo
  * món + ngày; lượng từng chất do FE tính tại chỗ từ `nutrientsPer100g`.
  */
 export const useFoodNutrients = (id: string | null, date: string | null) =>

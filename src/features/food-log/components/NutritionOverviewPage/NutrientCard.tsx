@@ -61,7 +61,7 @@ export function NutrientBar({
   const marker = target !== null && (
     <span
       className={cn(
-        'absolute top-1/2 -translate-y-1/2',
+        'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-500 absolute top-1/2 -translate-y-1/2',
         thin ? 'bg-foreground/45 h-3 w-px' : 'bg-foreground/60 h-2.5 w-0.5'
       )}
       style={{ left: `${geometry.at}%` }}
@@ -74,10 +74,18 @@ export function NutrientBar({
         thin ? 'bg-foreground/[0.07] h-1.5 rounded-full' : 'bg-foreground/10 h-6 rounded-sm'
       )}
     >
-      {zone && <span className={cn('absolute inset-y-0 opacity-30', tone)} style={zone} />}
+      {zone && (
+        <span
+          className={cn(
+            'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-500 absolute inset-y-0 opacity-30',
+            tone
+          )}
+          style={zone}
+        />
+      )}
       <span
         className={cn(
-          'absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none',
+          'motion-safe:animate-bar-grow absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none',
           thin && 'rounded-full',
           tone
         )}

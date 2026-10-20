@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils'
 import type { MacroTotals } from '../../types/food-log.types'
 
 interface MacroSummaryProps {
+  /** Đổi ngày thì số liệu hiện dần (thanh vẫn chạy bằng transition riêng). */
+  readonly date: string
   readonly totals: MacroTotals
   readonly target: ProgramWeek | null
   /** Nutrient Reporting: true thì vượt mục tiêu hiện số âm ("-120 left"), false thì dừng ở 0. */
@@ -38,7 +40,7 @@ const PAGES = ['consumed', 'left'] as const
  * Tóm tắt macro của ngày, vuốt ngang giữa hai trang (có chấm trang): "đã ăn / mục tiêu" với thanh tiến độ đang đầy dần,
  * và "còn lại" với thanh màu theo từng macro. Trung tính (BR-18): mặc định vượt mục tiêu không ra số âm (cài đặt Nutrient Reporting), thanh dừng ở đầy.
  */
-export function MacroSummary({ totals, target, showOverages }: MacroSummaryProps) {
+export function MacroSummary({ date, totals, target, showOverages }: MacroSummaryProps) {
   const [page, setPage] = useState(0)
   return (
     <div>
@@ -53,7 +55,7 @@ export function MacroSummary({ totals, target, showOverages }: MacroSummaryProps
           <ul
             key={mode}
             aria-label={mode === 'consumed' ? 'Consumed of target' : 'Remaining'}
-            className="grid w-full shrink-0 snap-center grid-cols-4 gap-3"
+            className="grid w-full shrink-0 snap-center grid-cols-4 gap-2"
           >
             {MACROS.map(({ key, letter, bar }) => {
               const value = Math.round(totals[key])
@@ -65,16 +67,24 @@ export function MacroSummary({ totals, target, showOverages }: MacroSummaryProps
                   : mode === 'consumed'
                     ? Math.min(100, (value / goal) * 100)
                     : Math.max(0, Math.min(100, ((goal - value) / goal) * 100))
+              // Cỡ chữ theo bề rộng cột (15cqi, tối đa 16px) để "2861/2880" + icon luôn vừa một cột kể cả ở 320px
               return (
-                <li key={key} className="min-w-0">
-                  <p className="flex items-center gap-1 text-base whitespace-nowrap tabular-nums">
+                <li key={key} className="@container min-w-0">
+                  <p
+                    key={date}
+                    className="motion-safe:animate-in motion-safe:fade-in-0 flex items-center gap-[0.2em] text-[min(1rem,15cqi)] whitespace-nowrap tabular-nums motion-safe:duration-300"
+                  >
                     {letter ? (
                       <b className="font-bold">{letter}</b>
                     ) : (
-                      <Flame aria-hidden="true" fill="currentColor" className="size-4 shrink-0" />
+                      <Flame
+                        aria-hidden="true"
+                        fill="currentColor"
+                        className="size-[1em] shrink-0"
+                      />
                     )}
                     {mode === 'consumed'
-                      ? `${value} / ${goal ?? '--'}`
+                      ? `${value}/${goal ?? '--'}`
                       : left === null
                         ? '--'
                         : `${showOverages ? left : Math.max(0, left)} left`}

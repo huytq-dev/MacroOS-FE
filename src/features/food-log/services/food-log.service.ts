@@ -10,6 +10,8 @@ import type {
   ResolvedIngredient,
   AddEntryRequest,
   AddNoteRequest,
+  BulkCopyRequest,
+  BulkMoveRequest,
   CopyRequest,
   CreateRecipeRequest,
   DayLog,
@@ -40,6 +42,11 @@ export const foodLogService = {
   quickAdd: (payload: QuickAddRequest) =>
     apiCall.post<string>(apiRoutes.foodLogs.quickAdd, payload),
   copy: (payload: CopyRequest) => apiCall.post<number>(apiRoutes.foodLogs.copy, payload),
+  bulkCopy: (payload: BulkCopyRequest) =>
+    apiCall.post<number>(apiRoutes.foodLogs.bulkCopy, payload),
+  bulkMove: (payload: BulkMoveRequest) =>
+    apiCall.post<number>(apiRoutes.foodLogs.bulkMove, payload),
+  bulkDelete: (ids: string[]) => apiCall.post<number>(apiRoutes.foodLogs.bulkDelete, { ids }),
   clearDay: (date: string) => apiCall.delete(apiRoutes.foodLogs.byDate(date)),
   addNote: (payload: AddNoteRequest) => apiCall.post<string>(apiRoutes.foodLogs.notes, payload),
   updateNote: (id: string, payload: UpdateNoteRequest) =>

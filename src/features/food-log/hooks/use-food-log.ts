@@ -1,7 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { SAMPLE_AI_PLATE } from '../components/FoodLogPage/ai-sample'
 import { EMPTY_AI_EDITS, type AiPlateEdits, type IngredientEdit } from '../ai-plate.utils'
@@ -9,6 +16,8 @@ import { foodLogService } from '../services/food-log.service'
 import type {
   AddEntryRequest,
   AddNoteRequest,
+  BulkCopyRequest,
+  BulkMoveRequest,
   AiConfirmIngredient,
   AiDish,
   AiIngredient,
@@ -22,6 +31,8 @@ import type {
   ResolvedIngredient,
   UpdateEntryRequest,
   UpdateNoteRequest,
+  WeekDay,
+  WeekLog,
 } from '../types/food-log.types'
 import { logger } from '@/lib/api'
 
@@ -82,6 +93,26 @@ export const useWeekLog = (date: string | null) =>
     enabled: Boolean(date),
   })
 
+const byDate = (results: UseQueryResult<WeekLog | null>[]) => {
+  const days: Record<string, WeekDay> = {}
+  results.forEach((result) => result.data?.days.forEach((day) => (days[day.logDate] = day)))
+  return days
+}
+
+/**
+ * Tổng từng ngày của nhiều tuần (mỗi tuần gọi theo Thứ Hai) cho vòng kcal trên viên ngày của thanh tuần và lịch.
+ * Gộp thành map ngày iso → WeekDay; ghi/xoá món invalidate `foodLogKeys.all` nên vòng tự cập nhật.
+ */
+export const useWeekDays = (mondays: readonly string[]) =>
+  useQueries({
+    queries: mondays.map((monday) => ({
+      queryKey: foodLogKeys.week(monday),
+      queryFn: () => foodLogService.getWeek(monday),
+      staleTime: 60 * 1000,
+    })),
+    combine: byDate,
+  })
+
 /** Mọi thay đổi log ảnh hưởng tổng ngày của nhiều ngày (copy) → invalidate cả nhóm. */
 const useLogMutation = <TVariables, TResult = unknown>(
   mutationFn: (variables: TVariables) => Promise<TResult>,
@@ -100,6 +131,13 @@ const useLogMutation = <TVariables, TResult = unknown>(
     },
   })
 }
+
+/** Chọn nhiều món trên timeline: copy / chuyển / xoá hàng loạt; mỗi thao tác làm mới mọi ngày bị ảnh hưởng. Thông báo do trang đưa ra. */
+export const useBulkCopy = () =>
+  useLogMutation((payload: BulkCopyRequest) => foodLogService.bulkCopy(payload))
+export const useBulkMove = () =>
+  useLogMutation((payload: BulkMoveRequest) => foodLogService.bulkMove(payload))
+export const useBulkDelete = () => useLogMutation((ids: string[]) => foodLogService.bulkDelete(ids))
 
 export const useAddEntry = () =>
   useLogMutation((payload: AddEntryRequest) => foodLogService.addEntry(payload))

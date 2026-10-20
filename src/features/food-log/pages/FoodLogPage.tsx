@@ -4,9 +4,23 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { routePath } from '@/config/route-path'
+import { DateTimeWheelSheet } from '../components/FoodLogPage/DateTimeWheelSheet'
+import { RemoveFoodsDialog } from '../components/FoodLogPage/RemoveFoodsDialog'
+import { SelectDatesSheet } from '../components/FoodLogPage/SelectDatesSheet'
+import {
+  SelectionBar,
+  type SelectionAction,
+  type SelectionTarget,
+} from '../components/FoodLogPage/SelectionBar'
+import { SelectionSummarySheet } from '../components/FoodLogPage/SelectionSummarySheet'
+import { useTimelineSelection } from '../hooks/use-timeline-selection'
+import { entryToPlateItem, nowClock } from '../selection.utils'
 import {
   useAddEntry,
   useAddNote,
+  useBulkCopy,
+  useBulkDelete,
+  useBulkMove,
   useClearDay,
   useCopyLog,
   useDayLog,
@@ -17,6 +31,7 @@ import {
   useQuickAdd,
   useUpdateEntry,
   useUpdateNote,
+  useWeekDays,
 } from '../hooks/use-food-log'
 import {
   AddFoodDialog,
@@ -35,6 +50,7 @@ import {
   NoteSheet,
   NotesSection,
   QuickAddPanel,
+  mondayOf,
   targetsByKey,
   type AddTab,
   type LibraryView,
@@ -148,6 +164,13 @@ export function FoodLogPage() {
   const [currentHour] = useState(() => new Date().getHours())
 
   const day = useDayLog(date)
+  // Các tuần đã hiện trên thanh tuần / lịch (chỉ thêm, không bớt) để vòng kcal không mất khi cuộn qua lại.
+  const [viewedWeeks, setViewedWeeks] = useState<readonly string[]>([])
+  const viewWeeks = (mondays: readonly string[]) =>
+    setViewedWeeks((seen) =>
+      mondays.every((monday) => seen.includes(monday)) ? seen : [...new Set([...seen, ...mondays])]
+    )
+  const weekDays = useWeekDays(date ? [...new Set([mondayOf(date), ...viewedWeeks])] : viewedWeeks)
   const debouncedSearch = useDebounce(search.trim(), 300)
   // Lazy: chỉ tìm khi sheet mở ở tab tìm món
   const foods = useFoodSearch(
@@ -193,9 +216,20 @@ export function FoodLogPage() {
   const barcode = useBarcodeLookup()
   const aiPlate = useAiPlate()
 
+  // Chọn nhiều món trên timeline (View / Copy / Move / Remove / Modify Timestamp / Create Recipe)
+  const selection = useTimelineSelection()
+  const bulkCopy = useBulkCopy()
+  const bulkMove = useBulkMove()
+  const bulkDelete = useBulkDelete()
+  const viewSheet = useSheet<true>()
+  const datesSheet = useSheet<true>()
+  const wheelSheet = useSheet<'copy-datetime' | 'move-datetime' | 'timestamp'>()
+  const [removeOpen, setRemoveOpen] = useState(false)
+
   // Shortcut / toolbar ở trang khác mở bảng Thêm món ở một tab: áp dụng ngay trong render (như mở từ nút giờ), rồi xoá yêu cầu.
   const addRequest = useUiStore((state) => state.addFoodRequest)
   const clearAddRequest = useUiStore((state) => state.clearAddFoodRequest)
+  const setRecipeDraft = useUiStore((state) => state.setRecipeDraft)
   const [appliedRequest, setAppliedRequest] = useState<AddFoodRequest | null>(null)
   if (addRequest && addRequest !== appliedRequest) {
     setAppliedRequest(addRequest)
@@ -375,6 +409,87 @@ export function FoodLogPage() {
   if (day.isError) return <ErrorState error={day.error} onRetry={() => void day.refetch()} />
 
   const entries = day.data?.entries ?? []
+  const selectedIds = [...selection.selected]
+  const selectedEntries = entries.filter((entry) => selection.selected.has(entry.id))
+  const foodWord = (count: number) => `${count} ${count === 1 ? 'food' : 'foods'}`
+
+  /** Xong một thao tác hàng loạt: báo số món, thoát chế độ chọn (trừ Multi-Paste: dán nhiều lần). */
+  const finishBulk = (message: string, exit = true) => {
+    toast.success(message)
+    if (exit) selection.exit()
+  }
+  /** Copy tới một hoặc nhiều ngày trong một lần gọi BE (`toDates`); `time` thiếu thì giữ giờ gốc của từng món. */
+  const copySelected = async (dates: readonly string[], time?: string, exit = true) => {
+    if (dates.length === 0) return
+    try {
+      const total = await bulkCopy.mutateAsync({
+        ids: selectedIds,
+        ...(dates.length === 1 ? { toDate: dates[0] } : { toDates: [...dates] }),
+        toTime: time,
+      })
+      finishBulk(`Copied ${foodWord(total ?? 0)}`, exit)
+    } catch (error) {
+      toast.error(getFormErrorMessage(error))
+    }
+  }
+  const moveSelected = async (payload: { toDate?: string; toTime?: string }) => {
+    try {
+      const moved = await bulkMove.mutateAsync({ ids: selectedIds, ...payload })
+      finishBulk(`Moved ${foodWord(moved ?? 0)}`)
+    } catch (error) {
+      toast.error(getFormErrorMessage(error))
+    }
+  }
+  /** Giờ gốc của bánh xe: giờ của món đầu tiên đã chọn, không có thì giờ hiện tại (chỉ gọi trong sự kiện bấm). */
+  const wheelTime = () => (selectedEntries[0]?.eatenAt ?? '').slice(0, 5) || nowHourMinute()
+  const onSelectionAction = (action: SelectionAction) => {
+    if (action === 'view') viewSheet.show(true)
+    else if (action === 'remove') {
+      bulkDelete.reset()
+      setRemoveOpen(true)
+    } else if (action === 'timestamp') wheelSheet.show('timestamp')
+    else createRecipeFromSelection()
+  }
+  /** Create Recipe: món tự tạo / có sẵn thành nguyên liệu (recipe lồng recipe không hỗ trợ nên bỏ qua), rồi mở trang Create Recipe. */
+  const createRecipeFromSelection = () => {
+    const lines = selectedEntries.flatMap((entry) =>
+      entry.foodItemId && !entry.recipeId
+        ? [
+            {
+              foodItemId: entry.foodItemId,
+              name: entry.foodName,
+              foodServingId: entry.foodServingId,
+              quantity: entry.quantity,
+              emoji: entry.emoji,
+              iconKey: entry.iconKey,
+            },
+          ]
+        : []
+    )
+    if (lines.length === 0) {
+      toast.error('Recipes can only be built from foods, not other recipes or quick adds')
+      return
+    }
+    const skipped = selectedEntries.length - lines.length
+    if (skipped > 0) toast(`${foodWord(skipped)} skipped (not a food)`)
+    setRecipeDraft(lines)
+    selection.exit()
+    router.push(routePath.recipeNew)
+  }
+  const onCopyTo = (target: SelectionTarget) => {
+    if (!today) return
+    if (target === 'now') void copySelected([today], nowClock())
+    else if (target === 'today') void copySelected([today])
+    else if (target === 'tomorrow') void copySelected([addDaysIso(today, 1)])
+    else if (target === 'dates') datesSheet.show(true)
+    else wheelSheet.show('copy-datetime')
+  }
+  const onMoveTo = (target: Exclude<SelectionTarget, 'now' | 'dates'>) => {
+    if (!today) return
+    if (target === 'today') void moveSelected({ toDate: today })
+    else if (target === 'tomorrow') void moveSelected({ toDate: addDaysIso(today, 1) })
+    else wheelSheet.show('move-datetime')
+  }
   // Kết quả AI đang xem (chưa log) cộng vào tổng ở thanh trên cùng, cập nhật theo mọi chỉnh sửa
   const aiPreviewItems =
     tab === 'ai' && aiPlate.dishes
@@ -394,11 +509,14 @@ export function FoodLogPage() {
         setSelectedDate(next)
         setCalendarOpen(false)
       }}
-      totals={day.data?.totals ?? EMPTY_TOTALS}
-      target={day.data?.target ?? null}
+      // Ngày mới chưa tải xong thì lấy tổng từ dữ liệu tuần (đã có cho thanh tuần) để số không nháy về 0
+      totals={day.data?.totals ?? weekDays[date]?.totals ?? EMPTY_TOTALS}
+      target={day.data?.target ?? weekDays[date]?.target ?? null}
       showOverages={settings.overages === 'ShowOverages'}
       weekBanner={settings.weekBanner}
       calendarScrolling={settings.calendarScrolling}
+      weekDays={weekDays}
+      onWeeksView={viewWeeks}
       calendarOpen={calendarOpen}
       onCalendarToggle={() => setCalendarOpen((open) => !open)}
       onMore={() => moreSheet.show(true)}
@@ -420,6 +538,8 @@ export function FoodLogPage() {
           onExited={() => setCalendarMounted(false)}
           date={date}
           today={today}
+          days={weekDays}
+          onWeeksView={viewWeeks}
           onSelect={(next) => {
             setSelectedDate(next)
             setCalendarOpen(false)
@@ -453,6 +573,14 @@ export function FoodLogPage() {
             hideEmptyHours={hideEmptyHours === 'hide'}
             onAddAt={openAdd}
             onSelectEntry={openEdit}
+            selection={{
+              mode: selection.mode,
+              selected: selection.selected,
+              onStart: selection.start,
+              onToggleEntry: selection.toggle,
+              onToggleHour: selection.toggleMany,
+              onPaste: (time) => void copySelected(date ? [date] : [], `${time}:00`, false),
+            }}
           />
           <NotesSection
             notes={toNotes(day.data.notes)}
@@ -464,11 +592,26 @@ export function FoodLogPage() {
               updateNote.reset()
               noteSheet.show(note)
             }}
+            onDelete={(note) => deleteNote.mutate(note.id)}
+            max={day.data.notesMaxPerDay}
           />
         </>
       )}
 
-      {!calendarOpen && (
+      {selection.mode && (
+        <SelectionBar
+          mode={selection.mode}
+          count={selection.selected.size}
+          onExit={selection.exit}
+          onBack={() => selection.setMode(selection.mode === 'paste' ? 'copy' : 'select')}
+          onMode={selection.setMode}
+          onAction={onSelectionAction}
+          onCopyTo={onCopyTo}
+          onMoveTo={onMoveTo}
+        />
+      )}
+
+      {!calendarOpen && !selection.mode && (
         <DashboardSearchBar
           onSearch={() => openAdd()}
           onScan={() => {
@@ -490,7 +633,7 @@ export function FoodLogPage() {
           onHideFoodDetailsChange={(hide) => setHideDetails(hide ? 'hide' : 'show')}
           onHideEmptyHoursChange={(hide) => setHideEmptyHours(hide ? 'hide' : 'show')}
           onCopyDay={openCopy}
-          onSelectAll={() => toast('Selecting foods is coming soon')}
+          onSelectAll={() => selection.start(entries.map((entry) => entry.id))}
           onClearDay={() => {
             clearDay.reset()
             setClearOpen(true)
@@ -504,6 +647,7 @@ export function FoodLogPage() {
           open={noteSheet.open}
           onOpenChange={noteSheet.onOpenChange}
           note={noteEditor}
+          date={date}
           defaultTime={nowHourMinute()}
           isPending={addNote.isPending || updateNote.isPending || deleteNote.isPending}
           error={
@@ -511,20 +655,88 @@ export function FoodLogPage() {
               ? getFormErrorMessage(addNote.error ?? updateNote.error ?? deleteNote.error)
               : null
           }
-          onSave={({ text, notedAt }) =>
+          onSave={({ name, text, color, notedAt }) =>
             noteEditor
               ? updateNote.mutate(
-                  { id: noteEditor.id, payload: { text, notedAt } },
+                  { id: noteEditor.id, payload: { name, text, color, notedAt } },
                   { onSuccess: () => noteSheet.hide() }
                 )
               : addNote.mutate(
-                  { logDate: date, text, notedAt },
+                  { logDate: date, name: name || null, text, color, notedAt },
                   { onSuccess: () => noteSheet.hide() }
                 )
           }
           onDelete={(note) => deleteNote.mutate(note.id, { onSuccess: () => noteSheet.hide() })}
         />
       )}
+
+      {viewSheet.value && date && (
+        <SelectionSummarySheet
+          key={viewSheet.id}
+          open={viewSheet.open}
+          onOpenChange={viewSheet.onOpenChange}
+          entries={selectedEntries}
+          plate={selectedEntries.map(entryToPlateItem)}
+          date={date}
+          target={day.data?.target ?? null}
+        />
+      )}
+
+      {datesSheet.value && today && (
+        <SelectDatesSheet
+          key={datesSheet.id}
+          open={datesSheet.open}
+          onOpenChange={datesSheet.onOpenChange}
+          today={today}
+          isPending={bulkCopy.isPending}
+          onConfirm={(dates) => {
+            datesSheet.hide()
+            void copySelected(dates)
+          }}
+        />
+      )}
+
+      {wheelSheet.value && today && (
+        <DateTimeWheelSheet
+          key={wheelSheet.id}
+          open={wheelSheet.open}
+          onOpenChange={wheelSheet.onOpenChange}
+          kind={wheelSheet.value === 'timestamp' ? 'time' : 'datetime'}
+          date={today}
+          time={wheelTime()}
+          confirmLabel={
+            wheelSheet.value === 'copy-datetime'
+              ? 'Paste to Date and Time'
+              : wheelSheet.value === 'move-datetime'
+                ? 'Move to Date and Time'
+                : 'Done'
+          }
+          isPending={bulkCopy.isPending || bulkMove.isPending}
+          onConfirm={(toDate, toTime) => {
+            const kind = wheelSheet.value
+            wheelSheet.hide()
+            if (kind === 'copy-datetime') void copySelected([toDate], `${toTime}:00`)
+            else if (kind === 'move-datetime') void moveSelected({ toDate, toTime: `${toTime}:00` })
+            else void moveSelected({ toTime: `${toTime}:00` })
+          }}
+        />
+      )}
+
+      <RemoveFoodsDialog
+        open={removeOpen}
+        onOpenChange={setRemoveOpen}
+        count={selection.selected.size}
+        isPending={bulkDelete.isPending}
+        onConfirm={() =>
+          bulkDelete.mutate(selectedIds, {
+            onSuccess: (removed) => {
+              setRemoveOpen(false)
+              finishBulk(`Removed ${foodWord(removed ?? 0)}`)
+            },
+            onError: (error) => toast.error(getFormErrorMessage(error)),
+          })
+        }
+      />
 
       {barcodeSheet.value && (
         <BarcodeSheet

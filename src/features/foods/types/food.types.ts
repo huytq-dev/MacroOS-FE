@@ -14,6 +14,8 @@ export interface FoodNutrition {
 export interface FoodServing {
   id: string
   servingName: string
+  /** Nhãn chip khẩu phần = `servingName` bỏ "1 " đầu (vd `large - 3 1/4" diameter`); BE cũ chưa có thì suy từ `servingName`. */
+  label?: string
   weightInGrams: number
   isDefault: boolean
 }
@@ -60,6 +62,8 @@ export interface FoodDetail {
   /** Mọi chất trên 100 g theo khoá danh mục dinh dưỡng của FE (đơn vị theo danh mục); null = chưa có dữ liệu, 0 = biết bằng 0. */
   nutrientsPer100g?: Record<string, number | null>
   servings: FoodServing[]
+  /** Gram trên mỗi ml (món lỏng hoặc suy từ khẩu phần cup / tbsp…): có thì bật chip ml, cup, tbsp, tsp, fl oz; null / thiếu = chưa biết. */
+  gramsPerMl?: number | null
 }
 
 // Khớp BE NutrientAmountModel / FoodNutrientsResponse (GET /foods/{id}/nutrients): target hiệu lực của ngày hỏi

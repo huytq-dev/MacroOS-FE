@@ -35,6 +35,8 @@ interface PlateNutritionProps {
   /** Tổng đã log trong ngày (không gồm plate); chưa tải xong thì thiếu. */
   readonly dayTotals?: MacroTotals
   readonly target?: ProgramWeek | null
+  /** false = chỉ xem phần của `plate` (ẩn công tắc Plate | Day): dùng cho View của các món đã chọn trên timeline. */
+  readonly allowDay?: boolean
 }
 
 /** Cộng lượng từng chất của các dòng plate (dòng không có dữ liệu chất đó coi như 0); dùng khi chưa có số từ BE. */
@@ -71,8 +73,10 @@ export function PlateNutrition({
   plateTotals,
   dayTotals,
   target,
+  allowDay = true,
 }: PlateNutritionProps) {
-  const [view, setView] = useState<View>('plate')
+  const [chosenView, setView] = useState<View>('plate')
+  const view: View = allowDay ? chosenView : 'plate'
   const [showAll, setShowAll] = useState(false)
   const base = buildOverviewValues(null, target ?? null)
   const remote = usePlateNutrients(
@@ -107,13 +111,15 @@ export function PlateNutrition({
         <h2 id="plate-nutrition" className="text-xl font-bold">
           Nutrition
         </h2>
-        <SlidingSwitch
-          options={VIEWS}
-          value={view}
-          onChange={setView}
-          label="Nutrition view"
-          className="bg-card"
-        />
+        {allowDay && (
+          <SlidingSwitch
+            options={VIEWS}
+            value={view}
+            onChange={setView}
+            label="Nutrition view"
+            className="bg-card"
+          />
+        )}
       </div>
 
       <ul className="grid grid-cols-2 gap-3">

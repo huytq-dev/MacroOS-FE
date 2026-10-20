@@ -134,7 +134,10 @@ export function AddFoodProgress({
               aria-hidden="true"
             >
               <div
-                className={cn('h-full rounded-full transition-[width] duration-300', cell.bar)}
+                className={cn(
+                  'motion-safe:animate-bar-grow h-full rounded-full transition-[width] duration-500',
+                  cell.bar
+                )}
                 style={{ width: `${percent}%` }}
               />
             </div>

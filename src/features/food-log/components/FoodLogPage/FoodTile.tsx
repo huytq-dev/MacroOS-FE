@@ -35,6 +35,8 @@ interface FoodTileProps {
   readonly onSelect?: () => void
   /** Nút + (Multi-Add) mở chi tiết món (như bấm cả dòng) để chọn khẩu phần rồi Add vào plate; chỉ dùng khi highlight = MultiAdd. */
   readonly onAdd?: () => void
+  /** Đang chọn nhiều món: nút bút chì mờ đi (không còn là hành động chính). */
+  readonly dimEdit?: boolean
 }
 
 const DENSITY = {
@@ -128,7 +130,14 @@ function AnimatedHeight({
  * Điểm nhấn bên phải: Edit (nút bút chì tròn), MultiAdd (nút + riêng, mở chi tiết món để chọn khẩu phần rồi Add vào plate), Energy (số kcal ở góc phải trên, bỏ kcal khỏi dòng macro), None (tên dài hơn).
  * Đổi cài đặt thì ô co giãn có hoạt ảnh.
  */
-export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: FoodTileProps) {
+export function FoodTile({
+  food,
+  settings,
+  variant = 'card',
+  onSelect,
+  onAdd,
+  dimEdit = false,
+}: FoodTileProps) {
   const density = DENSITY[settings.density]
   const highlight = settings.highlight
   const showKcalInline = highlight !== 'Energy'
@@ -149,7 +158,7 @@ export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: 
         <span className="flex items-start gap-2">
           <span
             className={cn(
-              'block min-w-0 flex-1 leading-snug font-normal transition-[font-size] duration-300',
+              'block min-w-0 flex-1 leading-snug font-normal [overflow-wrap:anywhere] transition-[font-size] duration-300',
               density.name,
               NAME_CLAMP[settings.density]
             )}
@@ -169,9 +178,10 @@ export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: 
             </span>
           )}
         </span>
-        <span className="text-muted-foreground flex items-center gap-x-2 text-[13px] font-light">
+        {/* Cột chữ hẹp (320px, có nút bên phải) thì kcal / P / F / C xuống dòng theo từng mục thay vì tràn dưới nút; khẩu phần cắt "…" */}
+        <span className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-2 text-[13px] font-light">
           {hasStats && (
-            <span className="inline-flex items-center gap-2 whitespace-nowrap tabular-nums">
+            <span className="inline-flex flex-wrap items-center gap-x-2 whitespace-nowrap tabular-nums">
               {showKcalInline && (
                 <span className={cn('inline-flex items-center', FADE_IN)}>
                   {kcal}
@@ -179,7 +189,7 @@ export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: 
                 </span>
               )}
               {settings.showMacros && (
-                <span className={cn('inline-flex gap-2', FADE_IN)}>
+                <span className={cn('inline-flex flex-wrap gap-x-2', FADE_IN)}>
                   <span>{Math.round(food.protein)}P</span>
                   <span>{Math.round(food.fat)}F</span>
                   <span>{Math.round(food.carbs)}C</span>
@@ -188,7 +198,9 @@ export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: 
             </span>
           )}
           {!comfort && hasStats && detail && <span aria-hidden="true">•</span>}
-          {!comfort && detail && <span className={cn('truncate', FADE_IN)}>{detail}</span>}
+          {!comfort && detail && (
+            <span className={cn('max-w-full min-w-0 truncate', FADE_IN)}>{detail}</span>
+          )}
         </span>
         {comfort && detail && (
           <span className={cn('text-muted-foreground block text-[13px]', FADE_IN)}>{detail}</span>
@@ -200,7 +212,8 @@ export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: 
     <span
       aria-hidden="true"
       className={cn(
-        'bg-foreground/15 flex size-11 shrink-0 items-center justify-center rounded-full',
+        'bg-foreground/15 flex size-11 shrink-0 items-center justify-center rounded-full transition-opacity duration-200',
+        dimEdit && 'opacity-40',
         FADE_IN
       )}
     >

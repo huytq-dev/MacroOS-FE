@@ -1,12 +1,26 @@
 import { useRef } from 'react'
-import { Flame, Plus } from 'lucide-react'
+import { Check, ClipboardPaste, Flame, Plus } from 'lucide-react'
 import { MEAL_DEFAULT_TIME } from '@/config/enums'
 import { CollapseItem } from '@/components/shared/CollapseItem'
 import { useExitingList } from '@/hooks/use-exiting-list'
 import { cn } from '@/lib/utils'
 import { servingAmountLabel } from '@/features/foods/types/food.types'
+import type { SelectionMode } from '../../hooks/use-timeline-selection'
 import type { FoodLogEntry } from '../../types/food-log.types'
 import { FoodTile, type FoodTileData, type FoodTileSettings } from './FoodTile'
+
+/** Chế độ chọn nhiều món (như MacroFactor): khi có `mode`, bấm món / viên thuốc giờ chỉ đổi lựa chọn, copy mode thì nút + thành nút dán. */
+export interface TimelineSelection {
+  readonly mode: SelectionMode | null
+  readonly selected: ReadonlySet<string>
+  /** Bấm viên thuốc giờ (hoặc nhấn giữ một món) khi chưa chọn gì: vào chế độ chọn với các món này. */
+  readonly onStart: (ids: readonly string[]) => void
+  readonly onToggleEntry: (id: string) => void
+  /** Bấm viên thuốc giờ khi đang chọn: chọn / bỏ chọn cả giờ. */
+  readonly onToggleHour: (ids: readonly string[]) => void
+  /** Dán vào giờ này (HH:mm) ở chế độ Copy / Multi-Paste. */
+  readonly onPaste: (time: string) => void
+}
 
 interface DayTimelineProps {
   readonly entries: readonly FoodLogEntry[]
@@ -26,6 +40,7 @@ interface DayTimelineProps {
   readonly tileSettings: FoodTileSettings
   readonly onAddAt: (time: string) => void
   readonly onSelectEntry: (entry: FoodLogEntry) => void
+  readonly selection?: TimelineSelection
 }
 
 const pad = (hour: number) => String(hour).padStart(2, '0')
@@ -40,10 +55,15 @@ function HourPill({
   label,
   now,
   onLongPress,
+  onPress,
+  filled = false,
 }: {
   readonly label: string
   readonly now: boolean
   readonly onLongPress?: () => void
+  /** Giờ có món: bấm để vào / đổi lựa chọn cả giờ; `filled` = đã chọn đủ (nền trắng). */
+  readonly onPress?: () => void
+  readonly filled?: boolean
 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancel = () => {
@@ -56,11 +76,30 @@ function HourPill({
       {now && (
         <span
           aria-label="Now"
-          className="bg-foreground absolute top-1/2 left-2 size-1.5 -translate-y-1/2 rounded-full"
+          className={cn(
+            'absolute top-1/2 left-2 size-1.5 -translate-y-1/2 rounded-full transition-colors duration-200',
+            filled ? 'bg-background' : 'bg-foreground'
+          )}
         />
       )}
     </>
   )
+  if (onPress)
+    return (
+      <button
+        type="button"
+        aria-pressed={filled}
+        aria-label={`Select foods at ${label}`}
+        onClick={onPress}
+        className={cn(
+          PILL,
+          'focus-visible:ring-ring/50 transition-[background-color,color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100',
+          filled ? 'bg-foreground text-background' : 'active:bg-muted'
+        )}
+      >
+        {content}
+      </button>
+    )
   return onLongPress ? (
     <button
       type="button"
@@ -82,6 +121,44 @@ function HourPill({
     </button>
   ) : (
     <span className={PILL}>{content}</span>
+  )
+}
+
+/** Vòng chọn bên phải mỗi món khi đang chọn nhiều: rỗng = ○, đã chọn = ✓; hiện ra bằng phóng nhẹ 200ms (tắt khi giảm chuyển động). */
+function SelectCheck({
+  selected,
+  label,
+  onToggle,
+}: {
+  readonly selected: boolean
+  readonly label: string
+  readonly onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={selected}
+      aria-label={`Select ${label}`}
+      onClick={onToggle}
+      className="focus-visible:ring-ring/50 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:fade-in-0 motion-safe:animation-duration-200 relative z-10 flex size-11 shrink-0 items-center justify-center rounded-full focus-visible:ring-1 focus-visible:outline-none"
+    >
+      <span
+        className={cn(
+          'border-foreground flex size-7 items-center justify-center rounded-full border-2 transition-[background-color,transform] duration-200 active:scale-90 motion-reduce:active:scale-100',
+          selected ? 'bg-background' : 'bg-transparent'
+        )}
+      >
+        <Check
+          aria-hidden="true"
+          strokeWidth={3}
+          className={cn(
+            'size-4 transition-[opacity,transform] duration-200',
+            selected ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+          )}
+        />
+      </span>
+    </button>
   )
 }
 
@@ -175,7 +252,18 @@ export function DayTimeline({
   tileSettings,
   onAddAt,
   onSelectEntry,
+  selection,
 }: DayTimelineProps) {
+  const selecting = selection?.mode != null
+  // Copy / Multi-Paste: nút + của mỗi giờ thành nút dán
+  const pasteMode = selection?.mode === 'copy' || selection?.mode === 'paste'
+  // Nhấn giữ một món (0.5 giây) khi chưa chọn gì: vào chế độ chọn với món đó, lần nhả sau đó không tính là bấm sửa
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const held = useRef(false)
+  const cancelHold = () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current)
+    holdTimer.current = null
+  }
   // Món vừa xoá còn giữ 300ms để co lại rồi mới biến mất; món mới thêm trượt vào
   const rows = useExitingList(entries, (entry) => entry.id)
   const first = Math.min(firstHour, ...rows.map((row) => hourOfEntry(row.item)))
@@ -199,7 +287,12 @@ export function DayTimeline({
           return null
         // Giờ chỉ có một món thì món đứng riêng trên đường dọc (như MacroFactor); viên thuốc giờ và tổng chỉ hiện ở giờ trống,
         // giờ hiện tại (để còn chỗ thêm món) hoặc giờ có từ hai món trở lên.
-        const showHeader = here.length === 0 || here.length >= 2 || hour === currentHour
+        // Đang chọn: giờ có món nào cũng hiện viên thuốc để chọn / bỏ chọn cả giờ.
+        const showHeader =
+          here.length === 0 || here.length >= 2 || hour === currentHour || selecting
+        const hereIds = here.map((entry) => entry.id)
+        const allSelected =
+          selecting && hereIds.length > 0 && hereIds.every((id) => selection?.selected.has(id))
         const sum = (pick: (entry: FoodLogEntry) => number) =>
           Math.round(here.reduce((total, entry) => total + pick(entry), 0))
         return (
@@ -210,16 +303,34 @@ export function DayTimeline({
                   label={`${pad(hour)}:00`}
                   now={hour === currentHour}
                   onLongPress={longPressToAdd ? () => onAddAt(`${pad(hour)}:00`) : undefined}
+                  onPress={
+                    selection && hereIds.length > 0
+                      ? () =>
+                          selecting ? selection.onToggleHour(hereIds) : selection.onStart(hereIds)
+                      : undefined
+                  }
+                  filled={allSelected}
                 />
-                {!longPressToAdd && (
+                {pasteMode && selection ? (
                   <button
                     type="button"
-                    aria-label={`Add food at ${pad(hour)}:00`}
-                    onClick={() => onAddAt(`${pad(hour)}:00`)}
-                    className="bg-secondary active:bg-muted focus-visible:ring-ring/50 relative flex size-9 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 before:absolute before:-inset-1 before:content-[''] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
+                    aria-label={`Paste foods at ${pad(hour)}:00`}
+                    onClick={() => selection.onPaste(`${pad(hour)}:00`)}
+                    className="bg-secondary active:bg-muted focus-visible:ring-ring/50 motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in-0 relative flex size-9 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 before:absolute before:-inset-1 before:content-[''] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
                   >
-                    <Plus aria-hidden="true" className="size-5" />
+                    <ClipboardPaste aria-hidden="true" className="size-5" />
                   </button>
+                ) : (
+                  !longPressToAdd && (
+                    <button
+                      type="button"
+                      aria-label={`Add food at ${pad(hour)}:00`}
+                      onClick={() => onAddAt(`${pad(hour)}:00`)}
+                      className="bg-secondary active:bg-muted focus-visible:ring-ring/50 relative flex size-9 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 before:absolute before:-inset-1 before:content-[''] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
+                    >
+                      <Plus aria-hidden="true" className="size-5" />
+                    </button>
+                  )
                 )}
                 {here.length > 0 && showHourlyTotals && (
                   <HourTotals
@@ -252,13 +363,45 @@ export function DayTimeline({
                           {clockOfEntry(entry)}
                         </span>
                       </span>
-                      <div className="min-w-0 flex-1">
+                      <div
+                        className="min-w-0 flex-1"
+                        onPointerDown={() => {
+                          if (!selection || selecting) return
+                          held.current = false
+                          cancelHold()
+                          holdTimer.current = setTimeout(() => {
+                            held.current = true
+                            selection.onStart([entry.id])
+                          }, LONG_PRESS_MS)
+                        }}
+                        onPointerUp={cancelHold}
+                        onPointerLeave={cancelHold}
+                        onPointerCancel={cancelHold}
+                        onClickCapture={(event) => {
+                          if (!held.current) return
+                          held.current = false
+                          event.stopPropagation()
+                          event.preventDefault()
+                        }}
+                      >
                         <FoodTile
                           food={tileDataOf(entry)}
                           settings={tileSettings}
-                          onSelect={() => onSelectEntry(entry)}
+                          dimEdit={selecting}
+                          onSelect={() =>
+                            selecting && selection
+                              ? selection.onToggleEntry(entry.id)
+                              : onSelectEntry(entry)
+                          }
                         />
                       </div>
+                      {selecting && selection && (
+                        <SelectCheck
+                          selected={selection.selected.has(entry.id)}
+                          label={entry.foodName}
+                          onToggle={() => selection.onToggleEntry(entry.id)}
+                        />
+                      )}
                     </div>
                   </CollapseItem>
                 ))}

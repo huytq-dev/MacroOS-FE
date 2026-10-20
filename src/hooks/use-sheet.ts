@@ -5,9 +5,15 @@ import { useState } from 'react'
 interface SheetState<T> {
   readonly value: T | undefined
   readonly open: boolean
-  /** Tăng mỗi lần mở để bảng mount mới (state nội bộ như ô nhập luôn bắt đầu lại). */
+  /** Đổi mỗi lần mở để bảng mount mới (state nội bộ như ô nhập luôn bắt đầu lại). */
   readonly id: number
 }
+
+/**
+ * Bộ đếm chung cho mọi bảng: nhiều bảng của một trang nằm cạnh nhau với `key={sheet.id}` (đóng rồi vẫn mount), nên id phải
+ * duy nhất giữa các bảng, không chỉ trong một bảng — bộ đếm riêng từng hook khiến hai bảng cùng key `1`.
+ */
+let nextSheetId = 0
 
 /**
  * Trạng thái cho bảng trượt từ đáy có hoạt ảnh đóng. Gỡ bảng khỏi cây ngay khi đóng (`{open && <Sheet/>}`) làm hiệu ứng trượt
@@ -20,7 +26,10 @@ export function useSheet<T>() {
     value: state.value,
     open: state.open,
     id: state.id,
-    show: (value: T) => setState((current) => ({ value, open: true, id: current.id + 1 })),
+    show: (value: T) => {
+      const id = ++nextSheetId
+      setState({ value, open: true, id })
+    },
     hide: () => setState((current) => ({ ...current, open: false })),
     onOpenChange: (open: boolean) => setState((current) => ({ ...current, open })),
   }
