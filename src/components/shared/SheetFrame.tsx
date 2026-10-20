@@ -1,6 +1,6 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { ChevronDown, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -24,6 +24,8 @@ interface SheetFrameProps {
   readonly tall?: boolean
   /** Nút ở góc phải tiêu đề (vd. biểu tượng thanh trượt mở Customize); chừa chỗ để tiêu đề căn giữa không bị đè. */
   readonly headerAction?: React.ReactNode
+  /** Tiêu đề bấm được kèm ▾ (vd. ngày của bảng nhập số đo mở "Select Date"). */
+  readonly onTitleClick?: () => void
   readonly children: React.ReactNode
 }
 
@@ -37,6 +39,7 @@ export function SheetFrame({
   onDone,
   tall = false,
   headerAction,
+  onTitleClick,
   children,
 }: SheetFrameProps) {
   return (
@@ -61,7 +64,20 @@ export function SheetFrame({
           {headerAction && (
             <div className="absolute top-1/2 right-2 -translate-y-1/2">{headerAction}</div>
           )}
-          <DialogTitle className="font-sans text-xl font-semibold">{title}</DialogTitle>
+          <DialogTitle className="font-sans text-xl font-semibold">
+            {onTitleClick ? (
+              <button
+                type="button"
+                onClick={onTitleClick}
+                className="focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded-md px-2 focus-visible:ring-1 focus-visible:outline-none"
+              >
+                {title}
+                <ChevronDown aria-hidden="true" className="size-5" />
+              </button>
+            ) : (
+              title
+            )}
+          </DialogTitle>
           {subtitle ? (
             <DialogDescription className="text-muted-foreground text-base">
               {subtitle}

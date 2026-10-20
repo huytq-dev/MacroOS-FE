@@ -1,3 +1,4 @@
+import { FullBodyTile, MeasureTile, ProgressPhotosTile, sparkOf } from './BodyMetricTiles'
 import { MetricTile } from './MetricTile'
 import { TileSection } from './TileSection'
 import {
@@ -68,9 +69,7 @@ function NutrientTile({
   )
 }
 
-const MEASURE_UNIT: Record<string, string> = { waistToHeight: '', waistToHip: '' }
-
-/** Một ô theo khoá trong bố cục; số đo cơ thể chưa có API thì hiện "---". */
+/** Một ô theo khoá trong bố cục; ô số đo cơ thể chỉ hiện khi đã có dữ liệu. */
 function renderTile(key: string, data: DashboardData, display: NutrientDisplay) {
   switch (key) {
     case 'expenditure':
@@ -99,9 +98,9 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
       return (
         <MetricTile
           title="Scale Weight"
-          subtitle="Last 7 Weigh-Ins"
+          subtitle="Last 7 Entries"
           href={routePath.weight}
-          visual={<Sparkline values={data.scale.spark} className="text-mf-tile-carbs" />}
+          visual={<Sparkline values={sparkOf(data.scale.spark)} className="text-mf-tile-carbs" />}
           value={fixed(data.scale.latest)}
           unit="kg"
         />
@@ -111,11 +110,16 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
         <MetricTile
           title="Visual Body Fat"
           subtitle="Last 7 Entries"
-          visual={<Sparkline values={data.bodyFat.spark} className="text-mf-tile-carbs" />}
+          href={routePath.visualBodyFat}
+          visual={<Sparkline values={sparkOf(data.bodyFat.spark)} className="text-mf-tile-carbs" />}
           value={fixed(data.bodyFat.latest)}
           unit="%"
         />
       )
+    case 'progressPhotos':
+      return <ProgressPhotosTile />
+    case 'fullBody':
+      return <FullBodyTile />
     case 'steps':
       return (
         <MetricTile
@@ -153,14 +157,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
       const label = SECTIONS.bodyMetrics.groups
         .flatMap((g) => g.tiles)
         .find((tile) => tile.key === key)
-      return (
-        <MetricTile
-          title={label?.label ?? key}
-          subtitle="Last 7 Entries"
-          value="---"
-          unit={MEASURE_UNIT[key] ?? 'cm'}
-        />
-      )
+      return <MeasureTile tileKey={key} title={label?.label ?? key} />
     }
   }
 }

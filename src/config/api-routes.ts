@@ -29,9 +29,13 @@ export const apiRoutes = {
   },
   bodyMetrics: {
     fullBody: '/body-metrics/full-body', // GET, PUT, DELETE ?date= → { date, visualBodyFatPercent, tape, hasData }
+    fullBodyHistory: '/body-metrics/full-body/history', // GET ?from&to → { items: [{ date, metricCount, visualBodyFatPercent, tape, scaleWeightKg, trendWeightKg }] } mới nhất trước
+    visualBodyFat: '/body-metrics/visual-body-fat', // GET ?from&to&granularity&all, POST { date?, percent }
+    visualBodyFatByDate: (date: string) => `/body-metrics/visual-body-fat/${date}`, // DELETE
   },
   progressPhotos: {
-    root: '/progress-photos', // GET ?date=, PUT multipart { file, angle, date?, consent }, DELETE ?date=
+    root: '/progress-photos', // GET ?date=, PUT multipart { file, angle, date?, consent }, DELETE ?date=&angle?
+    sessions: '/progress-photos/sessions', // GET → { hasConsent, sessions[{ date, photos[], scaleWeightKg, trendWeightKg }] } mới nhất trước
   },
   checkIns: {
     session: '/check-ins/session', // GET → hub check-in: module + 7 ngày kcal + preview đề xuất

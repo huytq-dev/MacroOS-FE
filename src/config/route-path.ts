@@ -18,8 +18,17 @@ export const routePath = {
   programNew: '/program/new',
   programCheckIn: '/program/check-in',
   shortcuts: '/shortcuts',
+  progressPhotos: '/progress-photos',
+  /** Màn xem ảnh; `?date=yyyy-MM-dd&angle=Front|Side|Back` mở đúng ngày / góc. */
+  progressPhotosGallery: '/progress-photos/gallery',
+  progressPhotosCompare: '/progress-photos/compare',
   programGoalEdit: '/program/goal/edit',
   weight: '/weight',
+  visualBodyFat: '/body-fat',
+  /** Full Body: danh sách ngày có số đo; `/all` = All Metrics, `/compare` = Compare All Metrics. */
+  fullBody: '/full-body',
+  fullBodyAll: '/full-body/all',
+  fullBodyCompare: '/full-body/compare',
   habitsWeighIn: '/habits/weigh-in',
   habitsFoodLogging: '/habits/food-logging',
   foodLog: '/food-log',

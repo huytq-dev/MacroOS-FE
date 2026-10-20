@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
-import { WeightPage } from '@/features/weight/pages/WeightPage'
+import { ScaleWeightPage } from '@/features/weight/pages/ScaleWeightPage'
 
-export const metadata: Metadata = { title: 'Weight' }
+export const metadata: Metadata = { title: 'Scale Weight' }
 
 export default function WeightRoute() {
-  return <WeightPage />
+  return <ScaleWeightPage />
 }
