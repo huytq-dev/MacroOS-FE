@@ -17,6 +17,8 @@ const FULL_SCREEN_PREFIXES = [
   '/program/check-in',
   '/program/goal/edit',
   '/shortcuts',
+  '/progress-photos/gallery',
+  '/progress-photos/compare',
 ]
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -45,7 +47,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
             {/* Mobile: không sidebar, chừa chỗ cho tab bar dưới; desktop: cuộn trong main */}
             <main
               className={cn(
-                'relative flex min-h-0 flex-1 flex-col overflow-x-clip px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(5rem+env(safe-area-inset-bottom))] transition-[margin] duration-200 in-data-[keyboard=open]:pb-4 md:overflow-y-auto md:p-5 md:pb-5',
+                'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(5rem+env(safe-area-inset-bottom))] transition-[margin] duration-200 in-data-[keyboard=open]:pb-4 md:overflow-y-auto md:p-5 md:pb-5',
                 isCollapsed ? 'md:ml-14' : 'md:ml-60'
               )}
             >

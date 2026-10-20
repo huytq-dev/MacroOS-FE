@@ -14,7 +14,7 @@ import type { DailyProgress, NutrientValue } from '../types/dashboard.types'
 import { useDayLog } from '@/features/food-log/hooks/use-food-log'
 import type { MacroTotals } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
-import { useWeights } from '@/features/weight/hooks/use-weights'
+import { useVisualBodyFat, useWeights } from '@/features/weight/hooks/use-weights'
 import { addDaysIso } from '@/lib/date'
 
 const WEIGHT_LOOKBACK_DAYS = 365
@@ -22,12 +22,10 @@ const SPARK_POINTS = 8
 const MS_PER_DAY = 86_400_000
 
 /**
- * Nguồn dữ liệu CHƯA có API (vi chất, bước chân, kỳ kinh, mỡ cơ thể): giữ ở một chỗ này để sau thay bằng
+ * Nguồn dữ liệu CHƯA có API (vi chất, bước chân, kỳ kinh): giữ ở một chỗ này để sau thay bằng
  * API thật mà không đụng component. Mỗi trường ghi rõ BE sẽ cấp từ đâu.
  */
 const MOCK = {
-  /** BE: nhật ký chỉ số cơ thể (body fat). Giá trị mẫu theo ảnh MacroFactor. */
-  bodyFatPercent: [26] as readonly number[],
   /** BE/Apple Health: số bước 7 ngày; null = chưa kết nối (hiện "---"). */
   steps: null as number | null,
   /** BE: ngày bắt đầu kỳ kinh gần nhất; null = chưa có (hiện "--- ngày trước"). */
@@ -81,6 +79,10 @@ export function useDashboardData(
   )
   const dayLog = useDayLog(enabled ? today : null)
 
+  const visualBodyFat = useVisualBodyFat(today)
+  const bodyFatPercents = (visualBodyFat.data?.items ?? [])
+    .slice(-WEEK_DAYS)
+    .map((item) => item.percent)
   const entries = weights.data?.items ?? []
   const scaleSpark = entries.slice(-WEEK_DAYS).map((entry) => entry.weightKg)
   const weightLatest = weights.data?.latestTrendKg ?? weights.data?.latestWeightKg ?? null
@@ -116,7 +118,7 @@ export function useDashboardData(
     weighIn: { cells: habitCells(weighInDates, todayKey), week: weekCount(weighInDates, todayKey) },
     logging: { cells: habitCells(loggedDates, todayKey), week: weekCount(loggedDates, todayKey) },
     scale: { spark: scaleSpark, latest: weights.data?.latestWeightKg ?? null },
-    bodyFat: { spark: MOCK.bodyFatPercent, latest: MOCK.bodyFatPercent.at(-1) ?? null },
+    bodyFat: { spark: bodyFatPercents, latest: visualBodyFat.data?.latestPercent ?? null },
     steps: MOCK.steps,
     period: {
       cells: today ? lastDays(today, HABIT_DAYS).map(() => false) : [],
