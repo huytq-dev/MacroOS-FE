@@ -22,7 +22,7 @@ import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useIsClient } from '@/hooks/use-is-client'
-import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
+import { addDaysIso, formatDate, todayIso } from '@/lib/date'
 
 const RANGES = [
   { label: '2W', days: 14 },
@@ -136,6 +136,13 @@ export function WeightPage() {
         onOpenChange={setDialogOpen}
         form={form}
         isEditing={editingDate !== null}
+        entryDates={weights.data?.items.map((item) => item.logDate)}
+        onDelete={(logDate) => {
+          const entry = weights.data?.items.find((item) => item.logDate === logDate)
+          if (!entry) return
+          setDialogOpen(false)
+          setDeleteTarget(entry)
+        }}
         isPending={upsert.isPending}
         error={upsert.error ? getFormErrorMessage(upsert.error) : null}
         onSubmit={onSubmit}
@@ -147,7 +154,7 @@ export function WeightPage() {
         title="Delete this weigh-in?"
         description={
           deleteTarget
-            ? `Delete ${deleteTarget.weightKg.toFixed(1)} kg on ${formatDateVi(deleteTarget.logDate)}. Trend weight and expenditure are recalculated from that day on.`
+            ? `Delete ${deleteTarget.weightKg.toFixed(1)} kg on ${formatDate(deleteTarget.logDate)}. Trend weight and expenditure are recalculated from that day on.`
             : ''
         }
         confirmLabel="Delete weigh-in"

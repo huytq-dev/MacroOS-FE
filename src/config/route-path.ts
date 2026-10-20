@@ -20,6 +20,8 @@ export const routePath = {
   shortcuts: '/shortcuts',
   programGoalEdit: '/program/goal/edit',
   weight: '/weight',
+  habitsWeighIn: '/habits/weigh-in',
+  habitsFoodLogging: '/habits/food-logging',
   foodLog: '/food-log',
   foodLogSettings: '/food-log/settings',
   foodLogNutritionOverview: '/food-log/nutrition-overview',

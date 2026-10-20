@@ -75,7 +75,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useSheet } from '@/hooks/use-sheet'
 import { aiErrorMessage, liveIngredients, toPlateItem } from '../ai-plate.utils'
-import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
+import { addDaysIso, formatDate, todayIso } from '@/lib/date'
 import { useUiStore, type AddFoodRequest } from '@/stores/ui.store'
 
 const SEARCH_PAGE = 25
@@ -218,6 +218,18 @@ export function FoodLogPage() {
     clearAddRequest()
   }, [addRequest, addEntry, quickAdd, barcode, clearAddRequest])
 
+  // Lịch Habits (Food Logging) bấm một ngày thì mở nhật ký của ngày đó: áp dụng ngay trong render rồi xoá yêu cầu
+  const requestedDate = useUiStore((state) => state.foodLogDate)
+  const clearRequestedDate = useUiStore((state) => state.clearFoodLogDate)
+  const [appliedDate, setAppliedDate] = useState<string | null>(null)
+  if (requestedDate && requestedDate !== appliedDate) {
+    setAppliedDate(requestedDate)
+    setSelectedDate(requestedDate)
+  }
+  useEffect(() => {
+    if (requestedDate) clearRequestedDate()
+  }, [requestedDate, clearRequestedDate])
+
   /** Mở bảng Thêm món; `time` (HH:mm) là giờ ăn, mặc định giờ hiện tại, bữa suy ra từ giờ. */
   const openAdd = (time: string = nowHourMinute()) => {
     setEatenAt(time)
@@ -298,6 +310,13 @@ export function FoodLogPage() {
       }
       toast.success(`Added ${items.length} ${items.length === 1 ? 'item' : 'items'}`)
       setAddOpen(false)
+      // Về trang tổng của đúng ngày vừa ghi và cuộn tới giờ có món mới (món chèn vào có hoạt ảnh trong DayTimeline)
+      if (targetDate !== date) setSelectedDate(targetDate)
+      window.setTimeout(() => {
+        document
+          .getElementById(`timeline-hour-${Number(targetTime.slice(0, 2))}`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 600)
       return true
     } catch {
       // lỗi hiện inline trong sheet (addEntry.error); các món chưa log vẫn nằm trong plate để thử lại
@@ -347,7 +366,7 @@ export function FoodLogPage() {
         toast.success(
           count === 0
             ? 'Nothing to copy'
-            : `Copied ${count} ${count === 1 ? 'item' : 'items'} to ${formatDateVi(payload.toDate)}`
+            : `Copied ${count} ${count === 1 ? 'item' : 'items'} to ${formatDate(payload.toDate)}`
         )
         setCopyOpen(false)
       },
@@ -583,7 +602,12 @@ export function FoodLogPage() {
         onRemoveFromPlate={(key) =>
           setPlate((current) => current.filter((item) => item.key !== key))
         }
-        onLogPlate={() => void logPlate()}
+        onUpdatePlateItem={(item) =>
+          setPlate((current) =>
+            current.map((candidate) => (candidate.key === item.key ? item : candidate))
+          )
+        }
+        onLogPlate={(items) => void logPlate(items)}
       >
         {tab === 'scan' ? (
           <ScanPanel
@@ -667,7 +691,8 @@ export function FoodLogPage() {
             }}
             items={foods.data?.items ? [...foods.data.items] : []}
             totalCount={foods.data?.totalCount ?? null}
-            isLoading={foods.isLoading}
+            // Đang gõ (chưa qua debounce) hoặc đang tải kết quả của từ khoá mới: skeleton, không hiện danh sách của lần trước
+            isLoading={foods.isLoading || search.trim() !== debouncedSearch}
             isFetching={foods.isFetching}
             onLoadMore={() => setTop((current) => current + SEARCH_PAGE)}
             pickedId={pickedId}
@@ -761,7 +786,7 @@ export function FoodLogPage() {
         title="Delete this day's log?"
         description={
           date
-            ? `Delete all foods logged on ${formatDateVi(date)}. The algorithm will treat this day as not logged.`
+            ? `Delete all foods logged on ${formatDate(date)}. The algorithm will treat this day as not logged.`
             : ''
         }
         confirmLabel="Delete day"

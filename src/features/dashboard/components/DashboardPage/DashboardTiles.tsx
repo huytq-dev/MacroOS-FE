@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { ChevronRight, Database } from 'lucide-react'
 import { MetricTile } from './MetricTile'
-import { DashedLine, GoalBar, Sparkline } from './TileVisuals'
+import { GoalBar, MiniBalance, MiniFlux, Sparkline } from './TileVisuals'
 import { energyBalance } from '../../dashboard.utils'
+import { toBalancePoints } from '../../energy-balance.utils'
 import type { DashboardData } from '../../hooks/use-dashboard-data'
 import { routePath } from '@/config/route-path'
 
@@ -17,7 +18,7 @@ export function ExpenditureTile({ data }: Data) {
       title="Expenditure"
       subtitle="Last 7 Days"
       href={routePath.dashboardExpenditure}
-      visual={<Sparkline values={data.tdeeSpark} className="text-mf-tile-protein" />}
+      visual={<MiniFlux values={data.tdeeSpark} className="text-mf-tile-protein" />}
       value={data.tdee === null ? '---' : String(Math.round(data.tdee))}
       unit="kcal"
     />
@@ -30,7 +31,9 @@ export function WeightTrendTile({ data }: Data) {
       title="Weight Trend"
       subtitle="Last 7 Days"
       href={routePath.dashboardWeightTrend}
-      visual={<Sparkline values={data.weightSpark} className="text-mf-purple" />}
+      visual={
+        <Sparkline values={data.weightSpark} raw={data.weightRaw} className="text-mf-purple" />
+      }
       value={fixed(data.weightLatest)}
       unit="kg"
     />
@@ -49,7 +52,12 @@ export function EnergyBalanceTile({ data }: Data) {
       title="Energy Balance"
       subtitle="Last 7 Days"
       href={routePath.dashboardEnergyBalance}
-      visual={<DashedLine className="text-mf-tile-protein" />}
+      visual={
+        <MiniBalance
+          points={toBalancePoints(data.daily.slice(-7), 'targets', data.tdee)}
+          className="text-mf-tile-protein"
+        />
+      }
       value={difference === null ? '---' : String(Math.abs(difference))}
       unit={difference !== null && difference < 0 ? 'kcal deficit' : 'kcal surplus'}
     />
@@ -60,7 +68,11 @@ export function GoalProgressTile({ data }: Data) {
   return (
     <MetricTile
       title="Goal Progress"
-      subtitle="Since Start"
+      subtitle={
+        data.goalDays === null
+          ? 'Since Start'
+          : `Last ${data.goalDays} ${data.goalDays === 1 ? 'Day' : 'Days'}`
+      }
       href={routePath.dashboardGoalProgress}
       visual={data.goalPercent === null ? undefined : <GoalBar percent={data.goalPercent} />}
       value={data.goalPercent === null ? '---' : String(data.goalPercent)}

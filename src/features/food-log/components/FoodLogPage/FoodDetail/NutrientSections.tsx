@@ -3,6 +3,14 @@ import type { FoodDetail } from '@/features/foods/types/food.types'
 import { NutrientCard } from '../../NutritionOverviewPage'
 import { SECTION_GROUPS, nutrientPer100g } from './food-detail.utils'
 
+/** Chất chưa có mục tiêu thì thanh tô theo tỉ lệ so với tổng của nhóm (Sugars / Carbs, Saturated / Fat). */
+const REFERENCE_KEY: Readonly<Record<string, string>> = {
+  sugars: 'carbs',
+  sugarsAdded: 'carbs',
+  saturated: 'fat',
+  transFat: 'fat',
+}
+
 interface NutrientSectionsProps {
   readonly food: FoodDetail
   /** Khối lượng đang chọn (g): giá trị mỗi chất = lượng trên 100 g × gram / 100, đổi số lượng là cập nhật ngay. */
@@ -14,8 +22,8 @@ interface NutrientSectionsProps {
 
 /**
  * Sáu nhóm chất (Carb / Fat / Protein Breakdown, Vitamins, Minerals, Other) vẽ từ danh mục dinh dưỡng bằng `NutrientCard` của
- * trang Nutrition Overview, nên không bao giờ thiếu hàng. Chất chưa có dữ liệu hiện 0 (thanh rỗng); chất không có mục tiêu thì
- * bỏ thanh. Lúc chờ mục tiêu từ BE thì mỗi nhóm hiện skeleton.
+ * trang Nutrition Overview, nên không bao giờ thiếu hàng. Chất chưa có dữ liệu hiện "—" (không phải 0, thanh rỗng); chất không có
+ * mục tiêu hiện "No Target" và bỏ thanh. Lúc chờ mục tiêu từ BE thì mỗi nhóm hiện skeleton.
  */
 export function NutrientSections({ food, grams, targets, isLoading }: NutrientSectionsProps) {
   return (
@@ -35,12 +43,15 @@ export function NutrientSections({ food, grams, targets, isLoading }: NutrientSe
               {group.nutrients.map((nutrient) => {
                 const per100g = nutrientPer100g(food, nutrient.key)
                 const target = targets[nutrient.key] ?? null
+                const referenceKey = REFERENCE_KEY[nutrient.key]
+                const referencePer100g = referenceKey ? nutrientPer100g(food, referenceKey) : null
                 return (
                   <NutrientCard
                     key={nutrient.key}
-                    nutrient={target === null ? { ...nutrient, kind: 'none' } : nutrient}
-                    value={per100g === null ? 0 : (per100g * grams) / 100}
+                    nutrient={nutrient}
+                    value={per100g === null ? null : (per100g * grams) / 100}
                     target={target}
+                    reference={referencePer100g === null ? null : (referencePer100g * grams) / 100}
                     tone={group.tone}
                   />
                 )

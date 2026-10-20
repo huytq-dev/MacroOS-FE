@@ -16,6 +16,7 @@ import {
   toPlateItem,
   totalsOf,
   type AiPlateEdits,
+  type IngredientEdit,
   type LiveIngredient,
 } from '../../ai-plate.utils'
 import type { TileOptions } from '../../food-log-settings'
@@ -35,7 +36,7 @@ import { PlateNutrition } from './PlatePanel/PlateNutrition'
 const BONE = 'bg-foreground/10 motion-safe:animate-pulse rounded-full'
 const FADE_IN = 'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300'
 const QUANTITY_BUTTON =
-  'bg-background focus-visible:ring-ring/50 active:bg-foreground/20 flex h-14 w-20 shrink-0 flex-col items-center justify-center rounded-lg px-2 leading-tight transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100'
+  'bg-background focus-visible:ring-ring/50 active:bg-foreground/20 flex h-14 w-[4.25rem] shrink-0 flex-col items-center justify-center rounded-lg px-2 leading-tight transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100'
 const TRASH_BUTTON =
   'text-muted-foreground active:bg-foreground/10 focus-visible:ring-ring/50 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none'
 
@@ -58,7 +59,7 @@ function MacroLine({
   readonly weightGrams: number
 }) {
   return (
-    <span className="text-muted-foreground flex items-center gap-1.5 overflow-hidden text-[13px] whitespace-nowrap tabular-nums">
+    <span className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] tabular-nums">
       <span className="inline-flex items-center">
         {Math.round(calories)}
         <Flame aria-hidden="true" fill="currentColor" className="size-3.5" />
@@ -113,12 +114,22 @@ function IngredientRow({
 }: IngredientRowProps) {
   if (live) {
     const { data } = live
+    // ✦ = AI đã khớp với một món thật trong thư viện; ước lượng thì giữ nhãn "Estimated", không khớp thì "No data yet"
+    const matched = data.matched && !data.estimated
     return (
-      <div className={cn('flex items-center gap-3 px-4 py-3', FADE_IN)}>
+      <div className={cn('flex items-center gap-2 px-3 py-3', FADE_IN)}>
         <FoodIcon iconKey={data.iconKey} emoji={data.emoji ?? '🍽️'} size={36} />
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="truncate text-base leading-snug">
+        <span className="min-w-0 flex-1 space-y-0.5">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="line-clamp-2 min-w-0 text-base leading-snug break-words">
+              {matched && (
+                <>
+                  <span aria-hidden="true" className="text-muted-foreground mr-1.5">
+                    ✦
+                  </span>
+                  <span className="sr-only">Matched food: </span>
+                </>
+              )}
               {data.foodName ?? ingredient.name}
             </span>
             {data.estimated && (
@@ -155,28 +166,32 @@ function IngredientRow({
 
   if (!state || state.status === 'searching') {
     return (
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-2 px-3 py-3">
         <span aria-hidden="true" className={cn('size-9 shrink-0', BONE)} />
         <span className="min-w-0 flex-1 space-y-2">
-          <span className="flex items-center gap-1.5 text-base">
-            <Search aria-hidden="true" className="size-4 shrink-0" />
-            <span className="truncate">Searching for &ldquo;{ingredient.name}&rdquo;</span>
+          <span className="flex items-start gap-1.5 text-base">
+            <Search aria-hidden="true" className="mt-1 size-4 shrink-0" />
+            <span className="line-clamp-2 min-w-0 break-words">
+              Searching for &ldquo;{ingredient.name}&rdquo;
+            </span>
           </span>
           <span aria-hidden="true" className={cn('block h-3 w-3/5', BONE)} />
         </span>
-        <span aria-hidden="true" className={cn('h-14 w-20 shrink-0 rounded-lg', BONE)} />
+        <span aria-hidden="true" className={cn('h-14 w-[4.25rem] shrink-0 rounded-lg', BONE)} />
       </div>
     )
   }
 
   // not-found: AI không tìm được và không ước lượng được → "No data yet" + chọn món thay thế; error: tra lỗi → thử lại
   return (
-    <div className={cn('flex items-center gap-3 px-4 py-3', FADE_IN)}>
+    <div className={cn('flex items-center gap-2 px-3 py-3', FADE_IN)}>
       <span aria-hidden="true" className="w-9 shrink-0 text-center text-2xl leading-none">
         🍽️
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-base leading-snug">{ingredient.name}</span>
+        <span className="line-clamp-2 block text-base leading-snug break-words">
+          {ingredient.name}
+        </span>
         <span className="text-muted-foreground block text-[13px]">
           {state.status === 'error' ? 'Couldn’t search' : 'No data yet'}
         </span>
@@ -237,6 +252,25 @@ function DishCard({
   const lead = mine[0]?.data
   const bare = searching && mine.length === 0
 
+  // Món chỉ có một nguyên liệu (3 quả trứng → "Egg, Whole, Raw") hiện thẳng một hàng như MacroFactor, không có thẻ món và Expand Ingredients.
+  // Dùng `rows` (còn giữ hàng đang co lại) để thẻ chỉ đổi thành một hàng sau khi nguyên liệu vừa xoá đã co xong.
+  if (rows.length === 1) {
+    const [{ item }] = rows
+    return (
+      <div className="bg-secondary overflow-hidden rounded-2xl">
+        <IngredientRow
+          ingredient={item}
+          state={states[item.id]}
+          live={mine.find((entry) => entry.ingredient.id === item.id)}
+          onEdit={() => onEditIngredient(item)}
+          onRemove={() => onRemoveIngredient(item)}
+          onRetry={() => onRetry(item)}
+          onSearch={() => onSearch(item)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="bg-secondary overflow-hidden rounded-2xl">
       <div className="flex items-center gap-3 px-4 py-3">
@@ -256,7 +290,7 @@ function DishCard({
           )}
         </span>
         {bare ? (
-          <span aria-hidden="true" className={cn('h-14 w-20 shrink-0 rounded-lg', BONE)} />
+          <span aria-hidden="true" className={cn('h-14 w-[4.25rem] shrink-0 rounded-lg', BONE)} />
         ) : (
           <QuantityButton
             quantity={scale}
@@ -323,7 +357,11 @@ interface AiPlateViewProps {
   readonly target?: ProgramWeek | null
   readonly tileOptions: TileOptions
   readonly onRetry: (ingredient: AiIngredient) => void
-  readonly onSetGrams: (ingredientId: string, grams: number) => void
+  readonly onSetGrams: (
+    ingredientId: string,
+    grams: number,
+    serving?: IngredientEdit['serving']
+  ) => void
   readonly onRemoveIngredient: (ingredientId: string) => void
   readonly onReplaceIngredient: (ingredientId: string, data: ResolvedIngredient) => void
   readonly onSetDishScale: (dishId: string, scale: number) => void
@@ -336,12 +374,21 @@ type AmountTarget =
   | { readonly kind: 'dish'; readonly dish: AiDish }
   | { readonly kind: 'ingredient'; readonly ingredient: AiIngredient }
 
+/** Khẩu phần "g" và "100 g" của BE đã có chip "g" thay thế nên không hiện thêm. */
+const GRAM_SERVING = /^\s*(\d+(\.\d+)?\s*)?g(rams?)?\s*$/i
+
+/** BE đã bỏ tiền tố "1 " khỏi nhãn khẩu phần; chuẩn hoá thêm phòng khi còn sót ("1 large (50 g)" → "large"). */
+const servingLabelOf = (label: string) => label.replace(/^\s*1\s+/, '').replace(/\s*\(.*\)\s*$/, '')
+
+const uniqueByLabel = (units: readonly AmountUnit[]): AmountUnit[] =>
+  units.filter((unit, index) => units.findIndex((other) => other.label === unit.label) === index)
+
 const dishIdOf = (dishes: readonly AiDish[], ingredientId: string) =>
   dishes.find((dish) => dish.ingredients.some((item) => item.id === ingredientId))?.id ?? ''
 
 /**
- * Kết quả "AI Plate": thẻ món (icon, tên, tổng macro, ô "1 plate" sửa được, danh sách nguyên liệu mở/thu 300ms). Từng nguyên
- * liệu có icon, macro, ô lượng sửa được và nút xoá; chưa tìm được thì hiện skeleton "Searching for…", không có dữ liệu thì "No
+ * Kết quả "AI Plate": thẻ món (icon, tên, tổng macro, ô "1 plate" sửa được, danh sách nguyên liệu mở/thu 300ms); món chỉ có một
+ * nguyên liệu thì chỉ là một hàng. Từng nguyên liệu có ✦ khi khớp món thật, icon, macro, ô lượng sửa được và nút xoá; chưa tìm được thì hiện skeleton "Searching for…", không có dữ liệu thì "No
  * data yet" kèm Search để chọn món thay. Mọi chỉnh sửa tính lại tổng món, thẻ Nutrition (Plate | Day, Show all nutrients) tức thì;
  * Log Foods đưa các nguyên liệu vào nhật ký.
  */
@@ -382,13 +429,27 @@ export function AiPlateView({
       live.map((item) => toPlateItem(item, `${item.ingredient.id}-${Date.now()}`)),
       // Ước lượng (không có món thật) không có foodItemId nên không gửi confirm.
       live.flatMap(({ ingredient, data }) =>
-        data.foodItemId ? [{ name: ingredient.name, foodItemId: data.foodItemId }] : []
+        data.foodItemId
+          ? [
+              {
+                name: ingredient.name,
+                foodItemId: data.foodItemId,
+                // State AI đã trả (fried…) để BE nhớ lựa chọn riêng theo state; không có thì không gửi
+                ...(ingredient.state ? { state: ingredient.state } : {}),
+              },
+            ]
+          : []
       )
     )
 
   // Gram hiện tại và các đơn vị có thể nhập của mục đang sửa
   const amountValue = amountSheet.value
-  const amountSetup = (): { title: string; units: AmountUnit[]; grams: number } | null => {
+  const amountSetup = (): {
+    title: string
+    units: AmountUnit[]
+    initialUnitLabel?: string
+    grams: number
+  } | null => {
     if (!amountValue) return null
     if (amountValue.kind === 'dish') {
       return {
@@ -402,14 +463,32 @@ export function AiPlateView({
       live.find((item) => item.ingredient.id === ingredient.id)?.data ??
       baseDataOf(states[ingredient.id], edits.ingredients[ingredient.id])
     if (!data) return null
-    const units: AmountUnit[] =
+    // Đơn vị hiện tại của nguyên liệu + các khẩu phần của món (small/medium/large…) + gram; trùng nhãn thì giữ cái đầu
+    const current: AmountUnit[] =
       data.unitLabel !== 'g' && data.quantity > 0
         ? [
-            { label: data.unitLabel, gramsPerUnit: data.weightGrams / data.quantity },
-            { label: 'g', gramsPerUnit: 1 },
+            {
+              label: data.unitLabel,
+              gramsPerUnit: data.weightGrams / data.quantity,
+              servingId: data.servingId ?? undefined,
+            },
           ]
-        : [{ label: 'g', gramsPerUnit: 1 }]
-    return { title: ingredient.name, units, grams: data.weightGrams }
+        : []
+    // BE trả sẵn các khẩu phần của món đã khớp (small/medium/large…); ước lượng hoặc món user tự chọn thì không có
+    const servings: AmountUnit[] = (data.servings ?? [])
+      .filter((serving) => serving.gramsPerUnit > 0 && !GRAM_SERVING.test(serving.label))
+      .map((serving) => ({
+        label: servingLabelOf(serving.label),
+        gramsPerUnit: serving.gramsPerUnit,
+        servingId: serving.id,
+      }))
+    const units = uniqueByLabel([...servings, ...current, { label: 'g', gramsPerUnit: 1 }])
+    return {
+      title: ingredient.name,
+      units,
+      initialUnitLabel: current[0]?.label ?? 'g',
+      grams: data.weightGrams,
+    }
   }
   const amount = amountSetup()
 
@@ -481,13 +560,25 @@ export function AiPlateView({
           onOpenChange={amountSheet.onOpenChange}
           title={amount.title}
           units={amount.units}
+          initialUnitLabel={amount.initialUnitLabel}
           grams={amount.grams}
-          onSave={(value) => {
+          onSave={(value, { unit, amount: chosenAmount }) => {
             if (amountValue?.kind === 'dish') onSetDishScale(amountValue.dish.id, value)
             else if (amountValue) {
               // Gram nhập là lượng đã nhân hệ số của món; lưu theo gram gốc để hệ số món vẫn nhân đúng
               const scale = edits.dishScales[dishIdOf(dishes, amountValue.ingredient.id)] ?? 1
-              onSetGrams(amountValue.ingredient.id, value / scale)
+              // Chọn một khẩu phần thật (2 medium) thì nhớ cỡ đó để hiện và ghi nhật ký; chọn gram thì giữ khẩu phần gốc
+              onSetGrams(
+                amountValue.ingredient.id,
+                value / scale,
+                unit.servingId
+                  ? {
+                      quantity: chosenAmount / scale,
+                      unitLabel: unit.label,
+                      servingId: unit.servingId,
+                    }
+                  : undefined
+              )
             }
           }}
         />

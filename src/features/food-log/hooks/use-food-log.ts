@@ -203,7 +203,13 @@ export const useAiPlate = () => {
   const resolve = (ingredient: AiIngredient, runId: number) => {
     setState(ingredient.id, { status: 'searching' })
     foodLogService
-      .resolveIngredient({ name: ingredient.name, grams: ingredient.grams })
+      .resolveIngredient({
+        name: ingredient.name,
+        grams: ingredient.grams,
+        quantity: ingredient.quantity ?? null,
+        unit: ingredient.unit ?? null,
+        state: ingredient.state ?? null,
+      })
       .then((data) => {
         if (run.current === runId)
           setState(
@@ -291,10 +297,11 @@ export const useAiPlate = () => {
     error: analyzeMutation.error,
     analyze,
     edits,
-    setIngredientGrams: (id: string, grams: number) => editIngredient(id, { grams }),
+    setIngredientGrams: (id: string, grams: number, serving?: IngredientEdit['serving']) =>
+      editIngredient(id, { grams, serving }),
     removeIngredient: (id: string) => editIngredient(id, { removed: true }),
     replaceIngredient: (id: string, replacement: ResolvedIngredient) =>
-      editIngredient(id, { replacement, grams: undefined }),
+      editIngredient(id, { replacement, grams: undefined, serving: undefined }),
     setDishScale: (dishId: string, scale: number) =>
       setEdits((current) => ({
         ...current,

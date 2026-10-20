@@ -88,7 +88,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
         <MetricTile
           title={key === 'weighIn' ? 'Weigh-In' : 'Food Logging'}
           subtitle="Last 30 Days"
-          href={key === 'weighIn' ? routePath.weight : routePath.foodLog}
+          href={key === 'weighIn' ? routePath.habitsWeighIn : routePath.habitsFoodLogging}
           visual={<HabitGrid cells={habit.cells} tone="bg-mf-tile-carbs" />}
           value={`${habit.week}/7`}
           unit="this week"

@@ -1,10 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeftRight, Flame, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
 import { cn } from '@/lib/utils'
 import { MACRO_KEYS, type EntryMode, type MacroKey, type QuantityUnit } from './food-detail.utils'
+import { NumericKeypad } from '@/components/shared/NumericKeypad'
 
 const UNIT_LABEL: Record<Exclude<QuantityUnit, 'serving'>, string> = { g: 'g', oz: 'oz' }
 
@@ -12,7 +14,7 @@ const CHIP =
   'focus-visible:ring-ring/50 h-11 shrink-0 rounded-full px-4 text-base transition-colors focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100'
 
 const FIELD =
-  'bg-secondary focus-within:ring-foreground flex h-12 min-w-0 items-center rounded-lg transition-shadow focus-within:ring-2'
+  'bg-secondary focus-within:ring-ring/50 flex h-12 min-w-0 items-center rounded-lg transition-shadow focus-within:ring-1'
 
 const MACRO_LABEL: Record<MacroKey, string> = {
   calories: 'Calories',
@@ -83,7 +85,28 @@ export function QuantityBar({
   showWeightUnits = true,
 }: QuantityBarProps) {
   const [focused, setFocused] = useState(false)
+  // Cảm ứng: dùng bàn phím số riêng (có "/" cho phân số) thay cho bàn phím hệ thống, như MacroFactor
+  const coarse = useCoarsePointer()
+  // Bàn phím số đang mở thì Log Foods / Add nằm trong đó, hàng nhập không lặp lại hai nút
+  const keypadOpen = coarse && focused
   const amountInput = useRef<HTMLInputElement>(null)
+  const amountSuffix = useRef<HTMLSpanElement>(null)
+  const mounted = useRef(false)
+
+  // Đổi đơn vị / khẩu phần: con số và nhãn đơn vị hiện lại bằng hiệu ứng mờ-trượt ngắn để thấy rõ số vừa đổi (bỏ qua khi giảm chuyển động)
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true
+      return
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const frames = [
+      { opacity: 0, transform: 'translateY(4px)' },
+      { opacity: 1, transform: 'none' },
+    ]
+    amountInput.current?.animate(frames, { duration: 220, easing: 'ease-out' })
+    amountSuffix.current?.animate(frames, { duration: 220, easing: 'ease-out' })
+  }, [unit, servingId])
   const macroInput = useRef<HTMLInputElement>(null)
   const keepFocus = (event: React.PointerEvent) => event.preventDefault()
   const suffix = unit === 'serving' ? (servingName ?? '') : UNIT_LABEL[unit]
@@ -98,6 +121,21 @@ export function QuantityBar({
       target?.select()
     })
   }
+
+  // Chỉ nhận chữ số, dấu chấm, và ở chế độ lượng thêm "/" và khoảng trắng (phân số "1 1/2"); không cho hai khoảng trắng liền nhau
+  const sanitize = (text: string, allowFraction: boolean) =>
+    (allowFraction ? text.replace(/[^0-9./ ]/g, '') : text.replace(/[^0-9.]/g, '')).replace(
+      / {2,}/g,
+      ' '
+    )
+  const typeKey = (key: string) =>
+    mode === 'amount'
+      ? onQuantityChange(sanitize(quantity + key, true))
+      : onMacroTextChange(sanitize(macroText + key, false))
+  const backspace = () =>
+    mode === 'amount'
+      ? onQuantityChange(quantity.slice(0, -1))
+      : onMacroTextChange(macroText.slice(0, -1))
 
   // `fill`: ở chế độ macro hai nút nằm hàng riêng và chia đều chiều ngang
   const actions = (fill: boolean) =>
@@ -142,7 +180,10 @@ export function QuantityBar({
         )}
       >
         <div className="overflow-hidden" inert={!focused}>
-          <div className="flex [scrollbar-width:none] items-center gap-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden">
+          <div
+            key={mode}
+            className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 motion-safe:animation-duration-200 flex [scrollbar-width:none] items-center gap-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden"
+          >
             <button
               type="button"
               aria-label={mode === 'amount' ? 'Enter by calories or macros' : 'Enter by amount'}
@@ -222,44 +263,47 @@ export function QuantityBar({
       </div>
 
       {mode === 'amount' ? (
-        <div className="flex items-center gap-2">
+        <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:animation-duration-200 flex items-center gap-2">
           {/* Cả ô là một nhãn: chạm đâu cũng focus ô số; đơn vị nằm bên phải, chọn đơn vị bằng chip phía trên */}
           <label className={cn(FIELD, 'flex-1 cursor-text gap-2 px-4')}>
             <input
               ref={amountInput}
-              type="number"
-              inputMode="decimal"
-              step="any"
+              type="text"
+              inputMode={coarse ? 'none' : 'decimal'}
+              autoComplete="off"
               aria-label="Amount"
               aria-invalid={!valid}
               value={quantity}
-              onChange={(event) => onQuantityChange(event.target.value)}
+              onChange={(event) => onQuantityChange(sanitize(event.target.value, true))}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               className="w-16 shrink-0 bg-transparent text-base tabular-nums outline-none"
             />
-            <span className="text-muted-foreground min-w-0 flex-1 truncate text-right text-base">
+            <span
+              ref={amountSuffix}
+              className="text-muted-foreground min-w-0 flex-1 truncate text-right text-base"
+            >
               {suffix}
               {focused && unit === 'serving' && valid && (
                 <span className="tabular-nums"> • {Math.round(grams)} g</span>
               )}
             </span>
           </label>
-          {actions(false)}
+          {!keypadOpen && actions(false)}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:animation-duration-200 space-y-2">
           <div className="flex items-center gap-2">
             <div className={cn(FIELD, 'w-32 shrink-0 pl-4')}>
               <input
                 ref={macroInput}
-                type="number"
-                inputMode="decimal"
-                step="any"
+                type="text"
+                inputMode={coarse ? 'none' : 'decimal'}
+                autoComplete="off"
                 aria-label={`${MACRO_LABEL[macroKey]} to eat`}
                 aria-invalid={!valid}
                 value={macroText}
-                onChange={(event) => onMacroTextChange(event.target.value)}
+                onChange={(event) => onMacroTextChange(sanitize(event.target.value, false))}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
                 className="min-w-0 flex-1 bg-transparent text-base tabular-nums outline-none"
@@ -282,7 +326,26 @@ export function QuantityBar({
               <span className="min-w-0 flex-1 truncate text-right">{suffix}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">{actions(true)}</div>
+          {!keypadOpen && <div className="flex items-center gap-2">{actions(true)}</div>}
+        </div>
+      )}
+
+      {/* Bàn phím số riêng (cảm ứng): trượt ra khi ô nhập đang focus */}
+      {coarse && (
+        <div
+          className={cn(
+            'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
+            focused ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          )}
+        >
+          <div className="overflow-hidden" inert={!focused}>
+            <NumericKeypad
+              onKey={typeKey}
+              onBackspace={backspace}
+              allowFraction={mode === 'amount'}
+              actions={actions(true)}
+            />
+          </div>
         </div>
       )}
     </div>

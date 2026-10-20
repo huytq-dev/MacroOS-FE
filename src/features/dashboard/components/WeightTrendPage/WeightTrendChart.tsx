@@ -92,14 +92,16 @@ export function WeightTrendChart({ points, range, height, className }: WeightTre
           <polyline
             points={scaleLine}
             fill="none"
-            className="stroke-mf-purple/45"
+            pathLength={1}
+            className="stroke-mf-purple/45 motion-safe:animate-chart-draw"
             strokeWidth="1.5"
             strokeLinejoin="round"
           />
           <polyline
             points={trendLine}
             fill="none"
-            className="stroke-mf-purple"
+            pathLength={1}
+            className="stroke-mf-purple motion-safe:animate-chart-draw"
             strokeWidth="2"
             strokeLinejoin="round"
           />
@@ -107,7 +109,10 @@ export function WeightTrendChart({ points, range, height, className }: WeightTre
       )}
       {markers &&
         points.map((point, index) => (
-          <g key={point.date}>
+          <g
+            key={point.date}
+            className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500"
+          >
             <circle cx={x(point, index)} cy={y(point.scale)} r="2" className="fill-mf-purple/60" />
             <circle
               cx={x(point, index)}

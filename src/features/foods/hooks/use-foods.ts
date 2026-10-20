@@ -18,7 +18,15 @@ export const useFoodSearch = (params: FoodSearchParams, enabled = true) =>
     queryKey: foodKeys.search(params),
     queryFn: () => foodService.search(params),
     enabled,
-    placeholderData: keepPreviousData,
+    // Giữ kết quả cũ khi chỉ đổi trang / số lượng (Load more) của CÙNG từ khoá cho khỏi nháy; đổi từ khoá thì bỏ để hiện skeleton
+    // thay vì danh sách của từ khoá khác (gõ "apple" mà vẫn thấy "Abalone, Acerola…" của danh sách trước).
+    placeholderData: (previousData, previousQuery) => {
+      // queryKey của useFoodSearch luôn là ['foods', 'search', params] nên phần tử thứ ba chính là FoodSearchParams
+      const previous = previousQuery?.queryKey[2] as FoodSearchParams | undefined
+      return previous?.search === params.search && previous?.scope === params.scope
+        ? keepPreviousData(previousData)
+        : undefined
+    },
     staleTime: 60 * 1000,
   })
 

@@ -83,7 +83,10 @@ interface AddFoodDialogProps {
   readonly isLogging: boolean
   readonly error: string | null
   readonly onRemoveFromPlate: (key: string) => void
-  readonly onLogPlate: () => void
+  /** Lưu lượng mới của một dòng plate (sửa trong Your Plate). */
+  readonly onUpdatePlateItem: (item: PlateItem) => void
+  /** Ghi plate; `items` có khi vừa sửa lượng một dòng trong Your Plate. */
+  readonly onLogPlate: (items?: PlateItem[]) => void
   readonly children: React.ReactNode
 }
 
@@ -109,6 +112,7 @@ export function AddFoodDialog({
   isLogging,
   error,
   onRemoveFromPlate,
+  onUpdatePlateItem,
   onLogPlate,
   children,
 }: AddFoodDialogProps) {
@@ -166,18 +170,26 @@ export function AddFoodDialog({
               display={settings.loggerBannerDisplay}
             />
             <div className="bg-secondary flex h-11 shrink-0 items-center rounded-full pl-3">
-              <span
-                role="status"
+              <button
+                type="button"
                 aria-label={`${plate.length} ${plate.length === 1 ? 'item' : 'items'} in plate`}
-                className="flex items-center gap-1.5 text-base tabular-nums"
+                aria-expanded={plateOpen}
+                onClick={() => setPlateOpen((current) => !current)}
+                className="focus-visible:ring-ring/50 h-11 rounded-full focus-visible:ring-1 focus-visible:outline-none"
               >
-                {plate.length === 0 ? (
-                  <Utensils aria-hidden="true" className="text-muted-foreground size-5" />
-                ) : (
-                  <FoodIcon iconKey={plate[0].iconKey} emoji={plate[0].emoji} size={28} />
-                )}
-                {plate.length > 1 && <span className="font-medium">+{plate.length - 1}</span>}
-              </span>
+                {/* key = số món: thêm món thì viên thuốc dựng lại và nảy lên một nhịp (tắt khi giảm chuyển động) */}
+                <span
+                  key={plate.length}
+                  className="motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:animation-duration-300 flex items-center gap-1.5 text-base tabular-nums"
+                >
+                  {plate.length === 0 ? (
+                    <Utensils aria-hidden="true" className="text-muted-foreground size-5" />
+                  ) : (
+                    <FoodIcon iconKey={plate[0].iconKey} emoji={plate[0].emoji} size={28} />
+                  )}
+                  {plate.length > 1 && <span className="font-medium">+{plate.length - 1}</span>}
+                </span>
+              </button>
               <button
                 type="button"
                 aria-label={plateOpen ? 'Hide plate' : 'Show plate'}
@@ -218,9 +230,10 @@ export function AddFoodDialog({
             target={target}
             isLogging={isLogging}
             onRemove={onRemoveFromPlate}
+            onUpdate={onUpdatePlateItem}
             onAddFoods={() => setPlateOpen(false)}
-            onLog={() => {
-              if (!isLogging) onLogPlate()
+            onLog={(items) => {
+              if (!isLogging) onLogPlate(items)
             }}
           />
         </div>

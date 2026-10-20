@@ -4,10 +4,13 @@ import { useState } from 'react'
 import { Loader2, Trash2 } from 'lucide-react'
 import { DateField } from '@/components/shared/DateField'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
+import { NumericKeypad } from '@/components/shared/NumericKeypad'
 import { SheetFrame } from '@/components/shared/SheetFrame'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
+import { cn } from '@/lib/utils'
 import type {
   FullBodyData,
   FullBodyRequest,
@@ -73,7 +76,10 @@ const GROUPS: readonly {
 
 const text = (value: number | null | undefined) =>
   value === null || value === undefined ? '' : String(value)
-const parse = (value: string) => (value.trim() === '' ? null : Number(value))
+const parse = (value: string) => (value.trim() === '' || value === '.' ? null : Number(value))
+/** Tối đa 3 chữ số nguyên và 1 số lẻ ("26", "26.", "26.5"); dấu thập phân luôn là ".". */
+const DECIMAL_TEXT = /^\d{0,3}(\.\d?)?$/
+const BODY_FAT = 'bodyFat'
 
 type FormProps = Omit<FullBodySheetProps, 'open' | 'onOpenChange' | 'dataVersion' | 'isLoading'>
 
@@ -97,6 +103,31 @@ function FullBodyForm({
     )
   )
   const [referenceOpen, setReferenceOpen] = useState(false)
+  // Cảm ứng: bàn phím số riêng (như Food Detail) thay cho bàn phím iOS có dấu ","; `active` là ô đang nhập
+  const coarse = useCoarsePointer()
+  const [active, setActive] = useState<string | null>(null)
+
+  const valueOf = (key: string) => (key === BODY_FAT ? bodyFat : (tape[key] ?? ''))
+  const setField = (key: string, next: string) => {
+    if (!DECIMAL_TEXT.test(next)) return
+    if (key === BODY_FAT) setBodyFat(next)
+    else setTape((current) => ({ ...current, [key]: next }))
+  }
+  const keypadOpen = coarse && active !== null
+  const fieldProps = (key: string) => ({
+    type: 'text' as const,
+    inputMode: coarse ? ('none' as const) : ('decimal' as const),
+    autoComplete: 'off',
+    value: valueOf(key),
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => setField(key, event.target.value),
+    onFocus: (event: React.FocusEvent<HTMLInputElement>) => {
+      setActive(key)
+      // Bàn phím số trượt ra che nửa dưới: cuộn ô đang nhập vào giữa vùng nhìn thấy
+      const field = event.currentTarget
+      window.setTimeout(() => field.scrollIntoView({ block: 'center', behavior: 'smooth' }), 220)
+    },
+    onBlur: () => setActive(null),
+  })
 
   const submit = () => {
     const tapeValues: Partial<TapeMeasurements> = {}
@@ -142,11 +173,7 @@ function FullBodyForm({
             <label className="bg-secondary flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg px-4 text-base">
               <span className="text-muted-foreground shrink-0">Visual Body Fat</span>
               <input
-                type="number"
-                inputMode="decimal"
-                step="0.1"
-                value={bodyFat}
-                onChange={(event) => setBodyFat(event.target.value)}
+                {...fieldProps(BODY_FAT)}
                 className="min-w-0 flex-1 bg-transparent text-right tabular-nums outline-none"
                 aria-label="Visual body fat percent"
               />
@@ -178,13 +205,7 @@ function FullBodyForm({
                   <span className="text-muted-foreground">{field.label}</span>
                   <span className="bg-secondary focus-within:ring-ring/50 flex h-12 items-center gap-2 rounded-lg px-3 transition-shadow focus-within:ring-1">
                     <Input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.1"
-                      value={tape[field.key]}
-                      onChange={(event) =>
-                        setTape((current) => ({ ...current, [field.key]: event.target.value }))
-                      }
+                      {...fieldProps(field.key)}
                       className="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 text-right tabular-nums shadow-none focus-visible:ring-0"
                     />
                     <span className="text-muted-foreground text-sm">cm</span>
@@ -196,6 +217,24 @@ function FullBodyForm({
         ))}
 
         <div className="bg-popover sticky bottom-0 -mx-4 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {coarse && (
+            <div
+              className={cn(
+                'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
+                keypadOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+              )}
+            >
+              <div className="overflow-hidden" inert={!keypadOpen}>
+                <div className="pb-3">
+                  <NumericKeypad
+                    allowFraction={false}
+                    onKey={(key) => active && setField(active, valueOf(active) + key)}
+                    onBackspace={() => active && setField(active, valueOf(active).slice(0, -1))}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           <Button
             type="submit"
             className="bg-foreground text-background h-12 w-full rounded-lg text-base"

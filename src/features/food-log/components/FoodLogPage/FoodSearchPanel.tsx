@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { ChevronLeft, Flame, Loader2, Plus } from 'lucide-react'
+import { FoodIcon } from '@/components/shared/FoodIcon'
+import { HighlightedText } from '@/lib/search-highlight'
 import { cn } from '@/lib/utils'
 import { FoodList } from '@/features/foods/components/FoodList'
 import {
@@ -35,63 +37,187 @@ const tileDataOfFood = (food: FoodSummary, highlight?: string): FoodTileData => 
   iconKey: food.iconKey ?? null,
 })
 
-const GROUP_ORDER = ['Common', 'Branded', 'Open Food Facts'] as const
+const GROUP_ORDER = ['From History', 'Common', 'Custom', 'Branded', 'Open Food Facts'] as const
 type ResultGroupName = (typeof GROUP_ORDER)[number]
-/** Mỗi nhóm hiện sẵn ngần này dòng; phần còn lại nằm sau "See N More". */
+/** Mỗi nhóm hiện sẵn ngần này dòng; phần còn lại nằm sau "See N More" (mở danh sách đầy đủ của nhóm). */
 const GROUP_LIMIT = 5
 
-/** Món OpenFoodFacts → "Open Food Facts"; có thương hiệu → "Branded"; còn lại (hệ thống, USDA, VN, tự tạo) → "Common". */
-const groupOf = (food: FoodSummary): ResultGroupName =>
-  food.source === 'OpenFoodFacts' ? 'Open Food Facts' : food.brand ? 'Branded' : 'Common'
+/**
+ * Món có thuộc nhóm không (như MacroFactor, KHÔNG loại trừ): "From History" = món đã từng log khớp từ khoá, và món đó vẫn xuất hiện
+ * tiếp ở nhóm gốc của nó; OpenFoodFacts → "Open Food Facts", món của tôi → "Custom", có thương hiệu → "Branded", còn lại (hệ thống,
+ * USDA, VN) → "Common".
+ */
+const inGroup = (food: FoodSummary, name: ResultGroupName) => {
+  if (name === 'From History') return Boolean(food.lastLoggedAt)
+  const open = food.source === 'OpenFoodFacts'
+  if (name === 'Open Food Facts') return open
+  if (name === 'Custom') return !open && food.isMine
+  if (name === 'Branded') return !open && !food.isMine && Boolean(food.brand)
+  return !open && !food.isMine && !food.brand
+}
 
-/** Một nhóm kết quả: giữ nguyên thứ tự BE đã xếp hạng; phần vượt giới hạn mở/đóng bằng grid-rows 300ms. */
+/** Một nhóm kết quả: tiêu đề + link "See N More" bên phải, năm dòng đầu theo thứ tự BE đã xếp hạng. */
 function ResultGroup({
   title,
   foods,
   renderRow,
+  onSeeMore,
 }: {
   readonly title: ResultGroupName
   readonly foods: readonly FoodSummary[]
   readonly renderRow: (food: FoodSummary) => React.ReactNode
+  /** Không truyền = nhóm không có "See N More" (From History chỉ hiện tối đa năm món). */
+  readonly onSeeMore?: () => void
 }) {
-  const [expanded, setExpanded] = useState(false)
-  const head = foods.slice(0, GROUP_LIMIT)
-  const rest = foods.slice(GROUP_LIMIT)
+  const rest = foods.length - GROUP_LIMIT
   return (
     <section aria-label={title}>
-      <h3 className="px-4 pt-4 pb-1 text-xl font-bold">{title}</h3>
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-1">
+        <h3 className="text-xl leading-tight font-bold">{title}</h3>
+        {onSeeMore && rest > 0 && (
+          <button
+            type="button"
+            onClick={onSeeMore}
+            className="text-muted-foreground focus-visible:ring-ring/50 active:text-foreground relative text-sm underline underline-offset-2 transition-colors before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] focus-visible:ring-1 focus-visible:outline-none"
+          >
+            See {rest} More
+          </button>
+        )}
+      </div>
       <div className="divide-border divide-y">
-        {head.map((food) => (
+        {foods.slice(0, GROUP_LIMIT).map((food) => (
           <div key={food.id}>{renderRow(food)}</div>
         ))}
       </div>
-      {rest.length > 0 && (
-        <>
-          <div
-            className={cn(
-              'grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none',
-              expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
-            )}
-          >
-            <div className="overflow-hidden" inert={!expanded}>
-              <div className="divide-border border-border divide-y border-t">
-                {rest.map((food) => (
-                  <div key={food.id}>{renderRow(food)}</div>
-                ))}
+    </section>
+  )
+}
+
+/** Danh sách đầy đủ của một nhóm ("See N More"): trượt vào từ phải 300ms; Back trượt trở lại từ trái. */
+function GroupFullList({
+  title,
+  foods,
+  renderRow,
+  onBack,
+  footer,
+}: {
+  readonly title: ResultGroupName
+  readonly foods: readonly FoodSummary[]
+  readonly renderRow: (food: FoodSummary) => React.ReactNode
+  readonly onBack: () => void
+  readonly footer?: React.ReactNode
+}) {
+  return (
+    <section
+      aria-label={title}
+      className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-6 motion-safe:animation-duration-300 pb-4"
+    >
+      <div className="flex items-center gap-1 px-2 pt-2">
+        <button
+          type="button"
+          aria-label="Back to results"
+          onClick={onBack}
+          className="focus-visible:ring-ring/50 active:bg-muted flex size-11 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
+        >
+          <ChevronLeft aria-hidden="true" className="size-6" />
+        </button>
+        <h3 className="text-xl font-bold">{title}</h3>
+      </div>
+      <div className="divide-border divide-y">
+        {foods.map((food) => (
+          <div key={food.id}>{renderRow(food)}</div>
+        ))}
+      </div>
+      {footer}
+    </section>
+  )
+}
+
+/** Skeleton theo nhóm khi đang tìm: hai nhóm giả với tiêu đề và vài dòng cùng kích thước dòng thật. */
+function GroupSkeletons() {
+  return (
+    <div aria-busy="true" aria-label="Searching">
+      {[3, 2].map((rows, index) => (
+        <div key={index}>
+          <div className="px-4 pt-4 pb-1">
+            <Skeleton className="h-6 w-32" />
+          </div>
+          {Array.from({ length: rows }).map((_, row) => (
+            <div key={row} className="flex items-center gap-3 px-4 py-3">
+              <Skeleton className="size-9 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-3/5" />
+                <Skeleton className="h-3 w-4/5" />
               </div>
             </div>
-          </div>
-          <button
-            type="button"
-            aria-expanded={expanded}
-            onClick={() => setExpanded(!expanded)}
-            className="text-muted-foreground focus-visible:ring-ring/50 active:bg-muted flex min-h-12 w-full items-center px-4 text-base transition-colors focus-visible:ring-1 focus-visible:outline-none"
-          >
-            {expanded ? 'See Less' : `See ${rest.length} More`}
-          </button>
-        </>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Dòng kết quả tìm kiếm dày như MacroFactor (~46px): icon 28px, tên 15px với phần khớp từ khoá in đậm, dòng phụ 12px
+ * "kcal P F C • khẩu phần (gram)" luôn kèm gram, cắt "…" ở cuối khi dài. Bấm cả dòng mở chi tiết; nút + nhỏ chỉ hiện khi cài đặt
+ * Logger Food Tiles bật Multi-Add (vùng chạm vẫn 44px).
+ */
+function SearchResultRow({
+  food,
+  query,
+  showAdd,
+  onSelect,
+  onAdd,
+}: {
+  readonly food: FoodSummary
+  readonly query: string
+  readonly showAdd: boolean
+  readonly onSelect: () => void
+  readonly onAdd: () => void
+}) {
+  const grams = Math.round(food.defaultServingGrams)
+  const serving = food.defaultServingId ? servingAmountLabel(1, food.defaultServingName) : null
+  const detail = serving && serving !== `${grams} g` ? `${serving} (${grams} g)` : `${grams} g`
+  const per = (value: number) => Math.round(scaleNutrition(value, food.defaultServingGrams))
+  return (
+    <div className="flex items-center gap-3 px-4">
+      <button
+        type="button"
+        onClick={onSelect}
+        className="focus-visible:ring-ring/50 active:bg-muted -mx-4 flex min-h-11 min-w-0 flex-1 items-center gap-3 px-4 text-left transition-colors focus-visible:ring-1 focus-visible:outline-none focus-visible:ring-inset"
+      >
+        <FoodIcon iconKey={food.iconKey} emoji={food.emoji ?? null} size={28} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] leading-tight font-medium">
+            <HighlightedText
+              text={food.brand ? `${food.name} (${food.brand})` : food.name}
+              query={query}
+            />
+          </span>
+          <span className="text-muted-foreground mt-0.5 flex items-center gap-x-1.5 text-xs leading-tight tabular-nums">
+            <span className="inline-flex shrink-0 items-center">
+              {per(food.caloriesPer100g)}
+              <Flame aria-hidden="true" fill="currentColor" className="size-3" />
+            </span>
+            <span className="shrink-0">
+              {per(food.proteinPer100g)}P {per(food.fatPer100g)}F {per(food.carbsPer100g)}C
+            </span>
+            <span aria-hidden="true">•</span>
+            <span className="min-w-0 truncate">{detail}</span>
+          </span>
+        </span>
+      </button>
+      {showAdd && (
+        <button
+          type="button"
+          aria-label={`Add ${food.name}`}
+          onClick={onAdd}
+          className="bg-foreground/15 active:bg-foreground/25 focus-visible:ring-ring/50 relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors before:absolute before:-inset-2 before:content-[''] focus-visible:ring-1 focus-visible:outline-none"
+        >
+          <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+        </button>
       )}
-    </section>
+    </div>
   )
 }
 
@@ -147,6 +273,10 @@ export function FoodSearchPanel({
   onRemoveFavorite,
   detail,
 }: FoodSearchPanelProps) {
+  // Nhóm đang mở danh sách đầy đủ ("See N More"); `cameBack` để lần quay về trượt từ trái thay vì từ phải
+  const [openGroup, setOpenGroup] = useState<ResultGroupName | null>(null)
+  const [cameBack, setCameBack] = useState(false)
+
   if (pickedId) {
     if (!picked) return <Skeleton className="m-4 h-56 rounded-2xl" aria-busy="true" />
     return (
@@ -163,25 +293,6 @@ export function FoodSearchPanel({
       />
     )
   }
-
-  const quickAdd = (food: FoodSummary) =>
-    onAddToPlate({
-      key: newPlateKey(food.id),
-      foodItemId: food.id,
-      name: food.name,
-      foodServingId: food.defaultServingId,
-      servingLabel: food.defaultServingId
-        ? food.defaultServingName
-        : `${food.defaultServingGrams} g`,
-      quantity: food.defaultServingId ? 1 : food.defaultServingGrams,
-      calories: scaleNutrition(food.caloriesPer100g, food.defaultServingGrams),
-      protein: scaleNutrition(food.proteinPer100g, food.defaultServingGrams),
-      carbs: scaleNutrition(food.carbsPer100g, food.defaultServingGrams),
-      fat: scaleNutrition(food.fatPer100g, food.defaultServingGrams),
-      emoji: food.emoji ?? null,
-      iconKey: food.iconKey ?? null,
-      grams: food.defaultServingGrams,
-    })
 
   const quickAddFavorite = (favorite: FavoriteFood) =>
     onAddToPlate({
@@ -202,49 +313,101 @@ export function FoodSearchPanel({
   const isSearching = search.trim() !== ''
   const shown = isSearching ? items : items.filter((item) => item.lastLoggedAt)
   const noHistory = !isSearching && !isLoading && shown.length === 0
+  const searchLoading = isSearching && isLoading
   const grouped = isSearching && !isLoading && items.length > 0
+  const foodsOf = (name: ResultGroupName) => items.filter((food) => inGroup(food, name))
+  const activeGroup =
+    grouped && openGroup && openGroup !== 'From History' && foodsOf(openGroup).length > GROUP_LIMIT
+      ? openGroup
+      : null
   const hasMore = totalCount !== null && items.length < totalCount
   const query = search.trim()
-  const renderRow = (food: FoodSummary) => (
-    <FoodTile
-      variant="row"
-      food={tileDataOfFood(food, isSearching ? query : undefined)}
-      settings={tileOptions}
-      onSelect={() => onPick(food)}
-      onAdd={() => quickAdd(food)}
-    />
+  const renderRow = (food: FoodSummary) =>
+    isSearching ? (
+      <SearchResultRow
+        food={food}
+        query={query}
+        showAdd={tileOptions.highlight === 'MultiAdd'}
+        onSelect={() => onPick(food)}
+        onAdd={() => onPick(food)}
+      />
+    ) : (
+      <FoodTile
+        variant="row"
+        food={tileDataOfFood(food)}
+        settings={tileOptions}
+        onSelect={() => onPick(food)}
+        onAdd={() => onPick(food)}
+      />
+    )
+
+  const loadMore = hasMore && (
+    <div className="border-t p-2">
+      <Button
+        variant="ghost"
+        className="w-full"
+        onClick={onLoadMore}
+        disabled={isFetching}
+        aria-busy={isFetching}
+      >
+        {isFetching && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+        {isFetching ? 'Loading...' : `Load more (${items.length}/${totalCount})`}
+      </Button>
+    </div>
   )
 
+  if (activeGroup)
+    return (
+      <GroupFullList
+        key={activeGroup}
+        title={activeGroup}
+        foods={foodsOf(activeGroup)}
+        renderRow={renderRow}
+        onBack={() => {
+          setCameBack(true)
+          setOpenGroup(null)
+        }}
+        footer={loadMore}
+      />
+    )
+
   return (
-    <div className="pb-4">
+    <div
+      className={cn(
+        'pb-4',
+        cameBack &&
+          'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-6 motion-safe:animation-duration-300'
+      )}
+    >
       {!isSearching && <FavoritesBar favorites={favorites} onQuickAdd={quickAddFavorite} />}
       {noHistory ? (
         <div className="bg-card mx-4 mt-4 rounded-xl px-4 py-4">
           <p className="text-base font-medium">No history yet</p>
           <p className="text-muted-foreground text-sm">Search for foods below</p>
         </div>
+      ) : searchLoading ? (
+        <GroupSkeletons />
       ) : grouped ? (
         <div className={isFetching ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
           {GROUP_ORDER.map((name) => {
-            const foods = items.filter((food) => groupOf(food) === name)
+            const foods = foodsOf(name)
             return foods.length > 0 ? (
-              <ResultGroup key={name} title={name} foods={foods} renderRow={renderRow} />
+              <ResultGroup
+                key={name}
+                title={name}
+                foods={foods}
+                renderRow={renderRow}
+                onSeeMore={
+                  name === 'From History'
+                    ? undefined
+                    : () => {
+                        setCameBack(false)
+                        setOpenGroup(name)
+                      }
+                }
+              />
             ) : null
           })}
-          {hasMore && (
-            <div className="border-t p-2">
-              <Button
-                variant="ghost"
-                className="w-full"
-                onClick={onLoadMore}
-                disabled={isFetching}
-                aria-busy={isFetching}
-              >
-                {isFetching && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-                {isFetching ? 'Loading...' : `Load more (${items.length}/${totalCount})`}
-              </Button>
-            </div>
-          )}
         </div>
       ) : (
         <>
@@ -257,7 +420,7 @@ export function FoodSearchPanel({
             isFiltered={isSearching}
             onClearFilters={() => onSearchChange('')}
             onSelect={onPick}
-            onQuickAdd={quickAdd}
+            onQuickAdd={onPick}
             renderRow={renderRow}
             onLoadMore={onLoadMore}
           />

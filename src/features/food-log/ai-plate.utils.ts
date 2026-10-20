@@ -12,6 +12,12 @@ import type {
 /** Chỉnh sửa của user trên một nguyên liệu AI: đổi gram, xoá khỏi món, hoặc thay bằng món tự chọn (khi AI không tìm được). */
 export interface IngredientEdit {
   readonly grams?: number
+  /** Cỡ khẩu phần user chọn ở AmountSheet ("2 medium"); không có thì giữ khẩu phần của kết quả resolve (số lượng co giãn theo gram). */
+  readonly serving?: {
+    readonly quantity: number
+    readonly unitLabel: string
+    readonly servingId: string | null
+  }
   readonly removed?: boolean
   readonly replacement?: ResolvedIngredient
 }
@@ -65,11 +71,21 @@ export function liveIngredients(
       const dishScale = edits.dishScales[dish.id] ?? 1
       const grams = edit?.grams ?? base.weightGrams
       const factor = base.weightGrams > 0 ? (grams * dishScale) / base.weightGrams : dishScale
+      const scaled = factor === 1 ? base : scaleResolved(base, factor)
+      // Cỡ khẩu phần user chọn thay đơn vị hiển thị và khẩu phần ghi nhật ký; macro đã theo gram nên không đổi
+      const serving = edit?.serving
       return [
         {
           ingredient,
           dishId: dish.id,
-          data: factor === 1 ? base : scaleResolved(base, factor),
+          data: serving
+            ? {
+                ...scaled,
+                quantity: serving.quantity * dishScale,
+                unitLabel: serving.unitLabel,
+                servingId: serving.servingId,
+              }
+            : scaled,
           replaced: factor !== 1 || Boolean(edit?.replacement),
         },
       ]

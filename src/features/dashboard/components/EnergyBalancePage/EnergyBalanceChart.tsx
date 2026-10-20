@@ -107,7 +107,7 @@ export function EnergyBalanceChart({
             width={barWidth}
             height={Math.max(1, y(0) - y(point.consumed))}
             rx="2"
-            className="fill-mf-tile-calories"
+            className="fill-mf-tile-calories motion-safe:animate-chart-rise"
           />
         )
       )}

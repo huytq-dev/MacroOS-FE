@@ -5,6 +5,7 @@ import { NutrientCard, RangeTabs } from '../components/NutritionOverviewPage'
 import { useNutritionOverview } from '../hooks/use-nutrition-overview'
 import {
   OVERVIEW_GROUPS,
+  OVERVIEW_RANGE_LABEL,
   type ContributorKey,
   type OverviewRange,
 } from '../nutrition-overview.utils'
@@ -71,12 +72,15 @@ export function NutritionOverviewPage() {
                     </label>
                   )}
                 </div>
-                <ul className="space-y-3">
+                <ul className="grid grid-cols-2 gap-3">
                   {group.nutrients.map((nutrient) => {
                     const { value, target } = data.values[nutrient.key]
                     return (
                       <NutrientCard
                         key={nutrient.key}
+                        layout="tile"
+                        period={OVERVIEW_RANGE_LABEL[range]}
+                        wide={group.nutrients.length === 1}
                         nutrient={nutrient}
                         value={value}
                         target={target}

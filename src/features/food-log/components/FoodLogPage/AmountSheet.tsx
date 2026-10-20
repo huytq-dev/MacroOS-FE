@@ -9,17 +9,22 @@ export interface AmountUnit {
   readonly label: string
   /** Bao nhiêu gram một đơn vị này (g = 1); dùng để đổi qua lại giữa các đơn vị. */
   readonly gramsPerUnit: number
+  /** Id khẩu phần của món khi đơn vị này là một khẩu phần thật (small/medium/large…); không có cho gram và "plate". */
+  readonly servingId?: string
 }
 
 interface AmountSheetProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly title: string
+  /** Danh sách có thể đổi sau khi mở (chip khẩu phần tải muộn): đơn vị đang chọn được giữ theo nhãn, không theo vị trí. */
   readonly units: readonly AmountUnit[]
+  /** Đơn vị hiện lúc mở; không có thì đơn vị đầu danh sách. */
+  readonly initialUnitLabel?: string
   /** Lượng hiện tại tính bằng gram (đổi sang đơn vị đang chọn khi hiện). */
   readonly grams: number
-  /** Lưu: trả về số gram mới. */
-  readonly onSave: (grams: number) => void
+  /** Lưu: trả về số gram mới cùng đơn vị và số lượng user đang chọn (vd. 2 × medium). */
+  readonly onSave: (grams: number, choice: { unit: AmountUnit; amount: number }) => void
 }
 
 const CHIP =
@@ -31,18 +36,30 @@ const trim = (value: number) => String(Number(value.toFixed(2)))
  * Bảng sửa lượng của một nguyên liệu / món AI: ô số lớn, hàng chip đơn vị (khẩu phần AI chọn, gram) và nút Save dính đáy. Đổi đơn vị
  * thì số trong ô được quy đổi để lượng thật không đổi; Save trả về gram.
  */
-export function AmountSheet({ open, onOpenChange, title, units, grams, onSave }: AmountSheetProps) {
-  const [unitIndex, setUnitIndex] = useState(0)
-  const [text, setText] = useState(trim(grams / units[0].gramsPerUnit))
-  const unit = units[unitIndex]
+export function AmountSheet({
+  open,
+  onOpenChange,
+  title,
+  units,
+  initialUnitLabel,
+  grams,
+  onSave,
+}: AmountSheetProps) {
+  const initial = units.find((item) => item.label === initialUnitLabel) ?? units[0]
+  const [unitLabel, setUnitLabel] = useState(initial.label)
+  const [text, setText] = useState(trim(grams / initial.gramsPerUnit))
+  // Chọn theo nhãn: chip khẩu phần tải muộn làm danh sách đổi thứ tự cũng không lệch lựa chọn
+  const unit = units.find((item) => item.label === unitLabel) ?? units[0]
   const amount = Number(text)
   const valid = text.trim() !== '' && amount > 0
 
-  const changeUnit = (index: number) => {
-    // Giữ nguyên lượng thật khi đổi đơn vị
+  const changeUnit = (next: AmountUnit) => {
+    setUnitLabel(next.label)
+    // Đổi giữa hai khẩu phần thật (3 large → 3 medium) giữ nguyên số lượng, gram và macro đổi theo cỡ như MacroFactor;
+    // đổi từ/sang gram hay plate thì giữ nguyên lượng thật và quy đổi con số
+    if (unit.servingId && next.servingId) return
     const currentGrams = valid ? amount * unit.gramsPerUnit : grams
-    setUnitIndex(index)
-    setText(trim(currentGrams / units[index].gramsPerUnit))
+    setText(trim(currentGrams / next.gramsPerUnit))
   }
 
   return (
@@ -53,12 +70,12 @@ export function AmountSheet({ open, onOpenChange, title, units, grams, onSave }:
         onSubmit={(event) => {
           event.preventDefault()
           if (!valid) return
-          onSave(amount * unit.gramsPerUnit)
+          onSave(amount * unit.gramsPerUnit, { unit, amount })
           onOpenChange(false)
         }}
       >
         <div className="space-y-4 p-4">
-          <div className="bg-secondary focus-within:ring-foreground flex h-14 items-center gap-3 rounded-lg px-4 transition-shadow focus-within:ring-2">
+          <div className="bg-secondary focus-within:ring-ring/50 flex h-14 items-center gap-3 rounded-lg px-4 transition-shadow focus-within:ring-1">
             <input
               type="number"
               inputMode="decimal"
@@ -74,15 +91,15 @@ export function AmountSheet({ open, onOpenChange, title, units, grams, onSave }:
           </div>
           {units.length > 1 && (
             <div className="flex gap-2 overflow-x-auto" role="group" aria-label="Unit">
-              {units.map((item, index) => (
+              {units.map((item) => (
                 <button
                   key={item.label}
                   type="button"
-                  aria-pressed={index === unitIndex}
-                  onClick={() => changeUnit(index)}
+                  aria-pressed={item.label === unit.label}
+                  onClick={() => changeUnit(item)}
                   className={cn(
                     CHIP,
-                    index === unitIndex
+                    item.label === unit.label
                       ? 'bg-foreground text-background font-medium'
                       : 'bg-secondary'
                   )}

@@ -135,10 +135,17 @@ export interface CopyRequest {
 }
 
 // Khớp BE (đang thiết kế) POST /food-logs/ai/analyze: pha 1, chỉ tách món và nguyên liệu, chưa có dinh dưỡng
+/** Trạng thái chế biến AI nhận ra (BE: raw | boiled | fried | scrambled | grilled | steamed | baked | roasted | stir_fried). */
+export type AiFoodState = string
+
 export interface AiIngredient {
   id: string
   name: string
   grams: number
+  /** Số lượng và đơn vị AI đọc từ ảnh/mô tả ("3" + "large"); thiếu = null (BE cũ hoặc AI không chắc). */
+  quantity?: number | null
+  unit?: string | null
+  state?: AiFoodState | null
 }
 
 export interface AiDish {
@@ -162,6 +169,8 @@ export interface AiConfirmIngredient {
   name: string
   foodItemId?: string
   canonicalFoodId?: string
+  /** State AI đã trả cho nguyên liệu này, để BE nhớ lựa chọn riêng theo state; không gửi = như cũ. */
+  state?: AiFoodState | null
 }
 
 export interface AiConfirmRequest {
@@ -173,6 +182,10 @@ export interface AiConfirmRequest {
 export interface ResolveIngredientRequest {
   name: string
   grams: number
+  /** Nguyên văn quantity/unit/state từ analyze; BE chọn khẩu phần theo cỡ AI nói (3 large) thay vì chỉ theo gram. */
+  quantity?: number | null
+  unit?: string | null
+  state?: AiFoodState | null
 }
 
 /**
@@ -195,6 +208,18 @@ export interface ResolvedIngredient {
   fat: number
   carbs: number
   estimated?: boolean
+  /** Nguồn khớp của BE: cache | canonical | variant | search | ai | none. */
+  source?: string
+  /** Các khẩu phần của món đã khớp (mặc định đứng đầu, rồi theo gram tăng dần, có cả "g"); null khi estimated hoặc không khớp. */
+  servings?: ResolvedServing[] | null
+}
+
+/** Một khẩu phần trong `ResolvedIngredient.servings`; `label` đã bỏ tiền tố "1 " ("large", "100 g", "tbsp"). */
+export interface ResolvedServing {
+  id: string
+  label: string
+  gramsPerUnit: number
+  isDefault: boolean
 }
 
 /** Trạng thái riêng từng nguyên liệu ở pha 2. */
@@ -265,6 +290,12 @@ export interface PlateNutrientsResponse {
 }
 
 /** Món chờ trong plate trước khi log. foodItemId null: ước lượng của AI (log bằng Quick Add) hoặc recipe (có `recipeId`). */
+export interface PlateServing {
+  id: string
+  name: string
+  weightInGrams: number
+}
+
 export interface PlateItem {
   key: string
   foodItemId: string | null
@@ -283,6 +314,8 @@ export interface PlateItem {
   iconKey?: string | null
   /** Tổng khối lượng của dòng (g), nếu biết. */
   grams?: number
+  /** Các khẩu phần của món (chip đơn vị khi sửa lượng trong Your Plate); thiếu thì chỉ còn g / oz. */
+  servings?: readonly PlateServing[]
   /** Lượng các chất khác của dòng này (khoá danh mục dinh dưỡng → số theo đơn vị danh mục); món không có dữ liệu thì thiếu. */
   nutrients?: Readonly<Record<string, number>>
 }

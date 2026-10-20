@@ -29,7 +29,7 @@ export const NUTRIENT_GROUPS: readonly NutrientGroup[] = [
   {
     key: 'carb',
     title: 'Carb Breakdown',
-    tone: 'bg-emerald-500',
+    tone: 'bg-mf-tile-carbs',
     nutrients: [
       n('fiber', 'Fiber', 'g', 'floor'),
       n('netCarbs', 'Net (Non-fiber)', 'g', 'none'),
@@ -41,7 +41,7 @@ export const NUTRIENT_GROUPS: readonly NutrientGroup[] = [
   {
     key: 'fat',
     title: 'Fat Breakdown',
-    tone: 'bg-amber-500',
+    tone: 'bg-mf-tile-fat',
     nutrients: [
       n('monounsaturated', 'Monounsaturated Fat', 'g', 'none'),
       n('polyunsaturated', 'Polyunsaturated Fat', 'g', 'none'),
@@ -57,7 +57,7 @@ export const NUTRIENT_GROUPS: readonly NutrientGroup[] = [
   {
     key: 'protein',
     title: 'Protein Breakdown',
-    tone: 'bg-orange-500',
+    tone: 'bg-mf-tile-protein',
     nutrients: [
       n('cysteine', 'Cysteine', 'g', 'floor'),
       n('histidine', 'Histidine', 'g', 'floor'),
@@ -75,7 +75,7 @@ export const NUTRIENT_GROUPS: readonly NutrientGroup[] = [
   {
     key: 'vitamins',
     title: 'Vitamins',
-    tone: 'bg-violet-500',
+    tone: 'bg-mf-vitamins',
     nutrients: [
       n('b1', 'B1 Thiamine', 'mg', 'floor'),
       n('b2', 'B2 Riboflavin', 'mg', 'floor'),
@@ -94,7 +94,7 @@ export const NUTRIENT_GROUPS: readonly NutrientGroup[] = [
   {
     key: 'minerals',
     title: 'Minerals',
-    tone: 'bg-rose-600',
+    tone: 'bg-mf-minerals',
     nutrients: [
       n('calcium', 'Calcium', 'mg', 'floor'),
       n('copper', 'Copper', 'mg', 'floor'),
@@ -111,7 +111,7 @@ export const NUTRIENT_GROUPS: readonly NutrientGroup[] = [
   {
     key: 'other',
     title: 'Other',
-    tone: 'bg-sky-500',
+    tone: 'bg-muted-foreground',
     nutrients: [
       n('alcohol', 'Alcohol', 'g', 'ceiling'),
       n('caffeine', 'Caffeine', 'mg', 'ceiling'),

@@ -100,7 +100,10 @@ export function ExpenditureChart({ points, range, height, className }: Expenditu
             const cx = x(slotOf(point, index))
             const w = slotW * 0.62
             return (
-              <g key={point.date}>
+              <g
+                key={point.date}
+                className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500"
+              >
                 <rect
                   x={cx - w / 2}
                   y={y(point.high)}
@@ -153,7 +156,8 @@ export function ExpenditureChart({ points, range, height, className }: Expenditu
               <polyline
                 points={line}
                 fill="none"
-                className="stroke-mf-tile-protein"
+                pathLength={1}
+                className="stroke-mf-tile-protein motion-safe:animate-chart-draw"
                 strokeWidth="2"
                 strokeLinejoin="round"
               />

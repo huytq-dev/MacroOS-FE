@@ -5,7 +5,7 @@ import { Camera, Flashlight, FlashlightOff, Loader2, Trash2, Upload } from 'luci
 import { toast } from 'sonner'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import type { ProgramWeek } from '@/features/program/types/program.types'
-import type { AiPlateEdits } from '../../ai-plate.utils'
+import type { AiPlateEdits, IngredientEdit } from '../../ai-plate.utils'
 import type { TileOptions } from '../../food-log-settings'
 import { useCameraScanner } from '@/hooks/use-camera-scanner'
 import { cn } from '@/lib/utils'
@@ -52,7 +52,11 @@ interface AiPanelProps {
   readonly date: string
   readonly edits: AiPlateEdits
   readonly tileOptions: TileOptions
-  readonly onSetGrams: (ingredientId: string, grams: number) => void
+  readonly onSetGrams: (
+    ingredientId: string,
+    grams: number,
+    serving?: IngredientEdit['serving']
+  ) => void
   readonly onRemoveIngredient: (ingredientId: string) => void
   readonly onReplaceIngredient: (ingredientId: string, data: ResolvedIngredient) => void
   readonly onSetDishScale: (dishId: string, scale: number) => void

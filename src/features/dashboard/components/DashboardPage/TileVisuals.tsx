@@ -1,50 +1,241 @@
 import { cn } from '@/lib/utils'
+import type { BalancePoint } from '../../energy-balance.utils'
 import type { TargetKind } from '../../types/dashboard.types'
 
 const WIDTH = 120
 const HEIGHT = 44
+const TOP = 7
+const BOTTOM = 37
+
+/** Đổi giá trị → toạ độ y: tự co giãn theo min–max của chính dữ liệu (không bắt đầu từ 0); chuỗi phẳng nằm giữa khung. */
+const yOf = (values: readonly number[]) => {
+  const min = Math.min(...values)
+  const span = Math.max(...values) - min
+  return (value: number) =>
+    span === 0 ? (TOP + BOTTOM) / 2 : BOTTOM - ((value - min) / span) * (BOTTOM - TOP)
+}
+
+const xOf = (index: number, count: number) =>
+  count === 1 ? WIDTH - 10 : 8 + (index / (count - 1)) * (WIDTH - 16)
+
+/** Đường cong mượt đi qua các điểm (trung điểm làm điểm neo, điểm thật làm điểm điều khiển). */
+const smoothPath = (points: readonly { x: number; y: number }[]) => {
+  const middle = (a: number, b: number) => (a + b) / 2
+  let path = `M ${points[0].x} ${points[0].y}`
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const point = points[index]
+    const next = points[index + 1]
+    path += ` Q ${point.x} ${point.y} ${middle(point.x, next.x)} ${middle(point.y, next.y)}`
+  }
+  const last = points[points.length - 1]
+  return `${path} L ${last.x} ${last.y}`
+}
 
 interface SparklineProps {
+  /** Giá trị đường xu hướng (cũ → mới). */
   readonly values: readonly number[]
+  /** Số đo thô cùng thứ tự với `values`, vẽ thành chấm nhỏ mờ quanh đường (cân thật quanh đường trend). */
+  readonly raw?: readonly number[]
   readonly className?: string
 }
 
-/** Đường xu hướng nhỏ (kiểu MacroFactor): các điểm tròn nối nhau, màu theo `currentColor`. */
-export function Sparkline({ values, className }: SparklineProps) {
+/**
+ * Đường xu hướng nhỏ kiểu MacroFactor: đường mảnh mượt tự co giãn theo min–max (có cả số đo thô thì thang gồm cả chúng), số đo thô là
+ * chấm nhỏ mờ, hai đầu đường là vòng tròn rỗng (một điểm thì chỉ có vòng tròn bên phải). Màu theo `currentColor`; đường tự vẽ khi xuất hiện.
+ */
+export function Sparkline({ values, raw, className }: SparklineProps) {
   if (values.length === 0) return <div className="h-12" aria-hidden="true" />
-  const min = Math.min(...values)
-  const span = Math.max(...values) - min || 1
-  const points = values.map((value, index) => ({
-    x: values.length === 1 ? WIDTH - 10 : 6 + (index / (values.length - 1)) * (WIDTH - 12),
-    y: 38 - ((value - min) / span) * 30,
-  }))
+  const y = yOf(raw ? [...values, ...raw] : values)
+  const points = values.map((value, index) => ({ x: xOf(index, values.length), y: y(value) }))
+  const ends = points.length > 1 ? [points[0], points[points.length - 1]] : points
   return (
     <svg
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       aria-hidden="true"
       className={cn('h-12 w-full', className)}
     >
+      {raw?.map((value, index) => (
+        <circle
+          key={index}
+          cx={xOf(index, raw.length)}
+          cy={y(value)}
+          r="1.5"
+          fill="currentColor"
+          opacity="0.4"
+          className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500"
+        />
+      ))}
       {points.length > 1 && (
-        <polyline
-          points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+        <path
+          d={smoothPath(points)}
+          pathLength={1}
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinejoin="round"
+          strokeWidth="1.6"
           strokeLinecap="round"
+          className="motion-safe:animate-chart-draw"
         />
       )}
-      {points.map((point) => (
+      {ends.map((point) => (
         <circle
-          key={`${point.x}-${point.y}`}
+          key={point.x}
           cx={point.x}
           cy={point.y}
-          r="2.6"
+          r="2.8"
           fill="var(--card)"
           stroke="currentColor"
           strokeWidth="1.6"
         />
       ))}
+    </svg>
+  )
+}
+
+interface MiniFluxProps {
+  /** Expenditure từng ngày (cũ → mới). */
+  readonly values: readonly number[]
+  readonly className?: string
+}
+
+/**
+ * Bản thu nhỏ biểu đồ Expenditure (như MacroFactor): một dải mờ bo nhỏ trải từ ngày đầu tới ngày cuối, đường mảnh nối các ngày và hai ô
+ * vuông rỗng ở hai đầu. Tự co giãn theo min–max; một ngày thì dải ngắn có hai ô vuông.
+ */
+export function MiniFlux({ values, className }: MiniFluxProps) {
+  if (values.length === 0) return <div className="h-12" aria-hidden="true" />
+  const spread = Math.max(6, (Math.max(...values) - Math.min(...values)) * 0.3)
+  const y = yOf([
+    ...values.map((value) => value - spread),
+    ...values.map((value) => value + spread),
+  ])
+  const left = values.length === 1 ? WIDTH - 32 : 8
+  const right = WIDTH - 10
+  const points = values.map((value, index) => ({
+    x: values.length === 1 ? right : left + (index / (values.length - 1)) * (right - left),
+    y: y(value),
+  }))
+  const upper = y(Math.max(...values) + spread)
+  const lower = y(Math.min(...values) - spread)
+  const ends =
+    values.length === 1
+      ? [{ x: left, y: points[0].y }, points[0]]
+      : [points[0], points[points.length - 1]]
+  return (
+    <svg
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      aria-hidden="true"
+      className={cn('h-12 w-full', className)}
+    >
+      <rect
+        x={left}
+        y={upper}
+        width={right - left}
+        height={lower - upper}
+        rx="2"
+        fill="currentColor"
+        opacity="0.28"
+        className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500"
+      />
+      <path
+        d={
+          values.length === 1
+            ? `M ${left} ${points[0].y} L ${right} ${points[0].y}`
+            : smoothPath(points)
+        }
+        pathLength={1}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        className="motion-safe:animate-chart-draw"
+      />
+      {ends.map((point) => (
+        <rect
+          key={point.x}
+          x={point.x - 2.2}
+          y={point.y - 2.2}
+          width="4.4"
+          height="4.4"
+          fill="var(--card)"
+          stroke="currentColor"
+          strokeWidth="1.2"
+        />
+      ))}
+    </svg>
+  )
+}
+
+interface MiniBalanceProps {
+  /** Bảy ngày gần nhất (kcal đã ăn và mốc so sánh); ngày chưa log để trống. */
+  readonly points: readonly BalancePoint[]
+  readonly className?: string
+}
+
+/**
+ * Bản thu nhỏ Energy Balance (như biểu đồ chi tiết): cột kcal đã ăn mỗi ngày (ngày chưa log để trống) và đường mốc chấm tròn, cùng một
+ * thang 0 → mức cao nhất nên cột và mốc so đúng tỉ lệ; chưa có dữ liệu thì chỉ còn đường mốc chấm ở giữa như MacroFactor.
+ */
+export function MiniBalance({ points, className }: MiniBalanceProps) {
+  const hasBars = points.some((point) => point.consumed !== null)
+  const top = hasBars
+    ? Math.max(1, ...points.flatMap((point) => [point.consumed ?? 0, point.baseline ?? 0]))
+    : 0
+  const y = (value: number) => BOTTOM - (value / top) * (BOTTOM - 4)
+  const slot = (WIDTH - 12) / 7
+  const centerX = (index: number) => 6 + slot * (index + 0.5)
+  // Đường mốc luôn trải đủ 7 ngày: ngày thiếu mốc dùng mốc gần nhất đã biết
+  const known = [...points].reverse().find((point) => point.baseline !== null)?.baseline ?? null
+  const baseline =
+    known === null
+      ? []
+      : Array.from(
+          { length: 7 },
+          (_, index) => `${centerX(index)},${y(points[index]?.baseline ?? known)}`
+        )
+  return (
+    <svg
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      aria-hidden="true"
+      className={cn('h-12 w-full', className)}
+    >
+      {!hasBars ? (
+        <line
+          x1="2"
+          x2={WIDTH - 2}
+          y1={HEIGHT / 2}
+          y2={HEIGHT / 2}
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray="0.1 4"
+        />
+      ) : (
+        <>
+          {points.map((point, index) =>
+            point.consumed === null ? null : (
+              <rect
+                key={point.date}
+                x={centerX(index) - 3.5}
+                y={y(point.consumed)}
+                width="7"
+                height={Math.max(1.5, BOTTOM - y(point.consumed))}
+                rx="1.5"
+                className="fill-mf-tile-calories motion-safe:animate-chart-rise"
+              />
+            )
+          )}
+          {baseline.length > 0 && (
+            <polyline
+              points={baseline.join(' ')}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeDasharray="0.1 4"
+            />
+          )}
+        </>
+      )}
     </svg>
   )
 }
@@ -55,14 +246,17 @@ interface HabitGridProps {
   readonly tone: string
 }
 
-/** Lưới 3×10 ô nhỏ của "Habits": ô sáng màu = ngày có thực hiện. */
+/** Lưới 3×10 ô nhỏ của "Habits": ô trống rất tối bo nhỏ, ô có dữ liệu màu nhấn, khoảng cách đều. */
 export function HabitGrid({ cells, tone }: HabitGridProps) {
   return (
-    <div aria-hidden="true" className="grid grid-cols-10 gap-[3px]">
+    <div aria-hidden="true" className="grid grid-cols-10 gap-1">
       {cells.map((done, index) => (
         <span
           key={index}
-          className={cn('aspect-square rounded-[3px]', done ? tone : 'bg-muted-foreground/20')}
+          className={cn(
+            'aspect-square rounded-[3px] transition-colors duration-300',
+            done ? tone : 'bg-foreground/[0.08]'
+          )}
         />
       ))}
     </div>
@@ -88,7 +282,7 @@ export function TargetBar({ value, target, kind, tone }: TargetBarProps) {
   return (
     <div
       aria-hidden="true"
-      className="bg-muted-foreground/20 relative h-5 overflow-hidden rounded-sm"
+      className="bg-foreground/[0.08] relative h-5 overflow-hidden rounded-sm"
     >
       {kind === 'target' && (
         <span
@@ -114,31 +308,16 @@ export function TargetBar({ value, target, kind, tone }: TargetBarProps) {
   )
 }
 
-/** Đường kẻ đứt đoạn (Energy Balance tuần qua). */
-export function DashedLine({ className }: { readonly className?: string }) {
-  return (
-    <svg viewBox="0 0 120 12" aria-hidden="true" className={cn('h-5 w-full', className)}>
-      <line
-        x1="2"
-        y1="6"
-        x2="118"
-        y2="6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeDasharray="1 4"
-      />
-    </svg>
-  )
-}
-
-/** Thanh ngang dày kèm vạch tiến độ nhỏ ở đầu (Goal Progress). */
+/** Thanh ngang mảnh bo tròn (Goal Progress): nền rất tối, phần đã đạt màu carb, rộng ra mượt khi xuất hiện. */
 export function GoalBar({ percent }: { readonly percent: number }) {
   return (
-    <div aria-hidden="true" className="bg-muted-foreground/20 relative h-10 rounded-sm">
+    <div
+      aria-hidden="true"
+      className="bg-foreground/[0.08] relative h-3 overflow-hidden rounded-full"
+    >
       <span
-        className="bg-mf-tile-carbs absolute inset-y-0 left-0 rounded-sm"
-        style={{ width: `${Math.max(1, Math.min(100, percent))}%` }}
+        className="bg-mf-tile-carbs motion-safe:animate-chart-grow absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none"
+        style={{ width: `${Math.max(2, Math.min(100, percent))}%` }}
       />
     </div>
   )

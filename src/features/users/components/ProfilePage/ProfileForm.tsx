@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { ACTIVITY_LEVEL, GENDER, UNIT_SYSTEM, enumOptions } from '@/config/enums'
 import { routePath } from '@/config/route-path'
 import { TIME_ZONE_OPTIONS } from '@/config/time-zones'
-import { formatDateVi } from '@/lib/date'
+import { formatDate } from '@/lib/date'
 import type { UpdateProfileFormValues } from '../../schemas/update-profile.schema'
 
 interface ProfileFormProps {
@@ -81,7 +81,7 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
         <ListRow
           label="Date of birth"
           hint="Used to estimate your starting TDEE"
-          value={values.dateOfBirth ? formatDateVi(values.dateOfBirth) : 'Not set'}
+          value={values.dateOfBirth ? formatDate(values.dateOfBirth) : 'Not set'}
           attention={!values.dateOfBirth || Boolean(errors.dateOfBirth)}
           onClick={() => setSheet('dob')}
         />

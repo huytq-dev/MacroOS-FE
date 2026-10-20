@@ -19,6 +19,7 @@ import { addDaysIso } from '@/lib/date'
 
 const WEIGHT_LOOKBACK_DAYS = 365
 const SPARK_POINTS = 8
+const MS_PER_DAY = 86_400_000
 
 /**
  * Nguồn dữ liệu CHƯA có API (vi chất, bước chân, kỳ kinh, mỡ cơ thể): giữ ở một chỗ này để sau thay bằng
@@ -43,6 +44,8 @@ export interface DashboardData {
   readonly tdeeSpark: readonly number[]
   readonly weightLatest: number | null
   readonly weightSpark: readonly number[]
+  /** Cân thô cùng thứ tự với `weightSpark` (chấm mờ quanh đường trend). */
+  readonly weightRaw: readonly number[]
   /** 30 ngày tiến độ từng ngày (cũ → mới), dùng cho Energy Balance. */
   readonly daily: readonly DailyProgress[]
   readonly weighIn: { readonly cells: readonly boolean[]; readonly week: number }
@@ -52,6 +55,8 @@ export interface DashboardData {
   readonly steps: number | null
   readonly period: { readonly cells: readonly boolean[]; readonly daysAgo: number | null }
   readonly goalPercent: number | null
+  /** Số ngày từ lần cân đầu tới hôm nay (nhãn kỳ của Goal Progress); null = chưa có cân nặng. */
+  readonly goalDays: number | null
   /** Tổng và target của hôm nay (vòng kcal "Dinh dưỡng hôm nay"); null khi chưa tải xong. */
   readonly todayTotals: MacroTotals | null
   readonly todayTarget: ProgramWeek | null
@@ -106,6 +111,7 @@ export function useDashboardData(
       .map((point) => point.estimatedTdeeKcal),
     weightLatest,
     weightSpark: entries.slice(-SPARK_POINTS).map((entry) => entry.trendWeightKg ?? entry.weightKg),
+    weightRaw: entries.slice(-SPARK_POINTS).map((entry) => entry.weightKg),
     daily,
     weighIn: { cells: habitCells(weighInDates, todayKey), week: weekCount(weighInDates, todayKey) },
     logging: { cells: habitCells(loggedDates, todayKey), week: weekCount(loggedDates, todayKey) },
@@ -117,6 +123,10 @@ export function useDashboardData(
       daysAgo: MOCK.periodDaysAgo,
     },
     goalPercent: goalProgressPercent(firstWeight, weightLatest, targetWeightKg),
+    goalDays:
+      today && entries[0]
+        ? Math.round((Date.parse(today) - Date.parse(entries[0].logDate)) / MS_PER_DAY) + 1
+        : null,
     todayTotals: totals ?? null,
     todayTarget: target ?? null,
     nutrientsToday,

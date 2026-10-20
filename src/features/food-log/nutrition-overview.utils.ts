@@ -75,6 +75,7 @@ const MOCK_TARGETS: Readonly<Record<string, number | null>> = {
 
 /** Tên hiển thị khác với danh mục của trang Dinh dưỡng (theo MacroFactor Nutrition Overview). */
 const NAME_OVERRIDE: Readonly<Record<string, string>> = {
+  netCarbs: 'Net Carbs',
   monounsaturated: 'Monounsaturated',
   polyunsaturated: 'Polyunsaturated',
   saturated: 'Saturated',

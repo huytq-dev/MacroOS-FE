@@ -2,7 +2,7 @@
 
 import { Flame } from 'lucide-react'
 import { ModeToggle } from './DailyNutritionCard'
-import { formatDateVi } from '@/lib/date'
+import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import type { MacroTotals, WeekDay } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
@@ -35,12 +35,21 @@ interface WeekMatrixProps {
   /** Ngày đang xem; null = cả tuần (chạm lại ngày đang chọn). */
   readonly selected: string | null
   readonly onSelect: (logDate: string | null) => void
+  /** Hôm nay (yyyy-MM-dd): ngày sau đó có thanh xám mờ, nhãn hôm nay sáng hơn. */
+  readonly today: string | null
 }
 
 const consumedOf = (totals: MacroTotals, key: Row['key']) => totals[key]
 
 /** Lưới 7 ngày × 4 chỉ số (kiểu "Nutrition & Targets"): cột thanh dọc theo % target, chạm cột để xem số của ngày đó. */
-export function WeekMatrix({ mode, onModeChange, days, selected, onSelect }: WeekMatrixProps) {
+export function WeekMatrix({
+  mode,
+  onModeChange,
+  days,
+  selected,
+  onSelect,
+  today,
+}: WeekMatrixProps) {
   const current = days.find((day) => day.logDate === selected)
 
   // Không có target: thanh so với ngày ăn nhiều nhất tuần của chính chỉ số đó.
@@ -73,44 +82,56 @@ export function WeekMatrix({ mode, onModeChange, days, selected, onSelect }: Wee
         <div className="flex flex-1">
           {days.map((day, index) => {
             const active = day.logDate === selected
+            const isToday = day.logDate === today
+            const future = today !== null && day.logDate > today
             return (
               <button
                 key={day.logDate}
                 type="button"
                 aria-pressed={active}
-                aria-label={`${WEEKDAY_NAMES[index]} ${formatDateVi(day.logDate)}: ${Math.round(day.totals.calories)} kcal`}
+                aria-label={`${WEEKDAY_NAMES[index]} ${formatDate(day.logDate)}: ${Math.round(day.totals.calories)} kcal`}
                 onClick={() => onSelect(active ? null : day.logDate)}
                 className={cn(
-                  'focus-visible:ring-foreground/40 flex min-w-0 flex-1 flex-col rounded-md border-[1.5px] transition-colors focus-visible:ring-1 focus-visible:outline-none',
+                  'focus-visible:ring-ring/50 flex min-w-0 flex-1 flex-col rounded-xl border-[1.5px] transition-colors focus-visible:ring-1 focus-visible:outline-none',
                   active ? 'border-foreground' : 'border-transparent'
                 )}
               >
-                {ROWS.map((row, rowIndex) => (
-                  <span
-                    key={row.key}
-                    aria-hidden="true"
-                    className={cn(
-                      'flex w-full items-center justify-center',
-                      ROW,
-                      rowIndex < ROWS.length - 1 && 'border-foreground/10 border-b'
-                    )}
-                  >
-                    <span className="bg-foreground/10 relative block h-7 w-4 rounded-[3px]">
-                      <span
-                        className={cn(
-                          'absolute bottom-1 left-1/2 w-2 -translate-x-1/2 rounded-full transition-[height] duration-300',
-                          row.fill
+                {ROWS.map((row, rowIndex) => {
+                  const empty = mode === 'consumed' && consumedOf(day.totals, row.key) <= 0
+                  return (
+                    <span
+                      key={row.key}
+                      aria-hidden="true"
+                      className={cn(
+                        'flex w-full items-center justify-center',
+                        ROW,
+                        rowIndex < ROWS.length - 1 && 'border-foreground/10 border-b'
+                      )}
+                    >
+                      {/* Ô tối bo nhẹ, thanh mảnh bo tròn có nắp trắng ở đỉnh phần đã đầy; chưa có dữ liệu thì chỉ có dấu gạch */}
+                      <span className="bg-foreground/10 relative block h-7 w-5 rounded-[3px]">
+                        {empty ? (
+                          <span className="bg-foreground/30 absolute top-1/2 left-1/2 h-px w-1.5 -translate-x-1/2" />
+                        ) : (
+                          <span
+                            className={cn(
+                              'absolute bottom-1 left-1/2 w-1 -translate-x-1/2 rounded-full transition-[height] duration-300 motion-reduce:transition-none',
+                              future ? 'bg-foreground/25' : row.fill
+                            )}
+                            style={{ height: `calc((100% - 0.5rem) * ${percent(day, row) / 100})` }}
+                          >
+                            <span className="bg-foreground absolute inset-x-0 top-0 h-[3px] rounded-full" />
+                          </span>
                         )}
-                        style={{ height: `calc((100% - 0.5rem) * ${percent(day, row) / 100})` }}
-                      />
-                      <span className="bg-foreground/40 absolute top-1 left-1/2 h-0.5 w-2 -translate-x-1/2 rounded-full" />
+                      </span>
                     </span>
-                  </span>
-                ))}
+                  )
+                })}
                 <span
                   className={cn(
                     'py-2 text-center text-sm',
-                    active ? 'text-foreground font-bold' : 'text-muted-foreground'
+                    active || isToday ? 'text-foreground' : 'text-muted-foreground',
+                    active && 'font-bold'
                   )}
                 >
                   {WEEKDAY_LABELS[index]}

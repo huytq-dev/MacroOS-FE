@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
-import { formatDateVi } from '@/lib/date'
+import { formatDate } from '@/lib/date'
 import { StepHeading } from './ChoiceStep'
 import { RulerSlider } from './RulerSlider'
 import { BadgeAlert } from './SolidIcons'
@@ -62,7 +62,7 @@ export function GoalTargetStep({
         <div className="bg-secondary rounded-2xl p-4">
           {preview ? (
             <p className="text-xl font-bold tabular-nums">
-              {preview.projectedEndDate ? formatDateVi(preview.projectedEndDate) : '—'}
+              {preview.projectedEndDate ? formatDate(preview.projectedEndDate) : '—'}
             </p>
           ) : (
             <Skeleton className="h-7 w-28" />

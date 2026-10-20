@@ -1,6 +1,6 @@
 'use client'
 
-import { formatDateVi } from '@/lib/date'
+import { formatDate } from '@/lib/date'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StepHeading } from './ChoiceStep'
 import type { ProgramPreview } from '../../types/onboarding.types'
@@ -88,7 +88,7 @@ export function GoalSummaryStep({
         <SummaryCard
           index={2}
           title="Projected completion date"
-          value={preview.projectedEndDate ? formatDateVi(preview.projectedEndDate) : '—'}
+          value={preview.projectedEndDate ? formatDate(preview.projectedEndDate) : '—'}
         >
           This is an optimistic estimate, assuming your expenditure stays perfectly stable and you
           hit your target 100% of the time. Aim for progress over perfection, and allow a few extra

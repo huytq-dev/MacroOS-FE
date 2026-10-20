@@ -33,7 +33,7 @@ interface FoodTileProps {
   readonly variant?: 'card' | 'row'
   /** Bấm cả ô để chọn/sửa món; không truyền thì ô chỉ để xem (preview ở cài đặt). */
   readonly onSelect?: () => void
-  /** Nút + (Multi-Add) thêm món vào plate mà không mở trang chọn; chỉ dùng khi highlight = MultiAdd. */
+  /** Nút + (Multi-Add) mở chi tiết món (như bấm cả dòng) để chọn khẩu phần rồi Add vào plate; chỉ dùng khi highlight = MultiAdd. */
   readonly onAdd?: () => void
 }
 
@@ -125,7 +125,7 @@ function AnimatedHeight({
 /**
  * Ô món (Timeline Food Tiles và Logger Food Tiles): emoji, tên, dòng "kcal · P · F · C" và khẩu phần/khối lượng. Comfort để tên
  * xuống dòng và khẩu phần ở dòng riêng; Standard cho tên tối đa hai dòng và gộp khẩu phần vào dòng macro; Compact một dòng tên.
- * Điểm nhấn bên phải: Edit (nút bút chì tròn), MultiAdd (nút + riêng, thêm vào plate không rời tìm kiếm), Energy (số kcal ở góc phải trên, bỏ kcal khỏi dòng macro), None (tên dài hơn).
+ * Điểm nhấn bên phải: Edit (nút bút chì tròn), MultiAdd (nút + riêng, mở chi tiết món để chọn khẩu phần rồi Add vào plate), Energy (số kcal ở góc phải trên, bỏ kcal khỏi dòng macro), None (tên dài hơn).
  * Đổi cài đặt thì ô co giãn có hoạt ảnh.
  */
 export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: FoodTileProps) {
@@ -210,11 +210,12 @@ export function FoodTile({ food, settings, variant = 'card', onSelect, onAdd }: 
   const plusButton = highlight === 'MultiAdd' && (
     <button
       type="button"
-      aria-label={`Add ${food.name} to plate`}
+      aria-label={`Add ${food.name}`}
       onClick={onAdd}
       disabled={!onAdd}
       className={cn(
-        'bg-foreground/15 active:bg-foreground/25 focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none',
+        // Nút gọn 36px (như MF) nhưng vùng chạm vẫn 44px nhờ before
+        'bg-foreground/15 active:bg-foreground/25 focus-visible:ring-ring/50 relative flex size-9 shrink-0 items-center justify-center rounded-full transition-colors before:absolute before:-inset-1 before:content-[""] focus-visible:ring-1 focus-visible:outline-none',
         FADE_IN
       )}
     >

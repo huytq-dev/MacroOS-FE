@@ -203,7 +203,7 @@ export function DayTimeline({
         const sum = (pick: (entry: FoodLogEntry) => number) =>
           Math.round(here.reduce((total, entry) => total + pick(entry), 0))
         return (
-          <li key={hour}>
+          <li key={hour} id={`timeline-hour-${hour}`}>
             {showHeader && (
               <div className={cn('flex items-center gap-3 py-2', alignRight && 'flex-row-reverse')}>
                 <HourPill

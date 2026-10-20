@@ -71,7 +71,7 @@ export const DEFAULT_FOOD_LOG_SETTINGS: FoodLogSettings = {
   loggerShowMacros: true,
   loggerShowWeight: false,
   loggerShowServing: true,
-  loggerHighlight: 'MultiAdd',
+  loggerHighlight: 'None',
 }
 
 export interface SettingChoice<T extends string> {
@@ -224,7 +224,7 @@ export const FOOD_LOG_CHOICES = {
     {
       value: 'MultiAdd',
       label: 'Multi-Add',
-      description: 'Multi-add shortcut adds the food to your plate without exiting search',
+      description: 'Shows a + button that opens the food so you can add it to your plate',
     },
     {
       value: 'Energy',

@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { MEAL_TYPE, enumOptions, type MealType } from '@/config/enums'
-import { formatDateVi } from '@/lib/date'
+import { formatDate } from '@/lib/date'
 import type { CopyRequest } from '../../types/food-log.types'
 
 interface CopyDialogProps {
@@ -63,7 +63,7 @@ function CopyBody({ fromDate, defaultToDate, isPending, error, onOpenChange, onC
     <>
       <DialogHeader>
         <DialogTitle className="font-sans text-sm font-semibold">
-          Copy from {formatDateVi(fromDate)}
+          Copy from {formatDate(fromDate)}
         </DialogTitle>
         <DialogDescription className="text-xs">
           Copies nutrition exactly as it was logged.

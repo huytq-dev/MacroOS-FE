@@ -28,7 +28,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { Skeleton } from '@/components/ui/skeleton'
 import { routePath } from '@/config/route-path'
 import { useIsClient } from '@/hooks/use-is-client'
-import { formatDateVi, todayIso } from '@/lib/date'
+import { formatDate, todayIso } from '@/lib/date'
 import { useUiStore } from '@/stores/ui.store'
 
 // BE: ProgramResponse chưa trả cân mục tiêu; có rồi thì lấy từ program để Tiến độ mục tiêu tính thật.
@@ -41,7 +41,7 @@ const BALANCE_MODES = ['expenditure', 'targets'] as const
 /** "Thứ Sáu, 16/10/2026" theo ngày iso; chỉ gọi sau khi mount để không lệch hydration. */
 const dayLabel = (iso: string) => {
   const weekday = new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long' })
-  return `${weekday}, ${formatDateVi(iso)}`
+  return `${weekday}, ${formatDate(iso)}`
 }
 
 export function DashboardPage() {
@@ -162,6 +162,7 @@ export function DashboardPage() {
           days={days}
           selected={selected}
           onSelect={setSelectedDate}
+          today={today}
         />
       </div>
     )

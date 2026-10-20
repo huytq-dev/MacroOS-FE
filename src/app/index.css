@@ -52,6 +52,8 @@
   --color-mf-pastel-red-text: var(--mf-pastel-red-text);
   --color-mf-pastel-purple: var(--mf-pastel-purple);
   --color-mf-pastel-purple-text: var(--mf-pastel-purple-text);
+  --color-mf-vitamins: var(--mf-vitamins);
+  --color-mf-minerals: var(--mf-minerals);
   --color-shortcut-red: var(--shortcut-red);
   --color-shortcut-orange: var(--shortcut-orange);
   --color-shortcut-yellow: var(--shortcut-yellow);
@@ -82,6 +84,50 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+/* Vòng tròn Impact on Targets chạy từ rỗng tới giá trị khi xuất hiện (chỉ lúc mount; đổi lượng thì dùng transition của chính nó) */
+@keyframes ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-start);
+  }
+}
+@utility animate-ring-fill {
+  animation: ring-fill 700ms ease-out;
+}
+
+/* Biểu đồ nhỏ/lớn tự vẽ khi xuất hiện: đường chạy từ đầu tới cuối (cần pathLength=1), cột mọc lên từ đáy, thanh rộng ra từ trái */
+@keyframes chart-draw {
+  from {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+}
+@utility animate-chart-draw {
+  animation: chart-draw 700ms ease-out both;
+}
+@keyframes chart-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+@utility animate-chart-rise {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: chart-rise 500ms ease-out both;
+}
+@keyframes chart-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@utility animate-chart-grow {
+  transform-origin: left;
+  animation: chart-grow 700ms ease-out both;
 }
 
 @layer base {

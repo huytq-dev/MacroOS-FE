@@ -19,6 +19,10 @@ interface UiStore {
   requestAddFood: (request: AddFoodRequest) => void
   /** Màn Nhật ký đã áp dụng yêu cầu: xoá nó nhưng KHÔNG đóng bảng. */
   clearAddFoodRequest: () => void
+  /** Ngày Food Log cần mở sẵn (bấm một ngày ở lịch Habits); màn Nhật ký đọc rồi xoá. */
+  foodLogDate: string | null
+  openFoodLogDate: (date: string) => void
+  clearFoodLogDate: () => void
   /** Sheet "Shortcuts" mở từ nút "+" ở thanh tab. */
   shortcutsOpen: boolean
   setShortcutsOpen: (open: boolean) => void
@@ -35,6 +39,9 @@ export const useUiStore = create<UiStore>()((set) => ({
   addFoodRequest: null,
   requestAddFood: (addFoodRequest) => set({ addFoodRequest, addFoodOpen: true }),
   clearAddFoodRequest: () => set({ addFoodRequest: null }),
+  foodLogDate: null,
+  openFoodLogDate: (foodLogDate) => set({ foodLogDate }),
+  clearFoodLogDate: () => set({ foodLogDate: null }),
   shortcutsOpen: false,
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
   activeSheet: null,

@@ -24,7 +24,7 @@
   --destructive: #d92d20;
   --border: #e5e5e5;
   --input: #e5e5e5;
-  --ring: #ff8b41;
+  --ring: #000000;
   --radius: 0.5rem;
 
   --chart-1: #ff8b41;
@@ -40,7 +40,7 @@
   --sidebar-accent: #f5f5f5;
   --sidebar-accent-foreground: #000000;
   --sidebar-border: #e5e5e5;
-  --sidebar-ring: #ff8b41;
+  --sidebar-ring: #000000;
 
   /* Màu dữ liệu MacroFactor */
   --mf-orange: #ff8b41;
@@ -73,6 +73,9 @@
   --mf-pastel-purple: #e8e1f4;
   --mf-pastel-purple-text: #5b2a9e;
   /* Bảy màu của Choose Color (shortcut), dùng chung sáng/tối */
+  /* Màu nhóm Vitamins / Minerals của thanh chất (vùng mục tiêu là bản mờ của màu này trên nền tối) */
+  --mf-vitamins: #8f86f0;
+  --mf-minerals: #4fb3c9;
   --shortcut-red: #ef4444;
   --shortcut-orange: #f97316;
   --shortcut-yellow: #facc15;
@@ -102,7 +105,7 @@
   --destructive: #f97066;
   --border: #383838;
   --input: #383838;
-  --ring: #ff8b41;
+  --ring: #ffffff;
 
   --chart-1: #ff8b41;
   --chart-2: #4e8dff;
@@ -117,7 +120,7 @@
   --sidebar-accent: #383838;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #383838;
-  --sidebar-ring: #ff8b41;
+  --sidebar-ring: #ffffff;
 
   /* Xanh lá (vòng goal, icon Goal) và xanh dương (vòng hoàn thành module) đo từ MacroFactor; bản cũ neon hơn */
   --mf-orange: #ff8b41;

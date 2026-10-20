@@ -167,7 +167,7 @@ export function PlateNutrition({
                   return (
                     <NutrientCard
                       key={nutrient.key}
-                      nutrient={goal === null ? { ...nutrient, kind: 'none' } : nutrient}
+                      nutrient={nutrient}
                       value={valueOf(nutrient.key)}
                       target={goal}
                       tone={group.tone}

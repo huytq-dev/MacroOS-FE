@@ -5,7 +5,7 @@ import { IconButton } from '@/components/shared/IconButton'
 import { ListSection } from '@/components/shared/ListGroup'
 import { Card } from '@/components/ui/card'
 import { useExitingList } from '@/hooks/use-exiting-list'
-import { formatDateVi } from '@/lib/date'
+import { formatDate } from '@/lib/date'
 import type { WeightEntry } from '../../types/weight.types'
 
 interface WeightTableProps {
@@ -37,12 +37,12 @@ export function WeightTable({ items, onEdit, onRequestDelete, emptyAction }: Wei
           <div className="flex min-h-14 items-center text-base md:text-sm">
             <button
               type="button"
-              aria-label={`Edit weigh-in on ${formatDateVi(entry.logDate)}`}
+              aria-label={`Edit weigh-in on ${formatDate(entry.logDate)}`}
               onClick={() => onEdit(entry)}
               className="active:bg-muted focus-visible:ring-ring/50 flex min-h-14 min-w-0 flex-1 items-center gap-2 py-1 pr-2 pl-4 text-left transition-colors focus-visible:ring-1 focus-visible:outline-none focus-visible:ring-inset"
             >
               <span className="min-w-0 flex-1">
-                <span className="block">{formatDateVi(entry.logDate)}</span>
+                <span className="block">{formatDate(entry.logDate)}</span>
                 {entry.notes && (
                   <span className="text-muted-foreground block truncate text-xs">
                     {entry.notes}
@@ -62,7 +62,7 @@ export function WeightTable({ items, onEdit, onRequestDelete, emptyAction }: Wei
             </button>
             <IconButton
               icon={Trash2}
-              label={`Delete weigh-in on ${formatDateVi(entry.logDate)}`}
+              label={`Delete weigh-in on ${formatDate(entry.logDate)}`}
               className="text-muted-foreground hover:text-destructive mr-1 size-11 md:size-8"
               onClick={() => onRequestDelete(entry)}
             />

@@ -15,6 +15,17 @@ export const MACRO_KEYS: readonly MacroKey[] = ['calories', 'protein', 'fat', 'c
 export const gramsForNutrient = (amount: number, per100g: number): number | null =>
   per100g > 0 ? (amount / per100g) * 100 : null
 
+/** Số lượng người dùng gõ: "2", "0.5", ".5", "1/2", "1 1/2" → số; rỗng, gõ dở ("1/") hoặc mẫu số 0 thì NaN (không hợp lệ). */
+export function parseQuantity(text: string): number {
+  const value = text.trim()
+  const mixed = /^(\d+)\s+(\d+)\/(\d+)$/.exec(value)
+  if (mixed)
+    return Number(mixed[3]) > 0 ? Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]) : NaN
+  const fraction = /^(\d+)\/(\d+)$/.exec(value)
+  if (fraction) return Number(fraction[2]) > 0 ? Number(fraction[1]) / Number(fraction[2]) : NaN
+  return /^(\d+\.?\d*|\.\d+)$/.test(value) ? Number(value) : NaN
+}
+
 export const roundTo = (value: number, digits: number) => {
   const factor = 10 ** digits
   return Math.round(value * factor) / factor

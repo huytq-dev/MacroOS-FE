@@ -47,7 +47,9 @@ export function ImpactRings({ items, isLoading }: ImpactRingsProps) {
                     strokeLinecap="round"
                     strokeDasharray={CIRCUMFERENCE}
                     strokeDashoffset={CIRCUMFERENCE * (1 - filled / 100)}
-                    className={`${item.stroke} transition-[stroke-dashoffset] duration-500 ease-out motion-reduce:transition-none`}
+                    // CSSProperties không có kiểu cho biến CSS tuỳ biến (--ring-start) nên phải ép kiểu
+                    style={{ '--ring-start': CIRCUMFERENCE } as React.CSSProperties}
+                    className={`${item.stroke} motion-safe:animate-ring-fill transition-[stroke-dashoffset] duration-500 ease-out motion-reduce:transition-none`}
                   />
                 </svg>
                 <span className="absolute inset-0 flex items-center justify-center text-sm font-medium tabular-nums">

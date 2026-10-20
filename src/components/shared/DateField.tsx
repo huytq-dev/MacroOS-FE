@@ -2,7 +2,7 @@
 
 import { CalendarDays } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { formatDateVi } from '@/lib/date'
+import { formatDate } from '@/lib/date'
 
 interface DateFieldProps {
   /** Ngày dạng yyyy-MM-dd (BE nhận DateOnly), rỗng nếu chưa chọn. */
@@ -15,7 +15,7 @@ interface DateFieldProps {
 }
 
 /**
- * Ô ngày luôn hiện dd/MM/yyyy: `<input type="date">` hiện theo ngôn ngữ máy nên chỉ làm lớp chọn
+ * Ô ngày luôn hiện "Oct 20, 2026" (tiếng Anh): `<input type="date">` hiện theo ngôn ngữ máy nên chỉ làm lớp chọn
  * trong suốt phủ lên ô hiển thị, vẫn giữ picker native của iOS.
  */
 export function DateField({ value, onValueChange, ...aria }: DateFieldProps) {
@@ -25,8 +25,8 @@ export function DateField({ value, onValueChange, ...aria }: DateFieldProps) {
         readOnly
         tabIndex={-1}
         aria-hidden="true"
-        value={value ? formatDateVi(value) : ''}
-        placeholder="dd/MM/yyyy"
+        value={value ? formatDate(value) : ''}
+        placeholder="Select date"
         className="pointer-events-none pr-9"
       />
       <CalendarDays

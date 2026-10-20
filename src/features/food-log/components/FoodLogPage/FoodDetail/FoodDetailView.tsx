@@ -19,6 +19,7 @@ import {
   gramsOf,
   macroShares,
   nutrientPer100g,
+  parseQuantity,
   quantityOf,
   roundTo,
   scaledNutrients,
@@ -107,19 +108,35 @@ export function FoodDetailView({
   const loggedServing = edit?.initialServingId
     ? food.servings.find((item) => item.id === edit.initialServingId)
     : undefined
-  const [servingId, setServingId] = useState((loggedServing ?? defaultServing)?.id ?? '')
-  const [unit, setUnit] = useState<QuantityUnit>(
-    edit ? (loggedServing ? 'serving' : 'g') : defaultServing ? 'serving' : 'g'
-  )
-  const [quantity, setQuantity] = useState(
-    edit ? String(edit.initialQuantity) : defaultServing ? '1' : '100'
-  )
+  const initialServing = loggedServing ?? defaultServing
+  const initialUnit: QuantityUnit = edit
+    ? loggedServing
+      ? 'serving'
+      : 'g'
+    : defaultServing
+      ? 'serving'
+      : 'g'
+  const initialQuantity = edit ? String(edit.initialQuantity) : defaultServing ? '1' : '100'
+  const [servingId, setServingId] = useState(initialServing?.id ?? '')
+  const [unit, setUnit] = useState<QuantityUnit>(initialUnit)
+  const [quantity, setQuantity] = useState(initialQuantity)
+  // Khối lượng thật (g) của lượng đang nhập, giữ chính xác qua mọi lần đổi đơn vị: số hiển thị làm tròn 2 số lẻ nên không dùng để quy
+  // đổi ngược (3.84 oz sẽ không về đúng 109 g). Cập nhật khi gõ số hợp lệ, đổi khẩu phần, gõ calo/macro; đang gõ dở hoặc rỗng thì giữ
+  // khối lượng hợp lệ gần nhất để đổi chip vẫn quy đổi được.
+  const [mass, setMass] = useState(() => {
+    const start = gramsOf(
+      parseQuantity(initialQuantity),
+      initialUnit,
+      initialServing?.weightInGrams ?? 0
+    )
+    return Number.isFinite(start) ? start : 0
+  })
   const [entryMode, setEntryMode] = useState<EntryMode>('amount')
   const [macroKey, setMacroKey] = useState<MacroKey>('calories')
   const [macroText, setMacroText] = useState('')
 
   const serving = food.servings.find((item) => item.id === servingId)
-  const quantityNumber = Number(quantity)
+  const quantityNumber = parseQuantity(quantity)
   const grams = Number.isFinite(quantityNumber)
     ? gramsOf(quantityNumber, unit, serving?.weightInGrams ?? 0)
     : 0
@@ -127,13 +144,27 @@ export function FoodDetailView({
   const valid = Number.isFinite(quantityNumber) && logQuantity >= 0.01 && logQuantity <= 10000
   const shownGrams = valid ? grams : 0
 
-  /** Đổi đơn vị / khẩu phần mà vẫn giữ nguyên khối lượng (đổi giữa hai khẩu phần thì giữ số lượng). */
+  /** Gõ số lượng: nếu hợp lệ thì ghi lại khối lượng thật tương ứng (xem `mass`). */
+  const changeQuantity = (text: string) => {
+    setQuantity(text)
+    const typed = parseQuantity(text)
+    if (Number.isFinite(typed) && typed > 0)
+      setMass(gramsOf(typed, unit, serving?.weightInGrams ?? 0))
+  }
+
+  /**
+   * Đổi đơn vị / khẩu phần: số hiển thị luôn quy đổi từ khối lượng thật (100 g → 3.53 oz → 100 g) kể cả khi ô đang trống hoặc gõ dở
+   * ("1/"); chỉ đổi giữa hai khẩu phần thật thì giữ số lượng và khối lượng đổi theo cỡ.
+   */
   const switchTo = (nextUnit: QuantityUnit, nextServingId = servingId) => {
     const nextServing = food.servings.find((item) => item.id === nextServingId)
     if (nextUnit === 'serving' && !nextServing) return
-    const keepQuantity = unit === 'serving' && nextUnit === 'serving'
-    if (valid && !keepQuantity)
-      setQuantity(String(roundTo(quantityOf(grams, nextUnit, nextServing?.weightInGrams ?? 0), 2)))
+    const nextServingGrams = nextServing?.weightInGrams ?? 0
+    if (unit === 'serving' && nextUnit === 'serving') {
+      if (valid) setMass(quantityNumber * nextServingGrams)
+    } else if (mass > 0) {
+      setQuantity(String(roundTo(quantityOf(mass, nextUnit, nextServingGrams), 2)))
+    }
     setUnit(nextUnit)
     setServingId(nextServingId)
   }
@@ -158,6 +189,7 @@ export function FoodDetailView({
     const needed =
       Number.isFinite(amount) && amount >= 0 ? gramsForNutrient(amount, per100gOf(macroKey)) : null
     if (needed === null) return
+    if (text.trim() !== '') setMass(needed)
     setQuantity(
       text.trim() === ''
         ? ''
@@ -212,6 +244,11 @@ export function FoodDetailView({
     emoji: food.emoji ?? null,
     iconKey: food.iconKey ?? null,
     grams: roundTo(shownGrams, 1),
+    servings: food.servings.map((item) => ({
+      id: item.id,
+      name: item.servingName,
+      weightInGrams: item.weightInGrams,
+    })),
   })
 
   const ringValue: Record<string, number> = { calories, protein, fat, carbs }
@@ -267,7 +304,7 @@ export function FoodDetailView({
 
       <QuantityBar
         quantity={quantity}
-        onQuantityChange={setQuantity}
+        onQuantityChange={changeQuantity}
         unit={unit}
         onUnitChange={(next) => switchTo(next)}
         servings={food.servings.map((item) => ({ id: item.id, name: item.servingName }))}
