@@ -13,7 +13,11 @@ import type {
   BulkCopyRequest,
   BulkMoveRequest,
   CopyRequest,
+  CreateAndLogRequest,
+  CreateAndLogResponse,
   CreateRecipeRequest,
+  RecipeNutrientsRequest,
+  RecipeNutrientsResponse,
   DayLog,
   LibraryItem,
   LibraryParams,
@@ -77,6 +81,10 @@ export const foodLogService = {
     apiCall.get<QueryResult<LibraryItem>>(apiRoutes.library, { params }),
   createRecipe: (payload: CreateRecipeRequest) =>
     apiCall.post<string>(apiRoutes.recipes.root, payload),
+  createRecipeAndLog: (payload: CreateAndLogRequest) =>
+    apiCall.post<CreateAndLogResponse>(apiRoutes.recipes.createAndLog, payload),
+  recipeNutrients: (payload: RecipeNutrientsRequest) =>
+    apiCall.post<RecipeNutrientsResponse>(apiRoutes.recipes.nutrients, payload),
   getSettings: () => apiCall.get<FoodLogSettings>(apiRoutes.foodLogs.settings),
   saveSettings: (payload: FoodLogSettings) => apiCall.put(apiRoutes.foodLogs.settings, payload),
 }

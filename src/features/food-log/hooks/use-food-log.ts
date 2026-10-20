@@ -22,7 +22,9 @@ import type {
   AiDish,
   AiIngredient,
   CopyRequest,
+  CreateAndLogRequest,
   CreateRecipeRequest,
+  RecipeNutrientsRequest,
   DayLog,
   IngredientState,
   LibraryParams,
@@ -78,6 +80,30 @@ export const useCreateRecipe = () => {
     onError: (error) => logger.error(error),
   })
 }
+
+/** Create & Add: tạo recipe rồi ghi luôn vào log (hôm nay, giờ hiện tại, 1 khẩu phần) bằng một call. */
+export const useCreateRecipeAndLog = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: CreateAndLogRequest) => foodLogService.createRecipeAndLog(payload),
+    onSuccess: () => {
+      toast.success('Recipe saved and added')
+      void queryClient.invalidateQueries({ queryKey: foodLogKeys.all })
+    },
+    onError: (error) => logger.error(error),
+  })
+}
+
+/** Dinh dưỡng của recipe đang soạn (tổng + trên mỗi khẩu phần); gọi lại khi đổi nguyên liệu hoặc số khẩu phần, giữ số cũ trong lúc tải. */
+export const useRecipeNutrients = (request: RecipeNutrientsRequest, enabled: boolean) =>
+  useQuery({
+    queryKey: [...foodLogKeys.all, 'recipe-nutrients', request],
+    queryFn: () => foodLogService.recipeNutrients(request),
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
+    retry: false,
+  })
 
 export const useDayLog = (date: string | null) =>
   useQuery({

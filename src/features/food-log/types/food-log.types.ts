@@ -294,7 +294,54 @@ export interface CreateRecipeRequest {
   name: string
   servingsCount: number
   /** `foodServingId` null = `quantity` là gram (BE giữ đúng số gram). */
-  ingredients: { foodItemId: string; foodServingId: string | null; quantity: number }[]
+  ingredients: RecipeIngredientRequest[]
+  /** Tổng khối lượng sau nấu (g, 0.1–100000); không gửi = BE để null. */
+  cookedYieldGrams?: number
+  prepTimeMinutes?: number
+  cookTimeMinutes?: number
+  /** URL http(s) tuyệt đối ≤ 500 ký tự; ô Link của bước Preparation. */
+  sourceUrl?: string
+  description?: string
+  /** BE đánh số lại 1..n theo thứ tự mảng. */
+  steps?: { text: string }[]
+  /** Khoá icon hợp lệ; thiếu = FE xếp chồng icon nguyên liệu. */
+  iconKey?: string
+}
+
+export interface RecipeIngredientRequest {
+  foodItemId: string
+  foodServingId: string | null
+  quantity: number
+}
+
+// Khớp BE POST /recipes/nutrients (chỉ đọc): cùng dạng dòng chất với plate/nutrients; perServing = total ÷ servingsCount
+export interface RecipeNutrientsRequest {
+  ingredients: RecipeIngredientRequest[]
+  servingsCount?: number
+  date?: string
+}
+
+export type RecipeMacros = Pick<MacroTotals, 'calories' | 'protein' | 'carbs' | 'fat'>
+
+export interface RecipeNutrientsResponse {
+  date: string
+  totalGrams: number
+  servingsCount: number
+  total: RecipeMacros
+  perServing: RecipeMacros
+  totalNutrients: NutrientAmount[]
+  perServingNutrients: NutrientAmount[]
+}
+
+// Khớp BE POST /recipes/create-and-log: bỏ `log` = hôm nay, giờ hiện tại, 1 khẩu phần
+export interface CreateAndLogRequest {
+  recipe: CreateRecipeRequest
+  log?: { logDate?: string; mealType?: MealType; eatenAt?: string; quantity?: number }
+}
+
+export interface CreateAndLogResponse {
+  recipeId: string
+  entryId: string
 }
 
 /**

@@ -72,7 +72,9 @@ export const apiRoutes = {
   },
   library: '/library', // GET ?scope=All|Foods|Recipes&search&top&skip → QueryResult<{ kind, id, name, brand, emoji, defaultServingId, servingName, calories, protein, carbs, fat (1 khẩu phần), updatedAt }>
   recipes: {
-    root: '/recipes', // POST { name, servingsCount, mealType?, ingredients[{ foodItemId, foodServingId, quantity }] } → Guid; GET/PUT/DELETE /recipes/{id}
+    root: '/recipes', // POST { name, servingsCount, ingredients[{ foodItemId, foodServingId, quantity }], cookedYieldGrams?, prepTimeMinutes?, cookTimeMinutes?, sourceUrl?, description?, steps?[{ text }], iconKey? } → Guid; GET/PUT/DELETE /recipes/{id}
+    nutrients: '/recipes/nutrients', // POST { ingredients[], servingsCount?, date? } → { totalGrams, total, perServing, totalNutrients[], perServingNutrients[] } (chỉ đọc)
+    createAndLog: '/recipes/create-and-log', // POST { recipe, log?: { logDate?, mealType?, eatenAt?, quantity? } } → { recipeId, entryId }
   },
   nutrition: {
     overview: '/nutrition/overview', // GET ?range=today|week|month|quarter|year&date= → { items[{ key, value, target }], contributors }

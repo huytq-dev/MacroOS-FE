@@ -1,22 +1,28 @@
 'use client'
 
-import { Loader2, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { CollapseItem } from '@/components/shared/CollapseItem'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useExitingList } from '@/hooks/use-exiting-list'
+import { KeypadField } from './KeypadField'
 import { RecipeIngredientRow, type IngredientRowData } from './RecipeIngredientRow'
 
 export interface RecipeFormLine extends IngredientRowData {
   readonly key: string
 }
 
+export type NumberField = 'servings' | 'weight' | 'prep' | 'cook'
+
 interface RecipeFormProps {
   readonly name: string
   readonly onNameChange: (value: string) => void
   readonly servings: string
-  readonly onServingsChange: (value: string) => void
+  readonly weight: string
+  /** Ô số đang nhập bằng bàn phím riêng (viền trắng). */
+  readonly activeField: NumberField | null
+  readonly onFieldPress: (field: NumberField, button: HTMLElement) => void
   readonly lines: readonly RecipeFormLine[]
   /** Tổng khối lượng nguyên liệu (g) đã biết; null khi chưa có dòng nào. */
   readonly totalGrams: number | null
@@ -24,39 +30,42 @@ interface RecipeFormProps {
   readonly onEditLine: (key: string, button: HTMLElement) => void
   readonly onRemoveLine: (key: string) => void
   readonly onAddIngredient: () => void
-  /** Ô chữ nhận focus: đóng thanh sửa lượng (bàn phím hệ thống thay thế). */
-  readonly onTextFocus: () => void
-  readonly onSubmit: () => void
-  readonly isSubmitting: boolean
+  /** Ô tên nhận focus: đóng bàn phím số riêng (bàn phím hệ thống thay thế). */
+  readonly onNameFocus: () => void
+  readonly onNext: () => void
   readonly error: string | null
-  /** Thanh sửa lượng đang mở: ẩn nút lưu và chừa chỗ để nội dung không bị bàn phím che. */
+  /** Bàn phím số đang mở: ẩn nút Next và chừa chỗ để nội dung không bị bàn phím che. */
   readonly editorOpen: boolean
+  /** Mục Nutrition bên dưới danh sách nguyên liệu. */
+  readonly nutrition: React.ReactNode
 }
 
 const FIELD =
   'bg-secondary h-14 rounded-lg border-0 px-4 text-base shadow-none focus-visible:ring-1'
 
 /**
- * Form "Build your recipe" (như MacroFactor): Recipe Name và Serving Quantity (bắt buộc), "Ingredients" kèm tổng khối lượng
- * nguyên liệu và nút + mở tìm món, danh sách nguyên liệu (bấm ô lượng để sửa, vuốt trái để xoá; thêm / xoá có hoạt ảnh 300ms) và nút
- * lưu dính đáy trên thanh tab.
+ * Bước 1 "Build your recipe" (như MacroFactor): Recipe Name, Serving Quantity (bắt buộc) và Total Weight (tuỳ chọn), "Ingredients"
+ * kèm tổng khối lượng nguyên liệu và nút + mở tìm món (tiêu đề dính đầu màn khi cuộn qua danh sách), danh sách nguyên liệu (bấm ô lượng
+ * để sửa, vuốt trái để xoá; thêm / xoá có hoạt ảnh 300ms), mục Nutrition và nút Next dính đáy trên thanh tab.
  */
 export function RecipeForm({
   name,
   onNameChange,
   servings,
-  onServingsChange,
+  weight,
+  activeField,
+  onFieldPress,
   lines,
   totalGrams,
   editingKey,
   onEditLine,
   onRemoveLine,
   onAddIngredient,
-  onTextFocus,
-  onSubmit,
-  isSubmitting,
+  onNameFocus,
+  onNext,
   error,
   editorOpen,
+  nutrition,
 }: RecipeFormProps) {
   const rows = useExitingList(lines, (line) => line.key)
   return (
@@ -64,14 +73,14 @@ export function RecipeForm({
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
-        onSubmit()
+        onNext()
       }}
       className="flex flex-col gap-6"
       // Thanh sửa lượng (chip + bàn phím số ~22rem) cố định đáy màn hình: chừa chỗ để dòng cuối không bị che
       style={{ paddingBottom: editorOpen ? '22rem' : undefined }}
     >
       <h2 className="text-3xl font-bold">Build your recipe</h2>
-      <FormErrorAlert title="Couldn't save the recipe" message={error} />
+      <FormErrorAlert title="Check the recipe" message={error} />
 
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
@@ -86,32 +95,34 @@ export function RecipeForm({
           placeholder="Enter recipe name"
           maxLength={256}
           value={name}
-          onFocus={onTextFocus}
+          onFocus={onNameFocus}
           onChange={(event) => onNameChange(event.target.value)}
           className={FIELD}
         />
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-baseline justify-between">
-          <label htmlFor="recipe-servings" className="text-lg">
-            Serving Quantity
-          </label>
-          <span className="text-muted-foreground text-base">Required</span>
-        </div>
-        <Input
-          id="recipe-servings"
-          inputMode="numeric"
-          autoComplete="off"
-          value={servings}
-          onFocus={onTextFocus}
-          onChange={(event) => onServingsChange(event.target.value.replace(/\D/g, '').slice(0, 3))}
-          className={FIELD}
-        />
-      </div>
+      <KeypadField
+        label="Serving Quantity"
+        hint="Required"
+        value={servings}
+        placeholder="1"
+        active={activeField === 'servings'}
+        onPress={(button) => onFieldPress('servings', button)}
+      />
 
-      <section aria-labelledby="recipe-ingredients" className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+      <KeypadField
+        label="Total Weight"
+        hint="Optional"
+        value={weight}
+        placeholder="Weight for all servings combined"
+        suffix="g"
+        active={activeField === 'weight'}
+        onPress={(button) => onFieldPress('weight', button)}
+      />
+
+      <section aria-labelledby="recipe-ingredients">
+        {/* Dính đầu màn khi cuộn qua danh sách nguyên liệu (hết khi tới mục Nutrition) */}
+        <div className="bg-background sticky top-0 z-20 -mx-4 flex items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <h3 id="recipe-ingredients" className="text-xl font-bold">
               Ingredients
@@ -150,16 +161,15 @@ export function RecipeForm({
         )}
       </section>
 
+      {nutrition}
+
       {!editorOpen && (
         <div className="bg-background sticky bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-20 -mx-4 px-4 pt-2 pb-3 in-data-[keyboard=open]:bottom-(--kb-bottom)">
           <Button
             type="submit"
-            disabled={isSubmitting}
-            aria-busy={isSubmitting}
             className="h-14 w-full rounded-lg text-base transition-transform duration-100 active:scale-[0.98] motion-reduce:active:scale-100"
           >
-            {isSubmitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            {isSubmitting ? 'Saving...' : 'Save recipe'}
+            Next
           </Button>
         </div>
       )}
