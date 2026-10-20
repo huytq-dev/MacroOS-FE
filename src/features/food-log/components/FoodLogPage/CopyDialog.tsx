@@ -6,13 +6,7 @@ import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { DateField } from '@/components/shared/DateField'
 import { FormField } from '@/components/shared/FormField'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { PickerSelect } from '@/components/shared/PickerSelect'
 import {
   Dialog,
   DialogContent,
@@ -40,11 +34,9 @@ const SAME = 'same'
 
 type BodyProps = Omit<CopyDialogProps, 'open'>
 
-const mealItems = enumOptions(MEAL_TYPE).map((option) => (
-  <SelectItem key={option.value} value={option.value}>
-    {option.label}
-  </SelectItem>
-))
+const MEALS = enumOptions(MEAL_TYPE)
+const SCOPE_OPTIONS = [{ value: DAY, label: 'Whole day' }, ...MEALS]
+const TO_MEAL_OPTIONS = [{ value: SAME, label: 'Same meal' }, ...MEALS]
 
 /** Chỉ mount khi dialog mở → state luôn khởi tạo lại từ ngày hiện tại. */
 function CopyBody({ fromDate, defaultToDate, isPending, error, onOpenChange, onCopy }: BodyProps) {
@@ -73,15 +65,13 @@ function CopyBody({ fromDate, defaultToDate, isPending, error, onOpenChange, onC
       <div className="space-y-4">
         <FormField label="Copy">
           {(field) => (
-            <Select value={scope} onValueChange={setScope}>
-              <SelectTrigger id={field.id} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="start" position="popper" sideOffset={4}>
-                <SelectItem value={DAY}>Whole day</SelectItem>
-                {mealItems}
-              </SelectContent>
-            </Select>
+            <PickerSelect
+              {...field}
+              title="Copy"
+              options={SCOPE_OPTIONS}
+              value={scope}
+              onValueChange={setScope}
+            />
           )}
         </FormField>
         <FormField
@@ -94,15 +84,13 @@ function CopyBody({ fromDate, defaultToDate, isPending, error, onOpenChange, onC
         {scope !== DAY && (
           <FormField label="To meal">
             {(field) => (
-              <Select value={toMeal} onValueChange={setToMeal}>
-                <SelectTrigger id={field.id} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="start" position="popper" sideOffset={4}>
-                  <SelectItem value={SAME}>Same meal</SelectItem>
-                  {mealItems}
-                </SelectContent>
-              </Select>
+              <PickerSelect
+                {...field}
+                title="To Meal"
+                options={TO_MEAL_OPTIONS}
+                value={toMeal}
+                onValueChange={setToMeal}
+              />
             )}
           </FormField>
         )}

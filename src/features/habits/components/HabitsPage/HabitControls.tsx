@@ -1,17 +1,9 @@
 'use client'
 
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { useState } from 'react'
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { MonthYearPickerSheet } from '@/components/shared/MonthYearPickerSheet'
 import { MONTH_NAMES } from '../../habits.utils'
-
-/** Số năm hiện trong ô chọn năm (năm nay lùi lại). */
-const YEARS_BACK = 5
 
 interface HabitControlsProps {
   readonly year: number
@@ -24,9 +16,12 @@ interface HabitControlsProps {
 }
 
 const TRIGGER =
-  'bg-secondary h-12 w-auto gap-2 rounded-full border-0 px-5 text-base shadow-none data-[size=default]:h-12'
+  'bg-secondary active:bg-secondary/70 focus-visible:ring-ring/50 flex h-12 items-center gap-2 rounded-full px-5 text-base tabular-nums transition-colors focus-visible:ring-1 focus-visible:outline-none'
 
-/** Hàng điều khiển dưới lịch: ‹ › đổi tháng, ô chọn tháng (tên đầy đủ tiếng Anh) và ô chọn năm. */
+/**
+ * Hàng điều khiển dưới lịch: ‹ › đổi tháng, nút tháng (tên đầy đủ tiếng Anh) và nút năm; hai nút mở bảng Select Month /
+ * Select Year kiểu MacroFactor (`MonthYearPickerSheet`), không dùng dropdown.
+ */
 export function HabitControls({
   year,
   month,
@@ -40,9 +35,10 @@ export function HabitControls({
     const next = index + delta
     onChange(Math.floor(next / 12), next % 12)
   }
-  const years = Array.from({ length: YEARS_BACK }, (_, offset) => currentYear - offset)
-  // Năm hiện tại: chỉ chọn được các tháng tới hết tháng này
-  const lastMonth = year === currentYear ? currentMonth : 11
+  const [picker, setPicker] = useState<{ mode: 'month' | 'year'; open: boolean }>({
+    mode: 'month',
+    open: false,
+  })
 
   return (
     <div className="flex items-center gap-2">
@@ -66,37 +62,30 @@ export function HabitControls({
         </button>
       </div>
       <div className="flex min-w-0 flex-1 justify-end gap-2">
-        <Select value={String(month)} onValueChange={(next) => onChange(year, Number(next))}>
-          <SelectTrigger aria-label="Month" className={TRIGGER}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTH_NAMES.slice(0, lastMonth + 1).map((name, value) => (
-              <SelectItem key={name} value={String(value)}>
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={String(year)}
-          onValueChange={(next) => {
-            const nextYear = Number(next)
-            onChange(nextYear, nextYear === currentYear ? Math.min(month, currentMonth) : month)
-          }}
-        >
-          <SelectTrigger aria-label="Year" className={TRIGGER}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map((value) => (
-              <SelectItem key={value} value={String(value)}>
-                {value}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {(['month', 'year'] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            aria-haspopup="dialog"
+            aria-label={mode === 'month' ? `Month, ${MONTH_NAMES[month]}` : `Year, ${year}`}
+            onClick={() => setPicker({ mode, open: true })}
+            className={TRIGGER}
+          >
+            {mode === 'month' ? MONTH_NAMES[month] : year}
+            <ChevronDown aria-hidden="true" className="text-muted-foreground size-4" />
+          </button>
+        ))}
       </div>
+      <MonthYearPickerSheet
+        open={picker.open}
+        onOpenChange={(open) => setPicker((current) => ({ ...current, open }))}
+        mode={picker.mode}
+        year={year}
+        month={month}
+        todayYear={currentYear}
+        todayMonth={currentMonth}
+        onSelect={onChange}
+      />
     </div>
   )
 }

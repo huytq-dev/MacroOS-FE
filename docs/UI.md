@@ -9,9 +9,11 @@ Mọi trang mới và mọi lần sửa form phải theo các quy tắc dưới 
 | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Chọn **một** giá trị từ danh mục (đơn vị, vị trí, cấp bậc, ngành nghề, loại hình, ứng viên, mẫu, tin tuyển dụng...)       | `SearchableSelect`                | **Bắt buộc gõ tìm được.** Gõ ngay trong chính ô chọn (bấm vào ô thì ô thành ô nhập, danh sách bên dưới lọc theo chữ gõ); **không** làm hộp tìm kiếm riêng bên trong danh sách. Tìm không phân biệt dấu (`ha noi` ra `Hà Nội`). |
 | Chọn **nhiều** giá trị (địa điểm làm việc, người tham gia, thẻ...)                                                        | `SearchableMultiSelect`           | Giá trị đã chọn hiện thành thẻ nhỏ trong ô; gõ tìm ngay trong ô, bấm x hoặc Backspace (khi ô tìm trống) để bỏ.                                                                                                                 |
-| Tập giá trị cố định, **tối đa 7 mục** và không thay đổi (Bắt buộc/Không bắt buộc, VND/USD, số dòng mỗi trang, trạng thái) | `Select` (`ui/select`)            | Không cần tìm kiếm.                                                                                                                                                                                                            |
+| Tập giá trị cố định, **tối đa 7 mục** và không thay đổi (Bắt buộc/Không bắt buộc, VND/USD, số dòng mỗi trang, trạng thái) | `PickerSelect`                    | Không cần tìm kiếm. Chạm mở bảng trượt `ChoiceSheet` (✕, tiêu đề, danh sách radio, chọn là đóng) — **không** dùng `ui/select` hay `<select>` gốc.                                                                              |
 | Danh mục có thể nhiều hơn 7 mục hoặc do người dùng thêm                                                                   | `SearchableSelect`                | Dù hôm nay mới có 3 mục.                                                                                                                                                                                                       |
 | Chọn một **hành động** từ danh sách (áp dụng mẫu, sao chép từ tin khác)                                                   | `SearchableSelect` với `value=""` | Giá trị luôn rỗng để ô luôn hiện gợi ý sau mỗi lần chọn.                                                                                                                                                                       |
+
+**Không có dropdown xổ xuống trong app** (như MacroFactor): mọi ô chọn giá trị mở bảng trượt từ đáy. Danh sách → `PickerSelect` / `ChoiceSheet` (`components/shared`); chọn tháng / năm → `MonthYearPickerSheet` ("Select Month": nhãn năm + lưới 3×4 Jan…Dec; "Select Year": "2020 - 2029" + ‹ › lật thập kỷ, lưới trượt 300ms, 12 năm 3 cột, năm ngoài thập kỷ mờ; ô chọn là viên trắng `bg-foreground`, tháng/năm tương lai mờ và tắt, nút xám rộng "Go to Today"). `DropdownMenu` chỉ dùng cho menu **hành động** (AvatarMenu), không để chọn giá trị. `SearchableSelect` trên điện thoại đã là bảng trượt có ô tìm.
 
 Quy tắc dùng:
 
@@ -65,23 +67,23 @@ Mỗi trường theo đúng thứ tự: **nhãn, dòng gợi ý (nếu có), ô 
 
 Mọi giao diện dựng từ component trong `components/ui` (shadcn) hoặc thành phần dùng chung đã bọc chúng. Không tự dựng bằng thẻ HTML thô khi đã có component.
 
-| Cần                                                 | Dùng                                                                 | Không dùng                                            |
-| --------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------- |
-| Khung nhóm trong form                               | `FormCard` (bọc `Card`, có tiêu đề, mô tả, hiệu ứng hiện nhẹ)        | `<section className="bg-card rounded-xl border p-5">` |
-| Bảng dữ liệu                                        | `Table`, `TableHeader`, `TableRow`, `TableHead`, `TableCell`         | `<table>`, `<th>`, `<td>`                             |
-| Nút chỉ có biểu tượng (sửa, xóa)                    | `IconButton` (có chú thích, luôn có `aria-label`)                    | `Button` icon không nhãn                              |
-| Nút thêm dòng/mục cuối danh sách                    | `DashedAddButton`                                                    | `<button>` nét đứt tự viết                            |
-| Trạng thái, số đếm, nhãn nhỏ                        | `Badge`                                                              | `<span className="rounded bg-muted ...">`             |
-| Danh sách rỗng                                      | `Empty` (`EmptyMedia`, `EmptyTitle`, `EmptyDescription`)             | một dòng chữ xám                                      |
-| Mở/đóng nội dung                                    | `Collapsible` kèm `animate-collapsible-down/up`                      | ẩn/hiện không chuyển động                             |
-| Ô tìm kiếm có biểu tượng                            | `InputGroup` + `InputGroupAddon` + `InputGroupInput`                 | `<input type="search">`                               |
-| Vùng cuộn có thanh cuộn                             | `ScrollArea`                                                         | `overflow-y-auto` rời                                 |
-| Đường phân cách                                     | `Separator`                                                          | `<div className="border-t">`                          |
-| Khung chờ                                           | `Skeleton`                                                           | `div` có `animate-pulse`                              |
-| Ô nhập, chọn, tích, công tắc, nhãn                  | `Input`, `Select`, `SearchableSelect`, `Checkbox`, `Switch`, `Label` | thẻ gốc                                               |
-| Chuyển tab trong trang                              | `Tabs`, `TabsList variant="line"`, `TabsTrigger`, `TabsContent`      | `<button role="tab">` tự viết                         |
-| Chọn một trong vài lựa chọn dạng ô vuông (chọn màu) | `ToggleGroup type="single"` + `ToggleGroupItem`                      | `<button role="radio">` tự viết                       |
-| Khung thông tin chỉ đọc (trạng thái, liên kết)      | `Card` + `CardContent`                                               | `<section className="border ...">`                    |
+| Cần                                                 | Dùng                                                                       | Không dùng                                            |
+| --------------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Khung nhóm trong form                               | `FormCard` (bọc `Card`, có tiêu đề, mô tả, hiệu ứng hiện nhẹ)              | `<section className="bg-card rounded-xl border p-5">` |
+| Bảng dữ liệu                                        | `Table`, `TableHeader`, `TableRow`, `TableHead`, `TableCell`               | `<table>`, `<th>`, `<td>`                             |
+| Nút chỉ có biểu tượng (sửa, xóa)                    | `IconButton` (có chú thích, luôn có `aria-label`)                          | `Button` icon không nhãn                              |
+| Nút thêm dòng/mục cuối danh sách                    | `DashedAddButton`                                                          | `<button>` nét đứt tự viết                            |
+| Trạng thái, số đếm, nhãn nhỏ                        | `Badge`                                                                    | `<span className="rounded bg-muted ...">`             |
+| Danh sách rỗng                                      | `Empty` (`EmptyMedia`, `EmptyTitle`, `EmptyDescription`)                   | một dòng chữ xám                                      |
+| Mở/đóng nội dung                                    | `Collapsible` kèm `animate-collapsible-down/up`                            | ẩn/hiện không chuyển động                             |
+| Ô tìm kiếm có biểu tượng                            | `InputGroup` + `InputGroupAddon` + `InputGroupInput`                       | `<input type="search">`                               |
+| Vùng cuộn có thanh cuộn                             | `ScrollArea`                                                               | `overflow-y-auto` rời                                 |
+| Đường phân cách                                     | `Separator`                                                                | `<div className="border-t">`                          |
+| Khung chờ                                           | `Skeleton`                                                                 | `div` có `animate-pulse`                              |
+| Ô nhập, chọn, tích, công tắc, nhãn                  | `Input`, `PickerSelect`, `SearchableSelect`, `Checkbox`, `Switch`, `Label` | thẻ gốc                                               |
+| Chuyển tab trong trang                              | `Tabs`, `TabsList variant="line"`, `TabsTrigger`, `TabsContent`            | `<button role="tab">` tự viết                         |
+| Chọn một trong vài lựa chọn dạng ô vuông (chọn màu) | `ToggleGroup type="single"` + `ToggleGroupItem`                            | `<button role="radio">` tự viết                       |
+| Khung thông tin chỉ đọc (trạng thái, liên kết)      | `Card` + `CardContent`                                                     | `<section className="border ...">`                    |
 
 `FormField` (nhãn, gợi ý, ô nhập, lỗi) nằm ở `components/shared/FormField` và dùng chung toàn app, không đặt trong thư mục của một trang.
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
+import { PickerSelect } from '@/components/shared/PickerSelect'
 import { cn } from '@/lib/utils'
 import {
   NUTRIENT_ROWS,
@@ -46,24 +46,15 @@ function NutrientRow({ def, value, unit, error, onValue, onUnit }: NutrientRowPr
           {def.alt ? (
             <>
               <label htmlFor={id}>{def.shortLabel}</label>
-              <label className="bg-secondary focus-within:ring-ring/50 relative inline-flex h-9 items-center rounded-full focus-within:ring-1">
-                <span className="sr-only">{def.shortLabel} unit</span>
-                <select
-                  value={unit ?? def.alt[0].label}
-                  onChange={(event) => onUnit(event.target.value)}
-                  className="h-full appearance-none bg-transparent pr-7 pl-3 text-sm font-normal outline-none"
-                >
-                  {def.alt.map((option) => (
-                    <option key={option.label} value={option.label} className="bg-popover">
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  aria-hidden="true"
-                  className="pointer-events-none absolute right-2.5 size-3.5"
-                />
-              </label>
+              <PickerSelect
+                aria-label={`${def.shortLabel} unit`}
+                title={`${def.shortLabel} Unit`}
+                options={def.alt.map((option) => ({ value: option.label, label: option.label }))}
+                value={unit ?? def.alt[0].label}
+                onValueChange={onUnit}
+                // Viên gọn 36px trong hàng bảng, vùng chạm vẫn 44px nhờ before
+                className="md:bg-secondary relative h-9 w-auto gap-1 rounded-full px-3 text-sm font-normal before:absolute before:-inset-1 before:content-[''] md:h-9 md:rounded-full md:border-transparent md:px-3 md:text-sm"
+              />
             </>
           ) : (
             <label htmlFor={id} className="truncate">

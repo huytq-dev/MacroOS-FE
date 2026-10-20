@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
+import { PickerSelect } from '@/components/shared/PickerSelect'
 import { BASIS_OPTIONS, WEIGHT_UNITS, type Basis } from '../../create-food.config'
 import type { CreateFoodState, FieldErrors } from '../../create-food.utils'
 import { SlidingSwitch } from '../FoodLogPage/SlidingSwitch'
@@ -53,26 +53,16 @@ export function ServingSection({ state, errors, onBasisChange, onChange }: Servi
                 onChange={(event) => onChange({ weight: event.target.value })}
                 className={FIELD_CLASS}
               />
-              <label className="bg-secondary focus-within:ring-ring/50 relative flex h-14 w-24 shrink-0 items-center rounded-lg focus-within:ring-1">
-                <span className="sr-only">Weight unit</span>
-                <select
-                  value={state.weightUnit}
-                  onChange={(event) =>
-                    onChange({ weightUnit: event.target.value as CreateFoodState['weightUnit'] })
-                  }
-                  className="h-full w-full appearance-none bg-transparent pr-8 pl-4 text-base outline-none"
-                >
-                  {WEIGHT_UNITS.map((unit) => (
-                    <option key={unit.label} value={unit.label} className="bg-popover">
-                      {unit.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  aria-hidden="true"
-                  className="pointer-events-none absolute right-3 size-4"
-                />
-              </label>
+              <PickerSelect
+                aria-label="Weight unit"
+                title="Weight Unit"
+                options={WEIGHT_UNITS.map((unit) => ({ value: unit.label, label: unit.label }))}
+                value={state.weightUnit}
+                onValueChange={(weightUnit) =>
+                  onChange({ weightUnit: weightUnit as CreateFoodState['weightUnit'] })
+                }
+                className="md:bg-secondary h-14 w-24 shrink-0 rounded-lg px-4 md:h-14 md:rounded-lg md:border-transparent md:px-4 md:text-base"
+              />
             </div>
             <p className={HELP}>
               If you provide the serving weight, all standard units of weight will be available when
