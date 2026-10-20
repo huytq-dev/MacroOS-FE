@@ -92,7 +92,10 @@ export function MacroSummary({ date, totals, target, showOverages }: MacroSummar
                   <div className="bg-foreground/15 mt-1.5 h-1 overflow-hidden rounded-full">
                     <div
                       style={{ width: `${filled}%` }}
-                      className={cn('h-full rounded-full transition-[width] duration-300', bar)}
+                      className={cn(
+                        'motion-safe:animate-bar-grow h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none',
+                        bar
+                      )}
                     />
                   </div>
                 </li>
