@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   ArrowDown,
   BookOpen,
@@ -29,13 +29,15 @@ import { MEAL_TYPE, type MealType } from '@/config/enums'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import type { MacroTotals, PlateItem } from '../../types/food-log.types'
 import { SearchInput } from '@/components/shared/SearchInput'
-import { useKeyboardInset } from '@/hooks/use-keyboard-inset'
 import type { FoodLogSettings } from '../../food-log-settings'
 import { cn } from '@/lib/utils'
 import { AddFoodProgress } from './AddFoodProgress'
 import { MealTimePill } from './MealTimePill'
 import { PlatePanel } from './PlatePanel'
 import { QUICK_ADD_FORM_ID } from './QuickAddPanel'
+
+/** Kéo tay nắm quá ngưỡng này (px) mới đổi giữa bảng tab và Your Plate, tránh chạm nhẹ cũng đổi. */
+const DRAG_THRESHOLD_PX = 40
 
 export type AddTab = 'scan' | 'search' | 'ai' | 'quick' | 'library'
 
@@ -110,8 +112,8 @@ export function AddFoodDialog({
   onLogPlate,
   children,
 }: AddFoodDialogProps) {
-  const keyboardInset = useKeyboardInset(open)
   const [plateOpen, setPlateOpen] = useState(false)
+  const dragStartY = useRef<number | null>(null)
   // Đóng bảng Thêm món (kể cả khi ghi xong) thì lần mở sau bắt đầu ở tab, không ở Your Plate.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
@@ -133,8 +135,7 @@ export function AddFoodDialog({
         showCloseButton={false}
         // Không tự focus nút đầu tiên (tab Scan) khi mở: tránh vòng focus cam và bàn phím bật ngoài ý muốn trên di động.
         onOpenAutoFocus={(event) => event.preventDefault()}
-        className="bg-background flex h-dvh max-h-dvh flex-col gap-0 rounded-none p-0 sm:h-[80dvh] sm:max-h-[80dvh] sm:max-w-lg sm:rounded-xl sm:p-0"
-        style={keyboardInset > 0 ? { bottom: keyboardInset } : undefined}
+        className="bg-background flex h-dvh max-h-dvh flex-col gap-0 rounded-none p-0 max-sm:h-(--vv-height) max-sm:max-h-(--vv-height) sm:h-[80dvh] sm:max-h-[80dvh] sm:max-w-lg sm:rounded-xl sm:p-0"
       >
         <DialogHeader className="relative z-20 space-y-0">
           <DialogTitle className="sr-only">Add food</DialogTitle>
@@ -230,10 +231,31 @@ export function AddFoodDialog({
             plateOpen ? 'grow-0' : 'grow'
           )}
         >
-          <span
+          {/*
+            Tay nắm kéo như MacroFactor: kéo xuống ≥ 40px mở Your Plate (sheet thu xuống đáy), kéo lên đóng lại. Vùng chạm cao 24px,
+            touch-none để trình duyệt không cuộn trang khi kéo. Nút mũi tên trên header vẫn là cách thao tác cho bàn phím / trình đọc màn hình.
+          */}
+          <div
             aria-hidden="true"
-            className="bg-foreground/20 mx-auto mt-2 mb-1 h-1 w-10 shrink-0 rounded-full"
-          />
+            onPointerDown={(event) => {
+              dragStartY.current = event.clientY
+              event.currentTarget.setPointerCapture(event.pointerId)
+            }}
+            onPointerUp={(event) => {
+              const start = dragStartY.current
+              dragStartY.current = null
+              if (start === null) return
+              const delta = event.clientY - start
+              if (delta > DRAG_THRESHOLD_PX) setPlateOpen(true)
+              else if (delta < -DRAG_THRESHOLD_PX) setPlateOpen(false)
+            }}
+            onPointerCancel={() => {
+              dragStartY.current = null
+            }}
+            className="flex h-6 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+          >
+            <span className="bg-foreground/20 h-1 w-10 rounded-full" />
+          </div>
           {(!detailOpen || plateOpen) && (
             <Tabs value={tab} onValueChange={(next) => onTabChange(next as AddTab)}>
               <TabsList variant="line" className="w-full overflow-x-auto border-b">

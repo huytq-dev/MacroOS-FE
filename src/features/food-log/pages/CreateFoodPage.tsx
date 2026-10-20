@@ -87,7 +87,7 @@ export function CreateFoodPage({
   return (
     <div className="flex max-w-2xl flex-col gap-8 pb-4">
       {/* Tiêu đề dính đầu trang với đường trắng mảnh bên dưới (như MacroFactor); nền che nội dung cuộn qua */}
-      <div className="bg-background sticky top-0 z-30 space-y-2 pb-1 max-md:-mx-4 max-md:-mt-[calc(env(safe-area-inset-top)+1.25rem)] max-md:px-4 max-md:pt-[calc(env(safe-area-inset-top)+1.25rem)]">
+      <div className="bg-background sticky top-0 z-30 space-y-2 pb-1 in-data-[keyboard=open]:top-(--kb-top) max-md:-mx-4 max-md:-mt-[calc(env(safe-area-inset-top)+1.25rem)] max-md:px-4 max-md:pt-[calc(env(safe-area-inset-top)+1.25rem)]">
         <SubPageHeader title="Create Food" />
         <span aria-hidden="true" className="bg-foreground block h-0.5 rounded-full" />
       </div>

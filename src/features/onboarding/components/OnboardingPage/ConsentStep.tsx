@@ -65,7 +65,7 @@ export function ConsentStep({
         </section>
       </div>
 
-      <div className="bg-background sticky bottom-0 -mx-4 space-y-4 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="bg-background sticky bottom-0 -mx-4 space-y-4 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] in-data-[keyboard=open]:bottom-(--kb-bottom)">
         {[
           {
             id: healthId,

@@ -173,7 +173,7 @@ export function RecipeForm({
         )}
       </section>
 
-      <div className="bg-background sticky bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-20 -mx-4 px-4 pt-2 pb-3">
+      <div className="bg-background sticky bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-20 -mx-4 px-4 pt-2 pb-3 in-data-[keyboard=open]:bottom-(--kb-bottom)">
         <Button
           type="submit"
           form="recipe-form"

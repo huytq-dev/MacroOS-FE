@@ -54,7 +54,7 @@ export function WizardShell({
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
-      <header className="bg-background sticky top-0 z-10 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-2">
+      <header className="bg-background sticky top-0 z-10 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-2 in-data-[keyboard=open]:top-(--kb-top)">
         <div className="relative flex h-11 items-center justify-center">
           {canGoBack && (
             <button
@@ -100,7 +100,7 @@ export function WizardShell({
       </div>
 
       {(footer !== false || error) && (
-        <footer className="bg-background sticky bottom-0 space-y-2 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <footer className="bg-background sticky bottom-0 space-y-2 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] in-data-[keyboard=open]:bottom-(--kb-bottom)">
           {error && <FormErrorAlert title="Could not save" message={error} />}
           {footer === false
             ? null

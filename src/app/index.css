@@ -112,6 +112,10 @@
       opacity: 0.8;
     }
   }
+  /* Bàn phím mở: thêm chỗ cuộn bằng đúng chiều cao bàn phím để ô nhập ở cuối trang vẫn kéo lên được phía trên nó */
+  html[data-keyboard='open'] body {
+    padding-bottom: var(--kb-bottom, 0px);
+  }
   body {
     /* Không bao giờ cuộn ngang trang (clip không tạo vùng cuộn nên sticky vẫn chạy) */
     overflow-x: clip;

@@ -34,7 +34,7 @@ export function DashboardSearchBar({
       inert={hidden}
       aria-hidden={hidden}
       className={cn(
-        'bg-card border-border fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 flex gap-3 border-t px-4 py-2.5 transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none md:hidden',
+        'bg-card border-border fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 flex gap-3 border-t px-4 py-2.5 transition-[opacity,transform] duration-300 ease-out in-data-[keyboard=open]:hidden motion-reduce:transition-none md:hidden',
         hidden ? 'pointer-events-none translate-y-3 opacity-0' : 'translate-y-0 opacity-100'
       )}
     >

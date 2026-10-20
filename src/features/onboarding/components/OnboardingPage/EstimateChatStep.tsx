@@ -112,7 +112,7 @@ export function EstimateChatStep({
         <div ref={bottomRef} />
       </div>
 
-      <div className="bg-background sticky bottom-0 -mx-4 space-y-3 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="bg-background sticky bottom-0 -mx-4 space-y-3 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] in-data-[keyboard=open]:bottom-(--kb-bottom)">
         {settled && !isEnd && (
           <div className="space-y-2">
             <p className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-300 text-base [animation-fill-mode:backwards]">

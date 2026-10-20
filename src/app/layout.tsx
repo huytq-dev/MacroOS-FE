@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Archivo, DM_Sans, Geist_Mono, Unbounded } from 'next/font/google'
 import NextTopLoader from 'nextjs-toploader'
+import { KeyboardViewport } from '@/components/shared/KeyboardViewport'
 import { Providers } from '@/lib/providers'
 import './index.css'
 
@@ -44,6 +45,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  // Android Chrome: bàn phím co layout viewport nên sheet cao 100dvh tự nằm trên bàn phím (iOS xử lý bằng useVisibleViewport)
+  interactiveWidget: 'resizes-content',
   themeColor: [
     { media: '(prefers-color-scheme: dark)', color: '#141414' },
     { media: '(prefers-color-scheme: light)', color: '#f5f5f5' },
@@ -59,6 +62,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     >
       <body className="flex min-h-full flex-col font-sans">
         <NextTopLoader color="#FF8B41" height={3} showSpinner={false} />
+        <KeyboardViewport />
         <Providers>{children}</Providers>
       </body>
     </html>

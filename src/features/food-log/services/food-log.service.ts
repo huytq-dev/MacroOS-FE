@@ -2,6 +2,7 @@ import { apiCall } from '@/lib/api'
 import { apiRoutes } from '@/config/api-routes'
 import type { QueryResult } from '@/types/api'
 import type { FoodLogSettings } from '../food-log-settings'
+import { downscalePhoto } from '../ai-plate.utils'
 import type {
   AiAnalyzeResponse,
   AiConfirmRequest,
@@ -44,9 +45,11 @@ export const foodLogService = {
   updateNote: (id: string, payload: UpdateNoteRequest) =>
     apiCall.put(apiRoutes.foodLogs.note(id), payload),
   deleteNote: (id: string) => apiCall.delete(apiRoutes.foodLogs.note(id)),
-  aiAnalyze: (photos: File[], description: string) => {
+  aiAnalyze: async (photos: File[], description: string) => {
     const form = new FormData()
-    photos.forEach((photo) => form.append('photos', photo))
+    // Thu nhỏ trước khi gửi để không vượt giới hạn body của proxy /api và để AI trả nhanh hơn
+    const scaled = await Promise.all(photos.map(downscalePhoto))
+    scaled.forEach((photo) => form.append('photos', photo))
     form.append('description', description)
     return apiCall.post<AiAnalyzeResponse>(apiRoutes.foodLogs.aiAnalyze, form, {
       headers: { 'Content-Type': 'multipart/form-data' },

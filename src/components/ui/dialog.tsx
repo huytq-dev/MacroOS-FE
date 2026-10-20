@@ -6,6 +6,7 @@ import { Dialog as DialogPrimitive } from 'radix-ui'
 
 import { Button } from '@/components/ui/button'
 import { useBackToClose } from '@/hooks/use-back-to-close'
+import { useVisibleViewport } from '@/hooks/use-keyboard-inset'
 import { XIcon } from 'lucide-react'
 
 function Dialog({
@@ -60,19 +61,29 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  style,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  // Bàn phím ảo mở (iOS): sheet đáy nằm ngay trên bàn phím và không cao quá vùng còn nhìn thấy, thay vì bị đẩy khỏi màn hình
+  const visible = useVisibleViewport(true)
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'bg-popover text-popover-foreground ring-foreground/10 animation-duration-300 sm:animation-duration-250 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=closed]:slide-out-to-bottom sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95 fixed inset-x-0 bottom-0 z-50 grid max-h-[92dvh] w-full gap-4 overflow-y-auto rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-sm ring-1 outline-none max-sm:ease-out sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:gap-6 sm:rounded-xl sm:p-6',
+          'bg-popover text-popover-foreground ring-foreground/10 animation-duration-300 sm:animation-duration-250 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=closed]:slide-out-to-bottom sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95 fixed inset-x-0 bottom-0 z-50 grid max-h-[92dvh] w-full gap-4 overflow-y-auto rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-sm ring-1 outline-none max-sm:bottom-(--vv-bottom) max-sm:max-h-[min(92dvh,var(--vv-height))] max-sm:ease-out sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:gap-6 sm:rounded-xl sm:p-6',
           className
         )}
+        style={
+          {
+            '--vv-height': visible ? `${visible.height}px` : '100dvh',
+            '--vv-bottom': visible ? `${visible.bottom}px` : '0px',
+            ...style,
+          } as React.CSSProperties
+        }
         {...props}
       >
         {children}

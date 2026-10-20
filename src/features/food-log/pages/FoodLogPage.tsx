@@ -74,7 +74,7 @@ import { mealForTime, type MealType } from '@/config/enums'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useSheet } from '@/hooks/use-sheet'
-import { liveIngredients, toPlateItem } from '../ai-plate.utils'
+import { aiErrorMessage, liveIngredients, toPlateItem } from '../ai-plate.utils'
 import { addDaysIso, formatDateVi, todayIso } from '@/lib/date'
 import { useUiStore, type AddFoodRequest } from '@/stores/ui.store'
 
@@ -600,7 +600,7 @@ export function FoodLogPage() {
           <AiPanel
             active={addOpen && tab === 'ai'}
             isAnalyzing={aiPlate.isAnalyzing}
-            error={aiPlate.error ? getFormErrorMessage(aiPlate.error) : null}
+            error={aiPlate.error ? aiErrorMessage(aiPlate.error) : null}
             dishes={aiPlate.dishes}
             states={aiPlate.states}
             date={logDate ?? date ?? ''}

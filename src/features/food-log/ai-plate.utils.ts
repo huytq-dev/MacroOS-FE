@@ -1,3 +1,5 @@
+import { AxiosError } from 'axios'
+import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import type {
   AiDish,
   AiIngredient,
@@ -104,3 +106,49 @@ export const toPlateItem = ({ ingredient, data }: LiveIngredient, key: string): 
   iconKey: data.iconKey ?? null,
   grams: data.weightGrams,
 })
+
+/**
+ * Lý do lỗi khi phân tích bữa ăn bằng AI, nói rõ thay cho câu chung "Can't reach the server" (mọi lỗi 5xx trước đây đều rơi vào câu đó):
+ * 503 = server chưa cấu hình AI, 502/504 hoặc quá thời gian = AI bận, 413 = ảnh quá lớn. Lỗi khác giữ cách hiển thị chung của form.
+ */
+export function aiErrorMessage(error: unknown): string {
+  if (error instanceof AxiosError) {
+    const status = error.response?.status
+    if (status === 503) return 'AI meal analysis is not available on the server right now.'
+    if (status === 413) return 'Photos are too large. Try fewer or smaller photos.'
+    if (status === 502 || status === 504 || error.code === AxiosError.ECONNABORTED)
+      return 'AI is busy or took too long. Please try again in a moment.'
+  }
+  return getFormErrorMessage(error)
+}
+
+/** Cạnh dài tối đa và chất lượng JPEG khi gửi ảnh cho AI: đủ rõ để nhận món, nhỏ hơn nhiều lần ảnh gốc của điện thoại. */
+const AI_PHOTO_MAX_EDGE = 1600
+const AI_PHOTO_QUALITY = 0.85
+
+/**
+ * Thu nhỏ ảnh trước khi gửi: ảnh gốc iPhone 3–5 MB × 3 vượt giới hạn body của proxy /api (Vercel ~4.5 MB) và làm chậm AI.
+ * Ảnh đã nhỏ hơn giới hạn thì giữ nguyên; trình duyệt không giải mã được (định dạng lạ) thì gửi ảnh gốc để BE báo lỗi rõ ràng.
+ */
+export async function downscalePhoto(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, AI_PHOTO_MAX_EDGE / Math.max(bitmap.width, bitmap.height))
+    if (scale === 1 && file.size <= 1_500_000) {
+      bitmap.close()
+      return file
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * scale)
+    canvas.height = Math.round(bitmap.height * scale)
+    canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', AI_PHOTO_QUALITY)
+    )
+    if (!blob) return file
+    return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })
+  } catch {
+    return file
+  }
+}
