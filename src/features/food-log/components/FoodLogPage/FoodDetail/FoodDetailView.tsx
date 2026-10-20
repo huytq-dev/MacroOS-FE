@@ -262,7 +262,14 @@ export function FoodDetailView({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
+      <div
+        // Vuốt cuộn nội dung thì đóng thanh nhập (bỏ focus ô lượng → chip + bàn phím thu lại)
+        onTouchMove={() => {
+          const active = document.activeElement
+          if (active instanceof HTMLInputElement) active.blur()
+        }}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6"
+      >
         <FoodDetailHeader
           name={food.name}
           brand={food.brand}

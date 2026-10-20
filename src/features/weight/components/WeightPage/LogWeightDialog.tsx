@@ -9,6 +9,7 @@ import { FormField } from '@/components/shared/FormField'
 import { NumericKeypad } from '@/components/shared/NumericKeypad'
 import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
 import { formatDate } from '@/lib/date'
+import { normalizeDecimal } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -50,7 +51,8 @@ function WeightInput({ form }: { readonly form: UseFormReturn<LogWeightFormValue
   })
   const error = form.formState.errors.weightKg?.message
 
-  const update = (next: string) => {
+  const update = (raw: string) => {
+    const next = normalizeDecimal(raw)
     if (!WEIGHT_TEXT.test(next)) return
     setText(next)
     form.setValue('weightKg', next === '' || next === '.' ? Number.NaN : Number(next), {

@@ -4,14 +4,18 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowLeftRight, Flame, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
-import { cn } from '@/lib/utils'
+import { cn, normalizeDecimal } from '@/lib/utils'
 import { MACRO_KEYS, type EntryMode, type MacroKey, type QuantityUnit } from './food-detail.utils'
 import { NumericKeypad } from '@/components/shared/NumericKeypad'
 
 const UNIT_LABEL: Record<Exclude<QuantityUnit, 'serving'>, string> = { g: 'g', oz: 'oz' }
 
 const CHIP =
-  'focus-visible:ring-ring/50 h-11 shrink-0 rounded-full px-4 text-base transition-colors focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100'
+  'focus-visible:ring-ring/50 h-11 min-w-11 shrink-0 rounded-full px-4 text-base transition-[background-color,color,transform] duration-100 focus-visible:ring-1 focus-visible:outline-none active:scale-95 active:opacity-80 motion-reduce:active:scale-100'
+
+/** Log Foods / Add / Done: cao 48px, phản hồi chạm tức thì (thu nhỏ nhẹ ≤100ms). */
+const ACTION =
+  'h-12 shrink-0 rounded-lg text-base transition-[background-color,transform] duration-100 active:scale-95 motion-reduce:active:scale-100'
 
 const FIELD =
   'bg-secondary focus-within:ring-ring/50 flex h-12 min-w-0 items-center rounded-lg transition-shadow focus-within:ring-1'
@@ -91,6 +95,19 @@ export function QuantityBar({
   const keypadOpen = coarse && focused
   const amountInput = useRef<HTMLInputElement>(null)
   const pressing = useRef(false)
+  const root = useRef<HTMLDivElement>(null)
+  // Chạm ra ngoài thanh nhập thì đóng chip + bàn phím (iOS không tự blur khi chạm vùng không tương tác); chạm trong thanh thì giữ nguyên
+  useEffect(() => {
+    if (!focused) return
+    const closeOnOutside = (event: PointerEvent) => {
+      if (root.current?.contains(event.target as Node)) return
+      const active = document.activeElement
+      if (active instanceof HTMLElement && root.current?.contains(active)) active.blur()
+      setFocused(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutside, true)
+    return () => document.removeEventListener('pointerdown', closeOnOutside, true)
+  }, [focused])
   /** Blur do chạm vào chip / bàn phím trong thanh này: lấy lại focus (không đóng hàng chip + bàn phím); chạm ra ngoài thì đóng. */
   const onInputBlur = (event: React.FocusEvent<HTMLInputElement>) => {
     if (pressing.current) {
@@ -133,11 +150,13 @@ export function QuantityBar({
   }
 
   // Chỉ nhận chữ số, dấu chấm, và ở chế độ lượng thêm "/" và khoảng trắng (phân số "1 1/2"); không cho hai khoảng trắng liền nhau
-  const sanitize = (text: string, allowFraction: boolean) =>
-    (allowFraction ? text.replace(/[^0-9./ ]/g, '') : text.replace(/[^0-9.]/g, '')).replace(
+  const sanitize = (raw: string, allowFraction: boolean) => {
+    const text = normalizeDecimal(raw)
+    return (allowFraction ? text.replace(/[^0-9./ ]/g, '') : text.replace(/[^0-9.]/g, '')).replace(
       / {2,}/g,
       ' '
     )
+  }
   const typeKey = (key: string) =>
     mode === 'amount'
       ? onQuantityChange(sanitize(quantity + key, true))
@@ -151,7 +170,7 @@ export function QuantityBar({
   const actions = (fill: boolean) =>
     variant === 'edit' ? (
       <Button
-        className={cn('h-12 shrink-0 rounded-lg px-6 text-base', fill && 'flex-1')}
+        className={cn(ACTION, 'px-6', fill && 'flex-1')}
         disabled={!valid || isLogging}
         aria-busy={isLogging}
         onClick={onAdd}
@@ -163,7 +182,7 @@ export function QuantityBar({
       <>
         <Button
           variant="secondary"
-          className={cn('h-12 shrink-0 rounded-lg px-4 text-base', fill && 'flex-1')}
+          className={cn(ACTION, 'px-4', fill && 'flex-1')}
           disabled={!valid || isLogging}
           aria-busy={isLogging}
           onClick={onLogFoods}
@@ -172,7 +191,7 @@ export function QuantityBar({
           Log Foods
         </Button>
         <Button
-          className={cn('h-12 shrink-0 rounded-lg px-5 text-base', fill && 'flex-1')}
+          className={cn(ACTION, 'px-5', fill && 'flex-1')}
           disabled={!valid || isLogging}
           onClick={onAdd}
         >
@@ -183,6 +202,7 @@ export function QuantityBar({
 
   return (
     <div
+      ref={root}
       // iOS Safari: chạm chip / bàn phím làm ô nhập mất focus (hàng chip co lại, lần chạm rơi vào chỗ trống). Chặn ở mousedown giả lập
       // (preventDefault ở pointerdown không đủ); `pressing` đỡ thêm: blur do chạm vào thanh này thì lấy lại focus thay vì đóng.
       onMouseDown={(event) => {
@@ -287,7 +307,10 @@ export function QuantityBar({
       {mode === 'amount' ? (
         <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:animation-duration-200 flex items-center gap-2">
           {/* Cả ô là một nhãn: chạm đâu cũng focus ô số; đơn vị nằm bên phải, chọn đơn vị bằng chip phía trên */}
-          <label className={cn(FIELD, 'flex-1 cursor-text gap-2 px-4')}>
+          <label
+            onClick={() => amountInput.current?.focus()}
+            className={cn(FIELD, 'flex-1 cursor-text gap-2 px-4')}
+          >
             <input
               ref={amountInput}
               type="text"
@@ -311,10 +334,20 @@ export function QuantityBar({
               )}
             </span>
           </label>
-          {!keypadOpen && actions(false)}
+          {/* Log Foods / Add thu lại mượt (rộng + mờ 200ms) khi bàn phím mở vì hai nút đã nằm trong bàn phím; không nhảy bố cục */}
+          <div
+            inert={keypadOpen}
+            aria-hidden={keypadOpen}
+            className={cn(
+              'flex shrink-0 gap-2 overflow-hidden transition-[max-width,opacity] duration-200 ease-out motion-reduce:transition-none',
+              keypadOpen ? 'max-w-0 opacity-0' : 'max-w-64 opacity-100'
+            )}
+          >
+            {actions(false)}
+          </div>
         </div>
       ) : (
-        <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:animation-duration-200 space-y-2">
+        <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:animation-duration-200">
           <div className="flex items-center gap-2">
             <div className={cn(FIELD, 'w-32 shrink-0 pl-4')}>
               <input
@@ -348,7 +381,18 @@ export function QuantityBar({
               <span className="min-w-0 flex-1 truncate text-right">{suffix}</span>
             </div>
           </div>
-          {!keypadOpen && <div className="flex items-center gap-2">{actions(true)}</div>}
+          <div
+            inert={keypadOpen}
+            aria-hidden={keypadOpen}
+            className={cn(
+              'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
+              keypadOpen ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
+            )}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="flex items-center gap-2 pt-2">{actions(true)}</div>
+            </div>
+          </div>
         </div>
       )}
 

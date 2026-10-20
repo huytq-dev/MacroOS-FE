@@ -17,7 +17,7 @@ import { logWeightSchema } from '@/features/weight/schemas/log-weight.schema'
 import type { WeightEntry } from '@/features/weight/types/weight.types'
 import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
 import { formatDate } from '@/lib/date'
-import { cn } from '@/lib/utils'
+import { cn, normalizeDecimal } from '@/lib/utils'
 
 type Field = 'weight' | 'bodyFat'
 
@@ -48,7 +48,8 @@ function EntryForm({ date, entry, bodyFat, tape, onSaved }: EntryFormProps) {
   const [error, setError] = useState<string | null>(null)
   const isSaving = upsert.isPending || saveBody.isPending
 
-  const setField = (field: Field, next: string) => {
+  const setField = (field: Field, raw: string) => {
+    const next = normalizeDecimal(raw)
     if (!DECIMAL_TEXT.test(next)) return
     setError(null)
     setTexts((current) => ({ ...current, [field]: next }))

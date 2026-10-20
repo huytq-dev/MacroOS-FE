@@ -8,7 +8,7 @@ import type { PlateItem } from '../../../types/food-log.types'
 import { sanitizeQuantity, switchUnit, type PlateEdit } from './plate-edit.utils'
 
 const CHIP =
-  'focus-visible:ring-ring/50 h-11 shrink-0 rounded-full px-4 text-base whitespace-nowrap transition-colors focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100'
+  'focus-visible:ring-ring/50 h-11 min-w-11 shrink-0 rounded-full px-4 text-base whitespace-nowrap transition-[background-color,color,transform] duration-100 focus-visible:ring-1 focus-visible:outline-none active:scale-95 active:opacity-80 motion-reduce:active:scale-100'
 
 interface PlateQuantityEditorProps {
   readonly item: PlateItem
@@ -74,7 +74,7 @@ export function PlateQuantityEditor({
           <>
             <Button
               variant="secondary"
-              className="h-12 flex-1 rounded-lg"
+              className="h-12 flex-1 rounded-lg transition-transform duration-100 active:scale-95 motion-reduce:active:scale-100"
               disabled={!valid || isLogging}
               aria-busy={isLogging}
               onClick={onLog}
@@ -83,7 +83,7 @@ export function PlateQuantityEditor({
               Log Foods
             </Button>
             <Button
-              className="h-12 flex-1 rounded-lg"
+              className="h-12 flex-1 rounded-lg transition-transform duration-100 active:scale-95 motion-reduce:active:scale-100"
               disabled={!valid || isLogging}
               onClick={onDone}
             >

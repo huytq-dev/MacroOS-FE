@@ -1,4 +1,5 @@
 import { servingAmountLabel } from '@/features/foods/types/food.types'
+import { normalizeDecimal } from '@/lib/utils'
 import type { PlateItem } from '../../../types/food-log.types'
 import {
   gramsOf,
@@ -87,7 +88,10 @@ export function applyEdit(item: PlateItem, edit: PlateEdit): PlateItem | null {
 }
 
 /** Chỉ nhận chữ số, "." và (khi đơn vị là khẩu phần) "/" và khoảng trắng cho phân số "1 1/2"; không cho hai khoảng trắng liền nhau. */
-export const sanitizeQuantity = (text: string, allowFraction: boolean) =>
+export const sanitizeQuantity = (raw: string, allowFraction: boolean) =>
+  sanitizeText(normalizeDecimal(raw), allowFraction)
+
+const sanitizeText = (text: string, allowFraction: boolean) =>
   (allowFraction ? text.replace(/[^0-9./ ]/g, '') : text.replace(/[^0-9.]/g, '')).replace(
     / {2,}/g,
     ' '

@@ -4,7 +4,7 @@ import { Delete } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const KEY =
-  'focus-visible:ring-ring/50 bg-secondary active:bg-foreground/20 flex h-12 items-center justify-center rounded-lg text-xl tabular-nums transition-colors focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100'
+  'focus-visible:ring-ring/50 bg-secondary active:bg-foreground/20 flex h-12 items-center justify-center rounded-lg text-xl tabular-nums transition-[background-color,transform] duration-100 focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100'
 
 interface NumericKeypadProps {
   /** Phím ký tự: chữ số, ".", và (nếu cho phân số) "/" hoặc khoảng trắng. */

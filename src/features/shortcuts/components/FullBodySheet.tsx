@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
-import { cn } from '@/lib/utils'
+import { cn, normalizeDecimal } from '@/lib/utils'
 import type {
   FullBodyData,
   FullBodyRequest,
@@ -108,7 +108,8 @@ function FullBodyForm({
   const [active, setActive] = useState<string | null>(null)
 
   const valueOf = (key: string) => (key === BODY_FAT ? bodyFat : (tape[key] ?? ''))
-  const setField = (key: string, next: string) => {
+  const setField = (key: string, raw: string) => {
+    const next = normalizeDecimal(raw)
     if (!DECIMAL_TEXT.test(next)) return
     if (key === BODY_FAT) setBodyFat(next)
     else setTape((current) => ({ ...current, [key]: next }))
