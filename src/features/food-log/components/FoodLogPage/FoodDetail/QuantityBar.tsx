@@ -90,6 +90,16 @@ export function QuantityBar({
   // Bàn phím số đang mở thì Log Foods / Add nằm trong đó, hàng nhập không lặp lại hai nút
   const keypadOpen = coarse && focused
   const amountInput = useRef<HTMLInputElement>(null)
+  const pressing = useRef(false)
+  /** Blur do chạm vào chip / bàn phím trong thanh này: lấy lại focus (không đóng hàng chip + bàn phím); chạm ra ngoài thì đóng. */
+  const onInputBlur = (event: React.FocusEvent<HTMLInputElement>) => {
+    if (pressing.current) {
+      const input = event.currentTarget
+      window.setTimeout(() => input.focus(), 0)
+      return
+    }
+    setFocused(false)
+  }
   const amountSuffix = useRef<HTMLSpanElement>(null)
   const mounted = useRef(false)
 
@@ -172,7 +182,19 @@ export function QuantityBar({
     )
 
   return (
-    <div className="bg-card border-border shrink-0 border-t px-3 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+    <div
+      // iOS Safari: chạm chip / bàn phím làm ô nhập mất focus (hàng chip co lại, lần chạm rơi vào chỗ trống). Chặn ở mousedown giả lập
+      // (preventDefault ở pointerdown không đủ); `pressing` đỡ thêm: blur do chạm vào thanh này thì lấy lại focus thay vì đóng.
+      onMouseDown={(event) => {
+        if (!(event.target instanceof HTMLInputElement)) event.preventDefault()
+      }}
+      onPointerDownCapture={(event) => {
+        pressing.current = !(event.target instanceof HTMLInputElement)
+      }}
+      onPointerUp={() => window.setTimeout(() => (pressing.current = false), 300)}
+      onPointerCancel={() => (pressing.current = false)}
+      className="bg-card border-border shrink-0 border-t px-3 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+    >
       <div
         className={cn(
           'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
@@ -276,7 +298,7 @@ export function QuantityBar({
               value={quantity}
               onChange={(event) => onQuantityChange(sanitize(event.target.value, true))}
               onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
+              onBlur={onInputBlur}
               className="w-16 shrink-0 bg-transparent text-base tabular-nums outline-none"
             />
             <span
@@ -305,7 +327,7 @@ export function QuantityBar({
                 value={macroText}
                 onChange={(event) => onMacroTextChange(sanitize(event.target.value, false))}
                 onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
+                onBlur={onInputBlur}
                 className="min-w-0 flex-1 bg-transparent text-base tabular-nums outline-none"
               />
               <span className="text-muted-foreground flex w-9 shrink-0 items-center justify-center text-base">

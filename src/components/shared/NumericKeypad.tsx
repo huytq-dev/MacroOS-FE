@@ -37,7 +37,13 @@ export function NumericKeypad({ onKey, onBackspace, allowFraction, actions }: Nu
   )
   const blank = <span aria-hidden="true" />
   return (
-    <div role="group" aria-label="Number pad" className="grid grid-cols-4 gap-1.5 pt-2">
+    // onMouseDown: iOS Safari không giữ focus nhờ preventDefault ở pointerdown, chỉ chặn được ở sự kiện chuột giả lập sau lần chạm
+    <div
+      role="group"
+      aria-label="Number pad"
+      onMouseDown={(event) => event.preventDefault()}
+      className="grid grid-cols-4 gap-1.5 pt-2"
+    >
       {DIGITS.slice(0, 3).map(press)}
       {allowFraction ? press('/') : blank}
       {DIGITS.slice(3, 6).map(press)}
