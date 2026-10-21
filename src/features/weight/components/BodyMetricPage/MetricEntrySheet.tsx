@@ -14,6 +14,8 @@ import { cn, normalizeDecimal } from '@/lib/utils'
 
 /** Tối đa 3 chữ số nguyên và 1 số lẻ; "," được đổi thành ".". */
 const DECIMAL_TEXT = /^\d{0,3}(\.\d?)?$/
+/** Số nguyên tối đa 6 chữ số (bước chân); không nhận dấu thập phân. */
+const INTEGER_TEXT = /^\d{0,6}$/
 
 export interface MetricField {
   readonly key: string
@@ -40,6 +42,8 @@ interface MetricEntrySheetProps {
   readonly onReference?: () => void
   /** Ngày đã có bản ghi: hiện thùng rác (trang hỏi xác nhận). */
   readonly onDelete?: () => void
+  /** Chỉ nhận số nguyên (bước chân): bàn phím và ô nhập không có dấu thập phân. */
+  readonly integer?: boolean
   readonly isPending: boolean
   readonly error: string | null
   readonly onSave: (values: MetricValues) => void
@@ -61,6 +65,7 @@ export function MetricEntrySheet({
   fields,
   onReference,
   onDelete,
+  integer = false,
   isPending,
   error,
   onSave,
@@ -75,7 +80,7 @@ export function MetricEntrySheet({
 
   const setField = (key: string, raw: string) => {
     const next = normalizeDecimal(raw)
-    if (!DECIMAL_TEXT.test(next)) return
+    if (!(integer ? INTEGER_TEXT : DECIMAL_TEXT).test(next)) return
     setLocalError(null)
     setTexts((current) => ({ ...current, [key]: next }))
   }
@@ -153,7 +158,7 @@ export function MetricEntrySheet({
                 >
                   <input
                     type="text"
-                    inputMode={coarse ? 'none' : 'decimal'}
+                    inputMode={coarse ? 'none' : integer ? 'numeric' : 'decimal'}
                     autoComplete="off"
                     autoFocus={index === 0}
                     value={texts[field.key] ?? ''}

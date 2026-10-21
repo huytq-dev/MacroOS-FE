@@ -85,6 +85,8 @@ export interface PeriodsResponse {
     endDate: string | null
     cycleLengthDays: number | null
     periodLengthDays: number | null
+    symptoms: string | null
+    notes: string | null
   }[]
   lastStartDate: string | null
   daysSinceLastStart: number | null

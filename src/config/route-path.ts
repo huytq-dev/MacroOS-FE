@@ -33,6 +33,10 @@ export const routePath = {
   fullBody: '/full-body',
   fullBodyAll: '/full-body/all',
   fullBodyCompare: '/full-body/compare',
+  /** General: bước chân (chart + lịch sử, thêm / sửa / xoá từng ngày). */
+  steps: '/steps',
+  /** General: kỳ kinh (danh sách chu kỳ, thêm / sửa / xoá). */
+  period: '/period',
   habitsWeighIn: '/habits/weigh-in',
   habitsFoodLogging: '/habits/food-logging',
   foodLog: '/food-log',

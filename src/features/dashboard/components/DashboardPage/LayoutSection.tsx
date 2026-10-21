@@ -133,6 +133,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
         <MetricTile
           title="Steps"
           subtitle="Last 7 Days"
+          href={routePath.steps}
           value={data.steps === null ? '---' : String(data.steps)}
           unit="steps"
         />
@@ -142,6 +143,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
         <MetricTile
           title="Period"
           subtitle="Last 30 Days"
+          href={routePath.period}
           visual={<HabitGrid cells={data.period.cells} tone="bg-mf-tile-protein" />}
           value={data.period.daysAgo === null ? '---' : String(data.period.daysAgo)}
           unit="days ago"

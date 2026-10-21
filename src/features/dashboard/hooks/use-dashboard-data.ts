@@ -20,12 +20,8 @@ import {
 } from '../dashboard.utils'
 import { NUTRIENT_CODE } from '../nutrient-codes'
 import { NUTRIENT_GROUPS } from '../nutrient-catalog'
-import type {
-  DailyProgress,
-  NutrientModel,
-  NutrientValue,
-  PeriodsResponse,
-} from '../types/dashboard.types'
+import type { DailyProgress, NutrientModel, NutrientValue } from '../types/dashboard.types'
+import { periodDaySet } from '@/features/period/period.utils'
 import { useDayLog } from '@/features/food-log/hooks/use-food-log'
 import type { MacroTotals } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
@@ -65,17 +61,6 @@ export interface DashboardData {
   readonly todayTarget: ProgramWeek | null
   /** Giá trị hôm nay cho mọi ô nutrient: macro từ log thật, còn lại từ `GET /nutrients` (amount null = chưa có dữ liệu). */
   readonly nutrientsToday: Readonly<Record<string, NutrientValue>>
-}
-
-/** Ngày có hành kinh trong lưới 30 ngày: từ `startDate` tới `endDate` (chưa có thì theo độ dài kỳ, tối thiểu 1 ngày). */
-function periodDays(periods: PeriodsResponse | null | undefined) {
-  const days = new Set<string>()
-  for (const item of periods?.items ?? []) {
-    const end =
-      item.endDate ?? addDaysIso(item.startDate, Math.max(1, item.periodLengthDays ?? 1) - 1)
-    for (let day = item.startDate; day <= end; day = addDaysIso(day, 1)) days.add(day)
-  }
-  return days
 }
 
 /** Thanh của một chất: mốc là target (macro), floor (tối thiểu) hoặc ceiling (tối đa) theo loại thanh của danh mục. */
@@ -121,7 +106,7 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
 
   const weighInDates = new Set(entries.map((entry) => entry.logDate))
   const loggedDates = new Set(daily.filter(isLogged).map((point) => point.snapshotDate))
-  const periodSet = periodDays(periodsQuery.data)
+  const periodSet = periodDaySet(periodsQuery.data?.items)
 
   const totals = dayLog.data?.totals
   const target = dayLog.data?.target

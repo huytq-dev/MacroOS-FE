@@ -101,10 +101,12 @@ export const apiRoutes = {
     daily: '/expenditure/daily', // GET ?from&to (mỗi ngày: đã ăn, target, cân xu hướng)
   },
   steps: {
-    root: '/steps', // GET ?from&to → { items[{ id, logDate, steps, source }], last7DayAverage }; POST { logDate?, steps }; DELETE /steps/{logDate}
+    root: '/steps', // GET ?from&to → { items[{ id, logDate, steps, source }], last7DayAverage }; POST { logDate?, steps } (ghi đè theo ngày)
+    byDate: (logDate: string) => `/steps/${logDate}`, // DELETE
   },
   periods: {
-    root: '/periods', // GET ?from&to → { items[{ id, startDate, endDate, cycleLengthDays, periodLengthDays, symptoms, notes }], lastStartDate, daysSinceLastStart }; POST, PUT/DELETE /periods/{id}
+    root: '/periods', // GET ?from&to → { items[{ id, startDate, endDate, cycleLengthDays, periodLengthDays, symptoms, notes }], lastStartDate, daysSinceLastStart }; POST { startDate, endDate?, symptoms?, notes? } (trùng startDate = 409)
+    byId: (id: string) => `/periods/${id}`, // PUT (cùng body với POST), DELETE
   },
   nutrients: {
     root: '/nutrients', // GET ?date= → { date, items[{ code, name, unit, group, amount, floor, target, ceiling, isCustomTarget, pinOrder }] }; amount null = chưa có dữ liệu
