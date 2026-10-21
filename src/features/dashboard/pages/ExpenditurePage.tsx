@@ -6,30 +6,23 @@ import { SubPageHeader } from '../components/DashboardPage'
 import { ExpenditureChart } from '../components/ExpenditurePage/ExpenditureChart'
 import { ExpenditureInsights } from '../components/ExpenditurePage/ExpenditureInsights'
 import { MonthlyList } from '../components/ExpenditurePage/MonthlyList'
-import {
-  CollapseChartIcon,
-  ExpandChartIcon,
-  RangeBar,
-  StatBlock,
-  TutorialCard,
-} from '../components/DetailPage'
+import { RangeBar, StatBlock, TutorialCard } from '../components/DetailPage'
 import { EXPENDITURE_TUTORIAL } from '../components/ExpenditurePage/expenditure-tutorial-steps'
 import { slotsOf, viewWindow } from '../chart/geometry'
 import { useChartPan } from '../chart/use-chart-pan'
+import {
+  ExpandableChart,
+  ExpandButton,
+  ExpandFooter,
+  useChartExpand,
+} from '../chart/use-chart-expand'
 import { useTween } from '../chart/use-tween'
 import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useExpenditureDetail } from '../hooks/use-expenditure-detail'
 import { rangeLabel, type Averaging, type RangeKey } from '../expenditure.utils'
-import { cn } from '@/lib/utils'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
-
-/** Chiều cao biểu đồ thu gọn; khi phóng to thì cao gần hết màn hình (tính lúc bấm). */
-const COLLAPSED_HEIGHT = 300
-const MIN_EXPANDED_HEIGHT = 420
-/** Phần màn hình không thuộc biểu đồ khi phóng to: tiêu đề, số lớn, thanh chọn kỳ, thanh tab dưới. */
-const CHROME_HEIGHT = 340
 
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
 
@@ -42,8 +35,7 @@ const TUTORIAL_CHOICES = ['show', 'hidden'] as const
 export function ExpenditurePage() {
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
-  const [expanded, setExpanded] = useState(false)
-  const [fullHeight, setFullHeight] = useState(MIN_EXPANDED_HEIGHT)
+  const expand = useChartExpand()
   const [tutorial, setTutorial] = usePersistedChoice(
     'expenditure.tutorial',
     'show',
@@ -53,13 +45,7 @@ export function ExpenditurePage() {
   const total = data.ready ? data.daily.length : 0
   const target = slotsOf(range, total)
   const slots = useTween(target)
-  const height = useTween(expanded ? fullHeight : COLLAPSED_HEIGHT)
   const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
-
-  const toggleExpanded = () => {
-    setFullHeight(Math.max(MIN_EXPANDED_HEIGHT, window.innerHeight - CHROME_HEIGHT))
-    setExpanded((value) => !value)
-  }
 
   if (data.isError) return <ErrorState error={new Error('Could not load Expenditure')} />
 
@@ -96,81 +82,73 @@ export function ExpenditurePage() {
               <StatBlock label="Average" value={average?.toString() ?? null} unit="kcal" />
               <StatBlock label="Difference" value={difference?.toString() ?? null} unit="kcal" />
             </div>
-            <IconButton
-              icon={expanded ? CollapseChartIcon : ExpandChartIcon}
-              label={expanded ? 'Shrink chart' : 'Expand chart'}
-              aria-pressed={expanded}
-              variant="secondary"
-              className={cn(
-                'size-14 shrink-0 rounded-full transition-colors duration-200',
-                expanded && 'bg-foreground text-background hover:bg-foreground/90'
-              )}
-              onClick={toggleExpanded}
-            />
+            <ExpandButton expand={expand} />
           </div>
           <p className="text-muted-foreground -mt-3 text-lg">{rangeLabel(win.from, win.to)}</p>
 
-          <ExpenditureChart
-            // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
-            key={averaging}
-            className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
-            days={data.days}
-            today={data.today}
-            slots={slots}
-            pos={pan.view.pos}
-            height={height}
-            pan={pan}
-          />
-          <RangeBar
-            range={range}
-            onRangeChange={setRange}
-            averaging={averaging}
-            onAveragingChange={setAveraging}
-          />
+          <ExpandableChart expand={expand}>
+            <ExpenditureChart
+              // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
+              key={averaging}
+              className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
+              days={data.days}
+              today={data.today}
+              slots={slots}
+              pos={pan.view.pos}
+              height={expand.height}
+              pan={pan}
+            />
+          </ExpandableChart>
+          <ExpandFooter expand={expand}>
+            <RangeBar
+              range={range}
+              onRangeChange={setRange}
+              averaging={averaging}
+              onAveragingChange={setAveraging}
+            />
+          </ExpandFooter>
 
-          {!expanded && (
-            <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
-              <div className="bg-card text-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-xl px-3 py-4 text-base min-[360px]:gap-x-6">
-                <span className="flex items-center gap-2">
-                  <Mountain
-                    aria-hidden="true"
-                    fill="currentColor"
-                    className="text-mf-tile-protein/70 size-5"
-                  />
-                  Flux Range
-                </span>
-                <span className="flex items-center gap-2">
-                  <span aria-hidden="true" className="relative flex h-4 w-6 items-center">
-                    <span className="bg-mf-tile-protein h-0.5 w-full" />
-                    <span className="border-mf-tile-protein bg-card absolute left-1/2 size-2.5 -translate-x-1/2 rounded-full border-2" />
-                  </span>
-                  Expenditure
-                </span>
-                <span className="flex items-center gap-2">
-                  <span
-                    aria-hidden="true"
-                    className="border-mf-tile-protein/70 bg-card size-3 border-2"
-                  />
-                  Holding
-                </span>
-              </div>
-              {tutorial === 'show' && (
-                <TutorialCard
-                  steps={EXPENDITURE_TUTORIAL}
-                  tone="brown"
-                  onDismiss={() => setTutorial('hidden')}
+          <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
+            <div className="bg-card text-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-xl px-3 py-4 text-base min-[360px]:gap-x-6">
+              <span className="flex items-center gap-2">
+                <Mountain
+                  aria-hidden="true"
+                  fill="currentColor"
+                  className="text-mf-tile-protein/70 size-5"
                 />
-              )}
-              <ExpenditureInsights
-                changes={data.changes}
-                current={data.current}
-                strategy={data.strategy}
-                holdingReason={data.holdingReason}
-                calibratingDaysLeft={data.calibratingDaysLeft}
-              />
-              <MonthlyList history={data.history} />
+                Flux Range
+              </span>
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true" className="relative flex h-4 w-6 items-center">
+                  <span className="bg-mf-tile-protein h-0.5 w-full" />
+                  <span className="border-mf-tile-protein bg-card absolute left-1/2 size-2.5 -translate-x-1/2 rounded-full border-2" />
+                </span>
+                Expenditure
+              </span>
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="border-mf-tile-protein/70 bg-card size-3 border-2"
+                />
+                Holding
+              </span>
             </div>
-          )}
+            {tutorial === 'show' && (
+              <TutorialCard
+                steps={EXPENDITURE_TUTORIAL}
+                tone="brown"
+                onDismiss={() => setTutorial('hidden')}
+              />
+            )}
+            <ExpenditureInsights
+              changes={data.changes}
+              current={data.current}
+              strategy={data.strategy}
+              holdingReason={data.holdingReason}
+              calibratingDaysLeft={data.calibratingDaysLeft}
+            />
+            <MonthlyList history={data.history} />
+          </div>
         </>
       )}
     </div>

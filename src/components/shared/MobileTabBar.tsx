@@ -76,6 +76,7 @@ export function MobileTabBar() {
     <nav
       className="bg-card fixed inset-x-0 bottom-0 z-50 flex h-[calc(3.75rem+env(safe-area-inset-bottom))] items-start border-t pb-[env(safe-area-inset-bottom)] in-data-[keyboard=open]:hidden md:hidden"
       aria-label="Main navigation"
+      data-bottom-nav=""
     >
       {LEFT_TABS.map(renderTab)}
       <div className="flex flex-1 justify-center">

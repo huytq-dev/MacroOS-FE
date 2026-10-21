@@ -3,24 +3,17 @@
 import { useState } from 'react'
 import { TrendingUp } from 'lucide-react'
 import { SubPageHeader } from '../components/DashboardPage'
-import {
-  CollapseChartIcon,
-  ExpandChartIcon,
-  SparkChartIcon,
-  StatBlock,
-  TutorialCard,
-  UnderlineTabs,
-} from '../components/DetailPage'
+import { SparkChartIcon, StatBlock, TutorialCard, UnderlineTabs } from '../components/DetailPage'
 import {
   GOAL_PROGRESS_TUTORIAL,
   GoalInsights,
   WaterfallChart,
 } from '../components/GoalProgressPage'
+import { ExpandableChart, ExpandButton, useChartExpand } from '../chart/use-chart-expand'
 import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useGoalProgressDetail } from '../hooks/use-goal-progress-detail'
 import type { GoalTab } from '../goal-progress.utils'
 import { ErrorState } from '@/components/shared/ErrorState'
-import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
@@ -65,7 +58,7 @@ const shortDate = (iso: string) =>
  */
 export function GoalProgressPage() {
   const [tab, setTab] = useState<GoalTab>('scale')
-  const [expanded, setExpanded] = useState(false)
+  const expand = useChartExpand(340)
   const [tutorial, setTutorial] = usePersistedChoice(
     'goal-progress.tutorial',
     'show',
@@ -91,51 +84,44 @@ export function GoalProgressPage() {
         <>
           <div className="flex items-start justify-between gap-3">
             <StatBlock label="Distance" value={data.distance.toFixed(1)} unit="kg" />
-            <IconButton
-              icon={expanded ? CollapseChartIcon : ExpandChartIcon}
-              label={expanded ? 'Shrink chart' : 'Expand chart'}
-              aria-pressed={expanded}
-              variant="secondary"
-              className="size-14 shrink-0 rounded-full"
-              onClick={() => setExpanded((value) => !value)}
-            />
+            <ExpandButton expand={expand} />
           </div>
           <p className="text-muted-foreground -mt-3 text-lg">{shortDate(data.startDate)} – Today</p>
 
-          <WaterfallChart bars={data.bars} height={expanded ? 460 : 340} />
+          <ExpandableChart expand={expand}>
+            <WaterfallChart bars={data.bars} height={expand.height} />
+          </ExpandableChart>
 
-          {!expanded && (
-            <>
-              <div className="bg-card text-foreground flex items-center justify-center gap-6 rounded-xl px-4 py-4 text-base">
-                {[
-                  ['Away', 'var(--goal-away)'],
-                  ['Towards', 'var(--goal-toward)'],
-                ].map(([label, color]) => (
-                  <span key={label} className="flex items-center gap-2">
-                    <span
-                      aria-hidden="true"
-                      style={{ backgroundColor: color }}
-                      className="size-3.5 rounded-xs transition-colors duration-500"
-                    />
-                    {label}
-                  </span>
-                ))}
-              </div>
-              {tutorial === 'show' && (
-                <TutorialCard
-                  steps={GOAL_PROGRESS_TUTORIAL}
-                  tone={tab === 'scale' ? 'green' : 'purple'}
-                  onDismiss={() => setTutorial('hidden')}
-                />
-              )}
-              <GoalInsights
-                tab={tab}
-                targetKg={data.targetKg}
-                durationDays={data.duration}
-                eta={data.eta}
+          <>
+            <div className="bg-card text-foreground flex items-center justify-center gap-6 rounded-xl px-4 py-4 text-base">
+              {[
+                ['Away', 'var(--goal-away)'],
+                ['Towards', 'var(--goal-toward)'],
+              ].map(([label, color]) => (
+                <span key={label} className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    style={{ backgroundColor: color }}
+                    className="size-3.5 rounded-xs transition-colors duration-500"
+                  />
+                  {label}
+                </span>
+              ))}
+            </div>
+            {tutorial === 'show' && (
+              <TutorialCard
+                steps={GOAL_PROGRESS_TUTORIAL}
+                tone={tab === 'scale' ? 'green' : 'purple'}
+                onDismiss={() => setTutorial('hidden')}
               />
-            </>
-          )}
+            )}
+            <GoalInsights
+              tab={tab}
+              targetKg={data.targetKg}
+              durationDays={data.duration}
+              eta={data.eta}
+            />
+          </>
         </>
       )}
     </div>

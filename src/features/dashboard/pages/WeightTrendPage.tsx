@@ -3,13 +3,7 @@
 import { useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { SubPageHeader } from '../components/DashboardPage'
-import {
-  CollapseChartIcon,
-  ExpandChartIcon,
-  RangeBar,
-  StatBlock,
-  TutorialCard,
-} from '../components/DetailPage'
+import { RangeBar, StatBlock, TutorialCard } from '../components/DetailPage'
 import {
   SCALE_COLOR,
   TREND_COLOR,
@@ -20,6 +14,12 @@ import {
 } from '../components/WeightTrendPage'
 import { slotsOf, viewWindow } from '../chart/geometry'
 import { useChartPan } from '../chart/use-chart-pan'
+import {
+  ExpandableChart,
+  ExpandButton,
+  ExpandFooter,
+  useChartExpand,
+} from '../chart/use-chart-expand'
 import { useTween } from '../chart/use-tween'
 import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useWeightTrendDetail } from '../hooks/use-weight-trend-detail'
@@ -40,7 +40,7 @@ const round1 = (value: number) => Math.round(value * 10) / 10
 export function WeightTrendPage() {
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
-  const [fit, setFit] = useState(false)
+  const expand = useChartExpand()
   const [tutorial, setTutorial] = usePersistedChoice(
     'weight-trend.tutorial',
     'show',
@@ -87,35 +87,33 @@ export function WeightTrendPage() {
               <StatBlock label="Average" value={average?.toFixed(1) ?? null} unit="kg" />
               <StatBlock label="Difference" value={difference?.toFixed(1) ?? null} unit="kg" />
             </div>
-            <IconButton
-              icon={fit ? CollapseChartIcon : ExpandChartIcon}
-              label={fit ? 'Start the axis at zero' : 'Fit the axis to the data'}
-              aria-pressed={fit}
-              variant="secondary"
-              className="size-14 shrink-0 rounded-full"
-              onClick={() => setFit((value) => !value)}
-            />
+            <ExpandButton expand={expand} />
           </div>
           <p className="text-muted-foreground -mt-3 text-lg">{rangeLabel(win.from, win.to)}</p>
 
-          <WeightTrendChart
-            // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
-            key={averaging}
-            className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
-            trend={data.trend}
-            scale={data.scale}
-            today={data.today}
-            slots={slots}
-            pos={pan.view.pos}
-            fit={fit}
-            pan={pan}
-          />
-          <RangeBar
-            range={range}
-            onRangeChange={setRange}
-            averaging={averaging}
-            onAveragingChange={setAveraging}
-          />
+          <ExpandableChart expand={expand}>
+            <WeightTrendChart
+              // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
+              key={averaging}
+              className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
+              trend={data.trend}
+              scale={data.scale}
+              today={data.today}
+              slots={slots}
+              pos={pan.view.pos}
+              fit={expand.expanded}
+              height={expand.height}
+              pan={pan}
+            />
+          </ExpandableChart>
+          <ExpandFooter expand={expand}>
+            <RangeBar
+              range={range}
+              onRangeChange={setRange}
+              averaging={averaging}
+              onAveragingChange={setAveraging}
+            />
+          </ExpandFooter>
 
           <div className="bg-card text-foreground flex items-center justify-center gap-4 rounded-xl px-3 py-4 text-base whitespace-nowrap min-[360px]:gap-6">
             <span className="flex items-center gap-2">

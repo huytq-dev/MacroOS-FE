@@ -37,7 +37,8 @@ export function WaterfallChart({ bars, height: targetHeight, className }: Waterf
   const count = bars.length
   const target = Math.max(1, Math.min(count, MAX_VISIBLE_BARS))
   const slots = useTween(target)
-  const height = useTween(targetHeight)
+  // Chiều cao đã được tween ở `useChartExpand`
+  const height = targetHeight
   const pan = useChartPan({ maxPos: Math.max(0, count - target), slots })
   const pos = pan.view.pos
 

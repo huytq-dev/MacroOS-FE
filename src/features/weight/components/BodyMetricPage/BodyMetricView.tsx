@@ -12,11 +12,15 @@ import {
 } from '../../body-metric.utils'
 import { slotsOf, viewWindow } from '@/features/dashboard/chart/geometry'
 import { useChartPan } from '@/features/dashboard/chart/use-chart-pan'
+import {
+  ExpandableChart,
+  ExpandButton,
+  ExpandFooter,
+  useChartExpand,
+} from '@/features/dashboard/chart/use-chart-expand'
 import { useTween } from '@/features/dashboard/chart/use-tween'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
 import {
-  CollapseChartIcon,
-  ExpandChartIcon,
   RangeBar,
   StatBlock,
   TutorialCard,
@@ -25,7 +29,6 @@ import {
 import { rangeLabel, type Averaging, type RangeKey } from '@/features/dashboard/expenditure.utils'
 import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
 
 interface BodyMetricViewProps {
   readonly title: string
@@ -60,11 +63,10 @@ export function BodyMetricView({
 }: BodyMetricViewProps) {
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
-  const [expanded, setExpanded] = useState(false)
+  const expand = useChartExpand()
   const total = today && points.length > 0 ? daysBetween(points[0].date, today) + 1 : 0
   const target = slotsOf(range, total)
   const slots = useTween(target)
-  const height = useTween(expanded ? 460 : 300)
   const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
 
   const header = (
@@ -101,55 +103,47 @@ export function BodyMetricView({
             unit={unit}
           />
         </div>
-        <IconButton
-          icon={expanded ? CollapseChartIcon : ExpandChartIcon}
-          label={expanded ? 'Shrink chart' : 'Expand chart'}
-          variant="secondary"
-          aria-pressed={expanded}
-          className={cn(
-            'size-14 rounded-full transition-colors duration-200',
-            expanded && 'bg-foreground text-background hover:bg-foreground/90'
-          )}
-          onClick={() => setExpanded((value) => !value)}
-        />
+        <ExpandButton expand={expand} />
       </div>
       <p className="text-muted-foreground -mt-4 text-lg">{rangeLabel(win.from, win.to)}</p>
 
-      <MetricChart
-        // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
-        key={averaging}
-        className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
-        points={averageMetric(points, averaging)}
-        today={today}
-        slots={slots}
-        pos={pan.view.pos}
-        unit={unit}
-        label={title}
-        height={height}
-        tickCount={expanded ? 4 : 3}
-        fit={expanded}
-        pan={pan}
-      />
-      <RangeBar
-        range={range}
-        onRangeChange={setRange}
-        averaging={averaging}
-        onAveragingChange={setAveraging}
-      />
+      <ExpandableChart expand={expand}>
+        <MetricChart
+          // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
+          key={averaging}
+          className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
+          points={averageMetric(points, averaging)}
+          today={today}
+          slots={slots}
+          pos={pan.view.pos}
+          unit={unit}
+          label={title}
+          height={expand.height}
+          tickCount={expand.expanded ? 4 : 3}
+          fit={expand.expanded}
+          pan={pan}
+        />
+      </ExpandableChart>
+      <ExpandFooter expand={expand}>
+        <RangeBar
+          range={range}
+          onRangeChange={setRange}
+          averaging={averaging}
+          onAveragingChange={setAveraging}
+        />
+      </ExpandFooter>
 
-      {!expanded && (
-        <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
-          <div className="bg-card flex items-center justify-center gap-2 rounded-xl px-4 py-4 text-base">
-            <span aria-hidden="true" className="relative flex h-4 w-6 items-center">
-              <span className="bg-mf-green h-0.5 w-full" />
-              <span className="border-mf-green bg-card absolute left-1/2 size-2.5 -translate-x-1/2 rounded-full border-2" />
-            </span>
-            {title}
-          </div>
-          {tutorial && <TutorialCard steps={tutorial} tone="green" onDismiss={onDismissTutorial} />}
-          <MetricHistoryList points={points} unit={unit} icon={historyIcon} onEdit={onEdit} />
+      <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
+        <div className="bg-card flex items-center justify-center gap-2 rounded-xl px-4 py-4 text-base">
+          <span aria-hidden="true" className="relative flex h-4 w-6 items-center">
+            <span className="bg-mf-green h-0.5 w-full" />
+            <span className="border-mf-green bg-card absolute left-1/2 size-2.5 -translate-x-1/2 rounded-full border-2" />
+          </span>
+          {title}
         </div>
-      )}
+        {tutorial && <TutorialCard steps={tutorial} tone="green" onDismiss={onDismissTutorial} />}
+        <MetricHistoryList points={points} unit={unit} icon={historyIcon} onEdit={onEdit} />
+      </div>
     </div>
   )
 }

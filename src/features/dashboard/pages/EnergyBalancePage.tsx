@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ChartColumn } from 'lucide-react'
 import { SubPageHeader } from '../components/DashboardPage'
-import { CollapseChartIcon, ExpandChartIcon, RangeBar, StatBlock } from '../components/DetailPage'
+import { RangeBar, StatBlock } from '../components/DetailPage'
 import {
   BalanceHistory,
   EnergyBalanceChart,
@@ -12,6 +12,12 @@ import {
 } from '../components/EnergyBalancePage'
 import { slotsOf, viewWindow } from '../chart/geometry'
 import { useChartPan } from '../chart/use-chart-pan'
+import {
+  ExpandableChart,
+  ExpandButton,
+  ExpandFooter,
+  useChartExpand,
+} from '../chart/use-chart-expand'
 import { useTween } from '../chart/use-tween'
 import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useEnergyBalanceDetail } from '../hooks/use-energy-balance-detail'
@@ -19,7 +25,6 @@ import type { BalanceMode } from '../dashboard.utils'
 import { summarizeBalance } from '../energy-balance.utils'
 import { rangeLabel, type Averaging, type RangeKey } from '../expenditure.utils'
 import { ErrorState } from '@/components/shared/ErrorState'
-import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
@@ -33,7 +38,7 @@ const BALANCE_MODES = ['expenditure', 'targets'] as const
 export function EnergyBalancePage() {
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
-  const [expanded, setExpanded] = useState(false)
+  const expand = useChartExpand()
   // Cùng key với thẻ Energy Balance ở Dashboard nên hai nơi luôn đồng bộ.
   const [mode, setMode] = usePersistedChoice<BalanceMode>(
     'dashboard.balanceMode',
@@ -44,7 +49,6 @@ export function EnergyBalancePage() {
   const total = data.ready ? data.all.length : 0
   const target = slotsOf(range, total)
   const slots = useTween(target)
-  const height = useTween(expanded ? 460 : 300)
   const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
 
   if (data.isError) return <ErrorState error={new Error('Could not load Energy Balance')} />
@@ -71,35 +75,32 @@ export function EnergyBalancePage() {
               value={summary.value === null ? null : String(summary.value)}
               unit="kcal"
             />
-            <IconButton
-              icon={expanded ? CollapseChartIcon : ExpandChartIcon}
-              label={expanded ? 'Shrink chart' : 'Expand chart'}
-              aria-pressed={expanded}
-              variant="secondary"
-              className="size-14 shrink-0 rounded-full"
-              onClick={() => setExpanded((value) => !value)}
-            />
+            <ExpandButton expand={expand} />
           </div>
           <p className="text-muted-foreground -mt-3 text-lg">{rangeLabel(win.from, win.to)}</p>
 
-          <EnergyBalanceChart
-            // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
-            key={averaging}
-            className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
-            points={data.points}
-            today={data.today}
-            mode={mode}
-            slots={slots}
-            pos={pan.view.pos}
-            height={height}
-            pan={pan}
-          />
-          <RangeBar
-            range={range}
-            onRangeChange={setRange}
-            averaging={averaging}
-            onAveragingChange={setAveraging}
-          />
+          <ExpandableChart expand={expand}>
+            <EnergyBalanceChart
+              // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
+              key={averaging}
+              className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
+              points={data.points}
+              today={data.today}
+              mode={mode}
+              slots={slots}
+              pos={pan.view.pos}
+              height={expand.height}
+              pan={pan}
+            />
+          </ExpandableChart>
+          <ExpandFooter expand={expand}>
+            <RangeBar
+              range={range}
+              onRangeChange={setRange}
+              averaging={averaging}
+              onAveragingChange={setAveraging}
+            />
+          </ExpandFooter>
 
           <div className="bg-card text-foreground flex items-center justify-center gap-6 rounded-xl px-4 py-4 text-base">
             <span className="flex items-center gap-2">

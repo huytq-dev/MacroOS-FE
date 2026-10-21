@@ -14,16 +14,16 @@ import {
   type StepsDay,
 } from '../steps.utils'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
-import {
-  CollapseChartIcon,
-  ExpandChartIcon,
-  RangeBar,
-  StatBlock,
-  TutorialCard,
-} from '@/features/dashboard/components/DetailPage'
+import { RangeBar, StatBlock, TutorialCard } from '@/features/dashboard/components/DetailPage'
 import { usePersistedChoice } from '@/features/dashboard/hooks/use-dashboard'
 import { daysBetween, slotsOf, viewWindow } from '@/features/dashboard/chart/geometry'
 import { useChartPan } from '@/features/dashboard/chart/use-chart-pan'
+import {
+  ExpandableChart,
+  ExpandButton,
+  ExpandFooter,
+  useChartExpand,
+} from '@/features/dashboard/chart/use-chart-expand'
 import { useTween } from '@/features/dashboard/chart/use-tween'
 import { rangeLabel, type Averaging, type RangeKey } from '@/features/dashboard/expenditure.utils'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
@@ -34,7 +34,6 @@ import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsClient } from '@/hooks/use-is-client'
 import { formatDate, todayIso } from '@/lib/date'
-import { cn } from '@/lib/utils'
 
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
 
@@ -51,7 +50,7 @@ export function StepsPage() {
   const history = useStepsHistory(today)
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
-  const [expanded, setExpanded] = useState(false)
+  const expand = useChartExpand()
   // Ngày giữ nguyên khi đóng để bảng không đổi nội dung lúc đang trượt xuống
   const [sheetDate, setSheetDate] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -68,7 +67,6 @@ export function StepsPage() {
   const total = today && days.length > 0 ? daysBetween(days[0].date, today) + 1 : 0
   const target = slotsOf(range, total)
   const slots = useTween(target)
-  const height = useTween(expanded ? 460 : 300)
   const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
   const entry = items.find((item) => item.logDate === sheetDate)
 
@@ -119,59 +117,47 @@ export function StepsPage() {
           value={average === null ? '--' : formatSteps(average)}
           unit="steps"
         />
-        <IconButton
-          icon={expanded ? CollapseChartIcon : ExpandChartIcon}
-          label={expanded ? 'Shrink chart' : 'Expand chart'}
-          variant="secondary"
-          aria-pressed={expanded}
-          className={cn(
-            'size-14 shrink-0 rounded-full transition-colors duration-200',
-            expanded && 'bg-foreground text-background hover:bg-foreground/90'
-          )}
-          onClick={() => setExpanded((value) => !value)}
-        />
+        <ExpandButton expand={expand} />
       </div>
       <p className="text-muted-foreground -mt-4 text-lg">{rangeLabel(win.from, win.to)}</p>
 
-      <StepsChart
-        // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
-        key={averaging}
-        className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
-        days={averageSteps(days, averaging)}
-        today={today}
-        slots={slots}
-        pos={pan.view.pos}
-        height={height}
-        pan={pan}
-        expanded={expanded}
-      />
-      <RangeBar
-        range={range}
-        onRangeChange={setRange}
-        averaging={averaging}
-        onAveragingChange={setAveraging}
-      />
+      <ExpandableChart expand={expand}>
+        <StepsChart
+          // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
+          key={averaging}
+          className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
+          days={averageSteps(days, averaging)}
+          today={today}
+          slots={slots}
+          pos={pan.view.pos}
+          height={expand.height}
+          pan={pan}
+          expanded={expand.expanded}
+        />
+      </ExpandableChart>
+      <ExpandFooter expand={expand}>
+        <RangeBar
+          range={range}
+          onRangeChange={setRange}
+          averaging={averaging}
+          onAveragingChange={setAveraging}
+        />
+      </ExpandFooter>
 
-      {!expanded && (
-        <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
-          <div className="bg-card text-foreground flex items-center justify-center gap-2 rounded-xl px-4 py-4 text-base">
-            <ChartColumn
-              aria-hidden="true"
-              strokeWidth={3}
-              className="text-mf-tile-protein size-5"
-            />
-            Steps
-          </div>
-          {tutorial === 'show' && (
-            <TutorialCard
-              steps={STEPS_TUTORIAL}
-              tone="brown"
-              onDismiss={() => setTutorial('hidden')}
-            />
-          )}
-          <StepsHistoryList days={days} onEdit={openSheet} />
+      <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
+        <div className="bg-card text-foreground flex items-center justify-center gap-2 rounded-xl px-4 py-4 text-base">
+          <ChartColumn aria-hidden="true" strokeWidth={3} className="text-mf-tile-protein size-5" />
+          Steps
         </div>
-      )}
+        {tutorial === 'show' && (
+          <TutorialCard
+            steps={STEPS_TUTORIAL}
+            tone="brown"
+            onDismiss={() => setTutorial('hidden')}
+          />
+        )}
+        <StepsHistoryList days={days} onEdit={openSheet} />
+      </div>
 
       <MetricEntrySheet
         key={`${sheetDate}-${history.dataUpdatedAt}`}
