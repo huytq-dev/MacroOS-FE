@@ -47,9 +47,7 @@ export function StepsHistoryList({ days, onEdit }: StepsHistoryListProps) {
               >
                 <SourceIcon source={day.source} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-lg font-medium tabular-nums">
-                    {formatSteps(day.steps)} steps
-                  </p>
+                  <p className="text-lg font-medium tabular-nums">{formatSteps(day.steps)} steps</p>
                   <p className="text-muted-foreground text-base">{entryDayLabel(day.date)}</p>
                 </div>
                 <button

@@ -63,6 +63,8 @@
   --mf-tile-carbs-text: #2c8a57;
   /* Hồng của Period (vòng ngày đã đánh dấu, ô Period), đo từ ảnh MacroFactor */
   --mf-period: #f28fa8;
+  /* Dải Flux Range của Expenditure: nâu hồng nhạt đo từ ảnh MF (dùng với độ mờ 50% trên nền tối) */
+  --mf-flux-band: #a57b6d;
   --mf-warning-bg: var(--mf-pastel-yellow);
   --mf-warning-border: #ffbc7d;
   --mf-warning-text: var(--mf-pastel-yellow-text);

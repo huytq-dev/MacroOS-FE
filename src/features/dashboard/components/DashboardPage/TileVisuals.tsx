@@ -97,44 +97,47 @@ interface MiniFluxProps {
   readonly className?: string
 }
 
+// MiniFlux vẽ theo điểm (1 đơn vị = 1pt, svg 40 × 28): hình nhỏ nằm sát phải ô như MacroFactor, không giãn theo bề rộng ô
+const FLUX_W = 40
+const FLUX_H = 28
+const FLUX_BAND_H = 17
+const FLUX_MARKER = 6.5
+
 /**
- * Bản thu nhỏ biểu đồ Expenditure (như MacroFactor): một dải mờ bo nhỏ trải từ ngày đầu tới ngày cuối, đường mảnh nối các ngày và hai ô
- * vuông rỗng ở hai đầu. Tự co giãn theo min–max; một ngày thì dải ngắn có hai ô vuông.
+ * Bản thu nhỏ biểu đồ Expenditure (như MacroFactor): một khối nâu nhỏ bo nhẹ, đường cam mảnh nối các ngày và hai ô vuông rỗng ở hai
+ * đầu, nằm sát phải ô. Đường tự co giãn theo min–max trong khối (đều nhau thì nằm giữa); một ngày thì đường ngắn có hai ô vuông.
  */
 export function MiniFlux({ values, className }: MiniFluxProps) {
   if (values.length === 0) return <div className="h-12" aria-hidden="true" />
-  const spread = Math.max(6, (Math.max(...values) - Math.min(...values)) * 0.3)
-  const y = yOf([
-    ...values.map((value) => value - spread),
-    ...values.map((value) => value + spread),
-  ])
-  const left = values.length === 1 ? WIDTH - 32 : 8
-  const right = WIDTH - 10
+  const left = 4
+  const right = FLUX_W - 4
+  const bandTop = (FLUX_H - FLUX_BAND_H) / 2
+  const inner = FLUX_BAND_H - 2 * 3.5
+  const lo = Math.min(...values)
+  const span = Math.max(...values) - lo
+  const yOfValue = (value: number) =>
+    span === 0 ? FLUX_H / 2 : bandTop + 3.5 + (1 - (value - lo) / span) * inner
   const points = values.map((value, index) => ({
     x: values.length === 1 ? right : left + (index / (values.length - 1)) * (right - left),
-    y: y(value),
+    y: yOfValue(value),
   }))
-  const upper = y(Math.max(...values) + spread)
-  const lower = y(Math.min(...values) - spread)
   const ends =
     values.length === 1
       ? [{ x: left, y: points[0].y }, points[0]]
       : [points[0], points[points.length - 1]]
   return (
     <svg
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      viewBox={`0 0 ${FLUX_W} ${FLUX_H}`}
       aria-hidden="true"
-      className={cn('h-12 w-full', className)}
+      className={cn('ml-auto h-7 w-10', className)}
     >
       <rect
         x={left}
-        y={upper}
+        y={bandTop}
         width={right - left}
-        height={lower - upper}
-        rx="2"
-        fill="currentColor"
-        opacity="0.28"
-        className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500"
+        height={FLUX_BAND_H}
+        rx="1.5"
+        className="fill-mf-flux-band/50 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500"
       />
       <path
         d={
@@ -145,20 +148,20 @@ export function MiniFlux({ values, className }: MiniFluxProps) {
         pathLength={1}
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.4"
+        strokeWidth="1"
         strokeLinecap="round"
         className="motion-safe:animate-chart-draw"
       />
       {ends.map((point) => (
         <rect
           key={point.x}
-          x={point.x - 2.2}
-          y={point.y - 2.2}
-          width="4.4"
-          height="4.4"
+          x={point.x - FLUX_MARKER / 2}
+          y={point.y - FLUX_MARKER / 2}
+          width={FLUX_MARKER}
+          height={FLUX_MARKER}
           fill="var(--card)"
           stroke="currentColor"
-          strokeWidth="1.2"
+          strokeWidth="1"
         />
       ))}
     </svg>

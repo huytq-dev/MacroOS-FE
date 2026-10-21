@@ -47,20 +47,11 @@ export function averageExpDays(days: readonly ExpDay[], averaging: Averaging): E
   }))
 }
 
-/**
- * Trục y: thu gọn = từ 0 (vạch mỗi 1000 kcal); mở rộng = vừa khít dải Flux (vạch cách đều 10 / 20 / 50 / 100…, đỉnh và đáy dải nằm
- * trong khung).
- */
-export function expAxis(days: readonly ExpDay[], fit: boolean) {
+/** Trục y luôn vừa khít dải Flux đang hiện như MacroFactor (vạch cách đều 10 / 20 / 50 / 100…, đỉnh và đáy dải nằm trong khung). */
+export function expAxis(days: readonly ExpDay[]) {
   if (days.length === 0) return { ticks: [0, 1000], min: 0, max: 1000 }
   const lo = Math.min(...days.map((day) => day.low))
   const hi = Math.max(...days.map((day) => day.high))
-  if (!fit) {
-    const top = Math.max(1000, Math.ceil(hi / 1000) * 1000)
-    const ticks: number[] = []
-    for (let tick = 0; tick <= top; tick += 1000) ticks.push(tick)
-    return { ticks, min: 0, max: top }
-  }
   const rough = Math.max(10, (hi - lo) / 3)
   const magnitude = 10 ** Math.floor(Math.log10(rough))
   const step = [1, 2, 5, 10].map((n) => n * magnitude).find((n) => n >= rough) ?? rough

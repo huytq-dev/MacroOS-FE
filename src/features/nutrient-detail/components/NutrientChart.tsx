@@ -72,13 +72,14 @@ export function NutrientChart({
   const max = useTween(axis.max)
   const y = (value: number) => PAD.top + (1 - value / (max || 1)) * plotH
   const x = (date: string) => xOfAgo(agoOf(today, date), slots, pos)
-  const barWidth = Math.min(26, slotW * 0.62)
+  const barWidth = Math.min(36, slotW * 0.62)
 
-  const withTarget = shown.filter((day) => normalizeGoal(day).target !== null)
-  const targetLine =
-    withTarget.length === 1
-      ? `${x(withTarget[0].date) - slotW / 2},${y(normalizeGoal(withTarget[0]).target ?? 0)} ${x(withTarget[0].date) + slotW / 2},${y(normalizeGoal(withTarget[0]).target ?? 0)}`
-      : withTarget.map((day) => `${x(day.date)},${y(normalizeGoal(day).target ?? 0)}`).join(' ')
+  // Target của từng ngày là một vạch ngang trọn ô ngày (như MacroFactor); ngày liền nhau cùng mức nối thành một đường liền
+  const targetPath = shown
+    .map((day) => ({ date: day.date, target: normalizeGoal(day).target }))
+    .filter((day): day is { date: string; target: number } => day.target !== null)
+    .map((day) => `M${x(day.date) - slotW / 2},${y(day.target)}H${x(day.date) + slotW / 2}`)
+    .join('')
 
   const pick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (pan.wasDragged()) return
@@ -147,7 +148,6 @@ export function NutrientChart({
                 y={y(day.amount)}
                 width={barWidth}
                 height={Math.max(1, y(0) - y(day.amount))}
-                rx="2"
                 style={{ fill: color }}
                 className={cn(
                   day.isIncomplete && 'opacity-40',
@@ -156,14 +156,8 @@ export function NutrientChart({
               />
             )
           )}
-          {targetLine && (
-            <polyline
-              points={targetLine}
-              fill="none"
-              strokeWidth="1.8"
-              strokeLinejoin="round"
-              className="stroke-foreground/70"
-            />
+          {targetPath && (
+            <path d={targetPath} fill="none" strokeWidth="1.8" className="stroke-foreground/70" />
           )}
         </g>
       </svg>

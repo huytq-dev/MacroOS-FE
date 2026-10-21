@@ -21,8 +21,6 @@ interface ExpenditureChartProps {
   readonly slots: number
   /** Số ngày đã kéo lùi về quá khứ (số thực khi đang kéo). */
   readonly pos: number
-  /** false = trục từ 0; true = vừa khít dải Flux đang hiện. */
-  readonly fit: boolean
   readonly pan: ReturnType<typeof useChartPan>
   readonly height?: number
   readonly className?: string
@@ -33,7 +31,7 @@ const kcal = (value: number) => Math.round(value).toLocaleString('en-US')
 /**
  * Biểu đồ Expenditure kiểu MacroFactor: Flux Range là MỘT vùng cam mờ liền (mép trên / dưới cong mượt, hai đầu thẳng đứng), đường
  * Expenditure màu cam có marker mỗi ngày (ô vuông rỗng = Holding / Calibrating, vòng tròn rỗng = Updating). Kéo ngang để xem các ngày
- * trước (quán tính, bám theo ngày); đổi kỳ thì trục x giãn / co mượt, đổi chế độ trục thì trục y chạy mượt; chạm một ngày để xem
+ * trước (quán tính, bám theo ngày); đổi kỳ thì trục x giãn / co mượt, trục y luôn vừa khít dải Flux trong khung (chạy mượt khi kéo / đổi kỳ); chạm một ngày để xem
  * kcal, Flux low–high và trạng thái.
  */
 export function ExpenditureChart({
@@ -41,7 +39,6 @@ export function ExpenditureChart({
   today,
   slots,
   pos,
-  fit,
   pan,
   height = 300,
   className,
@@ -58,7 +55,7 @@ export function ExpenditureChart({
     const ago = agoOf(today, day.date)
     return ago >= pos - 0.5 && ago <= pos + slots - 0.5
   })
-  const axis = expAxis(inFrame, fit)
+  const axis = expAxis(inFrame)
   const min = useTween(axis.min)
   const max = useTween(axis.max)
   const y = (value: number) => PAD.top + (1 - (value - min) / (max - min || 1)) * plotH
@@ -124,12 +121,12 @@ export function ExpenditureChart({
               strokeDasharray="3 3"
             />
           )}
-          {band && <path d={band} className="fill-mf-tile-protein/30" />}
+          {band && <path d={band} className="fill-mf-flux-band/50" />}
           {shown.length > 1 && (
             <polyline
               points={line}
               fill="none"
-              strokeWidth="2"
+              strokeWidth="1.5"
               strokeLinejoin="round"
               pathLength={1}
               className="stroke-mf-tile-protein motion-safe:animate-chart-draw"
@@ -137,9 +134,9 @@ export function ExpenditureChart({
           )}
           {markers &&
             shown.map((day) => {
-              const size = picked !== null && agoOf(today, day.date) === picked ? 7 : 5.5
+              const size = picked !== null && agoOf(today, day.date) === picked ? 5 : 3.5
               const common = {
-                strokeWidth: 1.8,
+                strokeWidth: 1.5,
                 className: 'fill-background stroke-mf-tile-protein',
               }
               return day.holding ? (

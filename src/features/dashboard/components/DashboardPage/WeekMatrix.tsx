@@ -28,6 +28,8 @@ const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 // Mỗi hàng chỉ số cao bằng nhau ở lưới và cột tổng bên phải để các số thẳng hàng với cột của nó.
 const ROW = 'h-11'
+// Sàn hiển thị (px) của phần màu khi đã có dữ liệu: 8% của ô chỉ cao ~2px nên nếu không có sàn thì chỉ thấy nắp trắng và người dùng tưởng chưa ăn gì. Chỉ là sàn nhìn thấy được, KHÔNG phải thang đo — chiều cao thật vẫn là consumed / target.
+const MIN_FILL_PX = 8
 
 interface WeekMatrixProps {
   readonly mode: NutritionMode
@@ -104,25 +106,29 @@ export function WeekMatrix({
                         rowIndex < ROWS.length - 1 && 'border-foreground/10 border-b'
                       )}
                     >
-                      {/* Ô tối bo nhẹ, thanh mảnh bo tròn có nắp trắng ở đỉnh phần đã đầy; chưa có dữ liệu thì chỉ có dấu gạch */}
-                      <span className="bg-foreground/10 relative block h-7 w-5 rounded-[3px]">
+                      {/* Ô cao hẹp gần đủ hàng: chưa có dữ liệu thì dấu gạch ngắn ở ĐỈNH ô; có dữ liệu thì thanh mảnh bo tròn đầy từ đáy lên, nắp trắng ở đỉnh phần màu */}
+                      <span className="bg-foreground/10 relative block h-8 w-5 rounded-[3px]">
                         {empty ? (
-                          <span className="bg-foreground/30 absolute top-1/2 left-1/2 h-px w-1.5 -translate-x-1/2" />
+                          <span className="bg-foreground/30 absolute top-1.5 left-1/2 h-px w-1.5 -translate-x-1/2" />
                         ) : (
-                          <span
-                            className={cn(
-                              'absolute bottom-1 left-1/2 min-h-[3px] w-1 -translate-x-1/2 rounded-full transition-[height] duration-300 motion-reduce:transition-none',
-                              row.fill
-                            )}
-                            style={{ height: `calc((100% - 0.5rem) * ${progress})` }}
-                          >
-                            {/* Nắp trắng ở đỉnh phần đã ăn; vượt target thì nắp dày hơn và có vòng sáng */}
+                          <span className="absolute inset-y-1.5 left-1/2 w-1 -translate-x-1/2">
                             <span
                               className={cn(
-                                'bg-foreground absolute inset-x-0 top-0 rounded-full',
-                                over ? 'h-[5px] shadow-[0_0_0_1.5px_var(--foreground)]' : 'h-[3px]'
+                                'absolute inset-x-0 bottom-0 rounded-full transition-[height] duration-300 motion-reduce:transition-none',
+                                row.fill
                               )}
-                            />
+                              style={{ height: `max(${MIN_FILL_PX}px, ${progress * 100}%)` }}
+                            >
+                              {/* Nắp trắng ở đỉnh phần đã ăn; vượt target thì nắp dày hơn và có vòng sáng */}
+                              <span
+                                className={cn(
+                                  'bg-foreground absolute inset-x-0 top-0 rounded-full',
+                                  over
+                                    ? 'h-[5px] shadow-[0_0_0_1.5px_var(--foreground)]'
+                                    : 'h-[3px]'
+                                )}
+                              />
+                            </span>
                           </span>
                         )}
                       </span>

@@ -20,22 +20,30 @@ import { useTween } from '../chart/use-tween'
 import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useExpenditureDetail } from '../hooks/use-expenditure-detail'
 import { rangeLabel, type Averaging, type RangeKey } from '../expenditure.utils'
+import { cn } from '@/lib/utils'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
+
+/** Chiều cao biểu đồ thu gọn; khi phóng to thì cao gần hết màn hình (tính lúc bấm). */
+const COLLAPSED_HEIGHT = 300
+const MIN_EXPANDED_HEIGHT = 420
+/** Phần màn hình không thuộc biểu đồ khi phóng to: tiêu đề, số lớn, thanh chọn kỳ, thanh tab dưới. */
+const CHROME_HEIGHT = 340
 
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
 
 /**
  * Chi tiết "Expenditure" (bấm ô Expenditure ở Dashboard): Average / Difference của khoảng đang xem, biểu đồ Flux Range (vùng cam liền)
  * + đường Expenditure có marker mỗi ngày KÉO NGANG được để xem các ngày trước, chọn kỳ 1W…All (luôn kết thúc hôm nay, đổi kỳ thì biểu
- * đồ giãn / co mượt) và D/W/M, nút đổi trục (từ 0 ↔ vừa khít dải Flux, trục chạy mượt), chú giải, hướng dẫn, Insights & Data, Data
+ * đồ giãn / co mượt) và D/W/M, nút phóng to (biểu đồ cao gần hết màn hình, chiều cao chạy mượt; trục y luôn vừa khít dải Flux như MF), chú giải, hướng dẫn, Insights & Data, Data
  * Sources và lịch sử theo tháng.
  */
 export function ExpenditurePage() {
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
-  const [fit, setFit] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [fullHeight, setFullHeight] = useState(MIN_EXPANDED_HEIGHT)
   const [tutorial, setTutorial] = usePersistedChoice(
     'expenditure.tutorial',
     'show',
@@ -45,7 +53,13 @@ export function ExpenditurePage() {
   const total = data.ready ? data.daily.length : 0
   const target = slotsOf(range, total)
   const slots = useTween(target)
+  const height = useTween(expanded ? fullHeight : COLLAPSED_HEIGHT)
   const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
+
+  const toggleExpanded = () => {
+    setFullHeight(Math.max(MIN_EXPANDED_HEIGHT, window.innerHeight - CHROME_HEIGHT))
+    setExpanded((value) => !value)
+  }
 
   if (data.isError) return <ErrorState error={new Error('Could not load Expenditure')} />
 
@@ -83,12 +97,15 @@ export function ExpenditurePage() {
               <StatBlock label="Difference" value={difference?.toString() ?? null} unit="kcal" />
             </div>
             <IconButton
-              icon={fit ? CollapseChartIcon : ExpandChartIcon}
-              label={fit ? 'Start the axis at zero' : 'Fit the axis to the data'}
-              aria-pressed={fit}
+              icon={expanded ? CollapseChartIcon : ExpandChartIcon}
+              label={expanded ? 'Shrink chart' : 'Expand chart'}
+              aria-pressed={expanded}
               variant="secondary"
-              className="size-14 shrink-0 rounded-full"
-              onClick={() => setFit((value) => !value)}
+              className={cn(
+                'size-14 shrink-0 rounded-full transition-colors duration-200',
+                expanded && 'bg-foreground text-background hover:bg-foreground/90'
+              )}
+              onClick={toggleExpanded}
             />
           </div>
           <p className="text-muted-foreground -mt-3 text-lg">{rangeLabel(win.from, win.to)}</p>
@@ -101,7 +118,7 @@ export function ExpenditurePage() {
             today={data.today}
             slots={slots}
             pos={pan.view.pos}
-            fit={fit}
+            height={height}
             pan={pan}
           />
           <RangeBar
@@ -111,45 +128,49 @@ export function ExpenditurePage() {
             onAveragingChange={setAveraging}
           />
 
-          <div className="bg-card text-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-xl px-3 py-4 text-base min-[360px]:gap-x-6">
-            <span className="flex items-center gap-2">
-              <Mountain
-                aria-hidden="true"
-                fill="currentColor"
-                className="text-mf-tile-protein/70 size-5"
+          {!expanded && (
+            <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
+              <div className="bg-card text-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-xl px-3 py-4 text-base min-[360px]:gap-x-6">
+                <span className="flex items-center gap-2">
+                  <Mountain
+                    aria-hidden="true"
+                    fill="currentColor"
+                    className="text-mf-tile-protein/70 size-5"
+                  />
+                  Flux Range
+                </span>
+                <span className="flex items-center gap-2">
+                  <span aria-hidden="true" className="relative flex h-4 w-6 items-center">
+                    <span className="bg-mf-tile-protein h-0.5 w-full" />
+                    <span className="border-mf-tile-protein bg-card absolute left-1/2 size-2.5 -translate-x-1/2 rounded-full border-2" />
+                  </span>
+                  Expenditure
+                </span>
+                <span className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="border-mf-tile-protein/70 bg-card size-3 border-2"
+                  />
+                  Holding
+                </span>
+              </div>
+              {tutorial === 'show' && (
+                <TutorialCard
+                  steps={EXPENDITURE_TUTORIAL}
+                  tone="brown"
+                  onDismiss={() => setTutorial('hidden')}
+                />
+              )}
+              <ExpenditureInsights
+                changes={data.changes}
+                current={data.current}
+                strategy={data.strategy}
+                holdingReason={data.holdingReason}
+                calibratingDaysLeft={data.calibratingDaysLeft}
               />
-              Flux Range
-            </span>
-            <span className="flex items-center gap-2">
-              <span aria-hidden="true" className="relative flex h-4 w-6 items-center">
-                <span className="bg-mf-tile-protein h-0.5 w-full" />
-                <span className="border-mf-tile-protein bg-card absolute left-1/2 size-2.5 -translate-x-1/2 rounded-full border-2" />
-              </span>
-              Expenditure
-            </span>
-            <span className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="border-mf-tile-protein/70 bg-card size-3 border-2"
-              />
-              Holding
-            </span>
-          </div>
-          {tutorial === 'show' && (
-            <TutorialCard
-              steps={EXPENDITURE_TUTORIAL}
-              tone="brown"
-              onDismiss={() => setTutorial('hidden')}
-            />
+              <MonthlyList history={data.history} />
+            </div>
           )}
-          <ExpenditureInsights
-            changes={data.changes}
-            current={data.current}
-            strategy={data.strategy}
-            holdingReason={data.holdingReason}
-            calibratingDaysLeft={data.calibratingDaysLeft}
-          />
-          <MonthlyList history={data.history} />
         </>
       )}
     </div>
