@@ -1,7 +1,8 @@
 import { NUTRIENT_GROUPS } from '@/features/dashboard/nutrient-catalog'
-import type { NutrientDef, NutrientValue } from '@/features/dashboard/types/dashboard.types'
+import type { NutrientDef } from '@/features/dashboard/types/dashboard.types'
+import { NO_GOAL, type NutrientGoal } from '@/features/nutrition/goal-progress'
 import type { ProgramWeek } from '@/features/program/types/program.types'
-import type { FoodLogEntry, MacroTotals } from './types/food-log.types'
+import type { FoodLogEntry, MacroTotals, NutritionOverviewItem } from './types/food-log.types'
 
 export const OVERVIEW_RANGES = ['today', 'week', 'month', 'quarter', 'year'] as const
 export type OverviewRange = (typeof OVERVIEW_RANGES)[number]
@@ -12,65 +13,6 @@ export const OVERVIEW_RANGE_LABEL: Record<OverviewRange, string> = {
   month: '1 Month',
   quarter: '3 Months',
   year: '1 Year',
-}
-
-/**
- * Mục tiêu mặc định theo ngày cho các chất BE chưa có (MacroFactor, người dùng mẫu); null = "No Target". Dùng tạm cho tới khi
- * BE trả `GET /nutrition/overview` (xem Docs/.../Food_Log/README.md). Calo và macro luôn lấy từ chương trình thật.
- */
-const MOCK_TARGETS: Readonly<Record<string, number | null>> = {
-  fiber: 40.3,
-  netCarbs: null,
-  starch: null,
-  sugars: null,
-  sugarsAdded: null,
-  monounsaturated: null,
-  polyunsaturated: null,
-  omega3: 1.4,
-  omega3Ala: 1.1,
-  omega3Dha: 0.1,
-  omega3Epa: 0.1,
-  omega6: 12,
-  saturated: 0,
-  transFat: 0,
-  cysteine: 0.7,
-  histidine: 1.4,
-  isoleucine: 2,
-  leucine: 4.4,
-  lysine: 4,
-  methionine: 1.3,
-  phenylalanine: 1.9,
-  threonine: 2.1,
-  tryptophan: 0.6,
-  tyrosine: 1.6,
-  valine: 2.5,
-  b1: 1.1,
-  b2: 1.6,
-  b3: 14,
-  b5: 5,
-  b6: 1.6,
-  b12: 4,
-  folate: 400,
-  vitaminA: 700,
-  vitaminC: 95,
-  vitaminD: 15,
-  vitaminE: 15,
-  vitaminK: 90,
-  calcium: 1000,
-  copper: 1.3,
-  iron: 18,
-  magnesium: 320,
-  manganese: 3,
-  phosphorus: 700,
-  potassium: 3500,
-  selenium: 70,
-  sodium: 2000,
-  zinc: 8,
-  alcohol: null,
-  caffeine: null,
-  cholesterol: null,
-  choline: 425,
-  water: 2700,
 }
 
 /** Tên hiển thị khác với danh mục của trang Dinh dưỡng (theo MacroFactor Nutrition Overview). */
@@ -85,14 +27,6 @@ const NAME_OVERRIDE: Readonly<Record<string, string>> = {
   b5: 'B5, Pantothenic Acid',
   b6: 'B6, Pyridoxine',
   b12: 'B12, Cobalamin',
-}
-
-/** Màu thanh của calo và bốn macro (bộ `--mf-tile-*`); các chất còn lại lấy màu nhóm. */
-export const MACRO_BAR: Readonly<Record<string, string>> = {
-  calories: 'bg-mf-tile-calories',
-  protein: 'bg-mf-tile-protein',
-  fat: 'bg-mf-tile-fat',
-  carbs: 'bg-mf-tile-carbs',
 }
 
 export const displayName = (nutrient: NutrientDef) => NAME_OVERRIDE[nutrient.key] ?? nutrient.name
@@ -112,32 +46,64 @@ export const OVERVIEW_GROUPS = NUTRIENT_GROUPS.flatMap((group) => {
   ]
 })
 
-/** Giá trị + mục tiêu của mọi chất: calo, macro, chất xơ từ log thật; chất còn lại 0 với mục tiêu mẫu. */
-export function buildOverviewValues(
-  totals: MacroTotals | null,
-  target: ProgramWeek | null
-): Record<string, NutrientValue> {
-  const values: Record<string, NutrientValue> = {}
-  for (const group of NUTRIENT_GROUPS)
-    for (const nutrient of group.nutrients)
-      values[nutrient.key] = { value: 0, target: MOCK_TARGETS[nutrient.key] ?? null }
-  values.calories = { value: totals?.calories ?? 0, target: target?.caloriesTarget ?? null }
-  values.protein = { value: totals?.protein ?? 0, target: target?.proteinTarget ?? null }
-  values.fat = { value: totals?.fat ?? 0, target: target?.fatTarget ?? null }
-  values.carbs = { value: totals?.carbs ?? 0, target: target?.carbsTarget ?? null }
-  values.fiber = { value: totals?.fiber ?? 0, target: MOCK_TARGETS.fiber ?? null }
-  return values
+/** Lượng (null = chưa có dữ liệu chất đó, khác 0) và mục tiêu hiệu lực của một chất. */
+export interface OverviewValue {
+  readonly value: number | null
+  readonly goal: NutrientGoal
 }
 
-/** Ghép kết quả API lên bảng nền: giá trị lấy từ API; mục tiêu null thì giữ mục tiêu mẫu của nền (chất BE chưa đặt mục tiêu). */
-export function mergeOverview(
-  base: Record<string, NutrientValue>,
-  items: readonly { key: string; value: number; target: number | null }[]
-): Record<string, NutrientValue> {
-  const merged = { ...base }
+export const UNKNOWN_OVERVIEW: OverviewValue = { value: null, goal: NO_GOAL }
+
+/** Mục tiêu calo và macro của chương trình (chỉ có target; floor / ceiling không áp dụng). */
+export function programGoals(target: ProgramWeek | null | undefined) {
+  const only = (value: number | null | undefined): NutrientGoal => ({
+    floor: null,
+    target: value ?? null,
+    ceiling: null,
+  })
+  return {
+    calories: only(target?.caloriesTarget),
+    protein: only(target?.proteinTarget),
+    fat: only(target?.fatTarget),
+    carbs: only(target?.carbsTarget),
+  }
+}
+
+/**
+ * Dự phòng khi BE chưa trả `GET /nutrition/overview`: chỉ những gì thật sự biết — calo, macro (và chất xơ) từ log hôm nay cùng mục tiêu của
+ * chương trình. Mọi chất khác là chưa biết (không bịa mục tiêu mẫu, không điền 0).
+ */
+export function overviewFallback(
+  totals: MacroTotals | null,
+  target: ProgramWeek | null | undefined
+): Record<string, OverviewValue> {
+  const goals = programGoals(target)
+  return {
+    calories: { value: totals?.calories ?? null, goal: goals.calories },
+    protein: { value: totals?.protein ?? null, goal: goals.protein },
+    fat: { value: totals?.fat ?? null, goal: goals.fat },
+    carbs: { value: totals?.carbs ?? null, goal: goals.carbs },
+    fiber: { value: totals?.fiber ?? null, goal: NO_GOAL },
+  }
+}
+
+/** Kết quả API → bảng giá trị: lượng và mục tiêu (floor / target / ceiling) đúng như BE trả, không trộn với số liệu khác. */
+export function overviewFromItems(
+  items: readonly NutritionOverviewItem[],
+  fallback: Record<string, OverviewValue>
+): Record<string, OverviewValue> {
+  const values = { ...fallback }
   for (const item of items)
-    merged[item.key] = { value: item.value, target: item.target ?? base[item.key]?.target ?? null }
-  return merged
+    values[item.key] = {
+      value: item.value,
+      goal: {
+        floor: item.floor ?? null,
+        target: item.target,
+        ceiling: item.ceiling ?? null,
+        goalKind: item.goalKind,
+      },
+    }
+  return values
 }
 
 export interface Contributor {
@@ -163,6 +129,3 @@ export function topContributors(entries: readonly FoodLogEntry[]) {
   }
   return result
 }
-
-export const formatAmount = (value: number, unit: NutrientDef['unit']) =>
-  unit === 'kcal' || value >= 100 ? String(Math.round(value)) : String(Math.round(value * 10) / 10)

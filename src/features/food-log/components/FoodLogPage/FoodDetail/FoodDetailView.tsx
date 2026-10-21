@@ -10,6 +10,7 @@ import {
 import type { PlateItem } from '../../../types/food-log.types'
 import { DetailActions } from './DetailActions'
 import { FoodDetailHeader } from './FoodDetailHeader'
+import { goalPercent, type NutrientGoal } from '@/features/nutrition/goal-progress'
 import { FoodMacroRow } from './FoodMacroRow'
 import { ImpactRings, type ImpactItem } from './ImpactRings'
 import { NutrientSections } from './NutrientSections'
@@ -38,7 +39,7 @@ interface FoodDetailViewProps {
   readonly onAddFavorite: (servingId: string | null, quantity: number) => void
   readonly onRemoveFavorite: (id: string) => void
   /** Mục tiêu hiệu lực theo khoá danh mục (từ `GET /foods/{id}/nutrients`); null / thiếu = "No Target". */
-  readonly targets: Readonly<Record<string, number | null>>
+  readonly goals: Readonly<Record<string, NutrientGoal>>
   readonly isTargetsLoading: boolean
   readonly isLogging: boolean
   /** Thêm món vào plate rồi ghi cả plate. */
@@ -69,7 +70,7 @@ export interface FoodDetailEdit {
 /** Phần của Food Detail do trang quyết định (mục tiêu từ BE, ghi log, sao chép thành món tự tạo). */
 export type FoodDetailExtras = Pick<
   FoodDetailViewProps,
-  'targets' | 'isTargetsLoading' | 'isLogging' | 'onLogFoods' | 'onCopyToCustom' | 'isCopyPending'
+  'goals' | 'isTargetsLoading' | 'isLogging' | 'onLogFoods' | 'onCopyToCustom' | 'isCopyPending'
 >
 
 const RINGS = [
@@ -95,7 +96,7 @@ export function FoodDetailView({
   isFavoritePending,
   onAddFavorite,
   onRemoveFavorite,
-  targets,
+  goals,
   isTargetsLoading,
   isLogging,
   onLogFoods,
@@ -253,11 +254,7 @@ export function FoodDetailView({
 
   const ringValue: Record<string, number> = { calories, protein, fat, carbs }
   const rings: ImpactItem[] = RINGS.map((ring) => {
-    const target = targets[ring.key] ?? null
-    return {
-      ...ring,
-      percent: target && target > 0 ? Math.round((ringValue[ring.key] / target) * 100) : null,
-    }
+    return { ...ring, percent: goalPercent(goals[ring.key], ringValue[ring.key]) }
   })
 
   return (
@@ -304,7 +301,7 @@ export function FoodDetailView({
         <NutrientSections
           food={food}
           grams={shownGrams}
-          targets={targets}
+          goals={goals}
           isLoading={isTargetsLoading}
         />
       </div>

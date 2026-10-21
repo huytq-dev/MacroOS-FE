@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useDayLog } from './use-food-log'
 import { foodLogService } from '../services/food-log.service'
 import {
-  buildOverviewValues,
-  mergeOverview,
+  overviewFallback,
+  overviewFromItems,
   topContributors,
   type OverviewRange,
 } from '../nutrition-overview.utils'
@@ -15,8 +15,8 @@ import { todayIso } from '@/lib/date'
 
 /**
  * Dữ liệu trang Nutrition Overview theo kỳ từ `GET /nutrition/overview` (value = tổng ngày ở Today, trung bình mỗi ngày đã log
- * ở các kỳ khác; contributors chỉ có ở Today). Chất BE chưa có mục tiêu dùng bảng mục tiêu mẫu. API chưa có (bản cũ) hoặc lỗi thì
- * lùi về log hôm nay cho Today và 0 cho các kỳ còn lại, trang vẫn hiển thị được.
+ * ở các kỳ khác; contributors chỉ có ở Today); mục tiêu floor / target / ceiling lấy đúng từ BE, không có thì "No Target". API chưa có
+ * (bản cũ) hoặc lỗi thì lùi về log hôm nay (calo, macro, chất xơ) với mục tiêu của chương trình cho Today; chất khác là chưa biết ("---").
  */
 export function useNutritionOverview(range: OverviewRange) {
   const isClient = useIsClient()
@@ -33,7 +33,7 @@ export function useNutritionOverview(range: OverviewRange) {
   const day = useDayLog(isToday && overview.isError ? today : null)
 
   const target = program.data?.currentWeek ?? null
-  const fallback = buildOverviewValues(isToday ? (day.data?.totals ?? null) : null, target)
+  const fallback = overviewFallback(isToday ? (day.data?.totals ?? null) : null, target)
   return {
     isLoading:
       !isClient ||
@@ -41,7 +41,7 @@ export function useNutritionOverview(range: OverviewRange) {
       overview.isLoading ||
       (isToday && overview.isError && day.isLoading),
     isError: program.isError,
-    values: overview.data ? mergeOverview(fallback, overview.data.items) : fallback,
+    values: overview.data ? overviewFromItems(overview.data.items, fallback) : fallback,
     contributors: overview.data
       ? overview.data.contributors
       : isToday && day.data

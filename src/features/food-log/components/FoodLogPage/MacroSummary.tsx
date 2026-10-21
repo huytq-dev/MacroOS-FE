@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Flame } from 'lucide-react'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { cn } from '@/lib/utils'
+import { targetRatio } from '@/features/nutrition/goal-progress'
 import type { MacroTotals } from '../../types/food-log.types'
 
 interface MacroSummaryProps {
@@ -64,9 +65,7 @@ export function MacroSummary({ date, totals, target, showOverages }: MacroSummar
               const filled =
                 goal === null || goal <= 0
                   ? 0
-                  : mode === 'consumed'
-                    ? Math.min(100, (value / goal) * 100)
-                    : Math.max(0, Math.min(100, ((goal - value) / goal) * 100))
+                  : targetRatio(mode === 'consumed' ? value : goal - value, goal).progress * 100
               // Cỡ chữ theo bề rộng cột (15cqi, tối đa 16px) để "2861/2880" + icon luôn vừa một cột kể cả ở 320px
               return (
                 <li key={key} className="@container min-w-0">

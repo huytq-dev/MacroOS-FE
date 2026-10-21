@@ -1,19 +1,28 @@
 import { MetricTile } from './MetricTile'
-import { TargetBar } from './TileVisuals'
+import { NutrientTile } from './NutrientTile'
+import { MacroStack } from './TileVisuals'
 import { nutrientValue } from '../../dashboard.utils'
-import type { NutrientGroup, NutrientValue } from '../../types/dashboard.types'
+import type { MacroStackDay, NutrientGroup, NutrientValue } from '../../types/dashboard.types'
+import { formatAmount } from '@/features/nutrition/nutrient-display'
 
 interface NutrientGroupSectionProps {
   readonly group: NutrientGroup
   readonly values: Readonly<Record<string, NutrientValue>>
+  /** Cột chồng 7 ngày của ô "Macros". */
+  readonly macrosWeek: readonly (MacroStackDay | null)[]
   readonly index: number
 }
 
-const format = (value: number, unit: string) =>
-  unit === 'kcal' || value >= 100 ? String(Math.round(value)) : String(Math.round(value * 10) / 10)
-
-/** Một nhóm nutrient của trang "Dinh dưỡng": tiêu đề nhóm và lưới ô, mỗi ô có thanh target theo màu của nhóm. */
-export function NutrientGroupSection({ group, values, index }: NutrientGroupSectionProps) {
+/**
+ * Một nhóm nutrient của trang "Dinh dưỡng": tiêu đề nhóm và lưới ô. Mỗi ô là `NutrientTile` (cùng thanh mục tiêu và cùng cách ghi số với
+ * Dashboard); "Macros" là cột chồng 7 ngày; chạm một ô mở trang chi tiết của chất đó.
+ */
+export function NutrientGroupSection({
+  group,
+  values,
+  macrosWeek,
+  index,
+}: NutrientGroupSectionProps) {
   const id = `group-${group.key}`
   return (
     <section
@@ -25,23 +34,20 @@ export function NutrientGroupSection({ group, values, index }: NutrientGroupSect
         {group.title}
       </h2>
       <div className="grid grid-cols-2 gap-3">
-        {group.nutrients.map((nutrient) => {
-          const { value, target, known = true } = nutrientValue(values, nutrient.key)
-          return (
+        {group.nutrients.map((nutrient) =>
+          nutrient.key === 'macros' ? (
             <MetricTile
               key={nutrient.key}
               title={nutrient.name}
-              subtitle={nutrient.period ?? 'Today'}
-              visual={
-                nutrient.kind === 'none' ? undefined : (
-                  <TargetBar value={value} target={target} kind={nutrient.kind} tone={group.tone} />
-                )
-              }
-              value={known ? format(value, nutrient.unit) : '---'}
+              subtitle={nutrient.period ?? 'Last 7 Days'}
+              visual={<MacroStack days={macrosWeek} />}
+              value={formatAmount(nutrientValue(values, nutrient.key).value, nutrient.unit)}
               unit={nutrient.unit}
             />
+          ) : (
+            <NutrientTile key={nutrient.key} tileKey={nutrient.key} values={values} />
           )
-        })}
+        )}
       </div>
     </section>
   )

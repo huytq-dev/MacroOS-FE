@@ -73,4 +73,4 @@ export function goalProgressPercent(
 export const nutrientValue = (
   known: Readonly<Record<string, NutrientValue>>,
   key: string
-): NutrientValue => known[key] ?? { value: 0, target: null }
+): NutrientValue => known[key] ?? { value: 0, floor: null, target: null, ceiling: null }

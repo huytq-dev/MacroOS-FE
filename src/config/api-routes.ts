@@ -110,6 +110,8 @@ export const apiRoutes = {
   },
   nutrients: {
     root: '/nutrients', // GET ?date= → { date, items[{ code, name, unit, group, amount, floor, target, ceiling, isCustomTarget, pinOrder }] }; amount null = chưa có dữ liệu
+    series: (code: string) => `/nutrients/${code}/series`, // GET ?from&to&all&granularity → { code, name, unit, displayPrecision, from, to, days[{ date, amount|null, floor, target, ceiling, isFasting, isIncomplete }], summary } liên tục tới hôm nay
+    day: (code: string) => `/nutrients/${code}/day`, // GET ?date= → { amount, floor, target, ceiling, targetSource Strategy|Custom|Default|None, targetBasis, pastWeekAverage, pastMonthAverage, contributors[{ name, amount, entryId }] (tất cả), timing[24 × { hour, amount }] }; mã lạ 404, ngày tương lai 400
   },
   energyBalance: {
     series: '/energy-balance/series', // GET ?from&to&all&granularity → { days[{ date, caloriesKcal, expenditureKcal, targetKcal, vsExpenditureKcal, vsTargetKcal, isFasting, isIncomplete }], summary, buckets } liên tục tới hôm nay

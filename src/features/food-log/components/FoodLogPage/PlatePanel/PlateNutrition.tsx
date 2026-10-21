@@ -2,12 +2,15 @@
 
 import { useState } from 'react'
 import { Switch } from '@/components/ui/switch'
+import { NutrientGoalBar } from '@/features/nutrition/NutrientGoalBar'
+import { NO_GOAL, primaryGoal, type NutrientGoal } from '@/features/nutrition/goal-progress'
+import { MACRO_TONE } from '@/features/nutrition/nutrient-display'
 import { cn } from '@/lib/utils'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { usePlateNutrients } from '../../../hooks/use-food-log'
-import { MACRO_BAR, buildOverviewValues } from '../../../nutrition-overview.utils'
+import { programGoals } from '../../../nutrition-overview.utils'
 import type { MacroTotals, PlateItem, PlateNutrientsItem } from '../../../types/food-log.types'
-import { NutrientBar, NutrientCard } from '../../NutritionOverviewPage'
+import { NutrientCard } from '../../NutritionOverviewPage'
 import { SECTION_GROUPS } from '../FoodDetail'
 import { SlidingSwitch } from '../SlidingSwitch'
 
@@ -78,16 +81,24 @@ export function PlateNutrition({
   const [chosenView, setView] = useState<View>('plate')
   const view: View = allowDay ? chosenView : 'plate'
   const [showAll, setShowAll] = useState(false)
-  const base = buildOverviewValues(null, target ?? null)
+  const macroGoals = programGoals(target)
   const remote = usePlateNutrients(
     { date, items: plate.map(toRequestItem) },
     showAll || view === 'day'
   )
   const rows = view === 'plate' ? remote.data?.plate : remote.data?.day
-  const remoteByKey: Record<string, { amount: number | null; target: number | null }> = {}
+  const remoteByKey: Record<string, { amount: number | null; goal: NutrientGoal }> = {}
   for (const row of rows ?? [])
     if (row.key)
-      remoteByKey[row.key] = { amount: row.amount, target: row.target ?? row.ceiling ?? row.floor }
+      remoteByKey[row.key] = {
+        amount: row.amount,
+        goal: {
+          floor: row.floor,
+          target: row.target,
+          ceiling: row.ceiling,
+          goalKind: row.goalKind,
+        },
+      }
 
   const plateNutrients = sumNutrients(plate)
   const localValue = (key: string) => {
@@ -100,10 +111,12 @@ export function PlateNutrition({
     }
     return plateNutrients[key] ?? 0
   }
-  // Số từ BE khi có (amount null = chưa có dữ liệu → 0), không thì số cộng tại chỗ
-  const valueOf = (key: string) =>
-    key in remoteByKey ? (remoteByKey[key].amount ?? 0) : localValue(key)
-  const goalOf = (key: string) => remoteByKey[key]?.target ?? base[key]?.target ?? null
+  // Số từ BE khi có (amount null = chưa có dữ liệu → "---"), không thì số cộng tại chỗ
+  const valueOf = (key: string): number | null =>
+    key in remoteByKey ? remoteByKey[key].amount : localValue(key)
+  // Mục tiêu từ BE nguyên vẹn; chưa có thì calo / macro lấy từ chương trình, chất khác không có mục tiêu
+  const goalOf = (key: string): NutrientGoal =>
+    remoteByKey[key]?.goal ?? macroGoals[key as keyof typeof macroGoals] ?? NO_GOAL
 
   return (
     <section aria-labelledby="plate-nutrition" className="space-y-4">
@@ -125,7 +138,8 @@ export function PlateNutrition({
       <ul className="grid grid-cols-2 gap-3">
         {MACRO_CARDS.map((card) => {
           const goal = goalOf(card.key)
-          const value = valueOf(card.key)
+          const reference = primaryGoal(goal)
+          const value = valueOf(card.key) ?? 0
           // kcal làm tròn nguyên, gram một số lẻ (bỏ ".0"): "618 / 2880 kcal", "16.1 / 137 g"
           const shown = card.unit === 'kcal' ? Math.round(value) : Number(value.toFixed(1))
           return (
@@ -134,10 +148,15 @@ export function PlateNutrition({
               <p className="text-muted-foreground mt-1 text-sm tabular-nums">
                 {view === 'plate'
                   ? `${shown} ${card.unit} in plate`
-                  : `${shown}${goal !== null ? ` / ${Math.round(goal)}` : ''} ${card.unit}`}
+                  : `${shown}${reference !== null ? ` / ${Math.round(reference)}` : ''} ${card.unit}`}
               </p>
               <div className="mt-4">
-                <NutrientBar kind="target" value={value} target={goal} tone={MACRO_BAR[card.key]} />
+                <NutrientGoalBar
+                  goal={goal}
+                  consumed={value}
+                  tone={MACRO_TONE[card.key]}
+                  layout="row"
+                />
               </div>
             </li>
           )
@@ -175,7 +194,7 @@ export function PlateNutrition({
                       key={nutrient.key}
                       nutrient={nutrient}
                       value={valueOf(nutrient.key)}
-                      target={goal}
+                      goal={goal}
                       tone={group.tone}
                     />
                   )

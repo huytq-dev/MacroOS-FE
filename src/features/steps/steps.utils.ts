@@ -5,6 +5,8 @@ import { weekStart, type Averaging } from '@/features/dashboard/expenditure.util
 export interface StepsDay {
   readonly date: string
   readonly steps: number
+  /** Nguồn bản ghi của BE (nhập tay hay đồng bộ); chỉ có ở dòng lịch sử, không có ở điểm đã gộp D/W/M. */
+  readonly source?: string
 }
 
 /** Bước chân: số nguyên không âm (BE lưu int theo ngày); chặn trên 100.000 cho nhập nhầm. */
@@ -35,4 +37,5 @@ export function summarizeSteps(days: readonly StepsDay[]) {
   return { average: Math.round(total / days.length), total }
 }
 
-export const formatSteps = (value: number) => value.toLocaleString('en-US')
+/** "2587" (không dấu phân cách, như MacroFactor). */
+export const formatSteps = (value: number) => String(Math.round(value))

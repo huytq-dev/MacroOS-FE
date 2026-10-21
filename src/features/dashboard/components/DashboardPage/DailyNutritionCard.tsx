@@ -4,6 +4,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import type { NutritionMode } from './WeekMatrix'
 import type { MacroTotals } from '@/features/food-log/types/food-log.types'
+import { targetRatio } from '@/features/nutrition/goal-progress'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 
 interface ModeToggleProps<T extends string> {
@@ -92,7 +93,8 @@ export function DailyNutritionCard({
   const goal = target ? Math.round(target.caloriesTarget) : null
   const remaining = goal === null ? null : Math.max(0, goal - consumed)
   const consumedMode = mode === 'consumed'
-  const arc = goal ? (consumedMode ? Math.min(1, consumed / goal) : (remaining ?? 0) / goal) : 0
+  // 100% = target (`targetRatio` dùng chung); chế độ Remaining vẽ phần còn lại
+  const arc = goal ? targetRatio(consumedMode ? consumed : (remaining ?? 0), goal).progress : 0
   const big = consumedMode ? consumed : remaining
   const side = consumedMode ? remaining : consumed
 
@@ -140,12 +142,9 @@ export function DailyNutritionCard({
           const value = Math.round(totals[macro.key])
           const macroGoal = target ? Math.round(macro.goal(target)) : null
           const shown = consumedMode || macroGoal === null ? value : Math.max(0, macroGoal - value)
-          const fill =
-            macroGoal === null || macroGoal <= 0
-              ? 0
-              : consumedMode
-                ? Math.min(1, value / macroGoal)
-                : Math.max(0, 1 - value / macroGoal)
+          const ratio =
+            macroGoal === null || macroGoal <= 0 ? 0 : targetRatio(value, macroGoal).progress
+          const fill = consumedMode ? ratio : macroGoal === null || macroGoal <= 0 ? 0 : 1 - ratio
           return (
             <div key={macro.key} className="space-y-1 text-center">
               <p className="text-muted-foreground text-sm">{macro.label}</p>

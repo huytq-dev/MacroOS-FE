@@ -1,8 +1,12 @@
 'use client'
 
+import { useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/date'
 import { WEEKDAY_LABELS, type CalendarDay } from '../../habits.utils'
+
+/** Quãng vuốt ngang tối thiểu (px) để tính là chuyển tháng. */
+const SWIPE_MIN_PX = 48
 
 interface HabitCalendarProps {
   /** Lưới 6 × 7 của tháng đang xem. */
@@ -14,6 +18,10 @@ interface HabitCalendarProps {
   readonly tracked: ReadonlySet<string>
   readonly today: string
   readonly onSelect: (iso: string) => void
+  /** Lớp viền của ngày đã thực hiện (mặc định xanh lá của Habits; Period dùng màu riêng). */
+  readonly trackedBorder?: string
+  /** Vuốt ngang trên lịch: -1 = sang trái (tháng sau), 1 = sang phải (tháng trước). Không có thì không bắt vuốt. */
+  readonly onSwipe?: (direction: 'next' | 'prev') => void
 }
 
 /**
@@ -27,9 +35,30 @@ export function HabitCalendar({
   tracked,
   today,
   onSelect,
+  trackedBorder = 'border-mf-tile-carbs',
+  onSwipe,
 }: HabitCalendarProps) {
+  const start = useRef<{ x: number; y: number } | null>(null)
   return (
-    <div>
+    <div
+      // Vuốt ngang đổi tháng; touch-pan-y giữ cuộn dọc của trang
+      className={cn(onSwipe && 'touch-pan-y')}
+      onPointerDown={(event) => {
+        if (onSwipe) start.current = { x: event.clientX, y: event.clientY }
+      }}
+      onPointerUp={(event) => {
+        const origin = start.current
+        start.current = null
+        if (!origin || !onSwipe) return
+        const dx = event.clientX - origin.x
+        const dy = event.clientY - origin.y
+        if (Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dx) > Math.abs(dy) * 1.5)
+          onSwipe(dx < 0 ? 'next' : 'prev')
+      }}
+      onPointerCancel={() => {
+        start.current = null
+      }}
+    >
       <div
         key={monthKey}
         className={cn(
@@ -53,7 +82,7 @@ export function HabitCalendar({
             inMonth && future && !done && 'border-border/30',
             inMonth &&
               done &&
-              'border-mf-tile-carbs motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in-0 motion-safe:animation-duration-300 border-2'
+              `${trackedBorder} motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in-0 motion-safe:animation-duration-300 border-2`
           )
           const content = (
             <>

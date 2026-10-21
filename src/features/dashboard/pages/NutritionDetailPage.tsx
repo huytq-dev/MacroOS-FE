@@ -31,6 +31,7 @@ export function NutritionDetailPage() {
             key={group.key}
             group={group}
             values={data.nutrientsToday}
+            macrosWeek={data.macrosWeek}
             index={index}
           />
         ))

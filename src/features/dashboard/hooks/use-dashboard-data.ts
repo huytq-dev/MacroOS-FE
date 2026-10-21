@@ -9,7 +9,6 @@ import {
   useSteps,
 } from './use-dashboard'
 import {
-  energyBalance,
   goalProgressPercent,
   habitCells,
   isLogged,
@@ -20,7 +19,12 @@ import {
 } from '../dashboard.utils'
 import { NUTRIENT_CODE } from '../nutrient-codes'
 import { NUTRIENT_GROUPS } from '../nutrient-catalog'
-import type { DailyProgress, NutrientModel, NutrientValue } from '../types/dashboard.types'
+import type {
+  DailyProgress,
+  MacroStackDay,
+  NutrientModel,
+  NutrientValue,
+} from '../types/dashboard.types'
 import { periodDaySet } from '@/features/period/period.utils'
 import { useDayLog } from '@/features/food-log/hooks/use-food-log'
 import type { MacroTotals } from '@/features/food-log/types/food-log.types'
@@ -61,20 +65,24 @@ export interface DashboardData {
   readonly todayTarget: ProgramWeek | null
   /** Giá trị hôm nay cho mọi ô nutrient: macro từ log thật, còn lại từ `GET /nutrients` (amount null = chưa có dữ liệu). */
   readonly nutrientsToday: Readonly<Record<string, NutrientValue>>
+  /** 7 ngày gần nhất cho cột chồng của ô Macros (cũ → mới); ngày chưa log = null (không có cột). */
+  readonly macrosWeek: readonly (MacroStackDay | null)[]
 }
 
-/** Thanh của một chất: mốc là target (macro), floor (tối thiểu) hoặc ceiling (tối đa) theo loại thanh của danh mục. */
-function nutrientFromApi(item: NutrientModel | undefined, kind: string): NutrientValue {
-  if (!item) return { value: 0, target: null, known: false }
-  const target =
-    kind === 'ceiling'
-      ? (item.ceiling ?? item.target)
-      : kind === 'floor'
-        ? (item.floor ?? item.target)
-        : kind === 'target'
-          ? item.target
-          : null
-  return { value: item.amount ?? 0, target, known: item.amount !== null }
+/** kcal trên mỗi gram của từng macro (Atwater). */
+const KCAL_PER_G = { carbs: 4, fat: 9, protein: 4 } as const
+
+/** Giá trị + mục tiêu của một chất đúng như BE trả (floor / target / ceiling nguyên vẹn; không suy mốc từ loại thanh của FE). */
+function nutrientFromApi(item: NutrientModel | undefined): NutrientValue {
+  if (!item) return { value: 0, floor: null, target: null, ceiling: null, known: false }
+  return {
+    value: item.amount ?? 0,
+    floor: item.floor,
+    target: item.target,
+    ceiling: item.ceiling,
+    goalKind: item.goalKind,
+    known: item.amount !== null,
+  }
 }
 
 /** Gom toàn bộ số liệu của Dashboard và các trang con; component chỉ nhận kết quả đã tính. */
@@ -115,18 +123,36 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
   for (const group of NUTRIENT_GROUPS)
     for (const nutrient of group.nutrients) {
       const code = NUTRIENT_CODE[nutrient.key]
-      if (code) nutrientsToday[nutrient.key] = nutrientFromApi(byCode.get(code), nutrient.kind)
+      if (code) nutrientsToday[nutrient.key] = nutrientFromApi(byCode.get(code))
     }
-  // Calo và macro lấy từ log + target của program (cùng nguồn với vòng "Daily Nutrition")
-  nutrientsToday.calories = { value: totals?.calories ?? 0, target: target?.caloriesTarget ?? null }
-  nutrientsToday.protein = { value: totals?.protein ?? 0, target: target?.proteinTarget ?? null }
-  nutrientsToday.fat = { value: totals?.fat ?? 0, target: target?.fatTarget ?? null }
-  nutrientsToday.carbs = { value: totals?.carbs ?? 0, target: target?.carbsTarget ?? null }
-  // Ô "Macros": trung bình kcal 7 ngày gần nhất (chỉ ngày có log), không có thanh; chưa log ngày nào thì "---"
-  const macrosAverage = energyBalance(daily.slice(-WEEK_DAYS), 'targets', null, null).nutrition
-  nutrientsToday.macros = { value: macrosAverage ?? 0, target: null, known: macrosAverage !== null }
+  // Calo và macro lấy từ log + target của program (cùng nguồn với vòng "Daily Nutrition"); chỉ có target, không floor / ceiling
+  const macro = (value: number | undefined, goal: number | undefined): NutrientValue => ({
+    value: value ?? 0,
+    floor: null,
+    target: goal ?? null,
+    ceiling: null,
+  })
+  nutrientsToday.calories = macro(totals?.calories, target?.caloriesTarget)
+  nutrientsToday.protein = macro(totals?.protein, target?.proteinTarget)
+  nutrientsToday.fat = macro(totals?.fat, target?.fatTarget)
+  nutrientsToday.carbs = macro(totals?.carbs, target?.carbsTarget)
+  // Ô "Macros": số lớn là kcal hôm nay (như MacroFactor), không có thanh target; cột chồng 7 ngày ở `macrosWeek`
+  nutrientsToday.macros = macro(totals?.calories, undefined)
+  const macrosWeek = daily.slice(-WEEK_DAYS).map((point): MacroStackDay | null => {
+    if (!isLogged(point)) return null
+    const carbs = point.carbsConsumed * KCAL_PER_G.carbs
+    const fat = point.fatConsumed * KCAL_PER_G.fat
+    const protein = point.proteinConsumed * KCAL_PER_G.protein
+    return {
+      date: point.snapshotDate,
+      carbs,
+      fat,
+      protein,
+      other: Math.max(0, point.caloriesConsumed - carbs - fat - protein),
+    }
+  })
   // Chất xơ luôn là số (log không có thì 0) dù BE trả amount null ở ngày trống; mốc tối thiểu vẫn lấy từ BE
-  nutrientsToday.fiber = { value: totals?.fiber ?? 0, target: nutrientsToday.fiber?.target ?? null }
+  nutrientsToday.fiber = { ...nutrientsToday.fiber, value: totals?.fiber ?? 0, known: true }
 
   const steps = stepsQuery.data?.last7DayAverage ?? null
   const goalData = goal.data
@@ -168,5 +194,6 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
     todayTotals: totals ?? null,
     todayTarget: target ?? null,
     nutrientsToday,
+    macrosWeek,
   }
 }

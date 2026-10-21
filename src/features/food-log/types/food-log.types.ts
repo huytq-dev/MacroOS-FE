@@ -1,3 +1,4 @@
+import type { GoalKind } from '@/features/nutrition/goal-progress'
 import type { MealType } from '@/config/enums'
 import type { NutrientAmount } from '@/features/foods/types/food.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
@@ -114,7 +115,13 @@ export interface UpdateNoteRequest {
 export interface NutritionOverviewItem {
   key: string
   value: number
+  /** Mục tiêu hiệu lực (xem `features/nutrition/goal-progress`); floor / ceiling vắng nghĩa là không có. */
   target: number | null
+  floor?: number | null
+  ceiling?: number | null
+  /** Loại mục tiêu BE phân loại (Range / Minimum / Maximum / Target / TargetWithCeiling / None): quyết định mốc nào được vẽ. */
+  goalKind?: GoalKind | null
+  unit?: string
 }
 
 export interface NutritionOverviewResponse {

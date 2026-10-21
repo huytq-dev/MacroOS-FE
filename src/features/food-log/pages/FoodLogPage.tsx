@@ -51,7 +51,7 @@ import {
   NotesSection,
   QuickAddPanel,
   mondayOf,
-  targetsByKey,
+  goalsByKey,
   type AddTab,
   type LibraryView,
   type QuickAddValues,
@@ -923,7 +923,7 @@ export function FoodLogPage() {
               setPickedId(null)
             }}
             detail={{
-              targets: targetsByKey(foodNutrients.data?.items),
+              goals: goalsByKey(foodNutrients.data?.items),
               isTargetsLoading: foodNutrients.isLoading,
               isLogging: isLoggingPlate,
               onLogFoods: logFromDetail,
@@ -948,7 +948,7 @@ export function FoodLogPage() {
         target={day.data?.target}
         banner={settings}
         today={date ?? ''}
-        targets={targetsByKey(editingNutrients.data?.items)}
+        goals={goalsByKey(editingNutrients.data?.items)}
         isTargetsLoading={editingNutrients.isLoading}
         favorites={favorites.data ?? []}
         isFavoritePending={addFavorite.isPending || removeFavorite.isPending}

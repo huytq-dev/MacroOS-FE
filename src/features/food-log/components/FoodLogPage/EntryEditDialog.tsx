@@ -18,6 +18,7 @@ import type { FoodDetail } from '@/features/foods/types/food.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { useSheet } from '@/hooks/use-sheet'
 import type { FoodLogSettings } from '../../food-log-settings'
+import type { NutrientGoal } from '@/features/nutrition/goal-progress'
 import type { FoodLogEntry, MacroTotals, UpdateEntryRequest } from '../../types/food-log.types'
 import { AddFoodProgress } from './AddFoodProgress'
 import { DateTimeSheet } from './DateTimeSheet'
@@ -44,7 +45,7 @@ interface EntryEditDialogProps {
   /** Hôm nay (yyyy-MM-dd) cho bảng chọn giờ. */
   readonly today: string
   /** Mục tiêu từng chất (từ `GET /foods/{id}/nutrients`) cho vòng Impact và các thẻ chất. */
-  readonly targets: Readonly<Record<string, number | null>>
+  readonly goals: Readonly<Record<string, NutrientGoal>>
   readonly isTargetsLoading: boolean
   readonly favorites: readonly FavoriteFood[]
   readonly isFavoritePending: boolean
@@ -116,7 +117,7 @@ function EditBody({
   target,
   banner,
   today,
-  targets,
+  goals,
   isTargetsLoading,
   favorites,
   isFavoritePending,
@@ -231,7 +232,7 @@ function EditBody({
             isFavoritePending={isFavoritePending || !inLibrary}
             onAddFavorite={(servingId, quantity) => onAddFavorite(detail.id, servingId, quantity)}
             onRemoveFavorite={onRemoveFavorite}
-            targets={targets}
+            goals={goals}
             isTargetsLoading={isTargetsLoading}
             isLogging={false}
             onLogFoods={() => undefined}

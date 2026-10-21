@@ -6,6 +6,7 @@ import { useNutritionOverview } from '../hooks/use-nutrition-overview'
 import {
   OVERVIEW_GROUPS,
   OVERVIEW_RANGE_LABEL,
+  UNKNOWN_OVERVIEW,
   type ContributorKey,
   type OverviewRange,
 } from '../nutrition-overview.utils'
@@ -74,7 +75,7 @@ export function NutritionOverviewPage() {
                 </div>
                 <ul className="grid grid-cols-2 gap-3">
                   {group.nutrients.map((nutrient) => {
-                    const { value, target } = data.values[nutrient.key]
+                    const { value, goal } = data.values[nutrient.key] ?? UNKNOWN_OVERVIEW
                     return (
                       <NutrientCard
                         key={nutrient.key}
@@ -83,7 +84,7 @@ export function NutritionOverviewPage() {
                         wide={group.nutrients.length === 1}
                         nutrient={nutrient}
                         value={value}
-                        target={target}
+                        goal={goal}
                         tone={group.tone}
                         contributors={
                           hasContributors

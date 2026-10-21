@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import type { BalancePoint } from '../../energy-balance.utils'
-import type { TargetKind } from '../../types/dashboard.types'
+import type { MacroStackDay } from '../../types/dashboard.types'
 
 const WIDTH = 120
 const HEIGHT = 44
@@ -240,6 +240,48 @@ export function MiniBalance({ points, className }: MiniBalanceProps) {
   )
 }
 
+/** Thứ tự xếp chồng từ đáy lên và màu từng phần (cùng bộ `--mf-tile-*` với các thanh Calories / Protein / Fat / Carbs). */
+const STACK_SEGMENTS = [
+  ['carbs', 'fill-mf-tile-carbs'],
+  ['fat', 'fill-mf-tile-fat'],
+  ['protein', 'fill-mf-tile-protein'],
+  ['other', 'fill-mf-tile-calories'],
+] as const
+
+/**
+ * Cột chồng 7 ngày của ô Macros (như MacroFactor): mỗi ngày đã log một cột gồm carb (xanh lá), fat (vàng), protein (cam) và phần calo
+ * chưa quy ra macro (xanh dương) trên cùng; ngày chưa log không có cột; thang tự co theo ngày cao nhất, cột mọc lên từ đáy.
+ */
+export function MacroStack({ days }: { readonly days: readonly (MacroStackDay | null)[] }) {
+  const totals = days.map((day) => (day ? day.carbs + day.fat + day.protein + day.other : 0))
+  const top = Math.max(0, ...totals)
+  if (top === 0) return <div className="h-12" aria-hidden="true" />
+  const scale = (BOTTOM - 4) / top
+  const slot = (WIDTH - 12) / 7
+  return (
+    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden="true" className="h-12 w-full">
+      {days.map((day, index) => {
+        if (!day) return null
+        let filled = 0
+        return STACK_SEGMENTS.map(([part, fill]) => {
+          const height = day[part] * scale
+          filled += height
+          return height <= 0 ? null : (
+            <rect
+              key={`${day.date}-${part}`}
+              x={6 + slot * (index + 0.5) - 5}
+              y={BOTTOM - filled}
+              width="10"
+              height={height}
+              className={cn(fill, 'motion-safe:animate-chart-rise')}
+            />
+          )
+        })
+      })}
+    </svg>
+  )
+}
+
 interface HabitGridProps {
   /** 30 ô theo thứ tự cũ → mới (hàng trước, ô cuối là hôm nay); true = có dữ liệu. */
   readonly cells: readonly boolean[]
@@ -259,51 +301,6 @@ export function HabitGrid({ cells, tone }: HabitGridProps) {
           )}
         />
       ))}
-    </div>
-  )
-}
-
-interface TargetBarProps {
-  readonly value: number
-  readonly target: number | null
-  readonly kind: TargetKind
-  readonly tone: string
-}
-
-const TICK_AT = 85
-
-/**
- * Thanh có vạch target: `target` tô phần đã đạt tới vạch; `floor` tô vùng cần đạt (từ gần vạch tới cuối);
- * `ceiling` tô cả thanh, vạch ở đầu (vượt vạch là quá giới hạn). `none` không vẽ.
- */
-export function TargetBar({ value, target, kind, tone }: TargetBarProps) {
-  if (kind === 'none') return <div className="h-5" aria-hidden="true" />
-  const ratio = target && target > 0 ? Math.min(1, value / target) : 0
-  return (
-    <div
-      aria-hidden="true"
-      className="bg-foreground/[0.08] relative h-5 overflow-hidden rounded-sm"
-    >
-      {kind === 'target' && (
-        <span
-          className={cn(
-            'motion-safe:animate-bar-grow absolute inset-y-0 left-0 rounded-sm transition-[width] duration-500',
-            tone
-          )}
-          style={{ width: `${ratio * TICK_AT}%` }}
-        />
-      )}
-      {kind === 'floor' && (
-        <span
-          className={cn('absolute inset-y-0 right-0 opacity-45', tone)}
-          style={{ left: '70%' }}
-        />
-      )}
-      {kind === 'ceiling' && <span className={cn('absolute inset-0 opacity-45', tone)} />}
-      <span
-        className="bg-foreground/60 absolute inset-y-1 w-0.5 rounded-full"
-        style={{ left: kind === 'ceiling' ? '3%' : `${TICK_AT}%` }}
-      />
     </div>
   )
 }

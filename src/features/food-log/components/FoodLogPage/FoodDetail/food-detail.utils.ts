@@ -1,6 +1,7 @@
 import { NUTRIENT_GROUPS } from '@/features/dashboard/nutrient-catalog'
 import type { NutrientGroup } from '@/features/dashboard/types/dashboard.types'
 import type { FoodDetail, NutrientAmount } from '@/features/foods/types/food.types'
+import type { NutrientGoal } from '@/features/nutrition/goal-progress'
 
 export const OUNCE_GRAMS = 28.3495
 
@@ -72,11 +73,17 @@ export function scaledNutrients(food: FoodDetail, grams: number): Record<string,
   return result
 }
 
-/** Mục tiêu hiệu lực theo khoá danh mục: target, thiếu thì mức trần (sodium…) rồi mức sàn; không có gì thì null = "No Target". */
-export function targetsByKey(items: readonly NutrientAmount[] | undefined) {
-  const result: Record<string, number | null> = {}
+/** Mục tiêu hiệu lực (floor / target / ceiling NGUYÊN VẸN từ BE) theo khoá danh mục; chất thiếu = không có mục tiêu ("No Target"). */
+export function goalsByKey(items: readonly NutrientAmount[] | undefined) {
+  const result: Record<string, NutrientGoal> = {}
   for (const item of items ?? [])
-    if (item.key) result[item.key] = item.target ?? item.ceiling ?? item.floor ?? null
+    if (item.key)
+      result[item.key] = {
+        floor: item.floor,
+        target: item.target,
+        ceiling: item.ceiling,
+        goalKind: item.goalKind,
+      }
   return result
 }
 

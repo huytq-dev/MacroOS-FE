@@ -1,3 +1,4 @@
+import type { GoalKind } from '@/features/nutrition/goal-progress'
 import type { FoodCategory, FoodScope } from '@/config/enums'
 
 // Khớp BE Contract/Models/Foods/FoodModels.cs
@@ -79,6 +80,8 @@ export interface NutrientAmount {
   floor: number | null
   target: number | null
   ceiling: number | null
+  /** Loại mục tiêu BE phân loại; quyết định mốc nào được vẽ. */
+  goalKind?: GoalKind | null
   percentOfTarget: number | null
   isCore: boolean
   /** Khoá của danh mục dinh dưỡng FE; null với chất không thuộc danh mục. */

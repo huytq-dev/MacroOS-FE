@@ -12,6 +12,12 @@ export const routePath = {
   dashboardEnergyBalance: '/dashboard/energy-balance',
   dashboardGoalProgress: '/dashboard/goal-progress',
   dashboardNutrition: '/dashboard/nutrition',
+  /** Chi tiết một nutrient (chart, mục tiêu, hôm nay, lịch sử): khoá theo `nutrient-catalog` (calories, protein, vitaminC…). */
+  dashboardNutrient: (key: string) => `/dashboard/nutrition/${key}`,
+  /** Tóm tắt một nutrient: Today / Past Week / Past Month, mục tiêu hiện hành, mọi món đóng góp, phân bố theo giờ. */
+  dashboardNutrientSummary: (key: string) => `/dashboard/nutrition/${key}/summary`,
+  /** "About Nutrient Goals": giải thích Floor / Target / Ceiling, màu theo nutrient đang xem. */
+  dashboardNutrientGoals: (key: string) => `/dashboard/nutrition/${key}/goals`,
   dashboardCustomize: '/dashboard/customize',
   profile: '/profile',
   program: '/program',

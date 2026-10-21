@@ -1,3 +1,5 @@
+import type { GoalKind } from '@/features/nutrition/goal-progress'
+
 // Khớp BE Contract/Models/Expenditure/ExpenditureModels.cs
 export interface ExpenditurePoint {
   snapshotDate: string
@@ -43,14 +45,10 @@ export interface DailyProgress {
   estimatedTdeeKcal?: number | null
 }
 
-/** Cách vẽ thanh trên ô dinh dưỡng: target (đạt dần), floor (tối thiểu), ceiling (tối đa), none (không có thanh). */
-export type TargetKind = 'target' | 'floor' | 'ceiling' | 'none'
-
 export interface NutrientDef {
   key: string
   name: string
   unit: 'kcal' | 'g' | 'mg' | 'mcg'
-  kind: TargetKind
   /** Kỳ hiển thị trên ô; mặc định "Hôm nay". */
   period?: string
 }
@@ -66,9 +64,23 @@ export interface NutrientGroup {
 /** Dữ liệu một ô thanh tiến độ: giá trị hôm nay và target (null = chưa có). */
 export interface NutrientValue {
   value: number
+  /** Mục tiêu hiệu lực (xem `features/nutrition/goal-progress`): calo / macro chỉ có target, vi chất có thể có cả floor / ceiling. */
+  floor: number | null
   target: number | null
+  ceiling: number | null
+  /** Loại mục tiêu BE phân loại (quyết định mốc nào được vẽ). */
+  goalKind?: GoalKind | null
   /** false = BE chưa có dữ liệu chất này hôm nay (`amount` null): ô hiện "---" thay vì 0. Mặc định có. */
   known?: boolean
+}
+
+/** Một ngày của ô Macros: kcal của từng phần xếp chồng (carb dưới cùng, rồi fat, protein, phần còn lại của calo trên cùng). */
+export interface MacroStackDay {
+  readonly date: string
+  readonly carbs: number
+  readonly fat: number
+  readonly protein: number
+  readonly other: number
 }
 
 // Khớp BE GET /api/steps, GET /api/periods, GET /api/nutrients?date= (Docs/MacroFactor_UI/UI/Dashboard/README.md mục 5)
@@ -102,6 +114,7 @@ export interface NutrientModel {
   floor: number | null
   target: number | null
   ceiling: number | null
+  goalKind?: GoalKind | null
 }
 
 export interface NutrientsResponse {

@@ -1,6 +1,7 @@
 import { Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ProgramWeek } from '@/features/program/types/program.types'
+import { targetRatio } from '@/features/nutrition/goal-progress'
 import type { MacroTotals } from '../../types/food-log.types'
 
 export type BannerDisplay = 'PlateOnly' | 'AllDayAndPlate' | 'RemainingAfterPlate'
@@ -90,7 +91,7 @@ export function AddFoodProgress({
       {cells.map((cell) => {
         const value = valueOf(cell)
         const used = display === 'RemainingAfterPlate' ? (cell.goal ?? 0) - value : value
-        const percent = cell.goal ? Math.max(0, Math.min(100, (used / cell.goal) * 100)) : 0
+        const percent = cell.goal ? targetRatio(used, cell.goal).progress * 100 : 0
         const text =
           display === 'RemainingAfterPlate'
             ? `${value} left`

@@ -2,6 +2,7 @@
 
 import { Flame } from 'lucide-react'
 import { ModeToggle } from './DailyNutritionCard'
+import { targetRatio } from '@/features/nutrition/goal-progress'
 import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import type { MacroTotals, WeekDay } from '@/features/food-log/types/food-log.types'
@@ -41,16 +42,6 @@ interface WeekMatrixProps {
 
 const consumedOf = (totals: MacroTotals, key: Row['key']) => totals[key]
 
-/**
- * Tiến độ một chỉ số trong một ngày, độc lập với chế độ Consumed/Remaining (chế độ chỉ đổi số bên phải):
- * `progress = clamp(consumed / target, 0, 1)`; `over` khi ăn vượt target. Target = 0 mà đã ăn → coi như đầy và vượt.
- */
-export function dayProgress(consumed: number, target: number) {
-  if (consumed <= 0) return { progress: 0, over: false }
-  if (target <= 0) return { progress: 1, over: true }
-  return { progress: Math.min(1, consumed / target), over: consumed > target }
-}
-
 /** Lưới 7 ngày × 4 chỉ số (kiểu "Nutrition & Targets"): cột thanh dọc theo % target, chạm cột để xem số của ngày đó. */
 export function WeekMatrix({
   mode,
@@ -63,7 +54,7 @@ export function WeekMatrix({
   const current = days.find((day) => day.logDate === selected)
 
   const progressOf = (day: WeekDay, row: Row) =>
-    dayProgress(consumedOf(day.totals, row.key), day.target ? row.goal(day.target) : 0)
+    targetRatio(consumedOf(day.totals, row.key), day.target ? row.goal(day.target) : 0)
 
   // Cả tuần: cộng đã ăn của 7 ngày so với tổng target các ngày đã có target.
   const summary = (row: Row) => {

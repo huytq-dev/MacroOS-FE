@@ -1,0 +1,178 @@
+// Kiểm tra `goalProgress` / `goalPercent` / `primaryGoal` / `targetRatio` (repo chưa có test runner).
+// Chạy: node scripts/check-goal-progress.mjs   (Node ≥ 22.18 chạy thẳng file .ts)
+import assert from 'node:assert/strict'
+import {
+  TARGET_AT,
+  goalPercent,
+  goalProgress,
+  goalRemaining,
+  primaryGoal,
+  targetRatio,
+} from '../src/features/nutrition/goal-progress.ts'
+
+const close = (actual, expected, label) =>
+  assert.ok(Math.abs(actual - expected) < 1e-9, `${label}: ${actual} ≠ ${expected}`)
+const goal = (floor, target, ceiling) => ({ floor, target, ceiling })
+const row = (g, consumed) => goalProgress(g, consumed, 'row')
+let checks = 0
+const check = (name, fn) => {
+  fn()
+  checks += 1
+  console.log(`ok  ${name}`)
+}
+
+check('consumed null or 0 → empty bar, markers still placed', () => {
+  for (const value of [null, 0, -5, Number.NaN]) {
+    const p = row(goal(null, 100, null), value)
+    assert.equal(p.status, 'empty')
+    assert.equal(p.fill, 0)
+    close(p.targetAt, TARGET_AT.row, 'targetAt')
+  }
+})
+
+check('target only: below, = target, beyond target (no ceiling → met, never over)', () => {
+  assert.equal(row(goal(null, 100, null), 50).status, 'below')
+  const at = row(goal(null, 100, null), 100)
+  assert.equal(at.status, 'met')
+  close(at.fill, TARGET_AT.row, 'fill at target')
+  assert.equal(row(goal(null, 100, null), 113).status, 'met')
+  assert.equal(row(goal(null, 100, null), 113).zone, null)
+})
+
+check('tile layout puts the target at 0.8', () => {
+  close(goalProgress(goal(null, 100, null), 40, 'tile').targetAt, 0.8, 'tile targetAt')
+})
+
+check(
+  'floor + target + ceiling: below floor / = floor / between / = target / = ceiling / above',
+  () => {
+    const g = goal(60, 100, 140)
+    assert.equal(row(g, 30).status, 'below')
+    assert.equal(row(g, 60).status, 'inRange')
+    assert.equal(row(g, 80).status, 'inRange')
+    assert.equal(row(g, 100).status, 'met')
+    assert.equal(row(g, 140).status, 'met')
+    assert.equal(row(g, 141).status, 'over')
+    const p = row(g, 100)
+    close(p.floorAt / p.targetAt, 0.6, 'floor/target ratio is the real ratio')
+    close(p.ceilingAt / p.targetAt, 1.4, 'ceiling/target ratio is the real ratio')
+    assert.deepEqual(p.zone, [p.floorAt, p.ceilingAt])
+  }
+)
+
+check(
+  'ceiling beyond the track is off-scale: band stays open to the end, scale does NOT stretch',
+  () => {
+    const p = row(goal(null, 100, 400), 10)
+    close(p.scaleMax, 100 / TARGET_AT.row, 'scaleMax')
+    assert.equal(p.ceilingAt, null)
+    close(p.targetAt, TARGET_AT.row, 'targetAt')
+    assert.deepEqual(p.zone, [p.targetAt, 1])
+  }
+)
+
+check('vitamin C 90 / 2000 (TargetWithCeiling): 60 / 120 / 2500', () => {
+  const g = { floor: null, target: 90, ceiling: 2000, goalKind: 'TargetWithCeiling' }
+  const low = row(g, 60)
+  assert.equal(low.status, 'below')
+  assert.equal(low.ceilingAt, null)
+  close(low.targetAt, TARGET_AT.row, 'target stays at the layout position')
+  assert.equal(row(g, 120).status, 'met')
+  const over = row(g, 2500)
+  assert.equal(over.status, 'over')
+  assert.equal(over.scaleMax, 2500)
+  close(over.ceilingAt, 0.8, 'ceiling now on the visible scale')
+  assert.equal(over.fill, 1)
+})
+
+check(
+  'sodium 1500 / 2300 (TargetWithCeiling): tick at target, ceiling visible on row, off-scale on tile',
+  () => {
+    const g = { floor: null, target: 1500, ceiling: 2300, goalKind: 'TargetWithCeiling' }
+    const r = row(g, 1000)
+    close(r.targetAt, TARGET_AT.row, 'row target')
+    assert.ok(r.ceilingAt !== null && r.ceilingAt > r.targetAt && r.ceilingAt < 1)
+    assert.equal(goalProgress(g, 1000, 'tile').ceilingAt, null)
+    assert.equal(row(g, 2400).status, 'over')
+    assert.equal(row(g, 1800).status, 'met')
+  }
+)
+
+check('sugars added (Maximum, ceiling only): ceiling sits at the layout position, no tick', () => {
+  const g = { floor: null, target: null, ceiling: 71.5, goalKind: 'Maximum' }
+  const p = row(g, 30)
+  close(p.ceilingAt, TARGET_AT.row, 'ceilingAt')
+  assert.equal(p.targetAt, null)
+  assert.deepEqual(p.zone, [0, p.ceilingAt])
+  assert.equal(p.status, 'inRange')
+  assert.equal(row(g, 80).status, 'over')
+})
+
+check('goalKind decides which markers count (None / Target / Maximum / Minimum)', () => {
+  assert.equal(row({ floor: 5, target: 10, ceiling: 20, goalKind: 'None' }, 5).status, 'empty')
+  assert.equal(primaryGoal({ floor: 5, target: 10, ceiling: 20, goalKind: 'None' }), null)
+  assert.equal(row({ floor: 5, target: 10, ceiling: 20, goalKind: 'Target' }, 5).zone, null)
+  assert.equal(row({ floor: 5, target: 10, ceiling: 20, goalKind: 'Maximum' }, 5).targetAt, null)
+  assert.equal(row({ floor: 5, target: 10, ceiling: 20, goalKind: 'Minimum' }, 5).ceilingAt, null)
+})
+
+check('missing floor → band opens to the left; missing ceiling → band opens to the right', () => {
+  const noFloor = row(goal(null, 100, 140), 50)
+  close(noFloor.zone[0], noFloor.targetAt, 'zone starts at the target when there is no floor')
+  close(noFloor.zone[1], noFloor.ceilingAt, 'zone end')
+  const noCeiling = row(goal(60, 100, null), 50)
+  assert.equal(noCeiling.zone[1], 1)
+  close(noCeiling.zone[0], noCeiling.floorAt, 'zone start')
+})
+
+check('target 0 / null is unset; ceiling-only and floor-only anchor on the largest marker', () => {
+  for (const target of [0, null]) {
+    const p = row(goal(null, target, 71.5), 20)
+    assert.equal(p.targetAt, null)
+    close(p.ceilingAt, TARGET_AT.row, 'ceiling anchored')
+    assert.equal(p.status, 'inRange')
+  }
+  const floorOnly = row(goal(40, null, null), 20)
+  assert.equal(floorOnly.targetAt, null)
+  assert.equal(floorOnly.status, 'below')
+  assert.equal(row(goal(40, null, null), 40).status, 'met')
+  assert.equal(row(goal(null, null, 71.5), 80).status, 'over')
+  const none = row(goal(null, 0, null), 50)
+  assert.equal(none.status, 'empty')
+  assert.equal(none.zone, null)
+  assert.equal(none.scaleMax, 0)
+})
+
+check('consumed far beyond the scale: bar full, markers shift left, nothing overflows', () => {
+  const p = row(goal(60, 100, 140), 1000)
+  assert.equal(p.scaleMax, 1000)
+  assert.equal(p.fill, 1)
+  assert.ok(p.targetAt < TARGET_AT.row && p.ceilingAt <= 1 && p.floorAt >= 0)
+  assert.equal(p.status, 'over')
+  const noCeiling = row(goal(null, 100, null), 500)
+  assert.equal(noCeiling.fill, 1)
+  assert.equal(noCeiling.status, 'met')
+})
+
+check('percent / remaining follow ONE reference: target, else floor, else ceiling', () => {
+  assert.equal(primaryGoal(goal(60, 100, 140)), 100)
+  assert.equal(primaryGoal(goal(60, null, 140)), 60)
+  assert.equal(primaryGoal(goal(null, 0, 140)), 140)
+  assert.equal(primaryGoal(goal(null, null, null)), null)
+  assert.equal(goalPercent(goal(null, 2880, null), 3258), 113)
+  assert.equal(goalPercent(goal(null, null, null), 50), null)
+  assert.equal(goalPercent(goal(null, 100, null), null), null)
+  assert.equal(goalRemaining(goal(null, 100, null), 130), 0)
+  assert.equal(goalRemaining(goal(null, 100, null), null), 100)
+  assert.equal(goalRemaining(goal(null, null, null), 5), null)
+})
+
+check('targetRatio (dial / week / small macro bars): 100% = target', () => {
+  assert.deepEqual(targetRatio(50, 100), { progress: 0.5, over: false })
+  assert.deepEqual(targetRatio(150, 100), { progress: 1, over: true })
+  assert.deepEqual(targetRatio(0, 0), { progress: 0, over: false })
+  assert.deepEqual(targetRatio(10, 0), { progress: 1, over: true })
+  assert.deepEqual(targetRatio(10, null), { progress: 1, over: true })
+})
+
+console.log(`\n${checks} groups passed`)

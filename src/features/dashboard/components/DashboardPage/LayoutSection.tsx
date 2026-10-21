@@ -14,68 +14,17 @@ import {
   WeightTrendTile,
   fixed,
 } from './DashboardTiles'
-import { HabitGrid, Sparkline, TargetBar } from './TileVisuals'
-import { energyBalance, nutrientValue } from '../../dashboard.utils'
+import { NutrientTile } from './NutrientTile'
+import { HabitGrid, MacroStack, Sparkline } from './TileVisuals'
+import { nutrientValue } from '../../dashboard.utils'
 import { SECTIONS, type NutrientDisplay, type SectionKey } from '../../dashboard-layout'
 import type { DashboardData } from '../../hooks/use-dashboard-data'
 import { NUTRIENT_GROUPS } from '../../nutrient-catalog'
 import { routePath } from '@/config/route-path'
 
-const NUTRIENTS = new Map(
-  NUTRIENT_GROUPS.flatMap((group) =>
-    group.nutrients.map((nutrient) => [nutrient.key, { nutrient, tone: group.tone }])
-  )
+const NUTRIENT_KEYS = new Set(
+  NUTRIENT_GROUPS.flatMap((group) => group.nutrients.map((nutrient) => nutrient.key))
 )
-const MACRO_TONE: Record<string, string> = {
-  calories: 'bg-mf-tile-calories',
-  protein: 'bg-mf-tile-protein',
-  fat: 'bg-mf-tile-fat',
-  carbs: 'bg-mf-tile-carbs',
-}
-
-/** Ô dinh dưỡng: số theo cách người dùng chọn (phần trăm / đã ăn / còn lại) và thanh target. */
-function NutrientTile({
-  tileKey,
-  data,
-  display,
-}: {
-  readonly tileKey: string
-  readonly data: DashboardData
-  readonly display: NutrientDisplay
-}) {
-  const entry = NUTRIENTS.get(tileKey)
-  if (!entry) return null
-  const { nutrient, tone } = entry
-  const { value, target, known = true } = nutrientValue(data.nutrientsToday, tileKey)
-  const hasTarget = target !== null && target > 0
-  // BE chưa có dữ liệu chất này hôm nay: "---" như MacroFactor, không phải 0
-  const shown = !known
-    ? { text: '---', unit: nutrient.unit }
-    : display === 'percent' && hasTarget
-      ? { text: String(Math.round((value / target) * 100)), unit: '%' }
-      : display === 'remaining' && hasTarget
-        ? { text: String(Math.max(0, Math.round((target - value) * 10) / 10)), unit: nutrient.unit }
-        : { text: String(Math.round(value * 10) / 10), unit: nutrient.unit }
-  return (
-    <MetricTile
-      title={nutrient.name}
-      subtitle={nutrient.period ?? 'Today'}
-      href={routePath.dashboardNutrition}
-      visual={
-        nutrient.kind === 'none' ? undefined : (
-          <TargetBar
-            value={value}
-            target={target}
-            kind={nutrient.kind}
-            tone={MACRO_TONE[tileKey] ?? tone}
-          />
-        )
-      }
-      value={shown.text}
-      unit={shown.unit}
-    />
-  )
-}
 
 /** Một ô theo khoá trong bố cục; ô số đo cơ thể chỉ hiện khi đã có dữ liệu. */
 function renderTile(key: string, data: DashboardData, display: NutrientDisplay) {
@@ -150,20 +99,19 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
         />
       )
     default: {
-      if (NUTRIENTS.has(key)) {
-        if (key === 'macros') {
-          const average = energyBalance(data.daily.slice(-7), 'targets', null, null).nutrition
+      if (NUTRIENT_KEYS.has(key)) {
+        if (key === 'macros')
           return (
             <MetricTile
               title="Macros"
               subtitle="Last 7 Days"
               href={routePath.dashboardNutrition}
-              value={average === null ? '---' : String(average)}
+              visual={<MacroStack days={data.macrosWeek} />}
+              value={String(Math.round(nutrientValue(data.nutrientsToday, 'macros').value))}
               unit="kcal"
             />
           )
-        }
-        return <NutrientTile tileKey={key} data={data} display={display} />
+        return <NutrientTile tileKey={key} values={data.nutrientsToday} display={display} />
       }
       const label = SECTIONS.bodyMetrics.groups
         .flatMap((g) => g.tiles)
