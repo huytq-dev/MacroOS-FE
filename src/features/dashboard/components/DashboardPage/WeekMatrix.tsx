@@ -41,6 +41,16 @@ interface WeekMatrixProps {
 
 const consumedOf = (totals: MacroTotals, key: Row['key']) => totals[key]
 
+/**
+ * Tiến độ một chỉ số trong một ngày, độc lập với chế độ Consumed/Remaining (chế độ chỉ đổi số bên phải):
+ * `progress = clamp(consumed / target, 0, 1)`; `over` khi ăn vượt target. Target = 0 mà đã ăn → coi như đầy và vượt.
+ */
+export function dayProgress(consumed: number, target: number) {
+  if (consumed <= 0) return { progress: 0, over: false }
+  if (target <= 0) return { progress: 1, over: true }
+  return { progress: Math.min(1, consumed / target), over: consumed > target }
+}
+
 /** Lưới 7 ngày × 4 chỉ số (kiểu "Nutrition & Targets"): cột thanh dọc theo % target, chạm cột để xem số của ngày đó. */
 export function WeekMatrix({
   mode,
@@ -52,15 +62,8 @@ export function WeekMatrix({
 }: WeekMatrixProps) {
   const current = days.find((day) => day.logDate === selected)
 
-  // Không có target: thanh so với ngày ăn nhiều nhất tuần của chính chỉ số đó.
-  const percent = (day: WeekDay, row: Row): number => {
-    const value = consumedOf(day.totals, row.key)
-    const goal = day.target ? row.goal(day.target) : 0
-    const base = goal || Math.max(...days.map((item) => consumedOf(item.totals, row.key)), 0)
-    if (base <= 0) return 0
-    const used = Math.min(100, (value / base) * 100)
-    return mode === 'consumed' || !goal ? used : 100 - used
-  }
+  const progressOf = (day: WeekDay, row: Row) =>
+    dayProgress(consumedOf(day.totals, row.key), day.target ? row.goal(day.target) : 0)
 
   // Cả tuần: cộng đã ăn của 7 ngày so với tổng target các ngày đã có target.
   const summary = (row: Row) => {
@@ -97,7 +100,9 @@ export function WeekMatrix({
                 )}
               >
                 {ROWS.map((row, rowIndex) => {
-                  const empty = mode === 'consumed' && consumedOf(day.totals, row.key) <= 0
+                  const { progress, over } = progressOf(day, row)
+                  // Chưa ăn chỉ số này (hoặc ngày tương lai) → ô rỗng có dấu gạch, ở cả hai chế độ
+                  const empty = future || progress <= 0
                   return (
                     <span
                       key={row.key}
@@ -115,12 +120,18 @@ export function WeekMatrix({
                         ) : (
                           <span
                             className={cn(
-                              'absolute bottom-1 left-1/2 w-1 -translate-x-1/2 rounded-full transition-[height] duration-300 motion-reduce:transition-none',
-                              future ? 'bg-foreground/25' : row.fill
+                              'absolute bottom-1 left-1/2 min-h-[3px] w-1 -translate-x-1/2 rounded-full transition-[height] duration-300 motion-reduce:transition-none',
+                              row.fill
                             )}
-                            style={{ height: `calc((100% - 0.5rem) * ${percent(day, row) / 100})` }}
+                            style={{ height: `calc((100% - 0.5rem) * ${progress})` }}
                           >
-                            <span className="bg-foreground absolute inset-x-0 top-0 h-[3px] rounded-full" />
+                            {/* Nắp trắng ở đỉnh phần đã ăn; vượt target thì nắp dày hơn và có vòng sáng */}
+                            <span
+                              className={cn(
+                                'bg-foreground absolute inset-x-0 top-0 rounded-full',
+                                over ? 'h-[5px] shadow-[0_0_0_1.5px_var(--foreground)]' : 'h-[3px]'
+                              )}
+                            />
                           </span>
                         )}
                       </span>
