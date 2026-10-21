@@ -36,7 +36,11 @@ export function HabitSummary({ todayValue, unit, streak }: HabitSummaryProps) {
 }
 
 /** Chú giải gọn dưới lịch: vòng xanh = Tracked, vòng xám mảnh = Untracked (không đóng khung riêng). */
-export function HabitLegend({ trackedBorder = 'border-mf-tile-carbs' }: { readonly trackedBorder?: string }) {
+export function HabitLegend({
+  trackedBorder = 'border-mf-tile-carbs',
+}: {
+  readonly trackedBorder?: string
+}) {
   return (
     <div className="text-muted-foreground flex items-center justify-center gap-8 text-sm">
       <span className="flex items-center gap-2">

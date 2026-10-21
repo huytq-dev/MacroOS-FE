@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { periodService } from '../services/period.service'
-import type { PeriodRequest } from '../types/period.types'
 import { logger } from '@/lib/api'
 
 // Cùng tiền tố 'periods' với ô Period của Dashboard (`usePeriods`) nên mọi thay đổi làm mới cả hai
@@ -20,32 +19,19 @@ export const usePeriodHistory = (today: string | null) =>
     enabled: Boolean(today),
   })
 
-const usePeriodMutation = <TVariables>(
-  mutationFn: (variables: TVariables) => Promise<unknown>,
-  successMessage: string
-) => {
+/** Đặt một ngày là có / không hành kinh (`PUT /periods/days/{date}`); thành công thì lịch, danh sách và ô Dashboard làm mới ngay. */
+export const useSetPeriodDay = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn,
-    onSuccess: () => {
-      toast.success(successMessage)
+    mutationFn: ({ date, isOnPeriod }: { date: string; isOnPeriod: boolean }) =>
+      periodService.setDay(date, { isOnPeriod }),
+    onSuccess: (_data, { isOnPeriod }) => {
+      toast.success(isOnPeriod ? 'Period day saved' : 'Period day removed')
       void queryClient.invalidateQueries({ queryKey: periodKeys.all })
     },
     onError: (error) => {
       logger.error(error)
-      // lỗi nghiệp vụ (vd. 409 trùng ngày bắt đầu) hiện inline ở bảng nhập, không toast
+      // lỗi nghiệp vụ hiện inline ở bảng ngày, không toast
     },
   })
 }
-
-export const useCreatePeriod = () =>
-  usePeriodMutation((payload: PeriodRequest) => periodService.create(payload), 'Period saved')
-
-export const useUpdatePeriod = () =>
-  usePeriodMutation(
-    ({ id, payload }: { id: string; payload: PeriodRequest }) => periodService.update(id, payload),
-    'Period updated'
-  )
-
-export const useDeletePeriod = () =>
-  usePeriodMutation((id: string) => periodService.remove(id), 'Deleted')

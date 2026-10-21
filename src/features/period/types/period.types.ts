@@ -1,4 +1,4 @@
-// Khớp BE GET/POST /api/periods và PUT/DELETE /api/periods/{id} (Docs/MacroFactor_UI/UI/Dashboard/README.md mục 5)
+// Khớp BE GET /api/periods và PUT /api/periods/days/{date} (Docs/MacroFactor_UI/UI/Dashboard/README.md mục 5)
 
 export interface PeriodEntry {
   id: string
@@ -17,12 +17,11 @@ export interface PeriodHistory {
   items: PeriodEntry[]
   lastStartDate: string | null
   daysSinceLastStart: number | null
+  /** Độ dài (ngày) của kỳ gần nhất, cho "Last Period Duration"; BE cũ chưa trả thì FE suy từ `items`. */
+  lastPeriodLengthDays?: number | null
 }
 
-/** Body chung của POST /periods và PUT /periods/{id}; trùng `startDate` ở POST = 409. */
-export interface PeriodRequest {
-  startDate: string
-  endDate: string | null
-  symptoms: string | null
-  notes: string | null
+/** Body của PUT /periods/days/{date}: bật = ngày đó là ngày hành kinh, tắt = bỏ khỏi kỳ (BE tự gộp / tách các khoảng). */
+export interface SetPeriodDayRequest {
+  isOnPeriod: boolean
 }

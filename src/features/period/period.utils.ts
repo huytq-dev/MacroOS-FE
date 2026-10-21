@@ -1,5 +1,5 @@
 import { addDaysIso } from '@/lib/date'
-import type { PeriodEntry } from './types/period.types'
+import type { PeriodHistory } from './types/period.types'
 
 interface PeriodSpan {
   readonly startDate: string
@@ -18,33 +18,17 @@ export function periodDaySet(items: readonly PeriodSpan[] | undefined) {
   return days
 }
 
-const monthDay = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+/** Các ngày hành kinh theo thứ tự mới → cũ (cho danh sách lịch sử). */
+export const trackedDaysDesc = (days: ReadonlySet<string>) =>
+  [...days].sort((a, b) => b.localeCompare(a))
 
-/** "Oct 12 – Oct 16"; chưa có ngày kết thúc thì "Oct 12 – ongoing". */
-export const periodRangeLabel = (entry: Pick<PeriodEntry, 'startDate' | 'endDate'>) =>
-  `${monthDay(entry.startDate)} – ${entry.endDate ? monthDay(entry.endDate) : 'ongoing'}`
-
-const plural = (count: number) => `${count} ${count === 1 ? 'day' : 'days'}`
-
-/** Dòng phụ của một kỳ: "5 days · Cycle 28 days"; thiếu số thì bỏ phần đó. */
-export function periodDetail(entry: PeriodEntry) {
-  const parts = [
-    entry.periodLengthDays === null ? null : plural(entry.periodLengthDays),
-    entry.cycleLengthDays === null ? null : `Cycle ${plural(entry.cycleLengthDays)}`,
-  ].filter((part): part is string => part !== null)
-  return parts.length > 0 ? parts.join(' · ') : 'In progress'
+/** Độ dài kỳ gần nhất: số BE trả, thiếu thì `periodLengthDays` của kỳ bắt đầu muộn nhất, thiếu nữa thì số ngày đã đánh dấu; null khi chưa có kỳ nào. */
+export function lastPeriodLength(history: PeriodHistory | undefined): number | null {
+  if (!history || history.items.length === 0) return null
+  if (history.lastPeriodLengthDays != null) return history.lastPeriodLengthDays
+  const latest = history.items.reduce((top, item) => (item.startDate > top.startDate ? item : top))
+  return latest.periodLengthDays ?? periodDaySet([latest]).size
 }
 
-const average = (values: readonly (number | null)[]) => {
-  const present = values.filter((value): value is number => value !== null)
-  return present.length === 0
-    ? null
-    : Math.round(present.reduce((sum, value) => sum + value, 0) / present.length)
-}
-
-/** Độ dài chu kỳ / kỳ kinh trung bình trên các kỳ có số; null khi chưa có kỳ nào đủ dữ liệu. */
-export const summarizePeriods = (items: readonly PeriodEntry[]) => ({
-  cycleDays: average(items.map((item) => item.cycleLengthDays)),
-  periodDays: average(items.map((item) => item.periodLengthDays)),
-})
+/** "1 day" / "5 days". */
+export const dayCount = (count: number) => `${count} ${count === 1 ? 'day' : 'days'}`

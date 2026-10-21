@@ -1,188 +1,161 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
-import { PeriodList } from '../components/PeriodList'
-import { PeriodSheet } from '../components/PeriodSheet'
-import {
-  useCreatePeriod,
-  useDeletePeriod,
-  usePeriodHistory,
-  useUpdatePeriod,
-} from '../hooks/use-period'
-import { periodDaySet, periodRangeLabel, summarizePeriods } from '../period.utils'
-import type { PeriodRequest } from '../types/period.types'
+import { PeriodDaySheet } from '../components/PeriodDaySheet'
+import { PeriodHistoryList } from '../components/PeriodHistoryList'
+import { usePeriodHistory, useSetPeriodDay } from '../hooks/use-period'
+import { lastPeriodLength, periodDaySet, trackedDaysDesc } from '../period.utils'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
-import { HabitGrid } from '@/features/dashboard/components/DashboardPage/TileVisuals'
-import { DETAIL_CARD, MetricRow, StatBlock } from '@/features/dashboard/components/DetailPage'
-import { HABIT_DAYS, lastDays } from '@/features/dashboard/dashboard.utils'
+import { StatBlock } from '@/features/dashboard/components/DetailPage'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { HabitCalendar } from '@/features/habits/components/HabitsPage/HabitCalendar'
+import { HabitControls } from '@/features/habits/components/HabitsPage/HabitControls'
+import { HabitLegend } from '@/features/habits/components/HabitsPage/HabitSummary'
+import { monthGrid } from '@/features/habits/habits.utils'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ErrorState } from '@/components/shared/ErrorState'
-import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsClient } from '@/hooks/use-is-client'
-import { isConflictError } from '@/lib/api'
-import { todayIso } from '@/lib/date'
+import { useSheet } from '@/hooks/use-sheet'
+import { formatDate, todayIso } from '@/lib/date'
 
-/**
- * Trang Period (bấm ô Period ở Dashboard): "N days ago" kể từ lần bắt đầu gần nhất, độ dài chu kỳ trung bình, lưới 30 ngày, Insights và
- * danh sách các kỳ theo tháng; dấu + hoặc bút chì mở bảng thêm / sửa (Start / End Date, Symptoms, Notes, thùng rác khi đang sửa).
- * Trùng ngày bắt đầu (409) báo ngay trong bảng; BE tự tính độ dài chu kỳ.
- */
-export function PeriodPage() {
-  const isClient = useIsClient()
-  const today = isClient ? todayIso() : null
+const TONE = 'border-mf-tile-protein'
+
+interface View {
+  readonly year: number
+  readonly month: number
+  readonly direction: 'next' | 'prev' | null
+}
+
+function PeriodContent({ today }: { readonly today: string }) {
   const history = usePeriodHistory(today)
-  // Kỳ giữ nguyên khi đóng bảng để nội dung không đổi lúc đang trượt xuống
-  const [sheetId, setSheetId] = useState<string | null>(null)
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [confirmId, setConfirmId] = useState<string | null>(null)
+  const setDay = useSetPeriodDay()
+  const sheet = useSheet<string>()
+  const [confirmDate, setConfirmDate] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const create = useCreatePeriod()
-  const update = useUpdatePeriod()
-  const remove = useDeletePeriod()
-
-  const entries = history.data?.items ?? []
-  const entry = entries.find((item) => item.id === sheetId) ?? null
-
-  const openSheet = (id: string | null) => {
-    setSaveError(null)
-    setSheetId(id)
-    setSheetOpen(true)
-  }
-
-  const save = (payload: PeriodRequest) => {
-    const options = {
-      onSuccess: () => setSheetOpen(false),
-      onError: (error: unknown) =>
-        setSaveError(
-          isConflictError(error)
-            ? 'A period starting on this date already exists. Edit that one instead.'
-            : getFormErrorMessage(error)
-        ),
-    }
-    if (entry) update.mutate({ id: entry.id, payload }, options)
-    else create.mutate(payload, options)
-  }
-
-  const header = (
-    <SubPageHeader
-      title="Period"
-      action={
-        <IconButton
-          icon={Plus}
-          label="Add period"
-          className="size-11"
-          onClick={() => openSheet(null)}
-        />
-      }
-    />
-  )
+  const currentYear = Number(today.slice(0, 4))
+  const currentMonth = Number(today.slice(5, 7)) - 1
+  const [picked, setPicked] = useState<View | null>(null)
+  const view = picked ?? { year: currentYear, month: currentMonth, direction: null }
 
   if (history.isError)
     return <ErrorState error={history.error} onRetry={() => void history.refetch()} />
 
-  if (!today || history.isLoading)
-    return (
-      <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5">
-        {header}
-        <Skeleton className="h-24 rounded-xl" aria-busy="true" />
-        <Skeleton className="h-40 rounded-xl" />
-      </div>
+  const tracked = periodDaySet(history.data?.items)
+  const length = lastPeriodLength(history.data ?? undefined)
+
+  const goTo = (year: number, month: number) =>
+    setPicked({
+      year,
+      month,
+      direction: year * 12 + month > view.year * 12 + view.month ? 'next' : 'prev',
+    })
+  const step = (direction: 'next' | 'prev') => {
+    const index = view.year * 12 + view.month + (direction === 'next' ? 1 : -1)
+    goTo(Math.floor(index / 12), index % 12)
+  }
+
+  const open = (date: string) => {
+    setSaveError(null)
+    sheet.show(date)
+  }
+
+  const save = (date: string, isOnPeriod: boolean) =>
+    setDay.mutate(
+      { date, isOnPeriod },
+      {
+        onSuccess: sheet.hide,
+        onError: (error) => setSaveError(getFormErrorMessage(error)),
+      }
     )
 
-  const { cycleDays, periodDays } = summarizePeriods(entries)
-  const daysAgo = history.data?.daysSinceLastStart ?? null
-  const periodSet = periodDaySet(entries)
-  const confirmEntry = entries.find((item) => item.id === confirmId)
-
   return (
-    <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0">
-      {header}
-
-      <div className="flex gap-10">
-        <StatBlock
-          label="Last Period Started"
-          value={daysAgo === null ? null : String(daysAgo)}
-          unit="days ago"
-        />
-        <StatBlock
-          label="Avg Cycle"
-          value={cycleDays === null ? null : String(cycleDays)}
-          unit="days"
-        />
-      </div>
-
-      <section aria-label="Last 30 days" className={`${DETAIL_CARD} space-y-3 p-4`}>
-        <h2 className="text-lg">Last 30 Days</h2>
-        <HabitGrid
-          cells={lastDays(today, HABIT_DAYS).map((day) => periodSet.has(day))}
-          tone="bg-mf-tile-protein"
-        />
-      </section>
-
-      {entries.length === 0 ? (
-        <p className="bg-card text-muted-foreground rounded-xl p-4 text-base">
-          No periods logged yet. Tap + to add the first one.
-        </p>
+    <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 pb-24 md:pb-0">
+      <SubPageHeader title="Period" />
+      <StatBlock
+        label="Last Period Duration"
+        value={length === null ? null : String(length)}
+        unit={length === 1 ? 'day' : 'days'}
+      />
+      {history.isLoading ? (
+        <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       ) : (
-        <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
-          <div className="space-y-4">
-            <h2 className="text-lg font-bold">Insights & Data</h2>
-            <section aria-label="Period insights" className={`${DETAIL_CARD} space-y-5 p-4`}>
-              <MetricRow
-                value={cycleDays === null ? '---' : String(cycleDays)}
-                unit="days"
-                title="Average Cycle"
-                text="Average number of days between the start of one period and the next."
-              />
-              <MetricRow
-                value={periodDays === null ? '---' : String(periodDays)}
-                unit="days"
-                title="Average Period"
-                text="Average number of days your period lasts."
-              />
-            </section>
-          </div>
-          <PeriodList entries={entries} onEdit={openSheet} />
-        </div>
+        <HabitCalendar
+          grid={monthGrid(view.year, view.month)}
+          monthKey={`${view.year}-${view.month}`}
+          direction={view.direction}
+          tracked={tracked}
+          today={today}
+          trackedBorder={TONE}
+          onSwipe={step}
+          onSelect={open}
+        />
+      )}
+      <HabitControls
+        year={view.year}
+        month={view.month}
+        currentYear={currentYear}
+        currentMonth={currentMonth}
+        onChange={goTo}
+      />
+      <HabitLegend trackedBorder={TONE} />
+      <PeriodHistoryList days={trackedDaysDesc(tracked)} onEdit={open} />
+
+      {sheet.value !== undefined && (
+        <PeriodDaySheet
+          key={`${sheet.id}-${history.dataUpdatedAt}`}
+          open={sheet.open}
+          onOpenChange={sheet.onOpenChange}
+          date={sheet.value}
+          tracked={tracked.has(sheet.value)}
+          isPending={setDay.isPending}
+          error={saveError}
+          onSave={(isOnPeriod) => save(sheet.value as string, isOnPeriod)}
+          onDelete={
+            tracked.has(sheet.value) ? () => setConfirmDate(sheet.value as string) : undefined
+          }
+        />
       )}
 
-      <PeriodSheet
-        key={`${sheetId}-${history.dataUpdatedAt}`}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        entry={entry}
-        today={today}
-        isPending={create.isPending || update.isPending}
-        error={saveError}
-        onSave={save}
-        onDelete={entry ? () => setConfirmId(entry.id) : undefined}
-      />
-
       <ConfirmDialog
-        open={confirmId !== null}
-        onOpenChange={(open) => !open && setConfirmId(null)}
-        title="Delete this period?"
-        description={
-          confirmEntry
-            ? `Delete the period ${periodRangeLabel(confirmEntry)}. Cycle lengths are recalculated.`
-            : ''
-        }
-        confirmLabel="Delete period"
+        open={confirmDate !== null}
+        onOpenChange={(isOpen) => !isOpen && setConfirmDate(null)}
+        title="Delete this period day?"
+        description={confirmDate ? `Unmark ${formatDate(confirmDate)} as a period day.` : ''}
+        confirmLabel="Delete"
         pendingLabel="Deleting..."
-        isPending={remove.isPending}
+        isPending={setDay.isPending}
         onConfirm={() =>
-          confirmId &&
-          remove.mutate(confirmId, {
-            onSuccess: () => {
-              setConfirmId(null)
-              setSheetOpen(false)
-            },
-          })
+          confirmDate &&
+          setDay.mutate(
+            { date: confirmDate, isOnPeriod: false },
+            {
+              onSuccess: () => {
+                setConfirmDate(null)
+                sheet.hide()
+              },
+            }
+          )
         }
       />
     </div>
   )
+}
+
+/**
+ * Trang Period (bấm ô Period ở Dashboard) kiểu MacroFactor: "Last Period Duration", lịch tháng (vuốt hoặc ‹ › / chọn tháng-năm đổi
+ * tháng, ngày hành kinh viền hồng), chú giải Tracked / Untracked và lịch sử theo tháng. Bấm một ngày (hoặc bút chì ở lịch sử) mở bảng
+ * "Are you on your period?" → BE đặt cờ của ngày đó; lịch, danh sách và ô Dashboard làm mới ngay. Ngày tương lai không bấm được.
+ * "Hôm nay" chỉ tính sau khi mount (tránh lệch hydration).
+ */
+export function PeriodPage() {
+  const isClient = useIsClient()
+  if (!isClient)
+    return (
+      <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5" aria-busy="true">
+        <SubPageHeader title="Period" />
+        <Skeleton className="h-96 rounded-xl" />
+      </div>
+    )
+  return <PeriodContent today={todayIso()} />
 }
