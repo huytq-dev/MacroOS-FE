@@ -1,5 +1,9 @@
-import { goalProgress, type GoalLayout, type NutrientGoal } from './goal-progress'
+import { goalProgress, type NutrientGoal } from './goal-progress'
+import { formatAmount } from './nutrient-display'
 import { cn } from '@/lib/utils'
+
+/** Kiểu vẽ của thanh (không ảnh hưởng thang): `tile` = ô nền cao + vạch mảnh (Dashboard / Overview / minh hoạ), `row` = thanh mảnh trong hàng. */
+export type GoalBarLayout = 'tile' | 'row'
 
 interface NutrientGoalBarProps {
   /** floor / target / ceiling hiệu lực; thiếu hoặc không có mốc nào thì thanh trống, không vạch. */
@@ -8,10 +12,12 @@ interface NutrientGoalBarProps {
   readonly consumed: number | null
   /** Lớp nền literal của chất (vd. `bg-mf-tile-fat`, xem `nutrientTone`). */
   readonly tone: string
-  /** `tile`: ô Dashboard / thẻ Overview (thanh dày, vạch ở ~80%); `row`: hàng chất, thẻ macro, lịch sử (thanh mảnh, vạch ở ~58%). */
-  readonly layout: GoalLayout
-  /** Chỉ cho hình minh hoạ: vị trí (0–1) của mốc neo thay cho mặc định của bố cục (hình học vẫn là `goalProgress`). */
-  readonly anchorAt?: number
+  /** Kiểu vẽ: `tile` (ô Dashboard / thẻ Overview: nền cao, phần ăn là vạch mảnh) hoặc `row` (hàng chất, thẻ macro, lịch sử: thanh mảnh). */
+  readonly layout: GoalBarLayout
+  /** Thang chung của cả danh sách (lịch sử, tóm tắt) = max thang từng hàng để các hàng so sánh được; bỏ trống = thang của chính mục tiêu. */
+  readonly scaleMax?: number
+  /** Đơn vị của chất: có thì (kiểu `tile`) trần quá xa để vẽ được ghi thành chữ nhỏ dưới thanh, vd. "Limit 2000 mg". */
+  readonly unit?: string
   readonly className?: string
 }
 
@@ -20,17 +26,18 @@ const pct = (value: number) => `${value * 100}%`
 /**
  * Thanh tiến độ mục tiêu DUY NHẤT của app: floor → ceiling là dải mờ màu chất (mở về phía còn thiếu), phần đã ăn tô đặc màu chất (tô
  * dần từ trái, đổi lượng thì chạy mượt), phần vượt ceiling đổi sang màu cảnh báo, và CHỈ có một vạch trắng ở target (không target thì
- * không vạch). Mọi mốc nằm trên cùng một thang thật; lượng ăn vượt thang thì thang giãn ra (thanh đầy, mốc dịch trái) chứ không tràn.
+ * không vạch). Thang là ADAPTIVE GOAL SCALE (`goalScaleMax`): chỉ phụ thuộc mục tiêu, mọi mốc và phần đã ăn ở vị trí = giá trị / thang; ăn vượt thang thì thanh đầy (thang KHÔNG giãn). Trần quá xa để vẽ được (vd. vitamin C 90 / 2000) thì không vẽ trên thanh mà ghi chữ nhỏ "Limit …" dưới thanh (kiểu `tile` có `unit`).
  */
 export function NutrientGoalBar({
   goal,
   consumed,
   tone,
   layout,
-  anchorAt,
+  scaleMax,
+  unit,
   className,
 }: NutrientGoalBarProps) {
-  const progress = goalProgress(goal, consumed, layout, anchorAt)
+  const progress = goalProgress(goal, consumed, scaleMax)
   const thin = layout === 'row'
   const overStart = progress.status === 'over' ? progress.ceilingAt : null
   // Ô Dashboard (đo từ ảnh MF): ô nền cao ~14px, phần đã ăn là vạch mảnh ~5px nằm giữa ô; hàng chất (thin) tô kín chiều cao thanh mảnh
@@ -97,6 +104,11 @@ export function NutrientGoalBar({
     >
       {thin ? <div className="w-full">{track}</div> : track}
       {thin && tick}
+      {!thin && unit && progress.ceilingOffScale && progress.ceilingValue !== null && (
+        <p className="text-muted-foreground mt-1 truncate text-xs">
+          Limit {formatAmount(progress.ceilingValue, unit)} {unit}
+        </p>
+      )}
     </div>
   )
 }

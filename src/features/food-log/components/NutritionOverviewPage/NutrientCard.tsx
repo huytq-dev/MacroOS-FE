@@ -55,6 +55,7 @@ export function NutrientCard({
       consumed={value}
       tone={barTone}
       layout={layout === 'tile' ? 'tile' : 'row'}
+      unit={unit}
     />
   )
   const open = contributors !== undefined && contributors !== null

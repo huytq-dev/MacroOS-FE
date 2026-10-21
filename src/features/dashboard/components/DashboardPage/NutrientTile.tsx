@@ -52,6 +52,7 @@ export function NutrientTile({ tileKey, values, display = 'consumed' }: Nutrient
             consumed={known ? value : null}
             tone={nutrientTone(tileKey, groupTone)}
             layout="tile"
+            unit={nutrient.unit}
           />
         ) : undefined
       }

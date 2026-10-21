@@ -4,13 +4,12 @@ import { NutrientGoalBar } from '@/features/nutrition/NutrientGoalBar'
 import { goalProgress, type NutrientGoal } from '@/features/nutrition/goal-progress'
 
 /**
- * Mục tiêu và lượng ăn MINH HOẠ (không phải số của người dùng), đo từ ảnh "Anatomy of a Nutrient Goal" của MF: target ở 0.58 chiều dài
- * thanh, floor ≈ 0.35, ceiling ≈ 0.84 (cả ba nằm TRONG thanh), phần đã ăn ≈ 0.70 (đã qua target, chưa tới ceiling).
+ * Mục tiêu và lượng ăn MINH HOẠ (không phải số của người dùng): một mục tiêu Range có đủ ba mốc, trần gần (≤ 2 × target) nên được vẽ.
+ * Vị trí do `goalScaleMax` tính (thang = ceiling × 1.15 = 166.75 → floor ≈ 0.36, target ≈ 0.60, ceiling ≈ 0.87), phần đã ăn ≈ 0.72
+ * (đã qua target, chưa tới ceiling) — không có vị trí nào được gán tay.
  */
 const SAMPLE_GOAL: NutrientGoal = { floor: 60, target: 100, ceiling: 145 }
 const SAMPLE_CONSUMED = 120
-/** Vị trí mốc neo của hình minh hoạ (như ảnh MF); các mốc còn lại do `goalProgress` tính tuyến tính trên cùng thang. */
-const SAMPLE_ANCHOR_AT = 0.58
 
 /**
  * Hình "Anatomy of a Nutrient Goal": CHÍNH `NutrientGoalBar` (cùng hình học `goalProgress` với mọi thanh khác) vẽ MỘT VÍ DỤ có đủ
@@ -18,7 +17,7 @@ const SAMPLE_ANCHOR_AT = 0.58
  * Floor / Target / Ceiling đặt đúng vị trí thật của từng mốc.
  */
 export function GoalAnatomy({ info }: { readonly info: NutrientInfo }) {
-  const progress = goalProgress(SAMPLE_GOAL, SAMPLE_CONSUMED, 'tile', SAMPLE_ANCHOR_AT)
+  const progress = goalProgress(SAMPLE_GOAL, SAMPLE_CONSUMED)
   const marks = [
     { label: 'Floor', at: progress.floorAt },
     { label: 'Target', at: progress.targetAt },
@@ -31,7 +30,6 @@ export function GoalAnatomy({ info }: { readonly info: NutrientInfo }) {
         consumed={SAMPLE_CONSUMED}
         tone={info.tone}
         layout="tile"
-        anchorAt={SAMPLE_ANCHOR_AT}
       />
       <div className="relative mt-2 h-12">
         {marks.map((mark) =>

@@ -3,9 +3,9 @@
  * (Dashboard, Nutrition, Overview, chi tiết món, plate, recipe, trang chi tiết nutrient). Không phụ thuộc gì khác để chạy được bằng
  * `node scripts/check-goal-progress.mjs`.
  *
- * Quy tắc: floor / target / ceiling nằm trên CÙNG một thang thật; bố cục chỉ quyết định mốc neo (target, thiếu thì floor, chỉ trần thì
- * ceiling) nằm ở đâu trên thanh, trần xa hơn thang thì không vẽ (dải mở tới hết thanh) chứ KHÔNG kéo giãn thang. Số ≤ 0 hoặc null là
- * "không có" (target 0 coi như chưa đặt). `goalKind` của BE quyết định mốc nào được tính (xem `normalizeGoal`).
+ * ADAPTIVE GOAL SCALE: thang của một thanh chỉ phụ thuộc vào CHÍNH mục tiêu (floor / target / ceiling theo `goalKind` của BE), không phụ
+ * thuộc lượng đã ăn và không có vị trí target cố định: target nằm ở đâu là do thang tính ra (xem `goalScaleMax`). Số ≤ 0 hoặc null là
+ * "không có" (target 0 coi như chưa đặt); không bịa mốc nào mà BE không trả.
  */
 
 /** Loại mục tiêu hiệu lực do BE phân loại (`GET /nutrients`, series, day, overview). */
@@ -21,29 +21,37 @@ export interface NutrientGoal {
 
 export const NO_GOAL: NutrientGoal = { floor: null, target: null, ceiling: null }
 
-/** Hai bố cục thanh, đo từ ảnh MacroFactor: `tile` (ô Dashboard) và `row` (hàng chất, thẻ macro, lịch sử, chi tiết món). */
-export type GoalLayout = 'tile' | 'row'
+// ── Hằng số của thang thích ứng (mỗi hệ số là "chừa bao nhiêu chỗ phía sau mốc cuối cùng của thanh") ────────────────────────────────
 
-/**
- * Vị trí (0–1 chiều dài thanh) của mốc neo (vạch target). Đo từ ảnh: ô Dashboard (Nutrient_Detail/01) vạch ở ~0.80 chiều dài thanh; hàng
- * chất, thẻ macro và lịch sử (Nutrient_Detail/03, 05, Food_Log/Add_Flow/3) vạch ở ~0.58.
- */
-export const TARGET_AT: Readonly<Record<GoalLayout, number>> = { tile: 0.8, row: 0.58 }
+/** Chỉ có target (calo / macro theo program): thang = target × 1.25 → target ở 0.80 chiều dài thanh, còn 20% để thấy phần vượt nhẹ. */
+export const TARGET_HEADROOM = 1.25
+/** Có floor / target nhưng KHÔNG có trần (Minimum), hoặc trần quá xa để vẽ: thang = mốc × 1.5 → mốc ở ≈ 0.67, dư chỗ cho "ăn nhiều hơn mức tối thiểu". */
+export const MIN_HEADROOM = 1.5
+/** Chỉ có trần (Maximum, vd. saturated fat): thang = trần × 1.25 → trần ở 0.80; vượt trần là vượt thang, thanh đầy. */
+export const LIMIT_HEADROOM = 1.25
+/** Trần được vẽ trên thanh khi ceiling ≤ mốc cơ sở × hệ số này; xa hơn (vd. vitamin C 90 / 2000) thì không vẽ, ghi bằng chữ. */
+export const CEILING_REACH = 2
+/** Trần được vẽ: thang = ceiling × 1.15 → ceiling ở ≈ 0.87, floor / target phân bố tuyến tính trước đó. */
+export const CEILING_HEADROOM = 1.15
 
 export type GoalStatus = 'empty' | 'below' | 'inRange' | 'met' | 'over'
 
 export interface GoalProgress {
-  /** Giá trị ứng với đầu phải của thanh (chỉ giãn ra khi lượng đã ăn vượt thang); 0 khi không có mục tiêu. */
+  /** Giá trị ứng với đầu phải của thanh; 0 khi không có mục tiêu. KHÔNG đổi theo lượng đã ăn. */
   readonly scaleMax: number
-  /** Phần thanh đã tô (0–1). */
+  /** Phần thanh đã tô (0–1, kẹp ở 1 khi ăn vượt thang: thang không giãn ra). */
   readonly fill: number
   readonly floorAt: number | null
   readonly targetAt: number | null
-  /** null khi không có trần HOẶC trần nằm ngoài thanh (không vẽ). */
+  /** null khi không có trần HOẶC trần quá xa để vẽ (xem `ceilingOffScale`). */
   readonly ceilingAt: number | null
+  /** Trần có thật nhưng quá xa mốc cơ sở nên không vẽ: nơi hiển thị ghi bằng chữ (vd. "Limit 2000 mg"). */
+  readonly ceilingOffScale: boolean
+  /** Giá trị trần (nếu có), để ghi chữ. */
+  readonly ceilingValue: number | null
   /**
-   * Dải mục tiêu (0–1) từ floor (thiếu thì target, thiếu nữa thì đầu thanh) tới ceiling; trần không có hoặc nằm ngoài thanh thì dải mở tới
-   * hết thanh. null khi không có cả floor lẫn ceiling.
+   * Dải mục tiêu (0–1) từ floor (thiếu thì target, thiếu nữa thì đầu thanh) tới ceiling; trần không có hoặc không vẽ thì dải mở tới hết
+   * thanh. null khi không có cả floor lẫn ceiling.
    */
   readonly zone: readonly [number, number] | null
   readonly status: GoalStatus
@@ -89,43 +97,69 @@ export function primaryGoal(goal: Partial<NutrientGoal> | null | undefined): num
   return g.target ?? g.floor ?? g.ceiling
 }
 
+/** Ceiling có được vẽ trên thanh không: có floor / target làm cơ sở và trần không xa hơn CEILING_REACH × cơ sở (chỉ-trần thì luôn vẽ). */
+function ceilingDrawn(g: NutrientGoal): boolean {
+  if (g.ceiling === null) return false
+  const base = g.target ?? g.floor
+  return base === null || g.ceiling <= base * CEILING_REACH
+}
+
 /**
- * Tính hình học và trạng thái của một thanh; `consumed` null hoặc ≤ 0 là thanh rỗng. QUY TẮC THANG (một nơi duy nhất): `scaleMax` được chọn
- * sao cho mốc neo (target, thiếu thì floor, chỉ trần thì ceiling) nằm ở vị trí của bố cục (`TARGET_AT`: row 0.58 / tile 0.80, đo từ ảnh MF);
- * mọi mốc và phần đã ăn đều ở vị trí = giá trị / scaleMax (tuyến tính, cùng một thang); đã ăn > scaleMax thì scaleMax = đã ăn. Phần
- * trăm (`goalPercent`) là consumed / mốc chính, TÁCH khỏi vị trí vạch. `anchorAt` chỉ để minh hoạ (Anatomy) đặt neo ở vị trí khác bố cục.
+ * Thang (giá trị ứng với đầu phải của thanh) cho MỘT mục tiêu; 0 khi không có mục tiêu (không vẽ thanh). Theo loại mục tiêu:
+ * - chỉ target (Target): target × TARGET_HEADROOM; có floor nhưng không trần (Minimum): mốc × MIN_HEADROOM;
+ * - chỉ trần (Maximum): ceiling × LIMIT_HEADROOM;
+ * - có trần và floor / target (Range, TargetWithCeiling): trần gần (≤ CEILING_REACH × cơ sở) → ceiling × CEILING_HEADROOM, cả ba mốc nằm
+ *   trên thanh; trần xa → mốc × MIN_HEADROOM và trần không vẽ.
+ * Chỉ phụ thuộc mục tiêu: đổi lượng đã ăn không bao giờ đổi thang.
+ */
+export function goalScaleMax(goal: Partial<NutrientGoal> | null | undefined): number {
+  const g = normalizeGoal(goal)
+  const base = g.target ?? g.floor
+  if (base === null) return g.ceiling === null ? 0 : g.ceiling * LIMIT_HEADROOM
+  if (g.ceiling !== null)
+    return ceilingDrawn(g) ? g.ceiling * CEILING_HEADROOM : base * MIN_HEADROOM
+  // Không trần: chỉ target (kể cả goalKind Target) dùng TARGET_HEADROOM, có floor (Minimum) dùng MIN_HEADROOM
+  return g.floor === null ? base * TARGET_HEADROOM : base * MIN_HEADROOM
+}
+
+/**
+ * Hình học và trạng thái của một thanh. Vị trí của mọi mốc và của phần đã ăn = giá trị / scaleMax (kẹp 0–1, tuyến tính, cùng một thang);
+ * ăn vượt thang thì fill = 1 chứ không giãn thang. `scaleMax` mặc định là thang của chính mục tiêu; danh sách nhiều hàng (lịch sử, tóm tắt)
+ * truyền MỘT thang chung = max các thang để các hàng so sánh được. `consumed` null hoặc ≤ 0 là thanh rỗng. Phần trăm
+ * (`goalPercent`) là consumed / mốc chính, TÁCH khỏi vị trí.
  */
 export function goalProgress(
   goal: Partial<NutrientGoal> | null | undefined,
   consumed: number | null,
-  layout: GoalLayout,
-  anchorAt: number = TARGET_AT[layout]
+  scaleMax: number = goalScaleMax(goal)
 ): GoalProgress {
   const g = normalizeGoal(goal)
   const eaten = positive(consumed) ?? 0
-  const anchor = g.target ?? g.floor ?? g.ceiling
-  if (anchor === null)
+  if (scaleMax <= 0)
     return {
       scaleMax: 0,
       fill: 0,
       floorAt: null,
       targetAt: null,
       ceilingAt: null,
+      ceilingOffScale: false,
+      ceilingValue: null,
       zone: null,
       status: 'empty',
     }
 
-  // Thang theo mốc neo; trần xa hơn thì nằm ngoài thanh (không giãn thang), chỉ lượng đã ăn mới kéo thang ra
-  let scaleMax = anchor / anchorAt
-  if (eaten > scaleMax) scaleMax = eaten
-  const at = (value: number | null) => (value === null ? null : Math.min(1, value / scaleMax))
+  const at = (value: number | null) =>
+    value === null ? null : Math.min(1, Math.max(0, value / scaleMax))
   const floorAt = at(g.floor)
   const targetAt = at(g.target)
-  const ceilingAt = g.ceiling !== null && g.ceiling <= scaleMax ? g.ceiling / scaleMax : null
+  const drawn = ceilingDrawn(g)
+  const ceilingAt = drawn ? at(g.ceiling) : null
 
   let status: GoalStatus
   if (eaten === 0) status = 'empty'
   else if (g.ceiling !== null && eaten > g.ceiling) status = 'over'
+  // Không có trần mà ăn vượt cả thang: thanh đầy và coi là vượt (có trần xa thì chỉ vượt khi qua trần thật)
+  else if (g.ceiling === null && eaten > scaleMax) status = 'over'
   else if (g.target !== null)
     status = eaten >= g.target ? 'met' : g.floor !== null && eaten >= g.floor ? 'inRange' : 'below'
   else if (g.floor !== null) status = eaten >= g.floor ? 'met' : 'below'
@@ -133,10 +167,12 @@ export function goalProgress(
 
   return {
     scaleMax,
-    fill: eaten / scaleMax,
+    fill: at(eaten) ?? 0,
     floorAt,
     targetAt,
     ceilingAt,
+    ceilingOffScale: g.ceiling !== null && !drawn,
+    ceilingValue: g.ceiling,
     zone:
       g.floor === null && g.ceiling === null ? null : [floorAt ?? targetAt ?? 0, ceilingAt ?? 1],
     status,

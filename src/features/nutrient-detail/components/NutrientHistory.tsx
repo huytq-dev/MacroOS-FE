@@ -1,7 +1,7 @@
 import type { NutrientInfo } from '../nutrient-detail.utils'
 import type { NutrientSeriesDay } from '../types/nutrient-detail.types'
 import { NutrientGoalBar } from '@/features/nutrition/NutrientGoalBar'
-import { goalPercent, hasGoal, primaryGoal } from '@/features/nutrition/goal-progress'
+import { goalPercent, goalScaleMax, hasGoal, primaryGoal } from '@/features/nutrition/goal-progress'
 import { formatAmount } from '@/features/nutrition/nutrient-display'
 import { entryDayLabel, groupByMonth } from '@/features/weight/body-metric.utils'
 
@@ -17,7 +17,10 @@ interface NutrientHistoryProps {
  */
 export function NutrientHistory({ info, days }: NutrientHistoryProps) {
   const { nutrient, tone } = info
-  const months = groupByMonth(days.filter((day) => day.amount !== null))
+  const logged = days.filter((day) => day.amount !== null)
+  const months = groupByMonth(logged)
+  // MỘT thang chung cho cả danh sách (= lớn nhất trong các hàng) để các hàng so sánh được dù mục tiêu đổi theo ngày
+  const sharedScale = Math.max(0, ...logged.map(goalScaleMax))
   if (months.length === 0) return null
   return (
     <div className="space-y-6">
@@ -48,7 +51,13 @@ export function NutrientHistory({ info, days }: NutrientHistoryProps) {
                   </div>
                   {hasGoal(day) && (
                     <div className="mt-3">
-                      <NutrientGoalBar goal={day} consumed={amount} tone={tone} layout="row" />
+                      <NutrientGoalBar
+                        goal={day}
+                        consumed={amount}
+                        tone={tone}
+                        layout="row"
+                        scaleMax={sharedScale}
+                      />
                     </div>
                   )}
                 </li>
