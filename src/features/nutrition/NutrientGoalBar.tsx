@@ -24,10 +24,18 @@ export function NutrientGoalBar({ goal, consumed, tone, layout, className }: Nut
   const progress = goalProgress(goal, consumed, layout)
   const thin = layout === 'row'
   const overStart = progress.status === 'over' ? progress.ceilingAt : null
+  // Ô Dashboard (đo từ ảnh MF): ô nền cao ~14px, phần đã ăn là vạch mảnh ~5px nằm giữa ô; hàng chất (thin) tô kín chiều cao thanh mảnh
+  const fillBox = thin ? 'inset-y-0' : 'top-1/2 h-[5px] -translate-y-1/2'
+  // Vạch target sáng khi đã chạm / vượt, mờ khi chưa tới (như ảnh MF)
+  const reached = progress.targetAt !== null && progress.fill >= progress.targetAt
   const solid = overStart ?? progress.fill
   const tick = progress.targetAt !== null && (
     <span
-      className="bg-foreground/70 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-500 absolute top-1/2 h-3 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+      className={cn(
+        'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-500 absolute top-1/2 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full transition-colors duration-500',
+        thin ? 'h-3' : 'h-2',
+        reached ? 'bg-foreground' : 'bg-foreground/35'
+      )}
       style={{ left: pct(progress.targetAt) }}
     />
   )
@@ -35,7 +43,7 @@ export function NutrientGoalBar({ goal, consumed, tone, layout, className }: Nut
     <div
       className={cn(
         'relative overflow-hidden',
-        thin ? 'bg-foreground/[0.07] h-1.5 rounded-full' : 'bg-foreground/[0.08] h-5 rounded-sm'
+        thin ? 'bg-foreground/[0.07] h-1.5 rounded-full' : 'bg-foreground/[0.08] h-3.5 rounded-sm'
       )}
     >
       {progress.zone && (
@@ -52,14 +60,18 @@ export function NutrientGoalBar({ goal, consumed, tone, layout, className }: Nut
       )}
       <span
         className={cn(
-          'motion-safe:animate-bar-grow absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none',
+          'motion-safe:animate-bar-grow absolute left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none',
+          fillBox,
           tone
         )}
         style={{ width: pct(solid) }}
       />
       {overStart !== null && (
         <span
-          className="bg-destructive motion-safe:animate-in motion-safe:fade-in-0 absolute inset-y-0 transition-[left,width] duration-500 ease-out motion-reduce:transition-none"
+          className={cn(
+            'bg-destructive motion-safe:animate-in motion-safe:fade-in-0 absolute transition-[left,width] duration-500 ease-out motion-reduce:transition-none',
+            fillBox
+          )}
           style={{ left: pct(overStart), width: pct(progress.fill - overStart) }}
         />
       )}

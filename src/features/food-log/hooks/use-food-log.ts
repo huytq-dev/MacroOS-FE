@@ -7,6 +7,7 @@ import {
   useQueries,
   useQuery,
   useQueryClient,
+  type QueryClient,
   type UseQueryResult,
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -43,6 +44,20 @@ export const foodLogKeys = {
   day: (date: string) => ['food-log', 'day', date] as const,
   week: (date: string) => ['food-log', 'week', date] as const,
   library: ['food-log', 'library'] as const,
+}
+
+/** Dữ liệu BE tính từ log ăn uống: ô Nutrition / Macros / Energy Balance / Expenditure / Overview và trang chi tiết đọc cùng log nên phải làm mới cùng lúc. */
+const LOG_DERIVED_KEYS = [
+  ['nutrients'],
+  ['nutrition-overview'],
+  ['expenditure'],
+  ['energy-balance'],
+] as const
+
+/** Thêm / sửa / xoá món: làm mới log và mọi số suy ra từ log để Dashboard cập nhật ngay (không chờ hết staleTime). */
+export function invalidateLogData(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: foodLogKeys.all })
+  for (const queryKey of LOG_DERIVED_KEYS) void queryClient.invalidateQueries({ queryKey })
 }
 
 /**
@@ -88,7 +103,7 @@ export const useCreateRecipeAndLog = () => {
     mutationFn: (payload: CreateAndLogRequest) => foodLogService.createRecipeAndLog(payload),
     onSuccess: () => {
       toast.success('Recipe saved and added')
-      void queryClient.invalidateQueries({ queryKey: foodLogKeys.all })
+      invalidateLogData(queryClient)
     },
     onError: (error) => logger.error(error),
   })
@@ -149,7 +164,7 @@ const useLogMutation = <TVariables, TResult = unknown>(
     mutationFn,
     onSuccess: () => {
       if (successMessage) toast.success(successMessage)
-      void queryClient.invalidateQueries({ queryKey: foodLogKeys.all })
+      invalidateLogData(queryClient)
     },
     onError: (error) => {
       logger.error(error)
@@ -208,7 +223,7 @@ export const useDeleteEntry = () => {
       logger.error(error)
       context?.snapshot.forEach(([key, data]) => queryClient.setQueryData(key, data))
     },
-    onSettled: () => void queryClient.invalidateQueries({ queryKey: foodLogKeys.all }),
+    onSettled: () => invalidateLogData(queryClient),
   })
 }
 export const useQuickAdd = () =>

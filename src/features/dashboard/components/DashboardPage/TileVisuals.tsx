@@ -1,3 +1,4 @@
+import { ChartArea } from './InsightCharts'
 import { cn } from '@/lib/utils'
 import type { MacroStackDay } from '../../types/dashboard.types'
 
@@ -98,37 +99,53 @@ const STACK_SEGMENTS = [
   ['other', 'fill-mf-tile-calories'],
 ] as const
 
+/** Bảy cột trải hết bề rộng; khoảng hở = 40% bề rộng một cột (đo từ ảnh MF: cột ≈ 10.6% bề rộng ô, hở ≈ 4.2%). */
+const STACK_COLUMNS = 7
+const STACK_GAP = 0.4
+/** Sàn nhìn thấy được (px) của một cột có dữ liệu rất nhỏ; chỉ để cột không biến mất, không phải thang đo. */
+const MIN_STACK_PX = 2
+
 /**
- * Cột chồng 7 ngày của ô Macros (như MacroFactor): mỗi ngày đã log một cột gồm carb (xanh lá), fat (vàng), protein (cam) và phần calo
- * chưa quy ra macro (xanh dương) trên cùng; ngày chưa log không có cột; thang tự co theo ngày cao nhất, cột mọc lên từ đáy.
+ * Cột chồng 7 ngày của ô Macros (như MacroFactor): mỗi ngày đã log một cột phẳng đỉnh gồm carb (xanh lá, dưới cùng), fat (vàng), protein
+ * (cam) và phần calo không quy ra macro (xanh dương, trên cùng) — kcal = C×4 + F×9 + P×4 + phần còn lại; ngày chưa log không có cột;
+ * CÙNG một thang 0 → ngày cao nhất; bảy cột trải hết bề rộng, hôm nay ở mép phải, cao hết vùng vẽ; cột mọc lên từ đáy.
  */
 export function MacroStack({ days }: { readonly days: readonly (MacroStackDay | null)[] }) {
   const totals = days.map((day) => (day ? day.carbs + day.fat + day.protein + day.other : 0))
   const top = Math.max(0, ...totals)
-  if (top === 0) return <div className="h-12" aria-hidden="true" />
-  const scale = (BOTTOM - 4) / top
-  const slot = (WIDTH - 12) / 7
+  if (top === 0) return <div className="h-14" aria-hidden="true" />
+  // Thiếu ngày thì dồn về bên phải (hôm nay luôn ở cột cuối)
+  const offset = STACK_COLUMNS - days.length
   return (
-    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden="true" className="h-12 w-full">
-      {days.map((day, index) => {
-        if (!day) return null
-        let filled = 0
-        return STACK_SEGMENTS.map(([part, fill]) => {
-          const height = day[part] * scale
-          filled += height
-          return height <= 0 ? null : (
-            <rect
-              key={`${day.date}-${part}`}
-              x={6 + slot * (index + 0.5) - 5}
-              y={BOTTOM - filled}
-              width="10"
-              height={height}
-              className={cn(fill, 'motion-safe:animate-chart-rise')}
-            />
-          )
+    // -mb-2: cột sát đường kẻ phía dưới như MF (khoảng hở còn ~4px thay vì 12px)
+    <ChartArea className="-mb-2">
+      {({ width, height }) => {
+        const bar = width / (STACK_COLUMNS + (STACK_COLUMNS - 1) * STACK_GAP)
+        const scale = (height - 2) / top
+        return days.map((day, index) => {
+          if (!day) return null
+          // Cột quá thấp được nâng lên MIN_STACK_PX (đủ tỉ lệ các phần) để vẫn thấy
+          const lift = Math.max(1, MIN_STACK_PX / Math.max(totals[index] * scale, 0.0001))
+          let filled = 0
+          return STACK_SEGMENTS.map(([part, fill]) => {
+            const segment = day[part] * scale * lift
+            filled += segment
+            return segment <= 0 ? null : (
+              <rect
+                key={`${day.date}-${part}`}
+                x={(index + offset) * bar * (1 + STACK_GAP)}
+                y={height - filled}
+                width={bar}
+                height={segment}
+                className={cn(fill, 'motion-safe:animate-chart-rise')}
+                stroke="var(--card)"
+                strokeWidth="0.75"
+              />
+            )
+          })
         })
-      })}
-    </svg>
+      }}
+    </ChartArea>
   )
 }
 

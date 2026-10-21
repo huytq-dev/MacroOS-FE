@@ -26,6 +26,7 @@ import type {
   NutrientValue,
 } from '../types/dashboard.types'
 import { periodDaySet } from '@/features/period/period.utils'
+import { KCAL_PER_GRAM } from '@/features/program/utils/day-macros'
 import { useDayLog } from '@/features/food-log/hooks/use-food-log'
 import type { MacroTotals } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
@@ -68,9 +69,6 @@ export interface DashboardData {
   /** 7 ngày gần nhất cho cột chồng của ô Macros (cũ → mới); ngày chưa log = null (không có cột). */
   readonly macrosWeek: readonly (MacroStackDay | null)[]
 }
-
-/** kcal trên mỗi gram của từng macro (Atwater). */
-const KCAL_PER_G = { carbs: 4, fat: 9, protein: 4 } as const
 
 /** Giá trị + mục tiêu của một chất đúng như BE trả (floor / target / ceiling nguyên vẹn; không suy mốc từ loại thanh của FE). */
 function nutrientFromApi(item: NutrientModel | undefined): NutrientValue {
@@ -140,9 +138,9 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
   nutrientsToday.macros = macro(totals?.calories, undefined)
   const macrosWeek = daily.slice(-WEEK_DAYS).map((point): MacroStackDay | null => {
     if (!isLogged(point)) return null
-    const carbs = point.carbsConsumed * KCAL_PER_G.carbs
-    const fat = point.fatConsumed * KCAL_PER_G.fat
-    const protein = point.proteinConsumed * KCAL_PER_G.protein
+    const carbs = point.carbsConsumed * KCAL_PER_GRAM.carbs
+    const fat = point.fatConsumed * KCAL_PER_GRAM.fat
+    const protein = point.proteinConsumed * KCAL_PER_GRAM.protein
     return {
       date: point.snapshotDate,
       carbs,

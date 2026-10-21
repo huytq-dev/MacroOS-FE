@@ -11,8 +11,8 @@ import {
   weekBarProgress,
 } from '../src/features/nutrition/goal-progress.ts'
 
-const close = (actual, expected, label) =>
-  assert.ok(Math.abs(actual - expected) < 1e-9, `${label}: ${actual} ≠ ${expected}`)
+const close = (actual, expected, label, tolerance = 1e-9) =>
+  assert.ok(Math.abs(actual - expected) < tolerance, `${label}: ${actual} ≠ ${expected}`)
 const goal = (floor, target, ceiling) => ({ floor, target, ceiling })
 const row = (g, consumed) => goalProgress(g, consumed, 'row')
 let checks = 0
@@ -43,6 +43,17 @@ check('target only: below, = target, beyond target (no ceiling → met, never ov
 check('tile layout puts the target at 0.8', () => {
   close(goalProgress(goal(null, 100, null), 40, 'tile').targetAt, 0.8, 'tile targetAt')
 })
+
+check(
+  'tile fill matches the MF Dashboard ref (Calories 3258/2880 ≈ 0.905, Protein 53/137 ≈ 0.31, 0 = empty)',
+  () => {
+    const cal = goalProgress(goal(null, 2880, null), 3258, 'tile')
+    close(cal.fill, 0.905, 'calories fill', 0.005)
+    assert.ok(cal.fill > cal.targetAt && cal.fill <= 1)
+    close(goalProgress(goal(null, 137, null), 53, 'tile').fill, 0.31, 'protein fill', 0.005)
+    assert.equal(goalProgress(goal(null, 137, null), 0, 'tile').fill, 0)
+  }
+)
 
 check(
   'floor + target + ceiling: below floor / = floor / between / = target / = ceiling / above',
