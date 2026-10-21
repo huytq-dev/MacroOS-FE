@@ -5,6 +5,9 @@ import type {
   ExpenditureChange,
   ExpenditureSeries,
   GoalProgress,
+  NutrientsResponse,
+  PeriodsResponse,
+  StepsResponse,
 } from '../types/dashboard.types'
 
 export const dashboardService = {
@@ -14,4 +17,10 @@ export const dashboardService = {
   dailyProgress: (from: string, to: string) =>
     apiCall.get<DailyProgress[]>(apiRoutes.expenditure.daily, { params: { from, to } }),
   goalProgress: () => apiCall.get<GoalProgress>(apiRoutes.goals.progress),
+  steps: (from: string, to: string) =>
+    apiCall.get<StepsResponse>(apiRoutes.steps.root, { params: { from, to } }),
+  periods: (from: string, to: string) =>
+    apiCall.get<PeriodsResponse>(apiRoutes.periods.root, { params: { from, to } }),
+  nutrients: (date: string) =>
+    apiCall.get<NutrientsResponse>(apiRoutes.nutrients.root, { params: { date } }),
 }

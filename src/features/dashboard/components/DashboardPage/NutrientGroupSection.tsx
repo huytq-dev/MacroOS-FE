@@ -26,7 +26,7 @@ export function NutrientGroupSection({ group, values, index }: NutrientGroupSect
       </h2>
       <div className="grid grid-cols-2 gap-3">
         {group.nutrients.map((nutrient) => {
-          const { value, target } = nutrientValue(values, nutrient.key)
+          const { value, target, known = true } = nutrientValue(values, nutrient.key)
           return (
             <MetricTile
               key={nutrient.key}
@@ -37,7 +37,7 @@ export function NutrientGroupSection({ group, values, index }: NutrientGroupSect
                   <TargetBar value={value} target={target} kind={nutrient.kind} tone={group.tone} />
                 )
               }
-              value={format(value, nutrient.unit)}
+              value={known ? format(value, nutrient.unit) : '---'}
               unit={nutrient.unit}
             />
           )

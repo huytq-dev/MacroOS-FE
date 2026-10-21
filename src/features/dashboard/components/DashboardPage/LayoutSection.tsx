@@ -1,4 +1,10 @@
-import { FullBodyTile, MeasureTile, ProgressPhotosTile, sparkOf } from './BodyMetricTiles'
+import {
+  FullBodyTile,
+  MeasureTile,
+  ProgressPhotosTile,
+  RatioTile,
+  sparkOf,
+} from './BodyMetricTiles'
 import { MetricTile } from './MetricTile'
 import { TileSection } from './TileSection'
 import {
@@ -40,13 +46,15 @@ function NutrientTile({
   const entry = NUTRIENTS.get(tileKey)
   if (!entry) return null
   const { nutrient, tone } = entry
-  const { value, target } = nutrientValue(data.nutrientsToday, tileKey)
+  const { value, target, known = true } = nutrientValue(data.nutrientsToday, tileKey)
   const hasTarget = target !== null && target > 0
-  const shown =
-    display === 'percent' && hasTarget
+  // BE chưa có dữ liệu chất này hôm nay: "---" như MacroFactor, không phải 0
+  const shown = !known
+    ? { text: '---', unit: nutrient.unit }
+    : display === 'percent' && hasTarget
       ? { text: String(Math.round((value / target) * 100)), unit: '%' }
       : display === 'remaining' && hasTarget
-        ? { text: String(Math.max(0, Math.round(target - value))), unit: nutrient.unit }
+        ? { text: String(Math.max(0, Math.round((target - value) * 10) / 10)), unit: nutrient.unit }
         : { text: String(Math.round(value * 10) / 10), unit: nutrient.unit }
   return (
     <MetricTile
@@ -141,22 +149,25 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
       )
     default: {
       if (NUTRIENTS.has(key)) {
-        if (key === 'macros')
+        if (key === 'macros') {
+          const average = energyBalance(data.daily.slice(-7), 'targets', null, null).nutrition
           return (
             <MetricTile
               title="Macros"
               subtitle="Last 7 Days"
-              value={String(
-                energyBalance(data.daily.slice(-7), 'targets', null, null).nutrition ?? 0
-              )}
+              href={routePath.dashboardNutrition}
+              value={average === null ? '---' : String(average)}
               unit="kcal"
             />
           )
+        }
         return <NutrientTile tileKey={key} data={data} display={display} />
       }
       const label = SECTIONS.bodyMetrics.groups
         .flatMap((g) => g.tiles)
         .find((tile) => tile.key === key)
+      if (key === 'waistToHeight' || key === 'waistToHip')
+        return <RatioTile tileKey={key} title={label?.label ?? key} />
       return <MeasureTile tileKey={key} title={label?.label ?? key} />
     }
   }

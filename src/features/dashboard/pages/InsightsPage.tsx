@@ -13,15 +13,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useIsClient } from '@/hooks/use-is-client'
 import { todayIso } from '@/lib/date'
 
-// BE: ProgramResponse chưa trả cân mục tiêu; có rồi thì lấy từ program để Tiến độ mục tiêu tính thật.
-const GOAL_TARGET_KG = null
-
 /** "Phân tích" (Xem tất cả): Tiêu hao, Xu hướng cân, Cân bằng năng lượng, Tiến độ mục tiêu. */
 export function InsightsPage() {
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
   const program = useCurrentProgram()
-  const data = useDashboardData(today, Boolean(program.data), GOAL_TARGET_KG)
+  const data = useDashboardData(today, Boolean(program.data))
 
   return (
     <div className="flex max-w-2xl flex-col gap-6 md:pb-0">

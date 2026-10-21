@@ -100,6 +100,15 @@ export const apiRoutes = {
     insights: '/expenditure/insights', // GET → { currentKcal, strategy, holdingReason, calibratingDaysLeft, changes[{ days, changeKcal, status }] }
     daily: '/expenditure/daily', // GET ?from&to (mỗi ngày: đã ăn, target, cân xu hướng)
   },
+  steps: {
+    root: '/steps', // GET ?from&to → { items[{ id, logDate, steps, source }], last7DayAverage }; POST { logDate?, steps }; DELETE /steps/{logDate}
+  },
+  periods: {
+    root: '/periods', // GET ?from&to → { items[{ id, startDate, endDate, cycleLengthDays, periodLengthDays, symptoms, notes }], lastStartDate, daysSinceLastStart }; POST, PUT/DELETE /periods/{id}
+  },
+  nutrients: {
+    root: '/nutrients', // GET ?date= → { date, items[{ code, name, unit, group, amount, floor, target, ceiling, isCustomTarget, pinOrder }] }; amount null = chưa có dữ liệu
+  },
   energyBalance: {
     series: '/energy-balance/series', // GET ?from&to&all&granularity → { days[{ date, caloriesKcal, expenditureKcal, targetKcal, vsExpenditureKcal, vsTargetKcal, isFasting, isIncomplete }], summary, buckets } liên tục tới hôm nay
     insights: '/energy-balance/insights', // GET → { today, relativeToExpenditure[{ days, avgKcal, loggedDays, status }], relativeToTargets[...] }

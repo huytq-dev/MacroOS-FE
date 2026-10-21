@@ -2,8 +2,9 @@ import Link from 'next/link'
 import { ChevronRight, Database } from 'lucide-react'
 import { MetricTile } from './MetricTile'
 import { GoalBar, MiniBalance, MiniFlux, Sparkline } from './TileVisuals'
-import { energyBalance } from '../../dashboard.utils'
+import { energyBalance, type BalanceMode } from '../../dashboard.utils'
 import { toBalancePoints } from '../../energy-balance.utils'
+import { usePersistedChoice } from '../../hooks/use-dashboard'
 import type { DashboardData } from '../../hooks/use-dashboard-data'
 import { routePath } from '@/config/route-path'
 
@@ -40,10 +41,18 @@ export function WeightTrendTile({ data }: Data) {
   )
 }
 
+const BALANCE_MODES = ['expenditure', 'targets'] as const
+
 export function EnergyBalanceTile({ data }: Data) {
+  // Cùng key với trang Energy Balance và thẻ carousel nên ba nơi luôn đồng bộ
+  const [mode] = usePersistedChoice<BalanceMode>(
+    'dashboard.balanceMode',
+    'expenditure',
+    BALANCE_MODES
+  )
   const { difference } = energyBalance(
     data.daily.slice(-7),
-    'targets',
+    mode,
     data.tdee,
     data.todayTarget?.caloriesTarget ?? null
   )
@@ -54,8 +63,8 @@ export function EnergyBalanceTile({ data }: Data) {
       href={routePath.dashboardEnergyBalance}
       visual={
         <MiniBalance
-          points={toBalancePoints(data.daily.slice(-7), 'targets', data.tdee)}
-          className="text-mf-tile-protein"
+          points={toBalancePoints(data.daily.slice(-7), mode, data.tdee)}
+          className={mode === 'targets' ? 'text-mf-tile-fat' : 'text-mf-tile-protein'}
         />
       }
       value={difference === null ? '---' : String(Math.abs(difference))}

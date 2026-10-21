@@ -67,6 +67,44 @@ export interface NutrientGroup {
 export interface NutrientValue {
   value: number
   target: number | null
+  /** false = BE chưa có dữ liệu chất này hôm nay (`amount` null): ô hiện "---" thay vì 0. Mặc định có. */
+  known?: boolean
+}
+
+// Khớp BE GET /api/steps, GET /api/periods, GET /api/nutrients?date= (Docs/MacroFactor_UI/UI/Dashboard/README.md mục 5)
+export interface StepsResponse {
+  items: { id: string; logDate: string; steps: number; source: string }[]
+  /** Trung bình 7 ngày gần nhất; null = chưa có bước chân nào. */
+  last7DayAverage: number | null
+}
+
+export interface PeriodsResponse {
+  items: {
+    id: string
+    startDate: string
+    endDate: string | null
+    cycleLengthDays: number | null
+    periodLengthDays: number | null
+  }[]
+  lastStartDate: string | null
+  daysSinceLastStart: number | null
+}
+
+export interface NutrientModel {
+  code: string
+  name: string
+  unit: string
+  group: string
+  /** null = chưa có dữ liệu nutrient (hiện "---"), khác 0. */
+  amount: number | null
+  floor: number | null
+  target: number | null
+  ceiling: number | null
+}
+
+export interface NutrientsResponse {
+  date: string
+  items: NutrientModel[]
 }
 
 // Khớp BE Contract/Models/Metrics/MetricsModels.cs (GoalProgressResponse); trục cân nặng của BE là xu hướng (trend).

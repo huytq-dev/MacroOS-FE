@@ -8,15 +8,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useIsClient } from '@/hooks/use-is-client'
 import { todayIso } from '@/lib/date'
 
-// BE: ProgramResponse chưa trả cân mục tiêu; có rồi thì lấy từ program để Tiến độ mục tiêu tính thật.
-const GOAL_TARGET_KG = null
-
 /** "Dinh dưỡng" (Xem tất cả): cuộn dọc qua Calo & Macro, chi tiết carb/béo/protein, vitamin, khoáng chất, khác. */
 export function NutritionDetailPage() {
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
   const program = useCurrentProgram()
-  const data = useDashboardData(today, Boolean(program.data), GOAL_TARGET_KG)
+  const data = useDashboardData(today, Boolean(program.data))
   const loading = !today || program.isLoading || data.isLoading
 
   return (

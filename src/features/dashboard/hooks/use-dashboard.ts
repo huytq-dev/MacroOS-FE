@@ -34,6 +34,30 @@ export const useGoalProgress = () =>
     },
   })
 
+/** Bước chân (`GET /steps`, mặc định 30 ngày): tile Steps lấy trung bình 7 ngày; null = chưa có. */
+export const useSteps = (from: string | null, to: string | null) =>
+  useQuery({
+    queryKey: ['steps', from ?? '', to ?? ''],
+    queryFn: () => dashboardService.steps(from ?? '', to ?? ''),
+    enabled: Boolean(from && to),
+  })
+
+/** Kỳ kinh (`GET /periods`): tile Period vẽ lưới 30 ngày và "N days ago". */
+export const usePeriods = (from: string | null, to: string | null) =>
+  useQuery({
+    queryKey: ['periods', from ?? '', to ?? ''],
+    queryFn: () => dashboardService.periods(from ?? '', to ?? ''),
+    enabled: Boolean(from && to),
+  })
+
+/** Mọi chất dinh dưỡng của một ngày (`GET /nutrients?date=`): giá trị, floor / target / ceiling; amount null = chưa có dữ liệu. */
+export const useDayNutrients = (date: string | null) =>
+  useQuery({
+    queryKey: ['nutrients', date ?? ''],
+    queryFn: () => dashboardService.nutrients(date ?? ''),
+    enabled: Boolean(date),
+  })
+
 export const useExpenditureSeries = (from: string | null, to: string | null) =>
   useQuery({
     queryKey: ['expenditure', from ?? '', to ?? ''],

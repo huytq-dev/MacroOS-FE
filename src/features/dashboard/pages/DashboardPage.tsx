@@ -31,9 +31,6 @@ import { useIsClient } from '@/hooks/use-is-client'
 import { formatDate, todayIso } from '@/lib/date'
 import { useUiStore } from '@/stores/ui.store'
 
-// BE: ProgramResponse chưa trả cân mục tiêu; có rồi thì lấy từ program để Tiến độ mục tiêu tính thật.
-const GOAL_TARGET_KG = null
-
 const EMPTY_TOTALS: MacroTotals = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
 const NUTRITION_MODES = ['consumed', 'remaining'] as const
 const BALANCE_MODES = ['expenditure', 'targets'] as const
@@ -65,7 +62,7 @@ export function DashboardPage() {
   const program = useCurrentProgram()
   const profile = useProfile()
   const hasProgram = Boolean(program.data)
-  const data = useDashboardData(today, hasProgram, GOAL_TARGET_KG)
+  const data = useDashboardData(today, hasProgram)
   // Lazy: dữ liệu theo dõi chỉ tải khi đã có program (chưa có target thì không có gì để so sánh).
   const week = useWeekLog(hasProgram ? today : null)
   const setAddFoodOpen = useUiStore((state) => state.setAddFoodOpen)

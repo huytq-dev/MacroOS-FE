@@ -7,6 +7,7 @@ import { TAPE_GROUPS } from '@/features/shortcuts/full-body.config'
 import { useFullBodyHistory } from '@/features/shortcuts/hooks/use-body-metrics'
 import { useProgressPhotoSessions } from '@/features/progress-photos/hooks/use-progress-photos'
 import { photoOf } from '@/features/progress-photos/progress-photos.utils'
+import { useProfile } from '@/features/users/hooks/use-profile'
 import { formatDate } from '@/lib/date'
 import { useMeasurementOverview } from '../../hooks/use-measurement-overview'
 import { MetricTile } from './MetricTile'
@@ -68,6 +69,49 @@ export function MeasureTile({
       }
       value={metric && values.length > 0 ? trim(metric.latestCm) : '---'}
       unit={key ? 'cm' : ''}
+    />
+  )
+}
+
+/**
+ * Ô tỉ lệ cơ thể (Waist to Height = vòng eo ÷ chiều cao trong hồ sơ, Waist to Hip = vòng eo ÷ vòng hông), 2 chữ số thập phân, không đơn vị.
+ * Tính từ cùng 7 lần đo gần nhất của các ô số đo; thiếu số đo hoặc chiều cao thì "---" và không có đường. Chạm mở trang vòng eo.
+ */
+export function RatioTile({
+  tileKey,
+  title,
+}: {
+  readonly tileKey: 'waistToHeight' | 'waistToHip'
+  readonly title: string
+}) {
+  const overview = useMeasurementOverview()
+  const profile = useProfile()
+  const metrics = overview.data?.metrics
+  const waist = metrics?.find((item) => item.key === 'waist')
+  const hips = metrics?.find((item) => item.key === 'hips')
+  const heightCm = profile.data?.heightCm ?? null
+  // Mới → cũ như BE; mỗi điểm là tỉ lệ của một lần đo vòng eo (Waist to Hip chỉ tính ngày có cả hông)
+  const ratios = (waist?.entries ?? []).flatMap((entry) => {
+    const divisor =
+      tileKey === 'waistToHeight'
+        ? heightCm
+        : (hips?.entries.find((item) => item.date === entry.date)?.valueCm ?? null)
+    return divisor ? [entry.valueCm / divisor] : []
+  })
+  const latestDivisor = tileKey === 'waistToHeight' ? heightCm : (hips?.latestCm ?? null)
+  const latest = waist && latestDivisor ? waist.latestCm / latestDivisor : null
+  const spark = [...ratios].reverse()
+  return (
+    <MetricTile
+      title={title}
+      subtitle="Last 7 Entries"
+      href={routePath.bodyMeasurement('waist')}
+      visual={
+        spark.length > 0 ? (
+          <Sparkline values={sparkOf(spark)} className="text-mf-tile-carbs" />
+        ) : undefined
+      }
+      value={latest === null ? '---' : latest.toFixed(2)}
     />
   )
 }
