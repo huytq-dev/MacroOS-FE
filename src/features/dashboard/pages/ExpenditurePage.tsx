@@ -14,6 +14,9 @@ import {
   TutorialCard,
 } from '../components/DetailPage'
 import { EXPENDITURE_TUTORIAL } from '../components/ExpenditurePage/expenditure-tutorial-steps'
+import { slotsOf, viewWindow } from '../chart/geometry'
+import { useChartPan } from '../chart/use-chart-pan'
+import { useTween } from '../chart/use-tween'
 import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useExpenditureDetail } from '../hooks/use-expenditure-detail'
 import { rangeLabel, type Averaging, type RangeKey } from '../expenditure.utils'
@@ -24,9 +27,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
 
 /**
- * Chi tiết "Expenditure" (bấm ô Expenditure ở Dashboard): Average / Difference của kỳ, biểu đồ Flux Range (vùng cam liền) + đường
- * Expenditure có marker mỗi ngày (ô vuông = Holding), chọn kỳ 1W…All (luôn kết thúc hôm nay) và D/W/M, nút đổi trục (từ 0 ↔ vừa khít
- * dải Flux), chú giải, hướng dẫn, Insights & Data, Data Sources và lịch sử theo tháng.
+ * Chi tiết "Expenditure" (bấm ô Expenditure ở Dashboard): Average / Difference của khoảng đang xem, biểu đồ Flux Range (vùng cam liền)
+ * + đường Expenditure có marker mỗi ngày KÉO NGANG được để xem các ngày trước, chọn kỳ 1W…All (luôn kết thúc hôm nay, đổi kỳ thì biểu
+ * đồ giãn / co mượt) và D/W/M, nút đổi trục (từ 0 ↔ vừa khít dải Flux, trục chạy mượt), chú giải, hướng dẫn, Insights & Data, Data
+ * Sources và lịch sử theo tháng.
  */
 export function ExpenditurePage() {
   const [range, setRange] = useState<RangeKey>('1W')
@@ -37,9 +41,23 @@ export function ExpenditurePage() {
     'show',
     TUTORIAL_CHOICES
   )
-  const data = useExpenditureDetail(range, averaging)
+  const data = useExpenditureDetail(averaging)
+  const total = data.ready ? data.daily.length : 0
+  const target = slotsOf(range, total)
+  const slots = useTween(target)
+  const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
 
   if (data.isError) return <ErrorState error={new Error('Could not load Expenditure')} />
+
+  const win = data.ready ? viewWindow(data.today, target, pan.view.snapped) : null
+  const inView =
+    data.ready && win ? data.daily.filter((day) => day.date >= win.from && day.date <= win.to) : []
+  const average = inView.length
+    ? Math.round(inView.reduce((sum, day) => sum + day.kcal, 0) / inView.length)
+    : null
+  const difference = inView.length
+    ? Math.round(inView[inView.length - 1].kcal - inView[0].kcal)
+    : null
 
   return (
     <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0">
@@ -55,18 +73,14 @@ export function ExpenditurePage() {
         }
       />
 
-      {!data.ready || data.isLoading ? (
+      {!data.ready || data.isLoading || !win ? (
         <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       ) : (
         <>
           <div className="flex items-start justify-between gap-3">
             <div className="flex gap-10">
-              <StatBlock label="Average" value={data.average?.toString() ?? null} unit="kcal" />
-              <StatBlock
-                label="Difference"
-                value={data.difference?.toString() ?? null}
-                unit="kcal"
-              />
+              <StatBlock label="Average" value={average?.toString() ?? null} unit="kcal" />
+              <StatBlock label="Difference" value={difference?.toString() ?? null} unit="kcal" />
             </div>
             <IconButton
               icon={fit ? CollapseChartIcon : ExpandChartIcon}
@@ -77,11 +91,19 @@ export function ExpenditurePage() {
               onClick={() => setFit((value) => !value)}
             />
           </div>
-          <p className="text-muted-foreground -mt-3 text-lg">
-            {rangeLabel(data.win.from, data.win.to)}
-          </p>
+          <p className="text-muted-foreground -mt-3 text-lg">{rangeLabel(win.from, win.to)}</p>
 
-          <ExpenditureChart days={data.days} span={data.win} fit={fit} />
+          <ExpenditureChart
+            // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
+            key={averaging}
+            className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
+            days={data.days}
+            today={data.today}
+            slots={slots}
+            pos={pan.view.pos}
+            fit={fit}
+            pan={pan}
+          />
           <RangeBar
             range={range}
             onRangeChange={setRange}

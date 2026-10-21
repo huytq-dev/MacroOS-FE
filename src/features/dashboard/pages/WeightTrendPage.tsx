@@ -18,6 +18,9 @@ import {
   WeightTrendChart,
   WeightTrendInsights,
 } from '../components/WeightTrendPage'
+import { slotsOf, viewWindow } from '../chart/geometry'
+import { useChartPan } from '../chart/use-chart-pan'
+import { useTween } from '../chart/use-tween'
 import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useWeightTrendDetail } from '../hooks/use-weight-trend-detail'
 import { rangeLabel, type Averaging, type RangeKey } from '../expenditure.utils'
@@ -26,11 +29,13 @@ import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
+const round1 = (value: number) => Math.round(value * 10) / 10
 
 /**
- * Chi tiết "Weight Trend" (bấm ô Weight Trend ở Dashboard): Average / Difference của kỳ, biểu đồ hai đường (Scale Weight tím đậm nối
- * các lần cân, Trend Weight tím nhạt có vòng tròn mỗi ngày), chọn kỳ 1W…All (luôn kết thúc hôm nay) và D/W/M, nút đổi trục (từ 0 ↔ vừa
- * khít dữ liệu), chú giải, hướng dẫn (mũ tốt nghiệp ở góc phải mở / ẩn), Insights & Data, Data Sources và lịch sử theo tháng.
+ * Chi tiết "Weight Trend" (bấm ô Weight Trend ở Dashboard): Average / Difference của khoảng đang xem, biểu đồ hai đường (Scale Weight
+ * tím đậm nối các lần cân, Trend Weight tím nhạt có vòng tròn mỗi ngày) KÉO NGANG được để xem các ngày trước, chọn kỳ 1W…All (luôn
+ * kết thúc hôm nay, đổi kỳ thì biểu đồ giãn / co mượt) và D/W/M, nút đổi trục (từ 0 ↔ vừa khít dữ liệu, trục chạy mượt), chú giải,
+ * hướng dẫn, Insights & Data, Data Sources và lịch sử theo tháng.
  */
 export function WeightTrendPage() {
   const [range, setRange] = useState<RangeKey>('1W')
@@ -41,9 +46,23 @@ export function WeightTrendPage() {
     'show',
     TUTORIAL_CHOICES
   )
-  const data = useWeightTrendDetail(range, averaging)
+  const data = useWeightTrendDetail(averaging)
+  const total = data.ready ? data.daily.length : 0
+  const target = slotsOf(range, total)
+  const slots = useTween(target)
+  const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
 
   if (data.isError) return <ErrorState error={new Error('Could not load Weight Trend')} />
+
+  const win = data.ready ? viewWindow(data.today, target, pan.view.snapped) : null
+  const inView =
+    data.ready && win ? data.daily.filter((day) => day.date >= win.from && day.date <= win.to) : []
+  const average = inView.length
+    ? round1(inView.reduce((sum, day) => sum + day.trend, 0) / inView.length)
+    : null
+  const difference = inView.length
+    ? round1(inView[inView.length - 1].trend - inView[0].trend)
+    : null
 
   return (
     <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0">
@@ -59,14 +78,14 @@ export function WeightTrendPage() {
         }
       />
 
-      {!data.ready || data.isLoading ? (
+      {!data.ready || data.isLoading || !win ? (
         <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       ) : (
         <>
           <div className="flex items-start justify-between gap-3">
             <div className="flex gap-10">
-              <StatBlock label="Average" value={data.average?.toFixed(1) ?? null} unit="kg" />
-              <StatBlock label="Difference" value={data.difference?.toFixed(1) ?? null} unit="kg" />
+              <StatBlock label="Average" value={average?.toFixed(1) ?? null} unit="kg" />
+              <StatBlock label="Difference" value={difference?.toFixed(1) ?? null} unit="kg" />
             </div>
             <IconButton
               icon={fit ? CollapseChartIcon : ExpandChartIcon}
@@ -77,11 +96,20 @@ export function WeightTrendPage() {
               onClick={() => setFit((value) => !value)}
             />
           </div>
-          <p className="text-muted-foreground -mt-3 text-lg">
-            {rangeLabel(data.win.from, data.win.to)}
-          </p>
+          <p className="text-muted-foreground -mt-3 text-lg">{rangeLabel(win.from, win.to)}</p>
 
-          <WeightTrendChart trend={data.trend} scale={data.scale} span={data.win} fit={fit} />
+          <WeightTrendChart
+            // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
+            key={averaging}
+            className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
+            trend={data.trend}
+            scale={data.scale}
+            today={data.today}
+            slots={slots}
+            pos={pan.view.pos}
+            fit={fit}
+            pan={pan}
+          />
           <RangeBar
             range={range}
             onRangeChange={setRange}

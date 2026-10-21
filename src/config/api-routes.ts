@@ -100,6 +100,10 @@ export const apiRoutes = {
     insights: '/expenditure/insights', // GET → { currentKcal, strategy, holdingReason, calibratingDaysLeft, changes[{ days, changeKcal, status }] }
     daily: '/expenditure/daily', // GET ?from&to (mỗi ngày: đã ăn, target, cân xu hướng)
   },
+  energyBalance: {
+    series: '/energy-balance/series', // GET ?from&to&all&granularity → { days[{ date, caloriesKcal, expenditureKcal, targetKcal, vsExpenditureKcal, vsTargetKcal, isFasting, isIncomplete }], summary, buckets } liên tục tới hôm nay
+    insights: '/energy-balance/insights', // GET → { today, relativeToExpenditure[{ days, avgKcal, loggedDays, status }], relativeToTargets[...] }
+  },
   goals: {
     history: '/goals/history', // GET → [{ id, goalType, targetWeightKg, startWeightKg, ratePerWeekKg, startDate, endDate, status }]
     editPreview: '/goals/edit-preview', // POST { targetWeightKg?, weeklyRatePercent? } → mọi số màn Edit Goal, không ghi DB

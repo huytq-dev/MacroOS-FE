@@ -1,7 +1,6 @@
-import type { RangeKey } from './expenditure.utils'
-import type { WeightTrendBucket, WeightTrendDay } from './types/weight-trend.types'
+import { weekStart, type Averaging } from './expenditure.utils'
+import type { WeightTrendDay } from './types/weight-trend.types'
 import { moveOf, type WeightMove } from './weight-trend.utils'
-import { addDaysIso } from '@/lib/date'
 
 /** Xu hướng của MỘT ngày (đường Trend Weight có vòng tròn rỗng mỗi ngày). */
 export interface TrendDay {
@@ -15,49 +14,39 @@ export interface ScaleDay {
   readonly value: number
 }
 
-const RANGE_DAYS: Record<Exclude<RangeKey, 'All'>, number> = {
-  '1W': 7,
-  '1M': 30,
-  '3M': 91,
-  '6M': 182,
-  '1Y': 365,
-}
+const mean = (values: readonly number[]) =>
+  values.reduce((sum, value) => sum + value, 0) / values.length
 
-const parse = (iso: string) => new Date(`${iso}T00:00:00`)
-const daysBetween = (from: string, to: string) =>
-  Math.round((parse(to).getTime() - parse(from).getTime()) / 864e5)
+const keyOf = (date: string, averaging: Averaging) =>
+  averaging === 'weekly' ? weekStart(date) : date.slice(0, 7)
 
-/** Cửa sổ của một kỳ: LUÔN kết thúc hôm nay (1W = 7 ngày gần nhất, không phải tuần lịch có ngày chưa tới); All = từ lần cân đầu. */
-export function trailingWindow(range: RangeKey, today: string, firstDate: string | null) {
-  if (range === 'All') return { from: firstDate ?? addDaysIso(today, -29), to: today }
-  return { from: addDaysIso(today, -(RANGE_DAYS[range] - 1)), to: today }
-}
-
-/** Hai đường của biểu đồ từ chuỗi ngày của BE: trend mỗi ngày, scale chỉ ở ngày có cân (nối qua các ngày cân). */
-export function daysToSeries(days: readonly WeightTrendDay[]) {
-  return {
-    trend: days.map((day): TrendDay => ({ date: day.date, trend: day.trendKg })),
-    scale: days.flatMap((day): ScaleDay[] =>
-      day.scaleKg === null ? [] : [{ date: day.date, value: day.scaleKg }]
-    ),
+/** Gộp xu hướng ngày theo tuần / tháng bằng trung bình (D = giữ nguyên); điểm đặt ở ngày đầu nhóm. */
+export function averageTrendDays(days: readonly TrendDay[], averaging: Averaging): TrendDay[] {
+  if (averaging === 'daily') return [...days]
+  const groups = new Map<string, TrendDay[]>()
+  for (const day of days) {
+    const key = keyOf(day.date, averaging)
+    groups.set(key, [...(groups.get(key) ?? []), day])
   }
+  return [...groups.values()].map((group) => ({
+    date: group[0].date,
+    trend: mean(group.map((day) => day.trend)),
+  }))
 }
 
-/** Như `daysToSeries` nhưng từ bucket tuần / tháng (điểm đặt ở ngày đầu bucket). */
-export function bucketsToSeries(buckets: readonly WeightTrendBucket[]) {
-  return {
-    trend: buckets.map((bucket): TrendDay => ({ date: bucket.start, trend: bucket.trendKg })),
-    scale: buckets.flatMap((bucket): ScaleDay[] =>
-      bucket.scaleKg === null ? [] : [{ date: bucket.start, value: bucket.scaleKg }]
-    ),
+/** Gộp các lần cân theo tuần / tháng bằng trung bình (D = giữ nguyên). */
+export function averageScaleDays(points: readonly ScaleDay[], averaging: Averaging): ScaleDay[] {
+  if (averaging === 'daily') return [...points]
+  const groups = new Map<string, ScaleDay[]>()
+  for (const point of points) {
+    const key = keyOf(point.date, averaging)
+    groups.set(key, [...(groups.get(key) ?? []), point])
   }
+  return [...groups.values()].map((group) => ({
+    date: group[0].date,
+    value: mean(group.map((item) => item.value)),
+  }))
 }
-
-/** Số ô ngày của cửa sổ (1W = 7); điểm đặt tại ô thứ `slotOf(date)`. */
-export const windowDays = (window: { from: string; to: string }) =>
-  daysBetween(window.from, window.to) + 1
-export const slotOf = (window: { from: string; to: string }, date: string) =>
-  daysBetween(window.from, date)
 
 /**
  * Trục y: thu gọn = từ 0 (0 / 50 / 100…, thêm vạch khi cân nặng vượt 100 kg); mở rộng = vừa khít dữ liệu (vạch cách đều, có đỉnh và đáy

@@ -6,10 +6,13 @@ import { MetricChart } from './MetricChart'
 import { MetricHistoryList } from './MetricHistoryList'
 import {
   averageMetric,
-  metricWindow,
+  daysBetween,
   summarizeMetric,
   type MetricPoint,
 } from '../../body-metric.utils'
+import { slotsOf, viewWindow } from '@/features/dashboard/chart/geometry'
+import { useChartPan } from '@/features/dashboard/chart/use-chart-pan'
+import { useTween } from '@/features/dashboard/chart/use-tween'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
 import {
   CollapseChartIcon,
@@ -58,6 +61,11 @@ export function BodyMetricView({
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
   const [expanded, setExpanded] = useState(false)
+  const total = today && points.length > 0 ? daysBetween(points[0].date, today) + 1 : 0
+  const target = slotsOf(range, total)
+  const slots = useTween(target)
+  const height = useTween(expanded ? 460 : 300)
+  const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
 
   const header = (
     <SubPageHeader
@@ -75,10 +83,9 @@ export function BodyMetricView({
       </div>
     )
 
-  const win = metricWindow(range, today, points[0]?.date ?? null)
+  const win = viewWindow(today, target, pan.view.snapped)
   const inWindow = points.filter((point) => point.date >= win.from && point.date <= win.to)
   const { average, difference } = summarizeMetric(inWindow)
-  const shown = averageMetric(inWindow, averaging)
 
   return (
     <div className="flex max-w-2xl flex-col gap-5">
@@ -109,16 +116,19 @@ export function BodyMetricView({
       <p className="text-muted-foreground -mt-4 text-lg">{rangeLabel(win.from, win.to)}</p>
 
       <MetricChart
-        // Đổi kỳ / gộp / phóng to thì vẽ lại từ đầu (đường chạy + mờ dần) thay vì nhảy cục
-        key={`${range}-${averaging}-${expanded}`}
-        points={shown}
-        from={win.from}
-        to={win.to}
+        // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
+        key={averaging}
+        className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
+        points={averageMetric(points, averaging)}
+        today={today}
+        slots={slots}
+        pos={pan.view.pos}
         unit={unit}
         label={title}
-        height={expanded ? 460 : 300}
+        height={height}
         tickCount={expanded ? 4 : 3}
         fit={expanded}
+        pan={pan}
       />
       <RangeBar
         range={range}

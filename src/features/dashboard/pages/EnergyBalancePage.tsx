@@ -5,14 +5,19 @@ import { ChartColumn } from 'lucide-react'
 import { SubPageHeader } from '../components/DashboardPage'
 import { CollapseChartIcon, ExpandChartIcon, RangeBar, StatBlock } from '../components/DetailPage'
 import {
+  BalanceHistory,
   EnergyBalanceChart,
   EnergyBalanceInsights,
   ModeTabs,
 } from '../components/EnergyBalancePage'
+import { slotsOf, viewWindow } from '../chart/geometry'
+import { useChartPan } from '../chart/use-chart-pan'
+import { useTween } from '../chart/use-tween'
 import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useEnergyBalanceDetail } from '../hooks/use-energy-balance-detail'
 import type { BalanceMode } from '../dashboard.utils'
-import type { Averaging, RangeKey } from '../expenditure.utils'
+import { summarizeBalance } from '../energy-balance.utils'
+import { rangeLabel, type Averaging, type RangeKey } from '../expenditure.utils'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -21,8 +26,9 @@ import { cn } from '@/lib/utils'
 const BALANCE_MODES = ['expenditure', 'targets'] as const
 
 /**
- * Chi tiết "Energy Balance" (bấm thẻ/ô Energy Balance ở Dashboard): tab Expenditure / Calorie Targets, số lớn của kỳ,
- * cột kcal đã ăn so với đường mốc, chọn kỳ 1W…All và D/W/M, phóng to biểu đồ và các hàng "Relative to …".
+ * Chi tiết "Energy Balance" (bấm thẻ/ô Energy Balance ở Dashboard): tab Expenditure / Calorie Targets, số lớn của khoảng đang xem,
+ * cột kcal đã ăn so với đường mốc KÉO NGANG được để xem các ngày trước, chọn kỳ 1W…All (luôn kết thúc hôm nay, đổi kỳ thì biểu đồ
+ * giãn / co mượt) và D/W/M, nút phóng to (chiều cao chạy mượt), chú giải, các hàng "Relative to …" và lịch sử từng ngày theo tháng.
  */
 export function EnergyBalancePage() {
   const [range, setRange] = useState<RangeKey>('1W')
@@ -34,44 +40,59 @@ export function EnergyBalancePage() {
     'expenditure',
     BALANCE_MODES
   )
-  const data = useEnergyBalanceDetail(range, averaging, mode)
+  const data = useEnergyBalanceDetail(averaging, mode)
+  const total = data.ready ? data.all.length : 0
+  const target = slotsOf(range, total)
+  const slots = useTween(target)
+  const height = useTween(expanded ? 460 : 300)
+  const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
 
-  if ('isError' in data && data.isError)
-    return <ErrorState error={new Error('Could not load Energy Balance')} />
+  if (data.isError) return <ErrorState error={new Error('Could not load Energy Balance')} />
 
   const targets = mode === 'targets'
+  const win = data.ready ? viewWindow(data.today, target, pan.view.snapped) : null
+  const summary = summarizeBalance(
+    data.ready && win ? data.all.filter((day) => day.date >= win.from && day.date <= win.to) : [],
+    mode
+  )
 
   return (
-    <div className="flex max-w-2xl flex-col gap-5 md:pb-0">
+    <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0">
       <SubPageHeader title="Energy Balance" />
       <ModeTabs value={mode} onChange={setMode} />
 
-      {data.isLoading || data.summary === null ? (
+      {!data.ready || data.isLoading || !win ? (
         <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       ) : (
         <>
           <div className="flex items-start justify-between gap-3">
             <StatBlock
-              label={data.summary.label}
-              value={data.summary.value === null ? null : String(data.summary.value)}
+              label={summary.label}
+              value={summary.value === null ? null : String(summary.value)}
               unit="kcal"
             />
             <IconButton
               icon={expanded ? CollapseChartIcon : ExpandChartIcon}
               label={expanded ? 'Shrink chart' : 'Expand chart'}
+              aria-pressed={expanded}
               variant="secondary"
-              className="size-14 rounded-full"
+              className="size-14 shrink-0 rounded-full"
               onClick={() => setExpanded((value) => !value)}
             />
           </div>
-          <p className="text-muted-foreground -mt-3 text-lg">{data.label}</p>
+          <p className="text-muted-foreground -mt-3 text-lg">{rangeLabel(win.from, win.to)}</p>
 
           <EnergyBalanceChart
-            points={data.shown}
-            range={range}
+            // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
+            key={averaging}
+            className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
+            points={data.points}
+            today={data.today}
             mode={mode}
-            height={expanded ? 460 : 300}
-            className="transition-[height] duration-300"
+            slots={slots}
+            pos={pan.view.pos}
+            height={height}
+            pan={pan}
           />
           <RangeBar
             range={range}
@@ -80,35 +101,32 @@ export function EnergyBalancePage() {
             onAveragingChange={setAveraging}
           />
 
-          {!expanded && (
-            <>
-              <div className="bg-card text-foreground flex items-center justify-center gap-6 rounded-xl px-4 py-4 text-base">
-                <span className="flex items-center gap-2">
-                  <ChartColumn
-                    aria-hidden="true"
-                    strokeWidth={3}
-                    className="text-mf-tile-calories size-5"
+          <div className="bg-card text-foreground flex items-center justify-center gap-6 rounded-xl px-4 py-4 text-base">
+            <span className="flex items-center gap-2">
+              <ChartColumn
+                aria-hidden="true"
+                strokeWidth={3}
+                className="text-mf-tile-calories size-5"
+              />
+              Calories
+            </span>
+            <span className="flex items-center gap-2">
+              <span aria-hidden="true" className="flex items-center gap-0.5">
+                {[0, 1, 2].map((dash) => (
+                  <span
+                    key={dash}
+                    className={cn(
+                      'h-0.5 w-1.5 rounded-full',
+                      targets ? 'bg-mf-tile-fat' : 'bg-mf-tile-protein'
+                    )}
                   />
-                  Calories
-                </span>
-                <span className="flex items-center gap-2">
-                  <span aria-hidden="true" className="flex items-center gap-0.5">
-                    {[0, 1, 2].map((dash) => (
-                      <span
-                        key={dash}
-                        className={cn(
-                          'h-0.5 w-1.5 rounded-full',
-                          targets ? 'bg-mf-tile-fat' : 'bg-mf-tile-protein'
-                        )}
-                      />
-                    ))}
-                  </span>
-                  {targets ? 'Targets' : 'Expenditure'}
-                </span>
-              </div>
-              <EnergyBalanceInsights mode={mode} changes={data.changes} />
-            </>
-          )}
+                ))}
+              </span>
+              {targets ? 'Targets' : 'Expenditure'}
+            </span>
+          </div>
+          <EnergyBalanceInsights mode={mode} changes={data.changes} />
+          <BalanceHistory mode={mode} history={data.history} />
         </>
       )}
     </div>

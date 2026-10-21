@@ -1,30 +1,21 @@
 'use client'
 
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import type { Averaging, RangeKey } from '../expenditure.utils'
-import type {
-  WeightTrendGranularity,
-  WeightTrendInsightsResponse,
-  WeightTrendResponse,
-} from '../types/weight-trend.types'
+import { useQuery } from '@tanstack/react-query'
+import type { Averaging } from '../expenditure.utils'
+import type { WeightTrendInsightsResponse, WeightTrendResponse } from '../types/weight-trend.types'
 import {
-  bucketsToSeries,
-  daysToSeries,
+  averageScaleDays,
+  averageTrendDays,
   recentTrend,
   toHistory,
-  trailingWindow,
+  type ScaleDay,
+  type TrendDay,
 } from '../weight-trend-series'
 import { WEIGHT_CHANGE_DAYS } from '../weight-trend.utils'
 import { apiRoutes } from '@/config/api-routes'
 import { useIsClient } from '@/hooks/use-is-client'
 import { apiCall } from '@/lib/api'
-import { addDaysIso, todayIso } from '@/lib/date'
-
-const GRANULARITY: Record<Averaging, WeightTrendGranularity> = {
-  daily: 'Day',
-  weekly: 'Week',
-  monthly: 'Month',
-}
+import { todayIso } from '@/lib/date'
 
 const MONTHS = [
   'January',
@@ -45,26 +36,15 @@ export const monthTitle = (key: string) =>
   `${MONTHS[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`
 
 /**
- * Gom dữ liệu trang Weight Trend từ ba lần gọi của BE (đều theo múi giờ người dùng, tính khi đọc nên sửa / xoá cân tự cập nhật):
- * `GET /weights/trend` của kỳ đang chọn (kết thúc HÔM NAY; hai đường + Average / Difference theo trend), cùng endpoint `all=true` cho
- * lịch sử từng ngày và vùng thu nhỏ, và `GET /weights/trend/insights` (Weight Changes, cân hiện tại, tốc độ tuần, năng lượng, dự báo).
+ * Gom dữ liệu trang Weight Trend từ hai lần gọi của BE (theo múi giờ người dùng, tính khi đọc nên sửa / xoá cân tự cập nhật):
+ * `GET /weights/trend?all=true` (TOÀN BỘ chuỗi từng ngày: trend mỗi ngày, scale ở ngày có cân) và `GET /weights/trend/insights`.
+ * Trang tự trượt một khung ngày trên chuỗi này (kéo ngang, đổi kỳ) nên không gọi riêng từng kỳ; gộp D / W / M làm ở đây.
  */
-export function useWeightTrendDetail(range: RangeKey, averaging: Averaging) {
+export function useWeightTrendDetail(averaging: Averaging) {
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
-  const granularity = GRANULARITY[averaging]
-  const from = today && range !== 'All' ? trailingWindow(range, today, null).from : undefined
 
   const series = useQuery({
-    queryKey: ['weights', 'trend', 'series', range, granularity, today],
-    queryFn: () =>
-      apiCall.get<WeightTrendResponse>(apiRoutes.weights.trend, {
-        params: { from, to: today, all: range === 'All' ? true : undefined, granularity },
-      }),
-    enabled: Boolean(today),
-    placeholderData: keepPreviousData,
-  })
-  const history = useQuery({
     queryKey: ['weights', 'trend', 'history', today],
     queryFn: () =>
       apiCall.get<WeightTrendResponse>(apiRoutes.weights.trend, {
@@ -80,17 +60,11 @@ export function useWeightTrendDetail(range: RangeKey, averaging: Averaging) {
 
   if (!today) return { ready: false as const, isLoading: true, isError: false }
 
-  const data = series.data
-  const allDays = history.data?.days ?? []
-  const win = {
-    from: from ?? data?.days[0]?.date ?? addDaysIso(today, -29),
-    to: today,
-  }
-  const drawn =
-    granularity !== 'Day' && data?.buckets?.length
-      ? bucketsToSeries(data.buckets)
-      : daysToSeries(data?.days ?? [])
-  const trendAll = allDays.map((day) => ({ date: day.date, trend: day.trendKg }))
+  const days = series.data?.days ?? []
+  const daily: TrendDay[] = days.map((day) => ({ date: day.date, trend: day.trendKg }))
+  const weighIns: ScaleDay[] = days.flatMap((day) =>
+    day.scaleKg === null ? [] : [{ date: day.date, value: day.scaleKg }]
+  )
   const info = insights.data
 
   return {
@@ -98,24 +72,24 @@ export function useWeightTrendDetail(range: RangeKey, averaging: Averaging) {
     isLoading: series.isPending,
     isError: series.isError,
     today,
-    win,
-    trend: drawn.trend,
-    scale: drawn.scale,
-    average: data && data.summary.count > 0 ? data.summary.average : null,
-    difference: data && data.summary.count > 0 ? data.summary.difference : null,
+    /** Xu hướng từng ngày (cũ → mới); số liệu Average / Difference tính trên chuỗi này. */
+    daily,
+    /** Dùng để vẽ: đã gộp D / W / M. */
+    trend: averageTrendDays(daily, averaging),
+    scale: averageScaleDays(weighIns, averaging),
     current: info?.currentWeightKg ?? null,
     weeklyRate: info?.weeklyChangeKg ?? null,
     energyKcal: info?.energyDeficitKcalPerDay ?? null,
     projection: info?.projected30DaysKg ?? null,
-    changes: WEIGHT_CHANGE_DAYS.map((days) => {
-      const found = info?.weightChanges.find((item) => item.days === days)
+    changes: WEIGHT_CHANGE_DAYS.map((span) => {
+      const found = info?.weightChanges.find((item) => item.days === span)
       return {
-        days,
+        days: span,
         delta: found?.changeKg ?? null,
         status: found?.status ?? 'Waiting',
-        area: recentTrend(trendAll, days),
+        area: recentTrend(daily, span),
       }
     }),
-    history: toHistory(allDays),
+    history: toHistory(days),
   }
 }

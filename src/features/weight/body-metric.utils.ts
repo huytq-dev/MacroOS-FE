@@ -1,18 +1,9 @@
-import { weekStart, type Averaging, type RangeKey } from '@/features/dashboard/expenditure.utils'
-import { addDaysIso } from '@/lib/date'
+import { weekStart, type Averaging } from '@/features/dashboard/expenditure.utils'
 
 /** Một điểm trên biểu đồ (giá trị đã gộp theo D/W/M nếu có). */
 export interface MetricPoint {
   readonly date: string
   readonly value: number
-}
-
-const RANGE_DAYS: Record<Exclude<RangeKey, 'All'>, number> = {
-  '1W': 7,
-  '1M': 30,
-  '3M': 91,
-  '6M': 182,
-  '1Y': 365,
 }
 
 const parse = (iso: string) => new Date(`${iso}T00:00:00`)
@@ -23,15 +14,6 @@ export const daysBetween = (from: string, to: string) =>
 const round1 = (value: number) => Math.round(value * 10) / 10
 const mean = (values: readonly number[]) =>
   values.reduce((sum, value) => sum + value, 0) / values.length
-
-/** Cửa sổ ngày của kỳ: N ngày kết thúc hôm nay (1W = 7 ngày gần nhất như MacroFactor), All = từ điểm đầu tiên. */
-export function metricWindow(range: RangeKey, today: string, firstDate: string | null) {
-  if (range === 'All') {
-    const from = firstDate && firstDate < today ? firstDate : addDaysIso(today, -6)
-    return { from, to: today }
-  }
-  return { from: addDaysIso(today, -(RANGE_DAYS[range] - 1)), to: today }
-}
 
 /** Gộp theo tuần (thứ Hai) / tháng bằng trung bình; điểm đặt ở ngày đầu nhóm. Đầu vào tăng dần theo ngày. */
 export function averageMetric(points: readonly MetricPoint[], averaging: Averaging) {
@@ -82,28 +64,6 @@ export function metricScale(values: readonly number[], tickCount: number, fit: b
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-/** Nhãn trục x: 1W = từng ngày (Mon…), ≤ 3 tháng = "Oct 14", dài hơn = tên tháng (kèm năm khi > 1 năm). */
-export function xAxisLabels(from: string, to: string) {
-  const span = daysBetween(from, to)
-  if (span <= 6)
-    return Array.from({ length: span + 1 }, (_, index) => {
-      const date = addDaysIso(from, index)
-      return { date, text: WEEKDAY[parse(date).getDay()] }
-    })
-  const count = 5
-  return Array.from({ length: count }, (_, index) => {
-    const date = addDaysIso(from, Math.round((span * index) / (count - 1)))
-    const day = parse(date)
-    const text =
-      span <= 92
-        ? `${MONTH[day.getMonth()]} ${day.getDate()}`
-        : span <= 366
-          ? MONTH[day.getMonth()]
-          : `${MONTH[day.getMonth()]} '${String(day.getFullYear()).slice(2)}`
-    return { date, text }
-  })
-}
 
 /** "Mon, Oct 19" cho dòng lịch sử và nhãn điểm đang chạm. */
 export const entryDayLabel = (iso: string) => {

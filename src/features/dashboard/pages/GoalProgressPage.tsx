@@ -77,7 +77,7 @@ export function GoalProgressPage() {
     return <ErrorState error={new Error('Could not load Goal Progress')} />
 
   return (
-    <div style={THEME[tab]} className="flex max-w-2xl flex-col gap-5 md:pb-0">
+    <div style={THEME[tab]} className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0">
       <SubPageHeader title="Goal Progress" />
       <UnderlineTabs tabs={TABS} value={tab} onChange={setTab} ariaLabel="Weight basis" />
 
@@ -94,18 +94,15 @@ export function GoalProgressPage() {
             <IconButton
               icon={expanded ? CollapseChartIcon : ExpandChartIcon}
               label={expanded ? 'Shrink chart' : 'Expand chart'}
+              aria-pressed={expanded}
               variant="secondary"
-              className="size-14 rounded-full"
+              className="size-14 shrink-0 rounded-full"
               onClick={() => setExpanded((value) => !value)}
             />
           </div>
           <p className="text-muted-foreground -mt-3 text-lg">{shortDate(data.startDate)} – Today</p>
 
-          <WaterfallChart
-            bars={data.bars}
-            height={expanded ? 460 : 340}
-            className="transition-[height] duration-300"
-          />
+          <WaterfallChart bars={data.bars} height={expanded ? 460 : 340} />
 
           {!expanded && (
             <>

@@ -1,139 +1,161 @@
 'use client'
 
+import { useState } from 'react'
+import { ChartAxes, PlotClip } from '../../chart/ChartAxes'
+import { PAD, PLOT_W, WIDTH, agoOf, visibleAgo, xOfAgo } from '../../chart/geometry'
+import type { useChartPan } from '../../chart/use-chart-pan'
+import { useTween } from '../../chart/use-tween'
 import type { BalanceMode } from '../../dashboard.utils'
 import { balanceScale, type BalancePoint } from '../../energy-balance.utils'
-import type { RangeKey } from '../../expenditure.utils'
+import { shortDay } from '../../expenditure.utils'
 import { cn } from '@/lib/utils'
 
-const WIDTH = 360
-const PAD = { left: 4, right: 52, top: 14, bottom: 28 }
-const WEEK_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
 interface EnergyBalanceChartProps {
+  /** TOÀN BỘ chuỗi từng ngày (cũ → mới), biểu đồ tự lấy phần đang hiện. */
   readonly points: readonly BalancePoint[]
-  readonly range: RangeKey
+  readonly today: string
   readonly mode: BalanceMode
+  /** Số ô ngày trải trên vùng vẽ (số thực: chạy mượt khi đổi kỳ). */
+  readonly slots: number
+  /** Số ngày đã kéo lùi về quá khứ (số thực khi đang kéo). */
+  readonly pos: number
+  /** Chiều cao biểu đồ (số thực: chạy mượt khi bấm nút mở rộng). */
   readonly height: number
+  readonly pan: ReturnType<typeof useChartPan>
   readonly className?: string
 }
 
-const dayOfWeekIndex = (date: string) => new Date(`${date}T00:00:00`).getDay()
+const kcal = (value: number) => Math.round(value).toLocaleString('en-US')
 
 /**
- * Biểu đồ Energy Balance kiểu MacroFactor: cột xanh là kcal đã ăn (chỉ ngày có log), đường nét đứt là mốc so sánh
- * (cam = Expenditure, vàng = Targets); 1W luôn đủ 7 ô Sun→Sat, trục kcal bên phải với vạch đứt ngang.
+ * Biểu đồ Energy Balance kiểu MacroFactor: cột xanh là kcal đã ăn mỗi ngày (chỉ ngày có log), đường chấm là mốc so sánh (cam =
+ * Expenditure, vàng = Targets), trục kcal từ 0 bên phải. Kéo ngang để xem các ngày trước (quán tính, bám theo ngày, hiện ĐỦ cột
+ * cuối); đổi kỳ thì cột và đường giãn / co mượt theo trục x, trục y chạy mượt theo dữ liệu đang hiện. Chạm một ngày để xem số liệu.
  */
 export function EnergyBalanceChart({
   points,
-  range,
+  today,
   mode,
+  slots,
+  pos,
   height,
+  pan,
   className,
 }: EnergyBalanceChartProps) {
-  const { ticks, max } = balanceScale(points)
-  const plotW = WIDTH - PAD.left - PAD.right
+  const [picked, setPicked] = useState<number | null>(null)
   const plotH = height - PAD.top - PAD.bottom
-  const y = (value: number) => PAD.top + (1 - value / max) * plotH
-  const slots = range === '1W' ? 7 : Math.max(points.length, 1)
-  const slotW = plotW / slots
-  const x = (point: BalancePoint, index: number) =>
-    PAD.left + slotW * ((range === '1W' ? dayOfWeekIndex(point.date) : index) + 0.5)
-  const barWidth = Math.min(22, slotW * 0.6)
+  const { min: lo, max: hi } = visibleAgo(slots, pos)
 
-  const xLabels =
-    range === '1W'
-      ? WEEK_LABELS.map((text, slot) => ({ x: PAD.left + slotW * (slot + 0.5), text }))
-      : points
-          .map((point, index) => ({ point, index }))
-          .filter(({ index }) => index % Math.max(1, Math.round(points.length / 5)) === 0)
-          .map(({ point, index }) => ({
-            x: x(point, index),
-            text: new Date(`${point.date}T00:00:00`).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-            }),
-          }))
+  const shown = points.filter((point) => {
+    const ago = agoOf(today, point.date)
+    return ago >= lo && ago <= hi
+  })
+  const inFrame = points.filter((point) => {
+    const ago = agoOf(today, point.date)
+    return ago >= pos - 0.5 && ago <= pos + slots - 0.5
+  })
+  const axis = balanceScale(inFrame)
+  const max = useTween(axis.max)
+  const y = (value: number) => PAD.top + (1 - value / (max || 1)) * plotH
+  const x = (date: string) => xOfAgo(agoOf(today, date), slots, pos)
+  const barWidth = Math.min(22, (PLOT_W / slots) * 0.6)
 
-  const baseline = points
-    .map((point, index) => ({ point, index }))
-    .filter(({ point }) => point.baseline !== null)
-    .map(({ point, index }) => `${x(point, index)},${y(point.baseline ?? 0)}`)
+  const baseline = shown
+    .filter((point) => point.baseline !== null)
+    .map((point) => `${x(point.date)},${y(point.baseline ?? 0)}`)
     .join(' ')
 
+  const pick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (pan.wasDragged()) return
+    const box = event.currentTarget.getBoundingClientRect()
+    const px = ((event.clientX - box.left) / box.width) * WIDTH
+    const ago = Math.round(pos + (PAD.left + PLOT_W - px) / (PLOT_W / slots) - 0.5)
+    setPicked(points.some((point) => agoOf(today, point.date) === ago) ? ago : null)
+  }
+  const selected =
+    picked === null ? null : points.find((point) => agoOf(today, point.date) === picked)
+  const selectedX = selected ? x(selected.date) : 0
+  const selectedVisible =
+    selected !== undefined && selectedX >= PAD.left && selectedX <= PAD.left + PLOT_W
+
   return (
-    <svg
-      viewBox={`0 0 ${WIDTH} ${height}`}
-      role="img"
-      aria-label="Energy balance chart"
-      className={cn('w-full', className)}
+    <div
+      className={cn(
+        'relative touch-pan-y select-none',
+        pan.view.dragging ? 'cursor-grabbing' : 'cursor-grab',
+        className
+      )}
+      onClick={pick}
+      {...pan.bind}
     >
-      {ticks.map((tick) => (
-        <g key={tick}>
-          {tick > 0 && (
-            <line
-              x1="0"
-              x2={WIDTH - PAD.right + 8}
-              y1={y(tick)}
-              y2={y(tick)}
-              className="stroke-foreground/25"
-              strokeWidth="1"
-              strokeDasharray="3 3"
+      <svg
+        viewBox={`0 0 ${WIDTH} ${height}`}
+        role="img"
+        aria-label="Energy balance chart"
+        className="w-full"
+      >
+        <PlotClip height={height} />
+        <ChartAxes
+          ticks={axis.ticks}
+          min={0}
+          y={y}
+          height={height}
+          today={today}
+          slots={slots}
+          pos={pos}
+          integerTicks
+        />
+
+        <g clipPath="url(#plot-clip)">
+          {shown.map((point) =>
+            point.consumed === null ? null : (
+              <rect
+                key={point.date}
+                x={x(point.date) - barWidth / 2}
+                y={y(point.consumed)}
+                width={barWidth}
+                height={Math.max(1, y(0) - y(point.consumed))}
+                rx="2"
+                className={cn(
+                  'fill-mf-tile-calories',
+                  point.incomplete && 'opacity-40',
+                  picked !== null && agoOf(today, point.date) === picked && 'opacity-80'
+                )}
+              />
+            )
+          )}
+          {baseline && (
+            <polyline
+              points={baseline}
+              fill="none"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="0.1 6"
+              className={mode === 'targets' ? 'stroke-mf-tile-fat' : 'stroke-mf-tile-protein'}
             />
           )}
-          <text
-            x={WIDTH - 2}
-            y={y(tick) + 4}
-            textAnchor="end"
-            className="fill-muted-foreground text-[11px] tabular-nums"
-          >
-            {Math.round(tick)}
-          </text>
         </g>
-      ))}
-      <line
-        x1="0"
-        x2={WIDTH - PAD.right + 8}
-        y1={y(0)}
-        y2={y(0)}
-        className="stroke-foreground/50"
-      />
+      </svg>
 
-      {points.map((point, index) =>
-        point.consumed === null ? null : (
-          <rect
-            key={point.date}
-            x={x(point, index) - barWidth / 2}
-            y={y(point.consumed)}
-            width={barWidth}
-            height={Math.max(1, y(0) - y(point.consumed))}
-            rx="2"
-            className="fill-mf-tile-calories motion-safe:animate-chart-rise"
-          />
-        )
-      )}
-      {baseline && (
-        <polyline
-          points={baseline}
-          fill="none"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray="0.1 6"
-          className={mode === 'targets' ? 'stroke-mf-tile-fat' : 'stroke-mf-tile-protein'}
-        />
-      )}
-
-      {xLabels.map(({ x: labelX, text }) => (
-        <text
-          key={`${labelX}-${text}`}
-          x={labelX}
-          y={height - 8}
-          textAnchor="middle"
-          className="fill-muted-foreground text-[11px]"
+      {selected && selectedVisible && (
+        <div
+          role="status"
+          style={{ left: `${Math.min(78, Math.max(22, (selectedX / WIDTH) * 100))}%` }}
+          className="bg-popover border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:animation-duration-200 pointer-events-none absolute top-0 -translate-x-1/2 rounded-lg border px-3 py-2 text-center whitespace-nowrap shadow-md"
         >
-          {text}
-        </text>
-      ))}
-    </svg>
+          <p className="text-muted-foreground text-xs">{shortDay(selected.date)}</p>
+          <p className="text-sm font-medium tabular-nums">
+            {selected.consumed === null ? 'Not logged' : `${kcal(selected.consumed)} kcal`}
+            {selected.incomplete ? ' · Incomplete' : ''}
+          </p>
+          {selected.baseline !== null && (
+            <p className="text-muted-foreground text-xs tabular-nums">
+              {mode === 'targets' ? 'Target' : 'Expenditure'} {kcal(selected.baseline)}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
