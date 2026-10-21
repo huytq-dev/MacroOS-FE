@@ -35,3 +35,16 @@ export const useSetPeriodDay = () => {
     },
   })
 }
+
+/** Thùng rác của bảng ngày: bỏ đánh dấu một ngày (`DELETE /periods/days/{date}`), làm mới cùng tiền tố 'periods'. */
+export const useDeletePeriodDay = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (date: string) => periodService.deleteDay(date),
+    onSuccess: () => {
+      toast.success('Period day removed')
+      void queryClient.invalidateQueries({ queryKey: periodKeys.all })
+    },
+    onError: (error) => logger.error(error),
+  })
+}

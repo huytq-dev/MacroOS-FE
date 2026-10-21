@@ -17,8 +17,10 @@ export interface PeriodHistory {
   items: PeriodEntry[]
   lastStartDate: string | null
   daysSinceLastStart: number | null
-  /** Độ dài (ngày) của kỳ gần nhất, cho "Last Period Duration"; BE cũ chưa trả thì FE suy từ `items`. */
-  lastPeriodLengthDays?: number | null
+  /** Mọi ngày hành kinh trong khoảng (tăng dần, gồm kỳ bắt đầu trước `from` hoặc đang diễn ra). */
+  days: string[]
+  /** Độ dài (ngày) của kỳ gần nhất, cho "Last Period Duration"; null = chưa có kỳ nào. */
+  lastPeriodLengthDays: number | null
 }
 
 /** Body của PUT /periods/days/{date}: bật = ngày đó là ngày hành kinh, tắt = bỏ khỏi kỳ (BE tự gộp / tách các khoảng). */

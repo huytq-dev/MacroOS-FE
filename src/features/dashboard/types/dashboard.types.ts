@@ -102,6 +102,9 @@ export interface PeriodsResponse {
   }[]
   lastStartDate: string | null
   daysSinceLastStart: number | null
+  /** Mọi ngày hành kinh trong khoảng (tăng dần, gồm kỳ bắt đầu trước from hoặc đang diễn ra). */
+  days: string[]
+  lastPeriodLengthDays: number | null
 }
 
 export interface NutrientModel {

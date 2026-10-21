@@ -93,7 +93,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
           title="Period"
           subtitle="Last 30 Days"
           href={routePath.period}
-          visual={<HabitGrid cells={data.period.cells} tone="bg-mf-tile-protein" />}
+          visual={<HabitGrid cells={data.period.cells} tone="bg-mf-period" />}
           value={data.period.daysAgo === null ? '---' : String(data.period.daysAgo)}
           unit="days ago"
         />

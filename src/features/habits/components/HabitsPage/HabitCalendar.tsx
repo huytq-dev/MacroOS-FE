@@ -26,7 +26,7 @@ interface HabitCalendarProps {
 
 /**
  * Lịch tháng kiểu MacroFactor: mỗi ngày một vòng tròn mảnh; ngày đã thực hiện có vòng xanh dày (hiện ra bằng fade + phóng nhẹ), hôm
- * nay có chấm nhỏ dưới số, ngày tương lai và ngày ngoài tháng mờ hơn và không bấm được. Hàng Mon → Sun nằm dưới lưới.
+ * nay có chấm nhỏ dưới số, ngày tương lai trong tháng vẫn đủ vòng như MacroOS (chỉ không bấm được), ngày của tháng kề mờ và không vòng. Hàng Mon → Sun nằm dưới lưới.
  */
 export function HabitCalendar({
   grid,
@@ -77,9 +77,8 @@ export function HabitCalendar({
           const face = cn(
             'relative mx-auto flex size-11 items-center justify-center rounded-full text-base tabular-nums transition-colors duration-300',
             !inMonth && 'text-muted-foreground/40',
-            inMonth && !done && (future ? 'text-muted-foreground/60' : 'text-foreground'),
+            inMonth && !done && 'text-foreground',
             inMonth && !done && 'border-border/60 border',
-            inMonth && future && !done && 'border-border/30',
             inMonth &&
               done &&
               `${trackedBorder} motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in-0 motion-safe:animation-duration-300 border-2`

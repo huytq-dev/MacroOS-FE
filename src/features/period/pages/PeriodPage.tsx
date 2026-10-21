@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { PeriodDaySheet } from '../components/PeriodDaySheet'
 import { PeriodHistoryList } from '../components/PeriodHistoryList'
-import { usePeriodHistory, useSetPeriodDay } from '../hooks/use-period'
-import { lastPeriodLength, periodDaySet, trackedDaysDesc } from '../period.utils'
+import { useDeletePeriodDay, usePeriodHistory, useSetPeriodDay } from '../hooks/use-period'
+import { periodDaySet, trackedDaysDesc } from '../period.utils'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
 import { StatBlock } from '@/features/dashboard/components/DetailPage'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
@@ -19,7 +19,7 @@ import { useIsClient } from '@/hooks/use-is-client'
 import { useSheet } from '@/hooks/use-sheet'
 import { formatDate, todayIso } from '@/lib/date'
 
-const TONE = 'border-mf-tile-protein'
+const TONE = 'border-mf-period'
 
 interface View {
   readonly year: number
@@ -30,6 +30,7 @@ interface View {
 function PeriodContent({ today }: { readonly today: string }) {
   const history = usePeriodHistory(today)
   const setDay = useSetPeriodDay()
+  const deleteDay = useDeletePeriodDay()
   const sheet = useSheet<string>()
   const [confirmDate, setConfirmDate] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -41,8 +42,8 @@ function PeriodContent({ today }: { readonly today: string }) {
   if (history.isError)
     return <ErrorState error={history.error} onRetry={() => void history.refetch()} />
 
-  const tracked = periodDaySet(history.data?.items)
-  const length = lastPeriodLength(history.data ?? undefined)
+  const tracked = periodDaySet(history.data?.days)
+  const length = history.data?.lastPeriodLengthDays ?? null
 
   const goTo = (year: number, month: number) =>
     setPicked({
@@ -98,7 +99,9 @@ function PeriodContent({ today }: { readonly today: string }) {
         currentMonth={currentMonth}
         onChange={goTo}
       />
-      <HabitLegend trackedBorder={TONE} />
+      <div className="bg-card rounded-xl py-5">
+        <HabitLegend trackedBorder={TONE} />
+      </div>
       <PeriodHistoryList days={trackedDaysDesc(tracked)} onEdit={open} />
 
       {sheet.value !== undefined && (
@@ -124,18 +127,15 @@ function PeriodContent({ today }: { readonly today: string }) {
         description={confirmDate ? `Unmark ${formatDate(confirmDate)} as a period day.` : ''}
         confirmLabel="Delete"
         pendingLabel="Deleting..."
-        isPending={setDay.isPending}
+        isPending={deleteDay.isPending}
         onConfirm={() =>
           confirmDate &&
-          setDay.mutate(
-            { date: confirmDate, isOnPeriod: false },
-            {
-              onSuccess: () => {
-                setConfirmDate(null)
-                sheet.hide()
-              },
-            }
-          )
+          deleteDay.mutate(confirmDate, {
+            onSuccess: () => {
+              setConfirmDate(null)
+              sheet.hide()
+            },
+          })
         }
       />
     </div>

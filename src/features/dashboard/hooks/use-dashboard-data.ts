@@ -114,7 +114,7 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
 
   const weighInDates = new Set(entries.map((entry) => entry.logDate))
   const loggedDates = new Set(daily.filter(isLogged).map((point) => point.snapshotDate))
-  const periodSet = periodDaySet(periodsQuery.data?.items)
+  const periodSet = periodDaySet(periodsQuery.data?.days)
 
   const totals = dayLog.data?.totals
   const target = dayLog.data?.target

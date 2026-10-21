@@ -19,7 +19,7 @@ interface PeriodDaySheetProps {
   /** Lỗi từ BE khi lưu. */
   readonly error: string | null
   readonly onSave: (isOnPeriod: boolean) => void
-  /** Chỉ khi ngày đã được đánh dấu: hiện thùng rác (trang hỏi xác nhận). */
+  /** Chỉ khi ngày đã được đánh dấu thì thùng rác bấm được (trang hỏi xác nhận); chưa đánh dấu thì thùng rác mờ như MacroFactor. */
   readonly onDelete?: () => void
 }
 
@@ -46,18 +46,17 @@ export function PeriodDaySheet({
       subtitle="Period"
       showDone={false}
       headerAction={
-        onDelete && (
-          <button
-            type="button"
-            aria-label="Delete period day"
-            onClick={onDelete}
-            className="focus-visible:ring-ring/50 active:bg-foreground/10 flex size-11 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6 fill-current">
-              <path d="M9 3h6l1 1.5h4V7H4V4.5h4L9 3Zm-3.5 5h13l-1 12.2A2 2 0 0 1 15.5 22h-7a2 2 0 0 1-2-1.8L5.5 8Zm4 3v8h1.6v-8H9.5Zm3.4 0v8h1.6v-8h-1.6Z" />
-            </svg>
-          </button>
-        )
+        <button
+          type="button"
+          aria-label="Delete period day"
+          onClick={onDelete}
+          disabled={!onDelete}
+          className="focus-visible:ring-ring/50 active:bg-foreground/10 flex size-11 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:opacity-40"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6 fill-current">
+            <path d="M9 3h6l1 1.5h4V7H4V4.5h4L9 3Zm-3.5 5h13l-1 12.2A2 2 0 0 1 15.5 22h-7a2 2 0 0 1-2-1.8L5.5 8Zm4 3v8h1.6v-8H9.5Zm3.4 0v8h1.6v-8h-1.6Z" />
+          </svg>
+        </button>
       }
     >
       <form

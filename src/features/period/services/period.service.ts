@@ -14,4 +14,6 @@ export const periodService = {
   /** Đánh dấu / bỏ đánh dấu một ngày; BE gộp hoặc tách khoảng và tính lại độ dài chu kỳ. */
   setDay: (date: string, payload: SetPeriodDayRequest) =>
     apiCall.put(apiRoutes.periods.byDay(date), payload),
+  /** Bỏ đánh dấu một ngày (thùng rác); BE tách khoảng nếu cần. */
+  deleteDay: (date: string) => apiCall.delete(apiRoutes.periods.byDay(date)),
 }

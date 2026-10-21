@@ -105,9 +105,9 @@ export const apiRoutes = {
     byDate: (logDate: string) => `/steps/${logDate}`, // DELETE
   },
   periods: {
-    root: '/periods', // GET ?from&to → { items[{ id, startDate, endDate, cycleLengthDays, periodLengthDays, symptoms, notes }], lastStartDate, daysSinceLastStart }; POST { startDate, endDate?, symptoms?, notes? } (trùng startDate = 409)
+    root: '/periods', // GET ?from&to → { items[...], lastStartDate, daysSinceLastStart, days[date] (ngày hành kinh trong khoảng), lastPeriodLengthDays }; POST { startDate, endDate?, symptoms?, notes? } (trùng startDate = 409)
     byId: (id: string) => `/periods/${id}`, // PUT (cùng body với POST), DELETE
-    byDay: (date: string) => `/periods/days/${date}`, // PUT { isOnPeriod } → đánh dấu / bỏ đánh dấu một ngày (BE gộp / tách khoảng); ngày tương lai bị từ chối
+    byDay: (date: string) => `/periods/days/${date}`, // PUT { isOnPeriod } (toggle + Save), DELETE (thùng rác = bỏ đánh dấu ngày) → đều Unit, BE gộp / tách khoảng; ngày tương lai 400
   },
   nutrients: {
     root: '/nutrients', // GET ?date= → { date, items[{ code, name, unit, group, amount, floor, target, ceiling, isCustomTarget, pinOrder }] }; amount null = chưa có dữ liệu
