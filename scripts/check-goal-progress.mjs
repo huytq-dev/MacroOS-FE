@@ -8,6 +8,7 @@ import {
   goalRemaining,
   primaryGoal,
   targetRatio,
+  weekBarProgress,
 } from '../src/features/nutrition/goal-progress.ts'
 
 const close = (actual, expected, label) =>

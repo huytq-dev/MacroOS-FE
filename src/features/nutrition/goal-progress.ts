@@ -156,6 +156,23 @@ export function goalRemaining(
 }
 
 /**
+ * Chiều cao thanh một ô lưới Weekly Nutrition: Consumed = đã ăn / target (nắp vượt khi > target); Remaining = phần còn lại / target
+ * (chưa ăn = đầy, ăn ≥ target = 0 → ô rỗng như MacroFactor). Không có target dương thì ô rỗng ở cả hai chế độ.
+ */
+export function weekBarProgress(
+  consumed: number,
+  target: number | null | undefined,
+  mode: 'consumed' | 'remaining'
+) {
+  const goal = positive(target)
+  if (goal === null) return { progress: 0, over: false }
+  const eaten = Math.max(0, consumed)
+  if (mode === 'remaining')
+    return { progress: Math.min(1, Math.max(0, (goal - eaten) / goal)), over: false }
+  return { progress: Math.min(1, eaten / goal), over: eaten > goal }
+}
+
+/**
  * Tỉ lệ đã ăn / target cho vòng, hàng tuần và thanh macro nhỏ (100% = target, như MacroFactor): `progress` kẹp 0–1, `over` khi vượt.
  * Target 0 / null mà đã ăn thì coi như đầy và vượt; chưa ăn thì 0.
  */

@@ -2,7 +2,7 @@
 
 import { Flame } from 'lucide-react'
 import { ModeToggle } from './DailyNutritionCard'
-import { targetRatio } from '@/features/nutrition/goal-progress'
+import { weekBarProgress } from '@/features/nutrition/goal-progress'
 import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import type { MacroTotals, WeekDay } from '@/features/food-log/types/food-log.types'
@@ -27,9 +27,12 @@ const ROWS: readonly Row[] = [
 const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 // Mỗi hàng chỉ số cao bằng nhau ở lưới và cột tổng bên phải để các số thẳng hàng với cột của nó.
-const ROW = 'h-11'
+const ROW = 'h-12'
+// Thanh đổi chiều cao 400ms ease-out khi đổi Consumed ↔ Remaining (mép trên trượt trong ô, nắp đi theo)
+const BAR_MOTION =
+  'transition-[height,opacity] duration-[400ms] ease-out motion-reduce:transition-none'
 // Sàn hiển thị (px) của phần màu khi đã có dữ liệu: 8% của ô chỉ cao ~2px nên nếu không có sàn thì chỉ thấy nắp trắng và người dùng tưởng chưa ăn gì. Chỉ là sàn nhìn thấy được, KHÔNG phải thang đo — chiều cao thật vẫn là consumed / target.
-const MIN_FILL_PX = 8
+const MIN_FILL_PX = 10
 
 interface WeekMatrixProps {
   readonly mode: NutritionMode
@@ -56,7 +59,7 @@ export function WeekMatrix({
   const current = days.find((day) => day.logDate === selected)
 
   const progressOf = (day: WeekDay, row: Row) =>
-    targetRatio(consumedOf(day.totals, row.key), day.target ? row.goal(day.target) : 0)
+    weekBarProgress(consumedOf(day.totals, row.key), day.target ? row.goal(day.target) : 0, mode)
 
   // Cả tuần: cộng đã ăn của 7 ngày so với tổng target các ngày đã có target.
   const summary = (row: Row) => {
@@ -94,7 +97,7 @@ export function WeekMatrix({
               >
                 {ROWS.map((row, rowIndex) => {
                   const { progress, over } = progressOf(day, row)
-                  // Chưa ăn chỉ số này (hoặc ngày tương lai) → ô rỗng có dấu gạch, ở cả hai chế độ
+                  // Ô rỗng (dấu gạch) khi ngày tương lai, không có target hoặc thanh = 0: chưa ăn ở Consumed, ăn ≥ target ở Remaining
                   const empty = future || progress <= 0
                   return (
                     <span
@@ -106,31 +109,36 @@ export function WeekMatrix({
                         rowIndex < ROWS.length - 1 && 'border-foreground/10 border-b'
                       )}
                     >
-                      {/* Ô cao hẹp gần đủ hàng: chưa có dữ liệu thì dấu gạch ngắn ở ĐỈNH ô; có dữ liệu thì thanh mảnh bo tròn đầy từ đáy lên, nắp trắng ở đỉnh phần màu */}
-                      <span className="bg-foreground/10 relative block h-8 w-5 rounded-[3px]">
-                        {empty ? (
-                          <span className="bg-foreground/30 absolute top-1.5 left-1/2 h-px w-1.5 -translate-x-1/2" />
-                        ) : (
-                          <span className="absolute inset-y-1.5 left-1/2 w-1 -translate-x-1/2">
+                      {/* Ô cao gần đủ hàng (≈ 70% bề rộng cột): dấu gạch ở ĐỈNH ô khi rỗng, thanh dày bo tròn đầy từ đáy lên có nắp trắng ở đỉnh phần màu; hai lớp luôn có mặt để đổi rỗng ↔ có thanh là mờ dần / lớn dần chứ không nhảy */}
+                      <span className="bg-foreground/10 relative block h-10 w-[70%] rounded-[3px]">
+                        <span
+                          className={cn(
+                            'bg-foreground/30 absolute top-2 left-1/2 h-0.5 w-2 -translate-x-1/2 rounded-full',
+                            BAR_MOTION,
+                            empty ? 'opacity-100' : 'opacity-0'
+                          )}
+                        />
+                        <span className="absolute inset-y-1.5 left-1/2 w-[30%] -translate-x-1/2">
+                          <span
+                            className={cn(
+                              'absolute inset-x-0 bottom-0 rounded-full',
+                              BAR_MOTION,
+                              row.fill,
+                              empty ? 'opacity-0' : 'opacity-100'
+                            )}
+                            style={{
+                              height: empty ? 0 : `max(${MIN_FILL_PX}px, ${progress * 100}%)`,
+                            }}
+                          >
+                            {/* Nắp trắng ở đỉnh phần màu; vượt target (Consumed) thì nắp dày hơn và có vòng sáng */}
                             <span
                               className={cn(
-                                'absolute inset-x-0 bottom-0 rounded-full transition-[height] duration-300 motion-reduce:transition-none',
-                                row.fill
+                                'bg-foreground absolute inset-x-0 top-0 rounded-full',
+                                over ? 'h-1.5 shadow-[0_0_0_1.5px_var(--foreground)]' : 'h-1'
                               )}
-                              style={{ height: `max(${MIN_FILL_PX}px, ${progress * 100}%)` }}
-                            >
-                              {/* Nắp trắng ở đỉnh phần đã ăn; vượt target thì nắp dày hơn và có vòng sáng */}
-                              <span
-                                className={cn(
-                                  'bg-foreground absolute inset-x-0 top-0 rounded-full',
-                                  over
-                                    ? 'h-[5px] shadow-[0_0_0_1.5px_var(--foreground)]'
-                                    : 'h-[3px]'
-                                )}
-                              />
-                            </span>
+                            />
                           </span>
-                        )}
+                        </span>
                       </span>
                     </span>
                   )
