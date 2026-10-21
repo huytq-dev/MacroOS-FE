@@ -11,6 +11,8 @@ import {
   TutorialCard,
 } from '../components/DetailPage'
 import {
+  SCALE_COLOR,
+  TREND_COLOR,
   WEIGHT_TREND_TUTORIAL,
   WeightMonthlyList,
   WeightTrendChart,
@@ -18,7 +20,7 @@ import {
 } from '../components/WeightTrendPage'
 import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useWeightTrendDetail } from '../hooks/use-weight-trend-detail'
-import type { Averaging, RangeKey } from '../expenditure.utils'
+import { rangeLabel, type Averaging, type RangeKey } from '../expenditure.utils'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,13 +28,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
 
 /**
- * Chi tiết "Weight Trend" (bấm ô Weight Trend ở Dashboard): Average/Difference của kỳ, biểu đồ số cân + xu hướng,
- * chọn kỳ 1W…All và D/W/M, phóng to biểu đồ, hướng dẫn, Insights & Data và danh sách theo tháng.
+ * Chi tiết "Weight Trend" (bấm ô Weight Trend ở Dashboard): Average / Difference của kỳ, biểu đồ hai đường (Scale Weight tím đậm nối
+ * các lần cân, Trend Weight tím nhạt có vòng tròn mỗi ngày), chọn kỳ 1W…All (luôn kết thúc hôm nay) và D/W/M, nút đổi trục (từ 0 ↔ vừa
+ * khít dữ liệu), chú giải, hướng dẫn (mũ tốt nghiệp ở góc phải mở / ẩn), Insights & Data, Data Sources và lịch sử theo tháng.
  */
 export function WeightTrendPage() {
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
-  const [expanded, setExpanded] = useState(false)
+  const [fit, setFit] = useState(false)
   const [tutorial, setTutorial] = usePersistedChoice(
     'weight-trend.tutorial',
     'show',
@@ -40,11 +43,10 @@ export function WeightTrendPage() {
   )
   const data = useWeightTrendDetail(range, averaging)
 
-  if ('isError' in data && data.isError)
-    return <ErrorState error={new Error('Could not load Weight Trend')} />
+  if (data.isError) return <ErrorState error={new Error('Could not load Weight Trend')} />
 
   return (
-    <div className="flex max-w-2xl flex-col gap-5 md:pb-0">
+    <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0">
       <SubPageHeader
         title="Weight Trend"
         action={
@@ -57,7 +59,7 @@ export function WeightTrendPage() {
         }
       />
 
-      {data.isLoading || !('win' in data) ? (
+      {!data.ready || data.isLoading ? (
         <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       ) : (
         <>
@@ -67,21 +69,19 @@ export function WeightTrendPage() {
               <StatBlock label="Difference" value={data.difference?.toFixed(1) ?? null} unit="kg" />
             </div>
             <IconButton
-              icon={expanded ? CollapseChartIcon : ExpandChartIcon}
-              label={expanded ? 'Shrink chart' : 'Expand chart'}
+              icon={fit ? CollapseChartIcon : ExpandChartIcon}
+              label={fit ? 'Start the axis at zero' : 'Fit the axis to the data'}
+              aria-pressed={fit}
               variant="secondary"
-              className="size-14 rounded-full"
-              onClick={() => setExpanded((value) => !value)}
+              className="size-14 shrink-0 rounded-full"
+              onClick={() => setFit((value) => !value)}
             />
           </div>
-          <p className="text-muted-foreground -mt-3 text-lg">{data.label}</p>
+          <p className="text-muted-foreground -mt-3 text-lg">
+            {rangeLabel(data.win.from, data.win.to)}
+          </p>
 
-          <WeightTrendChart
-            points={data.shown}
-            range={range}
-            height={expanded ? 460 : 300}
-            className="transition-[height] duration-300"
-          />
+          <WeightTrendChart trend={data.trend} scale={data.scale} span={data.win} fit={fit} />
           <RangeBar
             range={range}
             onRangeChange={setRange}
@@ -89,49 +89,47 @@ export function WeightTrendPage() {
             onAveragingChange={setAveraging}
           />
 
-          {!expanded && (
-            <>
-              <div className="bg-card text-foreground flex items-center justify-center gap-6 rounded-xl px-4 py-4 text-base">
-                <span className="flex items-center gap-2">
-                  <svg
-                    viewBox="0 0 24 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className="text-mf-purple/60 h-4 w-6"
-                  >
-                    <path d="M2 4l5 8 5-6 4 6 6-9" />
-                  </svg>
-                  Scale Weight
-                </span>
-                <span className="flex items-center gap-2">
-                  <span aria-hidden="true" className="relative flex h-4 w-6 items-center">
-                    <span className="bg-mf-purple h-0.5 w-full" />
-                    <span className="border-mf-purple bg-card absolute left-1/2 size-2.5 -translate-x-1/2 rounded-full border-2" />
-                  </span>
-                  Trend Weight
-                </span>
-              </div>
-              {tutorial === 'show' && (
-                <TutorialCard
-                  steps={WEIGHT_TREND_TUTORIAL}
-                  tone="purple"
-                  onDismiss={() => setTutorial('hidden')}
+          <div className="bg-card text-foreground flex items-center justify-center gap-4 rounded-xl px-3 py-4 text-base whitespace-nowrap min-[360px]:gap-6">
+            <span className="flex items-center gap-2">
+              <svg
+                viewBox="0 0 24 16"
+                fill="none"
+                stroke={SCALE_COLOR}
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                aria-hidden="true"
+                className="h-4 w-6"
+              >
+                <path d="M1 3c4 0 4 10 8 10s4-10 8-10 4 8 6 8" />
+              </svg>
+              Scale Weight
+            </span>
+            <span className="flex items-center gap-2">
+              <span aria-hidden="true" className="relative flex h-4 w-6 items-center">
+                <span className="h-0.5 w-full" style={{ backgroundColor: TREND_COLOR }} />
+                <span
+                  className="bg-card absolute left-1/2 size-2.5 -translate-x-1/2 rounded-full border-2"
+                  style={{ borderColor: TREND_COLOR }}
                 />
-              )}
-              <WeightTrendInsights
-                changes={data.changes ?? []}
-                current={data.current ?? null}
-                weeklyRate={data.weeklyRate ?? 0}
-                energyKcal={data.energyKcal ?? 0}
-                projection={data.projection ?? null}
-              />
-              <WeightMonthlyList months={data.months} />
-            </>
+              </span>
+              Trend Weight
+            </span>
+          </div>
+          {tutorial === 'show' && (
+            <TutorialCard
+              steps={WEIGHT_TREND_TUTORIAL}
+              tone="purple"
+              onDismiss={() => setTutorial('hidden')}
+            />
           )}
+          <WeightTrendInsights
+            changes={data.changes ?? []}
+            current={data.current ?? null}
+            weeklyRate={data.weeklyRate}
+            energyKcal={data.energyKcal}
+            projection={data.projection ?? null}
+          />
+          <WeightMonthlyList history={data.history} />
         </>
       )}
     </div>

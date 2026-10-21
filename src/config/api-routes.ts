@@ -108,5 +108,7 @@ export const apiRoutes = {
   weights: {
     root: '/weights', // GET ?from&to, POST
     byDate: (logDate: string) => `/weights/${logDate}`, // DELETE
+    trend: '/weights/trend', // GET ?from&to&all&granularity=Day|Week|Month → { days[{ date, trendKg, scaleKg, changeKg }], summary, scaleSummary, buckets }
+    trendInsights: '/weights/trend/insights', // GET → { weightChanges[3,7,14,30,90], currentWeightKg, weeklyChangeKg, energyDeficitKcalPerDay, projected30DaysKg }
   },
 } as const
