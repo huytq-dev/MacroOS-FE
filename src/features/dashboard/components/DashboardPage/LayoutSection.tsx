@@ -30,13 +30,13 @@ const NUTRIENT_KEYS = new Set(
 function renderTile(key: string, data: DashboardData, display: NutrientDisplay) {
   switch (key) {
     case 'expenditure':
-      return <ExpenditureTile data={data} />
+      return <ExpenditureTile />
     case 'weightTrend':
-      return <WeightTrendTile data={data} />
+      return <WeightTrendTile />
     case 'energyBalance':
-      return <EnergyBalanceTile data={data} />
+      return <EnergyBalanceTile />
     case 'goalProgress':
-      return <GoalProgressTile data={data} />
+      return <GoalProgressTile />
     case 'weighIn':
     case 'foodLogging': {
       const habit = key === 'weighIn' ? data.weighIn : data.logging

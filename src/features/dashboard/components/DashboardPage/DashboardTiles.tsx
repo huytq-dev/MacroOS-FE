@@ -1,90 +1,120 @@
+'use client'
+
 import Link from 'next/link'
 import { ChevronRight, Database } from 'lucide-react'
 import { MetricTile } from './MetricTile'
-import { GoalBar, MiniBalance, MiniFlux, Sparkline } from './TileVisuals'
-import { energyBalance, type BalanceMode } from '../../dashboard.utils'
-import { toBalancePoints } from '../../energy-balance.utils'
-import { usePersistedChoice } from '../../hooks/use-dashboard'
-import type { DashboardData } from '../../hooks/use-dashboard-data'
+import { BalanceMini, FluxMini, GoalMini, INSIGHT_DAYS, TrendMini } from './InsightCharts'
+import { goalProgressPercent, lastDays, type BalanceMode } from '../../dashboard.utils'
+import { summarizeBalance, trendOf } from '../../energy-balance.utils'
+import { useGoalProgress, usePersistedChoice } from '../../hooks/use-dashboard'
+import { useEnergyBalanceDetail } from '../../hooks/use-energy-balance-detail'
+import { useExpenditureDetail } from '../../hooks/use-expenditure-detail'
+import { useWeightTrendDetail } from '../../hooks/use-weight-trend-detail'
 import { routePath } from '@/config/route-path'
+import { useIsClient } from '@/hooks/use-is-client'
+import { todayIso } from '@/lib/date'
 
-export type Data = { readonly data: DashboardData }
+const MS_PER_DAY = 86_400_000
 
 export const fixed = (value: number | null, digits = 1) =>
   value === null ? '---' : value.toFixed(digits)
 
-export function ExpenditureTile({ data }: Data) {
+const BALANCE_MODES = ['expenditure', 'targets'] as const
+
+/** Ô Expenditure: cùng `GET /expenditure/series` + insights với trang chi tiết (dải Flux, trạng thái từng ngày, số hiện tại). */
+export function ExpenditureTile() {
+  const exp = useExpenditureDetail('daily')
+  if (!exp.ready || exp.isLoading)
+    return <MetricTile title="Expenditure" subtitle="Last 7 Days" value="" loading />
+  const last = exp.daily[exp.daily.length - 1]
+  const current = exp.current ?? last?.kcal ?? null
   return (
     <MetricTile
       title="Expenditure"
       subtitle="Last 7 Days"
       href={routePath.dashboardExpenditure}
-      visual={<MiniFlux values={data.tdeeSpark} className="text-mf-tile-protein" />}
-      value={data.tdee === null ? '---' : String(Math.round(data.tdee))}
+      visual={<FluxMini window={lastDays(exp.today, INSIGHT_DAYS)} days={exp.daily} />}
+      value={current === null ? '---' : String(Math.round(current))}
       unit="kcal"
     />
   )
 }
 
-export function WeightTrendTile({ data }: Data) {
+/** Ô Weight Trend: cùng `GET /weights/trend` với trang chi tiết (xu hướng từng ngày, số hiện tại làm tròn 1 chữ số). */
+export function WeightTrendTile() {
+  const weight = useWeightTrendDetail('daily')
+  if (!weight.ready || weight.isLoading)
+    return <MetricTile title="Weight Trend" subtitle="Last 7 Days" value="" loading />
+  const last = weight.daily[weight.daily.length - 1]
   return (
     <MetricTile
       title="Weight Trend"
       subtitle="Last 7 Days"
       href={routePath.dashboardWeightTrend}
-      visual={
-        <Sparkline values={data.weightSpark} raw={data.weightRaw} className="text-mf-purple" />
-      }
-      value={fixed(data.weightLatest)}
+      visual={<TrendMini window={lastDays(weight.today, INSIGHT_DAYS)} days={weight.daily} />}
+      value={fixed(weight.current ?? last?.trend ?? null)}
       unit="kg"
     />
   )
 }
 
-const BALANCE_MODES = ['expenditure', 'targets'] as const
-
-export function EnergyBalanceTile({ data }: Data) {
+/** Ô Energy Balance: cùng `GET /energy-balance/series` và `summarizeBalance` với trang chi tiết; tab Expenditure / Targets nhớ chung. */
+export function EnergyBalanceTile() {
   // Cùng key với trang Energy Balance và thẻ carousel nên ba nơi luôn đồng bộ
   const [mode] = usePersistedChoice<BalanceMode>(
     'dashboard.balanceMode',
     'expenditure',
     BALANCE_MODES
   )
-  const { difference } = energyBalance(
-    data.daily.slice(-7),
-    mode,
-    data.tdee,
-    data.todayTarget?.caloriesTarget ?? null
-  )
+  const balance = useEnergyBalanceDetail('daily', mode)
+  if (!balance.ready || balance.isLoading)
+    return <MetricTile title="Energy Balance" subtitle="Last 7 Days" value="" loading />
+  const window = lastDays(balance.today, INSIGHT_DAYS)
+  const week = balance.all.filter((point) => window.includes(point.date))
+  const { value } = summarizeBalance(week, mode)
+  const trend = value === null ? null : trendOf(value)
   return (
     <MetricTile
       title="Energy Balance"
       subtitle="Last 7 Days"
       href={routePath.dashboardEnergyBalance}
       visual={
-        <MiniBalance
-          points={toBalancePoints(data.daily.slice(-7), mode, data.tdee)}
-          className={mode === 'targets' ? 'text-mf-tile-fat' : 'text-mf-tile-protein'}
+        <BalanceMini
+          window={window}
+          points={week}
+          lineClassName={mode === 'targets' ? 'text-mf-tile-fat' : 'text-mf-tile-protein'}
         />
       }
-      value={difference === null ? '---' : String(Math.abs(difference))}
-      unit={difference !== null && difference < 0 ? 'kcal deficit' : 'kcal surplus'}
+      value={value === null ? '---' : String(Math.abs(value))}
+      unit={
+        trend === 'below' ? 'kcal deficit' : trend === 'above' ? 'kcal surplus' : 'kcal balance'
+      }
     />
   )
 }
 
-export function GoalProgressTile({ data }: Data) {
+/** Ô Goal Progress: `GET /goals/progress` như trang chi tiết; đang tải = khung xám, chưa có goal = "---" + thanh trống (không phải 0%). */
+export function GoalProgressTile() {
+  const isClient = useIsClient()
+  const today = isClient ? todayIso() : null
+  const goal = useGoalProgress()
+  if (!today || goal.isLoading)
+    return <MetricTile title="Goal Progress" subtitle="Since Start" value="" loading />
+  const data = goal.data
+  const percent = data
+    ? (data.progressPercent ??
+      goalProgressPercent(data.startWeightKg, data.currentTrendKg, data.targetWeightKg))
+    : null
+  const days = data
+    ? Math.max(0, Math.round((Date.parse(today) - Date.parse(data.startDate)) / MS_PER_DAY)) + 1
+    : null
   return (
     <MetricTile
       title="Goal Progress"
-      subtitle={
-        data.goalDays === null
-          ? 'Since Start'
-          : `Last ${data.goalDays} ${data.goalDays === 1 ? 'Day' : 'Days'}`
-      }
+      subtitle={days === null ? 'Since Start' : `Last ${days} ${days === 1 ? 'Day' : 'Days'}`}
       href={routePath.dashboardGoalProgress}
-      visual={data.goalPercent === null ? undefined : <GoalBar percent={data.goalPercent} />}
-      value={data.goalPercent === null ? '---' : String(data.goalPercent)}
+      visual={<GoalMini percent={percent} />}
+      value={percent === null ? '---' : String(percent)}
       unit="%"
     />
   )
