@@ -111,7 +111,7 @@ export function ExpenditurePage() {
             onAveragingChange={setAveraging}
           />
 
-          <div className="bg-card text-foreground flex items-center justify-center gap-4 rounded-xl px-3 py-4 text-base whitespace-nowrap min-[360px]:gap-6">
+          <div className="bg-card text-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-xl px-3 py-4 text-base min-[360px]:gap-x-6">
             <span className="flex items-center gap-2">
               <Mountain
                 aria-hidden="true"

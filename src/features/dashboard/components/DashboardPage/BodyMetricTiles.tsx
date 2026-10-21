@@ -40,7 +40,10 @@ export const sparkOf = (values: readonly number[]) =>
 
 const trim = (value: number) => String(Number(value.toFixed(1)))
 
-/** Ô số đo cơ thể (Neck, Shoulders…): chỉ hiện khi đã có ít nhất một lần đo; "Last 7 Entries", đường xu hướng và giá trị mới nhất. */
+/**
+ * Ô số đo cơ thể (Neck, Shoulders…) đã bật trong Customize: luôn hiện như MacroFactor; chưa đo lần nào thì "--- cm" và không có đường.
+ * Có dữ liệu thì "Last 7 Entries", đường xu hướng và giá trị mới nhất.
+ */
 export function MeasureTile({
   tileKey,
   title,
@@ -50,18 +53,21 @@ export function MeasureTile({
 }) {
   const overview = useMeasurementOverview()
   const key = TILE_KEY[tileKey]
-  const metric = overview.data?.metrics.find((item) => item.key === key)
-  if (!key || !metric || metric.entries.length === 0) return null
+  const metric = key ? overview.data?.metrics.find((item) => item.key === key) : undefined
   // BE trả mới → cũ; đường xu hướng đi cũ → mới
-  const values = metric.entries.map((entry) => entry.valueCm).reverse()
+  const values = metric?.entries.map((entry) => entry.valueCm).reverse() ?? []
   return (
     <MetricTile
       title={title}
       subtitle="Last 7 Entries"
-      href={routePath.bodyMeasurement(key)}
-      visual={<Sparkline values={sparkOf(values)} className="text-mf-tile-carbs" />}
-      value={trim(metric.latestCm)}
-      unit="cm"
+      href={key ? routePath.bodyMeasurement(key) : undefined}
+      visual={
+        values.length > 0 ? (
+          <Sparkline values={sparkOf(values)} className="text-mf-tile-carbs" />
+        ) : undefined
+      }
+      value={metric && values.length > 0 ? trim(metric.latestCm) : '---'}
+      unit={key ? 'cm' : ''}
     />
   )
 }
