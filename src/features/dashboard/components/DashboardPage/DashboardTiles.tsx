@@ -88,7 +88,7 @@ export function MoreSection() {
         Other
       </h2>
       <Link
-        href={routePath.foods}
+        href={routePath.nutritionData}
         className="bg-card active:bg-muted focus-visible:ring-ring/50 flex min-h-16 items-center gap-4 rounded-2xl px-5 py-4 transition-colors focus-visible:ring-1 focus-visible:outline-none"
       >
         <Database aria-hidden="true" className="size-6 shrink-0" />

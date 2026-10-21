@@ -26,8 +26,8 @@ interface WeightTrendChartProps {
 }
 
 /** Đường cong mượt (Catmull-Rom → Bézier) đi qua mọi điểm. */
-function smoothPath(points: readonly { x: number; y: number }[]) {
-  let path = `M ${points[0].x} ${points[0].y}`
+export function smoothPath(points: readonly { x: number; y: number }[], move = true) {
+  let path = move ? `M ${points[0].x} ${points[0].y}` : ''
   for (let index = 0; index < points.length - 1; index += 1) {
     const p0 = points[index - 1] ?? points[index]
     const p1 = points[index]

@@ -96,6 +96,8 @@ export const apiRoutes = {
   expenditure: {
     root: '/expenditure', // GET ?from&to
     changes: '/expenditure/changes', // GET → [{ days, deltaKcal, status }] cho 3/7/14/30/90 ngày
+    series: '/expenditure/series', // GET ?from&to&all&granularity → { days[{ date, expenditureKcal, fluxLowKcal, fluxHighKcal, status, changeKcal }], summary, buckets } liên tục tới hôm nay
+    insights: '/expenditure/insights', // GET → { currentKcal, strategy, holdingReason, calibratingDaysLeft, changes[{ days, changeKcal, status }] }
     daily: '/expenditure/daily', // GET ?from&to (mỗi ngày: đã ăn, target, cân xu hướng)
   },
   goals: {
@@ -104,6 +106,9 @@ export const apiRoutes = {
     edit: '/goals/edit', // PUT { targetWeightKg, weeklyRatePercent } → { requiresNewProgram }, một lệnh atomic
     target: '/goals/target', // PUT { targetWeightKg } (null = xoá)
     progress: '/goals/progress', // GET → { goalType, startDate, startWeightKg, targetWeightKg, currentTrendKg, ... }
+  },
+  nutritionData: {
+    root: '/nutrition-data', // GET ?all → { items[{ date, calories, proteinG, fatG, carbsG, source, isFasting, isIncomplete }] }, PUT { date, calories, proteinG, fatG, carbsG, isFasting, isIncomplete }, DELETE ?date= (đề xuất, chờ MOS-BE chốt)
   },
   weights: {
     root: '/weights', // GET ?from&to, POST

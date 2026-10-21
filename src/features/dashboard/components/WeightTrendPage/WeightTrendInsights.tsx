@@ -1,4 +1,12 @@
-import { DETAIL_CARD, MetricRow, ScaleIcon, SourceRow, WaitingIcon } from '../DetailPage'
+import {
+  DETAIL_CARD,
+  MetricRow,
+  MiniArea,
+  ScaleIcon,
+  SourceRow,
+  WaitingIcon,
+  padWindow,
+} from '../DetailPage'
 import { MoveIndicator } from './MoveIndicator'
 import type { WeightChangeStatus } from '../../types/weight-trend.types'
 import type { TrendDay } from '../../weight-trend-series'
@@ -26,36 +34,8 @@ interface WeightTrendInsightsProps {
 
 const MOVE_OF_STATUS = { Decrease: 'down', Increase: 'up', NoChange: 'same' } as const
 
-const signed = (value: number, digits: number) =>
-  `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(digits)}`
-
-const AREA_W = 56
-const AREA_H = 20
-
-/** Vùng thu nhỏ của xu hướng N ngày qua (tím nhạt, đường tím phía trên); chưa đủ dữ liệu thì một dải phẳng. Tự vẽ từ trái sang. */
-function MiniArea({ points }: { readonly points: readonly TrendDay[] }) {
-  const values = points.length >= 2 ? points.map((point) => point.trend) : [0, 0]
-  const lo = Math.min(...values)
-  const span = Math.max(...values) - lo
-  const ys = values.map((value) => (span === 0 ? 7 : 3 + (1 - (value - lo) / span) * (AREA_H - 9)))
-  const line = ys
-    .map((y, index) => `${index === 0 ? 'M' : 'L'} ${(index / (ys.length - 1)) * AREA_W} ${y}`)
-    .join(' ')
-  return (
-    <svg
-      viewBox={`0 0 ${AREA_W} ${AREA_H}`}
-      aria-hidden="true"
-      className="text-mf-purple motion-safe:animate-chart-grow h-5 w-14 origin-left"
-    >
-      <path
-        d={`${line} L ${AREA_W} ${AREA_H} L 0 ${AREA_H} Z`}
-        fill="currentColor"
-        opacity="0.28"
-      />
-      <path d={line} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-    </svg>
-  )
-}
+/** Giảm hiện "−0.1", tăng hiện "0.1" (không dấu +, như MacroFactor); nhãn Increase / Decrease đã báo hướng. */
+const changeText = (value: number) => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}`
 
 /**
  * "Insights & Data" của Weight Trend: Weight Changes (3/7/14/30/90 ngày, "Waiting" khi chưa đủ dữ liệu), các chỉ số xu hướng
@@ -85,9 +65,15 @@ export function WeightTrendInsights({
               className="grid grid-cols-[4rem_3.5rem_1fr_auto] items-center gap-2.5 text-base"
             >
               <span className="text-muted-foreground whitespace-nowrap">{days}-day</span>
-              <MiniArea points={status === 'Waiting' ? [] : area} />
+              <MiniArea
+                values={padWindow(
+                  area.map((day) => day.trend),
+                  days
+                )}
+                className="text-mf-purple"
+              />
               <span className="tabular-nums">
-                {status === 'Waiting' || delta === null ? '-- kg' : `${signed(delta, 1)} kg`}
+                {status === 'Waiting' || delta === null ? '-- kg' : `${changeText(delta)} kg`}
               </span>
               {status === 'Waiting' ? (
                 <span className="flex items-center gap-2">

@@ -1,13 +1,13 @@
-import { ArrowDownRight, ArrowRight, ArrowUpRight } from 'lucide-react'
+import { ArrowRight, TrendingDown, TrendingUp } from 'lucide-react'
 import type { WeightMove } from '../../weight-trend.utils'
 
 const MOVES = {
-  up: { icon: ArrowUpRight, label: 'Increase' },
-  down: { icon: ArrowDownRight, label: 'Decrease' },
+  up: { icon: TrendingUp, label: 'Increase' },
+  down: { icon: TrendingDown, label: 'Decrease' },
   same: { icon: ArrowRight, label: 'No Change' },
 } as const
 
-/** Mũi tên tím + chữ cho biến động xu hướng cân nặng (↗ tăng / ↘ giảm / → không đổi); `text` thay nhãn mặc định (vd. "−0.1 kg"). */
+/** Biểu tượng tím + chữ cho biến động xu hướng cân nặng (xu hướng lên / xuống / mũi tên ngang); `text` thay nhãn mặc định (vd. "−0.1 kg"). */
 export function MoveIndicator({
   move,
   text,

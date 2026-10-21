@@ -1,48 +1,85 @@
 'use client'
 
-import { useExpenditureChanges, useExpenditureSeries } from './use-dashboard'
-import {
-  FETCH_DAYS,
-  averagePoints,
-  groupByMonth,
-  rangeLabel,
-  summarize,
-  toChartPoints,
-  windowOf,
-  type Averaging,
-  type RangeKey,
-} from '../expenditure.utils'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { averageExpDays, expHistory, recentExp, toExpDay } from '../expenditure-series'
+import { CHANGE_DAYS, type Averaging, type RangeKey } from '../expenditure.utils'
+import type {
+  ExpenditureInsightsResponse,
+  ExpenditureSeriesResponse,
+} from '../types/expenditure-series.types'
+import { trailingWindow } from '../weight-trend-series'
+import { apiRoutes } from '@/config/api-routes'
 import { useIsClient } from '@/hooks/use-is-client'
+import { apiCall } from '@/lib/api'
 import { addDaysIso, todayIso } from '@/lib/date'
 
 /**
- * Gom dữ liệu trang Expenditure: một lần gọi `GET /expenditure` (730 ngày), rồi lọc theo kỳ, gộp D/W/M và tính
- * Average/Difference ở FE. Phần BE chưa có (dải flux, biến thiên N ngày) nằm trong `expenditure.utils.ts`.
+ * Gom dữ liệu trang Expenditure từ ba lần gọi của BE (đều theo múi giờ người dùng; chuỗi liên tục từng ngày tới HÔM NAY, BE đã
+ * fill-forward): `GET /expenditure/series` của kỳ đang chọn (vùng Flux + đường + Average / Difference), cùng endpoint `all=true` cho lịch
+ * sử từng ngày và vùng thu nhỏ, và `GET /expenditure/insights` (Expenditure Changes, giá trị hiện tại, Current Strategy). Gộp D / W / M
+ * làm ở FE từ các ngày.
  */
 export function useExpenditureDetail(range: RangeKey, averaging: Averaging) {
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
-  const query = useExpenditureSeries(today ? addDaysIso(today, -FETCH_DAYS) : null, today)
-  const changes = useExpenditureChanges()
+  const from = today && range !== 'All' ? trailingWindow(range, today, null).from : undefined
 
-  // React Compiler tự memo; useMemo thủ công bị rule preserve-manual-memoization chặn.
-  const all = toChartPoints(query.data?.points ?? [])
-  if (!today) return { isLoading: true, today, all, shown: [], months: [] }
-  const win = windowOf(range, today, query.data?.expenditureStartDate ?? all[0]?.date ?? null)
-  const inWindow = all.filter((point) => point.date >= win.from && point.date <= win.to)
-  const shown = averagePoints(inWindow, averaging)
+  const series = useQuery({
+    queryKey: ['expenditure', 'series', range, today],
+    queryFn: () =>
+      apiCall.get<ExpenditureSeriesResponse>(apiRoutes.expenditure.series, {
+        params: { from, to: today, all: range === 'All' ? true : undefined, granularity: 'Day' },
+      }),
+    enabled: Boolean(today),
+    placeholderData: keepPreviousData,
+  })
+  const history = useQuery({
+    queryKey: ['expenditure', 'series', 'history', today],
+    queryFn: () =>
+      apiCall.get<ExpenditureSeriesResponse>(apiRoutes.expenditure.series, {
+        params: { all: true, to: today, granularity: 'Day' },
+      }),
+    enabled: Boolean(today),
+  })
+  const insights = useQuery({
+    queryKey: ['expenditure', 'insights', today],
+    queryFn: () => apiCall.get<ExpenditureInsightsResponse>(apiRoutes.expenditure.insights),
+    enabled: Boolean(today),
+  })
+
+  if (!today) return { ready: false as const, isLoading: true, isError: false }
+
+  const data = series.data
+  const allDays = (history.data?.days ?? []).map(toExpDay)
+  const inWindow = (data?.days ?? []).map(toExpDay)
+  const win = {
+    from: from ?? data?.days[0]?.date ?? addDaysIso(today, -29),
+    to: today,
+  }
+  const info = insights.data
+
   return {
-    isLoading: query.isLoading,
-    isError: query.isError,
+    ready: true as const,
+    isLoading: series.isPending,
+    isError: series.isError,
     today,
-    all,
     win,
-    shown,
-    label: rangeLabel(win.from, win.to),
-    ...summarize(inWindow),
-    current: query.data?.current ?? null,
-    holdingReason: query.data?.holdingReason ?? null,
-    months: groupByMonth(all),
-    changes: changes.data ?? null,
+    days: averageExpDays(inWindow, averaging),
+    average: data && data.summary.count > 0 ? data.summary.average : null,
+    difference: data && data.summary.count > 0 ? data.summary.difference : null,
+    current: info?.currentKcal ?? null,
+    strategy: info?.strategy ?? null,
+    holdingReason: info?.holdingReason ?? null,
+    calibratingDaysLeft: info?.calibratingDaysLeft ?? null,
+    changes: CHANGE_DAYS.map((days) => {
+      const found = info?.changes.find((item) => item.days === days)
+      return {
+        days,
+        delta: found?.changeKcal ?? null,
+        status: found?.status ?? 'Waiting',
+        area: recentExp(allDays, days),
+      }
+    }),
+    history: expHistory(allDays),
   }
 }

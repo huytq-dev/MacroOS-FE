@@ -24,6 +24,8 @@ export const routePath = {
   progressPhotosCompare: '/progress-photos/compare',
   programGoalEdit: '/program/goal/edit',
   weight: '/weight',
+  /** Nutrition Data Manager: nhập / sửa dinh dưỡng từng ngày (kcal, macro, fasting, incomplete). */
+  nutritionData: '/nutrition-data',
   visualBodyFat: '/body-fat',
   /** Trang một số đo vòng: khoá theo `features/weight/body-measurements.ts` (neck, leftBicep…). */
   bodyMeasurement: (key: string) => `/body-metrics/${key}`,
