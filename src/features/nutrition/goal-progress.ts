@@ -89,11 +89,17 @@ export function primaryGoal(goal: Partial<NutrientGoal> | null | undefined): num
   return g.target ?? g.floor ?? g.ceiling
 }
 
-/** Tính hình học và trạng thái của một thanh; `consumed` null hoặc ≤ 0 là thanh rỗng. */
+/**
+ * Tính hình học và trạng thái của một thanh; `consumed` null hoặc ≤ 0 là thanh rỗng. QUY TẮC THANG (một nơi duy nhất): `scaleMax` được chọn
+ * sao cho mốc neo (target, thiếu thì floor, chỉ trần thì ceiling) nằm ở vị trí của bố cục (`TARGET_AT`: row 0.58 / tile 0.80, đo từ ảnh MF);
+ * mọi mốc và phần đã ăn đều ở vị trí = giá trị / scaleMax (tuyến tính, cùng một thang); đã ăn > scaleMax thì scaleMax = đã ăn. Phần
+ * trăm (`goalPercent`) là consumed / mốc chính, TÁCH khỏi vị trí vạch. `anchorAt` chỉ để minh hoạ (Anatomy) đặt neo ở vị trí khác bố cục.
+ */
 export function goalProgress(
   goal: Partial<NutrientGoal> | null | undefined,
   consumed: number | null,
-  layout: GoalLayout
+  layout: GoalLayout,
+  anchorAt: number = TARGET_AT[layout]
 ): GoalProgress {
   const g = normalizeGoal(goal)
   const eaten = positive(consumed) ?? 0
@@ -110,7 +116,7 @@ export function goalProgress(
     }
 
   // Thang theo mốc neo; trần xa hơn thì nằm ngoài thanh (không giãn thang), chỉ lượng đã ăn mới kéo thang ra
-  let scaleMax = anchor / TARGET_AT[layout]
+  let scaleMax = anchor / anchorAt
   if (eaten > scaleMax) scaleMax = eaten
   const at = (value: number | null) => (value === null ? null : Math.min(1, value / scaleMax))
   const floorAt = at(g.floor)

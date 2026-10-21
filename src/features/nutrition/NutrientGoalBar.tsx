@@ -10,6 +10,8 @@ interface NutrientGoalBarProps {
   readonly tone: string
   /** `tile`: ô Dashboard / thẻ Overview (thanh dày, vạch ở ~80%); `row`: hàng chất, thẻ macro, lịch sử (thanh mảnh, vạch ở ~58%). */
   readonly layout: GoalLayout
+  /** Chỉ cho hình minh hoạ: vị trí (0–1) của mốc neo thay cho mặc định của bố cục (hình học vẫn là `goalProgress`). */
+  readonly anchorAt?: number
   readonly className?: string
 }
 
@@ -20,8 +22,15 @@ const pct = (value: number) => `${value * 100}%`
  * dần từ trái, đổi lượng thì chạy mượt), phần vượt ceiling đổi sang màu cảnh báo, và CHỈ có một vạch trắng ở target (không target thì
  * không vạch). Mọi mốc nằm trên cùng một thang thật; lượng ăn vượt thang thì thang giãn ra (thanh đầy, mốc dịch trái) chứ không tràn.
  */
-export function NutrientGoalBar({ goal, consumed, tone, layout, className }: NutrientGoalBarProps) {
-  const progress = goalProgress(goal, consumed, layout)
+export function NutrientGoalBar({
+  goal,
+  consumed,
+  tone,
+  layout,
+  anchorAt,
+  className,
+}: NutrientGoalBarProps) {
+  const progress = goalProgress(goal, consumed, layout, anchorAt)
   const thin = layout === 'row'
   const overStart = progress.status === 'over' ? progress.ceilingAt : null
   // Ô Dashboard (đo từ ảnh MF): ô nền cao ~14px, phần đã ăn là vạch mảnh ~5px nằm giữa ô; hàng chất (thin) tô kín chiều cao thanh mảnh

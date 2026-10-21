@@ -6,7 +6,7 @@ import { NutrientHistory } from '../components/NutrientHistory'
 import { NutrientLegend } from '../components/NutrientLegend'
 import { NutrientTodayCard } from '../components/NutrientTodayCard'
 import { useNutrientDay, useNutrientSeries } from '../hooks/use-nutrient-detail'
-import { aboutText } from '../nutrient-copy'
+import { aboutText, goalKindText } from '../nutrient-copy'
 import { averageLogged, averageNutrientDays, type NutrientInfo } from '../nutrient-detail.utils'
 import { slotsOf, viewWindow } from '@/features/dashboard/chart/geometry'
 import { useChartPan } from '@/features/dashboard/chart/use-chart-pan'
@@ -48,6 +48,7 @@ export function NutrientDetailPage({ info }: { readonly info: NutrientInfo }) {
   const slots = useTween(target)
   const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
 
+  const goalLine = goalKindText(info, kind)
   const header = <SubPageHeader title={nutrient.name} />
 
   if (series.isError)
@@ -110,9 +111,10 @@ export function NutrientDetailPage({ info }: { readonly info: NutrientInfo }) {
           <h2 id="about-heading" className="text-xl font-bold">
             About {nutrient.name}
           </h2>
-          <p className={`${DETAIL_CARD} text-foreground p-4 text-lg leading-snug`}>
-            {aboutText(info)}
-          </p>
+          <div className={`${DETAIL_CARD} text-foreground space-y-3 p-4 text-lg leading-snug`}>
+            <p>{aboutText(info)}</p>
+            {goalLine && <p className="text-muted-foreground">{goalLine}</p>}
+          </div>
         </section>
 
         <section aria-labelledby="today-heading" className="space-y-3">

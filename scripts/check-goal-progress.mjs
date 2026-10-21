@@ -187,4 +187,55 @@ check('targetRatio (dial / week / small macro bars): 100% = target', () => {
   assert.deepEqual(targetRatio(10, null), { progress: 1, over: true })
 })
 
+check('percent = consumed / target is SEPARATE from the marker position (user examples)', () => {
+  assert.equal((100 * 8.1) / 175 > 4.62 && (100 * 8.1) / 175 < 4.64, true)
+  assert.equal(goalPercent(goal(null, 175, null), 8.1), 5) // 4.63 → 5
+  assert.equal((100 * 3.4) / 95.4 > 3.55 && (100 * 3.4) / 95.4 < 3.57, true)
+  assert.equal(goalPercent(goal(null, 95.4, null), 3.4), 4) // 3.56 → 4
+  // the tick does not move with the amount eaten (only the fill does)
+  for (const layout of ['tile', 'row']) {
+    const a = goalProgress(goal(null, 175, null), 8.1, layout)
+    const b = goalProgress(goal(null, 175, null), 100, layout)
+    close(a.targetAt, TARGET_AT[layout], 'tick fixed by layout')
+    close(b.targetAt, TARGET_AT[layout], 'tick fixed by layout')
+    close(a.fill, 8.1 / a.scaleMax, 'fill = consumed / scaleMax')
+  }
+  // beyond the scale: scaleMax follows the eaten amount, the tick moves left on the SAME scale
+  const over = goalProgress(goal(null, 100, null), 300, 'row')
+  close(over.scaleMax, 300, 'scaleMax = consumed')
+  close(over.targetAt, 100 / 300, 'target on the stretched scale')
+  close(over.fill, 1, 'fill capped at the track')
+})
+
+check('Range 70/100/120: every mark sits at value / scaleMax (linear, one scale)', () => {
+  const p = goalProgress(goal(70, 100, 120), 50, 'row')
+  const scaleMax = 100 / TARGET_AT.row
+  close(p.scaleMax, scaleMax, 'scaleMax anchored on target')
+  close(p.floorAt, 70 / scaleMax, 'floorAt')
+  close(p.targetAt, 100 / scaleMax, 'targetAt')
+  close(p.ceilingAt, 120 / scaleMax, 'ceilingAt')
+  assert.ok(p.floorAt < p.targetAt && p.targetAt < p.ceilingAt && p.ceilingAt < 1)
+  // distances between marks are proportional to the value differences
+  close(
+    (p.targetAt - p.floorAt) / (p.ceilingAt - p.targetAt),
+    (100 - 70) / (120 - 100),
+    'linear spacing'
+  )
+  assert.deepEqual(p.zone, [p.floorAt, p.ceilingAt])
+})
+
+check(
+  'About-page Anatomy example: floor / target / ceiling all inside the track, eaten past the target',
+  () => {
+    const p = goalProgress(goal(60, 100, 145), 120, 'tile', 0.58)
+    close(p.targetAt, 0.58, 'target anchor')
+    close(p.floorAt, 0.348, 'floor ≈ 0.35', 0.005)
+    close(p.ceilingAt, 0.841, 'ceiling ≈ 0.84', 0.005)
+    close(p.fill, 0.696, 'fill ≈ 0.70', 0.005)
+    assert.ok(p.ceilingAt !== null && p.ceilingAt < 1)
+    // the OLD sample (80/120/160 on the tile layout, anchor 0.8) hid the ceiling — keep the regression visible
+    assert.equal(goalProgress(goal(80, 120, 160), 105, 'tile').ceilingAt, null)
+  }
+)
+
 console.log(`\n${checks} groups passed`)

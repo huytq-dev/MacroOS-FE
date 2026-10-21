@@ -20,7 +20,10 @@ export function NutrientGoalsPage({ info }: { readonly info: NutrientInfo }) {
     <div className="flex w-full max-w-2xl min-w-0 flex-col gap-6 md:pb-0">
       <div className="bg-card sticky top-0 z-20 -mx-4 -mt-[calc(env(safe-area-inset-top)+1.25rem)] px-4 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-3 md:static md:mx-0 md:mt-0 md:rounded-2xl md:pt-2">
         <SubPageHeader title="About Nutrient Goals" />
-        <h2 className="mt-3 mb-2 text-lg font-bold">Anatomy of a Nutrient Goal</h2>
+        <div className="mt-3 mb-2 flex items-baseline justify-between gap-3">
+          <h2 className="text-lg font-bold">Anatomy of a Nutrient Goal</h2>
+          <span className="text-muted-foreground shrink-0 text-sm">Example</span>
+        </div>
         <GoalAnatomy info={info} />
       </div>
 
