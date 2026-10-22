@@ -26,4 +26,6 @@ export interface ApiError {
   message: string
   errors?: Record<string, string[]>
   statusCode: number
+  /** Dữ liệu máy đọc được BE kèm theo lỗi nghiệp vụ (vd. Calorie Shift 400: ngày vi phạm + lựa chọn sửa). */
+  data?: unknown
 }

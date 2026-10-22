@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { MonthYearPickerSheet } from '@/components/shared/MonthYearPickerSheet'
-import { MONTH_NAMES } from '../../habits.utils'
+import { MONTH_NAMES } from '@/lib/date'
 
 interface HabitControlsProps {
   readonly year: number

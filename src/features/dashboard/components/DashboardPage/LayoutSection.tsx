@@ -15,19 +15,21 @@ import {
   fixed,
 } from './DashboardTiles'
 import { NutrientTile } from './NutrientTile'
+import { tilePending } from '../../dashboard-pending'
 import { HabitGrid, MacroStack, Sparkline } from './TileVisuals'
 import { nutrientValue } from '../../dashboard.utils'
 import { SECTIONS, type NutrientDisplay, type SectionKey } from '../../dashboard-layout'
 import type { DashboardData } from '../../hooks/use-dashboard-data'
 import { NUTRIENT_GROUPS } from '../../nutrient-catalog'
 import { routePath } from '@/config/route-path'
+import { useUnits, type UnitsView } from '@/features/users/hooks/use-units'
 
 const NUTRIENT_KEYS = new Set(
   NUTRIENT_GROUPS.flatMap((group) => group.nutrients.map((nutrient) => nutrient.key))
 )
 
 /** Một ô theo khoá trong bố cục; ô số đo cơ thể chỉ hiện khi đã có dữ liệu. */
-function renderTile(key: string, data: DashboardData, display: NutrientDisplay) {
+function renderTile(key: string, data: DashboardData, display: NutrientDisplay, units: UnitsView) {
   switch (key) {
     case 'expenditure':
       return <ExpenditureTile />
@@ -48,6 +50,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
           visual={<HabitGrid cells={habit.cells} tone="bg-mf-tile-carbs" />}
           value={`${habit.week}/7`}
           unit="this week"
+          loading={tilePending(key, data.pending)}
         />
       )
     }
@@ -58,8 +61,9 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
           subtitle="Last 7 Entries"
           href={routePath.weight}
           visual={<Sparkline values={sparkOf(data.scale.spark)} className="text-mf-tile-carbs" />}
-          value={fixed(data.scale.latest)}
-          unit="kg"
+          value={data.scale.latest === null ? '---' : units.weight.format(data.scale.latest)}
+          unit={units.weight.unit}
+          loading={tilePending(key, data.pending)}
         />
       )
     case 'bodyFat':
@@ -71,6 +75,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
           visual={<Sparkline values={sparkOf(data.bodyFat.spark)} className="text-mf-tile-carbs" />}
           value={fixed(data.bodyFat.latest)}
           unit="%"
+          loading={tilePending(key, data.pending)}
         />
       )
     case 'progressPhotos':
@@ -85,6 +90,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
           href={routePath.steps}
           value={data.steps === null ? '---' : String(data.steps)}
           unit="steps"
+          loading={tilePending(key, data.pending)}
         />
       )
     case 'period':
@@ -96,6 +102,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
           visual={<HabitGrid cells={data.period.cells} tone="bg-mf-period" />}
           value={data.period.daysAgo === null ? '---' : String(data.period.daysAgo)}
           unit="days ago"
+          loading={tilePending(key, data.pending)}
         />
       )
     default: {
@@ -107,11 +114,19 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay) 
               subtitle="Last 7 Days"
               href={routePath.dashboardNutrition}
               visual={<MacroStack days={data.macrosWeek} />}
-              value={String(Math.round(nutrientValue(data.nutrientsToday, 'macros').value))}
-              unit="kcal"
+              value={units.energy.format(nutrientValue(data.nutrientsToday, 'macros').value)}
+              unit={units.energy.unit}
+              loading={tilePending(key, data.pending)}
             />
           )
-        return <NutrientTile tileKey={key} values={data.nutrientsToday} display={display} />
+        return (
+          <NutrientTile
+            tileKey={key}
+            values={data.nutrientsToday}
+            display={display}
+            loading={tilePending(key, data.pending)}
+          />
+        )
       }
       const label = SECTIONS.bodyMetrics.groups
         .flatMap((g) => g.tiles)
@@ -138,12 +153,13 @@ interface LayoutSectionProps {
 
 /** Một nhóm ô của Dashboard theo bố cục người dùng: ẩn cả nhóm khi không còn ô nào. */
 export function LayoutSection({ section, tiles, display, data, index }: LayoutSectionProps) {
+  const units = useUnits()
   if (tiles.length === 0) return null
   return (
     <TileSection title={SECTIONS[section].title} seeAllHref={SEE_ALL[section]} index={index}>
       {tiles.map((key) => (
         <div key={key} className="contents">
-          {renderTile(key, data, display[key] ?? 'consumed')}
+          {renderTile(key, data, display[key] ?? 'consumed', units)}
         </div>
       ))}
     </TileSection>

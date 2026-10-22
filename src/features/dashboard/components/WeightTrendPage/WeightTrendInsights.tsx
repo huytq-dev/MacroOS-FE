@@ -11,6 +11,7 @@ import { MoveIndicator } from './MoveIndicator'
 import type { WeightChangeStatus } from '../../types/weight-trend.types'
 import type { TrendDay } from '../../weight-trend-series'
 import { routePath } from '@/config/route-path'
+import { useUnits } from '@/features/users/hooks/use-units'
 
 interface WeightChangeRow {
   readonly days: number
@@ -30,6 +31,8 @@ interface WeightTrendInsightsProps {
   /** kcal / ngày, âm khi đang giảm; null khi chưa đủ 7 ngày dữ liệu. */
   readonly energyKcal: number | null
   readonly projection: number | null
+  /** Lý do BE chưa tính tốc độ (chưa đủ lần cân / lâu không cân): hiện dưới ba chỉ số "---"; null khi đã tính. */
+  readonly waiting: string | null
 }
 
 const MOVE_OF_STATUS = { Decrease: 'down', Increase: 'up', NoChange: 'same' } as const
@@ -47,7 +50,9 @@ export function WeightTrendInsights({
   weeklyRate,
   energyKcal,
   projection,
+  waiting,
 }: WeightTrendInsightsProps) {
+  const { weight, energy } = useUnits()
   const gaining = (weeklyRate ?? 0) > 0
   const direction = gaining ? 'gain' : 'loss'
   return (
@@ -62,7 +67,7 @@ export function WeightTrendInsights({
           {changes.map(({ days, delta, status, area }) => (
             <li
               key={days}
-              className="grid grid-cols-[4rem_3.5rem_1fr_auto] items-center gap-2.5 text-base"
+              className="grid grid-cols-[4rem_minmax(0,3.5rem)_1fr_auto] items-center gap-2.5 text-base max-[359px]:grid-cols-[3.25rem_minmax(0,3.5rem)_1fr_auto] max-[359px]:text-sm"
             >
               <span className="text-muted-foreground whitespace-nowrap">{days}-day</span>
               <MiniArea
@@ -72,8 +77,10 @@ export function WeightTrendInsights({
                 )}
                 className="text-mf-purple"
               />
-              <span className="tabular-nums">
-                {status === 'Waiting' || delta === null ? '-- kg' : `${changeText(delta)} kg`}
+              <span className="whitespace-nowrap tabular-nums">
+                {status === 'Waiting' || delta === null
+                  ? `-- ${weight.unit}`
+                  : `${changeText(weight.convert(delta))} ${weight.unit}`}
               </span>
               {status === 'Waiting' ? (
                 <span className="flex items-center gap-2">
@@ -90,29 +97,35 @@ export function WeightTrendInsights({
 
       <section className={`${DETAIL_CARD} space-y-5 p-4`}>
         <MetricRow
-          value={current === null ? '---' : current.toFixed(1)}
-          unit="kg"
+          value={current === null ? '---' : weight.format(current)}
+          unit={weight.unit}
           title="Current Weight"
           text="Our estimate of your true weight after smoothing out day-to-day fluctuations."
         />
         <MetricRow
-          value={weeklyRate === null ? '---' : weeklyRate.toFixed(2)}
-          unit="kg per week"
+          value={weeklyRate === null ? '---' : weight.format(weeklyRate, 2)}
+          unit={`${weight.unit} per week`}
           title="Weekly Weight Change"
           text={`Your typical weekly rate of weight ${direction} over the past three weeks.`}
         />
         <MetricRow
-          value={energyKcal === null ? '---' : String(Math.round(energyKcal))}
-          unit="kcal per day"
+          value={energyKcal === null ? '---' : energy.format(energyKcal)}
+          unit={`${energy.unit} per day`}
           title={gaining ? 'Energy Surplus' : 'Energy Deficit'}
           text={`Our estimate of your average daily caloric ${gaining ? 'surplus' : 'deficit'}, based on your rate of weight ${direction} over the past three weeks.`}
         />
         <MetricRow
-          value={projection === null ? '---' : projection.toFixed(1)}
-          unit="kg"
+          value={projection === null ? '---' : weight.format(projection)}
+          unit={weight.unit}
           title="30-Day Projection"
           text={`Your projected weight in 30 days if your current rate of weight ${direction} is met.`}
         />
+        {waiting !== null && (
+          <p className="text-muted-foreground flex items-start gap-2 text-sm" role="status">
+            <WaitingIcon className="text-mf-purple mt-0.5 size-4 shrink-0" />
+            {waiting}
+          </p>
+        )}
       </section>
 
       <section aria-labelledby="weight-sources-heading" className="space-y-3">

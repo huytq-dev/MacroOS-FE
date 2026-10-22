@@ -12,12 +12,12 @@ export const useDailyProgress = (from: string | null, to: string | null) =>
     enabled: Boolean(from && to),
   })
 
-/** Biến thiên TDEE 3/7/14/30/90 ngày do BE tính; lỗi (API cũ chưa có) thì trang tự suy từ điểm đã tải. */
-export const useExpenditureChanges = () =>
+/** Energy Balance của khoảng [from, to] từ BE (từng ngày + `summary`): thẻ Energy Balance của Dashboard hiển thị nguyên số của BE, không tự tính trung bình. */
+export const useEnergyBalanceWindow = (from: string | null, to: string | null) =>
   useQuery({
-    queryKey: ['expenditure', 'changes'],
-    queryFn: () => dashboardService.expenditureChanges(),
-    retry: false,
+    queryKey: ['energy-balance', 'series', from ?? '', to ?? ''],
+    queryFn: () => dashboardService.energyBalance(from ?? '', to ?? ''),
+    enabled: Boolean(from && to),
   })
 
 /** 404 = chưa có goal đang hoạt động (không phải lỗi) → data null. */
@@ -75,6 +75,16 @@ const subscribeChoice = (listener: () => void) => {
   }
 }
 
+/** Ghi một lựa chọn nhớ rồi báo mọi nơi đang dùng key đó (cả ngoài hook, vd. More › Tutorials đặt lại cờ "ẩn"). */
+export function persistChoice(key: string, next: string) {
+  try {
+    window.localStorage.setItem(key, next)
+  } catch {
+    // không có storage: lựa chọn chỉ đổi trong phiên này
+  }
+  choiceListeners.forEach((listener) => listener())
+}
+
 /**
  * Lựa chọn nhớ bằng localStorage (Đã ăn/Còn lại, Tiêu hao/Mục tiêu); mọi nơi dùng chung key tự cập nhật theo.
  * Máy chủ và lần render đầu luôn dùng `initial` để không lệch hydration; lỗi storage (chế độ riêng tư) thì bỏ qua.
@@ -96,16 +106,6 @@ export function usePersistedChoice<T extends string>(
     },
     () => initial
   )
-  const set = useCallback(
-    (next: T) => {
-      try {
-        window.localStorage.setItem(key, next)
-      } catch {
-        // không có storage: lựa chọn chỉ đổi trong phiên này
-      }
-      choiceListeners.forEach((listener) => listener())
-    },
-    [key]
-  )
+  const set = useCallback((next: T) => persistChoice(key, next), [key])
   return [value, set] as const
 }

@@ -17,8 +17,8 @@ export type ChatItem =
   | { readonly kind: 'card' }
 
 const methodText = (estimate: TdeeEstimate) =>
-  estimate.method === 'KatchMcArdle'
-    ? `From your weight and the body fat level you chose, MacroOS works out your lean mass and applies the Katch-McArdle formula (BMR ≈ ${estimate.bmrKcal} kcal), then multiplies it by your activity level.`
+  estimate.method === 'Cunningham'
+    ? `From your weight and ${estimate.bodyFatPercent === null ? 'the body fat level you chose' : `about ${estimate.bodyFatPercent}% body fat`}, MacroOS works out your lean mass and applies the Cunningham equation (BMR ≈ ${estimate.bmrKcal} kcal), then multiplies it by your activity level.`
     : `From your sex, age, height and weight, MacroOS uses the Mifflin-St Jeor formula (BMR ≈ ${estimate.bmrKcal} kcal), then multiplies it by your activity level.`
 
 /** Kịch bản trò chuyện giải thích TDEE: mỗi nút là một lượt bot kèm các câu trả lời gợi ý dẫn tới nút kế. */

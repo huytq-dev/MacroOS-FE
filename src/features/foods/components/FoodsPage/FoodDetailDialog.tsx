@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { FOOD_CATEGORY } from '@/config/enums'
+import { useUnits } from '@/features/users/hooks/use-units'
 import type { FoodDetail } from '../../types/food.types'
 
 interface FoodDetailDialogProps {
@@ -40,6 +41,7 @@ export function FoodDetailDialog({
   onEdit,
   onRequestDelete,
 }: FoodDetailDialogProps) {
+  const { energy } = useUnits()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -71,7 +73,7 @@ export function FoodDetailDialog({
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2">
-              {cell('Calories', food.nutrition.caloriesPer100g, 'kcal')}
+              {cell('Calories', energy.convert(food.nutrition.caloriesPer100g), energy.unit)}
               {cell('Protein', food.nutrition.proteinPer100g, 'g')}
               {cell('Carbs', food.nutrition.carbsPer100g, 'g')}
               {cell('Fat', food.nutrition.fatPer100g, 'g')}

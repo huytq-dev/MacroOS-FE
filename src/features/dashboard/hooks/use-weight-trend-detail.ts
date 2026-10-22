@@ -11,29 +11,12 @@ import {
   type ScaleDay,
   type TrendDay,
 } from '../weight-trend-series'
-import { WEIGHT_CHANGE_DAYS } from '../weight-trend.utils'
+import { WEIGHT_CHANGE_DAYS, weightRates } from '../weight-trend.utils'
 import { apiRoutes } from '@/config/api-routes'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useIsClient } from '@/hooks/use-is-client'
 import { apiCall } from '@/lib/api'
 import { todayIso } from '@/lib/date'
-
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-]
-/** "2026-10" → "October 2026" (không qua Intl để khỏi lệch locale giữa máy chủ và máy người dùng). */
-export const monthTitle = (key: string) =>
-  `${MONTHS[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`
 
 /**
  * Gom dữ liệu trang Weight Trend từ hai lần gọi của BE (theo múi giờ người dùng, tính khi đọc nên sửa / xoá cân tự cập nhật):
@@ -43,6 +26,7 @@ export const monthTitle = (key: string) =>
 export function useWeightTrendDetail(averaging: Averaging) {
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
+  const { weight, weekStartDay } = useUnits()
 
   const series = useQuery({
     queryKey: ['weights', 'trend', 'history', today],
@@ -66,6 +50,7 @@ export function useWeightTrendDetail(averaging: Averaging) {
     day.scaleKg === null ? [] : [{ date: day.date, value: day.scaleKg }]
   )
   const info = insights.data
+  const rates = weightRates(info)
 
   return {
     ready: true as const,
@@ -75,12 +60,13 @@ export function useWeightTrendDetail(averaging: Averaging) {
     /** Xu hướng từng ngày (cũ → mới); số liệu Average / Difference tính trên chuỗi này. */
     daily,
     /** Dùng để vẽ: đã gộp D / W / M. */
-    trend: averageTrendDays(daily, averaging),
-    scale: averageScaleDays(weighIns, averaging),
+    trend: averageTrendDays(daily, averaging, weekStartDay),
+    scale: averageScaleDays(weighIns, averaging, weekStartDay),
     current: info?.currentWeightKg ?? null,
-    weeklyRate: info?.weeklyChangeKg ?? null,
-    energyKcal: info?.energyDeficitKcalPerDay ?? null,
-    projection: info?.projected30DaysKg ?? null,
+    weeklyRate: rates.weeklyChange,
+    energyKcal: rates.energyKcal,
+    projection: rates.projection,
+    waiting: rates.waiting,
     changes: WEIGHT_CHANGE_DAYS.map((span) => {
       const found = info?.weightChanges.find((item) => item.days === span)
       return {
@@ -90,6 +76,6 @@ export function useWeightTrendDetail(averaging: Averaging) {
         area: recentTrend(daily, span),
       }
     }),
-    history: toHistory(days),
+    history: toHistory(days, weight),
   }
 }

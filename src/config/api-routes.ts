@@ -25,7 +25,6 @@ export const apiRoutes = {
   },
   shortcuts: {
     root: '/shortcuts', // GET, PUT { toolbarStyle, items[] } → { toolbarStyle, items[12], isDefault }
-    reset: '/shortcuts/reset', // POST → mặc định
   },
   bodyMetrics: {
     fullBody: '/body-metrics/full-body', // GET, PUT, DELETE ?date= → { date, visualBodyFatPercent, tape, hasData }
@@ -50,7 +49,6 @@ export const apiRoutes = {
   foodFavorites: {
     root: '/food-favorites', // GET, POST
     byId: (id: string) => `/food-favorites/${id}`, // DELETE
-    order: '/food-favorites/order', // PUT { ids }
   },
   foods: {
     root: '/foods', // GET ?search&category&scope&top&skip, POST
@@ -90,15 +88,17 @@ export const apiRoutes = {
     root: '/onboarding', // GET (trạng thái wizard)
     basics: '/onboarding/basics', // PUT
     estimate: '/onboarding/estimate', // GET (TDEE khởi điểm)
+    priorWeightQuestion: '/onboarding/prior-weight-question', // GET ?weightKg&unit=kg|lb → { weightKg, thresholdKgExact, displayValue, displayUnit, policy }; 400 khi chưa có cân nặng (CHƯA áp dụng: sau cờ NEXT_PUBLIC_PRIOR_WEIGHT_API)
     preview: '/onboarding/preview', // POST (xem trước goal/program)
     complete: '/onboarding/complete', // POST
   },
   expenditure: {
     root: '/expenditure', // GET ?from&to
-    changes: '/expenditure/changes', // GET → [{ days, deltaKcal, status }] cho 3/7/14/30/90 ngày
     series: '/expenditure/series', // GET ?from&to&all&granularity → { days[{ date, expenditureKcal, fluxLowKcal, fluxHighKcal, status, changeKcal }], summary, buckets } liên tục tới hôm nay
-    insights: '/expenditure/insights', // GET → { currentKcal, strategy, holdingReason, calibratingDaysLeft, changes[{ days, changeKcal, status }] }
+    insights: '/expenditure/insights', // GET → { currentKcal, strategy, holdingReason (câu tiếng Việt, không hiện), holdingReasonCodes[MissingLogs|NoRecentWeighIn], calibratingDaysLeft, loggedDaysLast7, weighInDaysLast7, changes[{ days, changeKcal, status }] }
     daily: '/expenditure/daily', // GET ?from&to (mỗi ngày: đã ăn, target, cân xu hướng)
+    settings: '/expenditure/settings', // GET → cài đặt ước tính ban đầu + chế độ; PUT { initialEstimateMode?, manualInitialTdeeKcal?, bmrEquation?, bmrSex?, athleticPursuits? } → cùng dạng GET (CHƯA áp dụng: sau cờ NEXT_PUBLIC_EXPENDITURE_SETTINGS_API)
+    mode: '/expenditure/mode', // POST { mode: 'Dynamic'|'Static', staticTdeeKcal? } → cùng dạng GET settings (CHƯA áp dụng: sau cờ NEXT_PUBLIC_EXPENDITURE_MODE_API)
   },
   steps: {
     root: '/steps', // GET ?from&to → { items[{ id, logDate, steps, source }], last7DayAverage }; POST { logDate?, steps } (ghi đè theo ngày)
@@ -118,6 +118,10 @@ export const apiRoutes = {
     series: '/energy-balance/series', // GET ?from&to&all&granularity → { days[{ date, caloriesKcal, expenditureKcal, targetKcal, vsExpenditureKcal, vsTargetKcal, isFasting, isIncomplete }], summary, buckets } liên tục tới hôm nay
     insights: '/energy-balance/insights', // GET → { today, relativeToExpenditure[{ days, avgKcal, loggedDays, status }], relativeToTargets[...] }
   },
+  derivedData: {
+    status: '/derived-data/status', // GET → { state: Ready | Updating | Failed, fromDate, toDate, attempt, updatedAt }: BE còn dựng lại số dẫn xuất sau khi ghi không
+    retry: '/derived-data/retry', // POST (không body) → cùng dạng; đặt job Failed về Pending (idempotent)
+  },
   goals: {
     history: '/goals/history', // GET → [{ id, goalType, targetWeightKg, startWeightKg, ratePerWeekKg, startDate, endDate, status }]
     editPreview: '/goals/edit-preview', // POST { targetWeightKg?, weeklyRatePercent? } → mọi số màn Edit Goal, không ghi DB
@@ -132,6 +136,7 @@ export const apiRoutes = {
     root: '/weights', // GET ?from&to, POST
     byDate: (logDate: string) => `/weights/${logDate}`, // DELETE
     trend: '/weights/trend', // GET ?from&to&all&granularity=Day|Week|Month → { days[{ date, trendKg, scaleKg, changeKg }], summary, scaleSummary, buckets }
-    trendInsights: '/weights/trend/insights', // GET → { weightChanges[3,7,14,30,90], currentWeightKg, weeklyChangeKg, energyDeficitKcalPerDay, projected30DaysKg }
+    trendInsights: '/weights/trend/insights', // GET → { weightChanges[3,7,14,30,90], currentWeightKg, weeklyChangeKg, energyDeficitKcalPerDay, projected30DaysKg, trendDays, kcalPerKg }
+    habit: '/weights/habit', // GET ?year&month → { year, month, days[{ date, weightId, weightKg, trendWeightKg, bodyFatId, bodyFatPercent, bodyFatMethod }] (chỉ ngày có dữ liệu), weighInDaysInPeriod, totalWeighIns, currentStreak, longestStreak, streakIncludesToday, firstWeighInDate, lastWeighInDate, today } (trang Habits Weigh-In)
   },
 } as const

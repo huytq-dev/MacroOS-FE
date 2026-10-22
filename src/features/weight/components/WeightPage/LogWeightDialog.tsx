@@ -9,6 +9,7 @@ import { FormField } from '@/components/shared/FormField'
 import { NumericKeypad } from '@/components/shared/NumericKeypad'
 import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
 import { formatDate } from '@/lib/date'
+import type { WeightUnit } from '@/lib/units'
 import { normalizeDecimal } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,6 +27,8 @@ interface LogWeightDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly form: UseFormReturn<LogWeightFormValues>
+  /** Đơn vị user nhập số cân (theo cài đặt hồ sơ); form giữ đúng số họ gõ, đổi sang kg khi gửi. */
+  readonly unit: WeightUnit
   /** Sửa lần cân đã ghi: ngày cố định, chỉ đổi số cân. */
   readonly isEditing?: boolean
   readonly isPending: boolean
@@ -43,26 +46,32 @@ const WEIGHT_TEXT = /^\d{0,3}(\.\d?)?$/
  * Ô nhập cân: cảm ứng dùng bàn phím số riêng (giống Food Detail, dấu "." thay vì "," của bàn phím iOS tiếng Việt), máy tính dùng bàn
  * phím thường. Giữ chuỗi đang gõ ("79.") riêng, form nhận số hoặc NaN khi chưa nhập đủ.
  */
-function WeightInput({ form }: { readonly form: UseFormReturn<LogWeightFormValues> }) {
+function WeightInput({
+  form,
+  unit,
+}: {
+  readonly form: UseFormReturn<LogWeightFormValues>
+  readonly unit: WeightUnit
+}) {
   const coarse = useCoarsePointer()
   const [text, setText] = useState(() => {
-    const value = form.getValues('weightKg')
+    const value = form.getValues('weight')
     return Number.isFinite(value) ? String(value) : ''
   })
-  const error = form.formState.errors.weightKg?.message
+  const error = form.formState.errors.weight?.message
 
   const update = (raw: string) => {
     const next = normalizeDecimal(raw)
     if (!WEIGHT_TEXT.test(next)) return
     setText(next)
-    form.setValue('weightKg', next === '' || next === '.' ? Number.NaN : Number(next), {
+    form.setValue('weight', next === '' || next === '.' ? Number.NaN : Number(next), {
       shouldValidate: form.formState.isSubmitted,
     })
   }
 
   return (
     <>
-      <FormField label="Weight (kg)" required error={error}>
+      <FormField label={`Weight (${unit})`} required error={error}>
         {(field) => (
           <Input
             {...field}
@@ -92,6 +101,7 @@ export function LogWeightDialog({
   open,
   onOpenChange,
   form,
+  unit,
   isEditing = false,
   isPending,
   error,
@@ -142,7 +152,7 @@ export function LogWeightDialog({
                 )
               }
             </FormField>
-            <WeightInput form={form} />
+            <WeightInput form={form} unit={unit} />
           </div>
 
           <DialogFooter className="flex-row gap-3 sm:gap-2">

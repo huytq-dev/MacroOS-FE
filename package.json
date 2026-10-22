@@ -8,7 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "check:goal": "node --no-warnings scripts/check-goal-progress.mjs",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "check:defaults": "node --import ./scripts/register-ts.mjs scripts/check-defaults.mjs",
+    "check:shift": "node --import ./scripts/register-ts.mjs scripts/check-calorie-shift.mjs",
+    "check:fixes": "node --import ./scripts/register-ts.mjs scripts/check-fe-fixes.mjs",
+    "check:strategy": "node --import ./scripts/register-ts.mjs scripts/check-strategy.mjs",
+    "check:contract": "node --import ./scripts/register-ts.mjs scripts/check-contract.mjs",
+    "check:logic": "node --import ./scripts/register-ts.mjs scripts/check-business-logic.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

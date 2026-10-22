@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { routePath } from '@/config/route-path'
+import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
-import { longDate } from '../../full-body.utils'
 import { ArticleIcon, CompareIcon } from './FullBodyHeader'
 
 const PILL =
@@ -57,7 +57,7 @@ export function ComparePills({ from, to, active, onActiveChange }: ComparePillsP
     <button
       type="button"
       aria-pressed={active === side}
-      aria-label={`${side === 'from' ? 'Compare from' : 'Compare to'} ${longDate(date)}`}
+      aria-label={`${side === 'from' ? 'Compare from' : 'Compare to'} ${formatDate(date)}`}
       onClick={() => onActiveChange(side)}
       className={cn(
         PILL,
@@ -69,7 +69,7 @@ export function ComparePills({ from, to, active, onActiveChange }: ComparePillsP
         key={date}
         className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
       >
-        {longDate(date)}
+        {formatDate(date)}
       </span>
     </button>
   )

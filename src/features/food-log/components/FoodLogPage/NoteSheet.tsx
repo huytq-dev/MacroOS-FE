@@ -7,6 +7,7 @@ import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { SheetFrame } from '@/components/shared/SheetFrame'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { formatWeekdayMonthDay } from '@/lib/week'
 import { cn } from '@/lib/utils'
 import {
   DEFAULT_NOTE_COLOR,
@@ -16,14 +17,6 @@ import {
   noteColorOf,
 } from '../../notes.config'
 import type { FoodLogNote, NoteColor } from '../../types/food-log.types'
-
-/** "Tue, Oct 20": ngày của ghi chú theo tiếng Anh (không phụ thuộc ngôn ngữ máy). */
-const dayLabel = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
 
 /** Ô textarea tự giãn theo nội dung (không thanh cuộn riêng; cả sheet cuộn). */
 const grow = (element: HTMLTextAreaElement) => {
@@ -214,7 +207,7 @@ export function NoteSheet({
           className="space-y-4 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
         >
           <div className="text-muted-foreground flex items-center gap-3 text-base">
-            <span>{dayLabel(date)}</span>
+            <span>{formatWeekdayMonthDay(date)}</span>
             <label className="bg-secondary active:bg-foreground/20 text-foreground focus-within:ring-ring/50 relative flex h-9 items-center rounded-full px-3 tabular-nums transition-colors focus-within:ring-1">
               {time || '--:--'}
               <input

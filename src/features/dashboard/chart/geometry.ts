@@ -1,5 +1,6 @@
 import type { RangeKey } from '../expenditure.utils'
-import { addDaysIso } from '@/lib/date'
+import { addDaysIso, daysBetween, formatMonthDay } from '@/lib/date'
+import { dayOfWeekOf } from '@/lib/week'
 
 export const WIDTH = 360
 export const PAD = { left: 4, right: 40, top: 14, bottom: 28 }
@@ -7,7 +8,6 @@ export const PLOT_W = WIDTH - PAD.left - PAD.right
 /** Phần chiều rộng biểu đồ dành cho vùng vẽ (còn lại là lề và nhãn trục kg / kcal bên phải). */
 export const PLOT_FRACTION = PLOT_W / WIDTH
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const RANGE_DAYS: Record<Exclude<RangeKey, 'All'>, number> = {
   '1W': 7,
   '1M': 30,
@@ -16,13 +16,19 @@ const RANGE_DAYS: Record<Exclude<RangeKey, 'All'>, number> = {
   '1Y': 365,
 }
 
-const parse = (iso: string) => new Date(`${iso}T00:00:00`)
-export const daysBetween = (from: string, to: string) =>
-  Math.round((parse(to).getTime() - parse(from).getTime()) / 864e5)
-
 /** Số ô ngày của một kỳ; All = toàn bộ dữ liệu (tối thiểu 7). */
 export const slotsOf = (range: RangeKey, totalDays: number) =>
   range === 'All' ? Math.max(totalDays, 7) : RANGE_DAYS[range]
+
+/** Từng này ô trở xuống thì vẽ marker từng ngày; nhiều hơn chỉ vẽ dải và đường. */
+export const MARKER_MODE_MAX = 14.5
+
+/**
+ * Có vẽ marker từng ngày không: kỳ ngắn thì có; kỳ dài chỉ vẽ đường, NHƯNG khi trong khung chỉ có MỘT điểm (vd. gộp theo tuần / tháng)
+ * thì không có đường nào để vẽ, nên chấm của điểm đó vẫn phải hiện.
+ */
+export const showMarkers = (slots: number, shownCount: number) =>
+  shownCount === 1 || slots <= MARKER_MODE_MAX
 
 /** Khoảng đang xem: kết thúc `snapped` ngày trước hôm nay, dài `slots` ngày. */
 export const viewWindow = (today: string, slots: number, snapped: number) => {
@@ -52,7 +58,8 @@ export interface AxisLabel {
   readonly text: string
 }
 
-const epochDay = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / 864e5)
+/** Số ngày từ 1970-01-01 (nhãn trục đặt theo bội số của bước, gắn vào NGÀY chứ không vào vị trí). */
+const epochDay = (iso: string) => daysBetween('1970-01-01', iso)
 
 /**
  * Nhãn trục x: kỳ ngắn (≤ 7 ô) ghi thứ từng ngày; kỳ dài ghi "Oct 15" thưa dần theo số ô. Gắn theo NGÀY (không theo vị trí) nên khi
@@ -65,14 +72,10 @@ export function axisLabels(today: string, slots: number, pos: number): AxisLabel
   for (let ago = Math.max(min, 0); ago <= max; ago += 1) {
     const date = addDaysIso(today, -ago)
     if (step > 1 && epochDay(date) % step !== 0) continue
-    const d = parse(date)
     labels.push({
       key: date,
       x: xOfAgo(ago, slots, pos),
-      text:
-        slots <= 7.5
-          ? WEEKDAYS[d.getDay()]
-          : `${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getDate()}`,
+      text: slots <= 7.5 ? dayOfWeekOf(date).slice(0, 3) : formatMonthDay(date),
     })
   }
   return labels

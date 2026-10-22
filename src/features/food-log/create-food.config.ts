@@ -3,6 +3,8 @@
  * Detail) và khoá chất → mã chất của BE (`NutrientDefinition.Code`). Bốn macro nằm ở cột của món nên không có mã.
  */
 
+import { GRAMS_PER_OUNCE, KJ_PER_KCAL } from '@/lib/units'
+
 export type Basis = 'serving' | '100g' | '100ml'
 export type TableMode = 'non-us' | 'us' | 'detail'
 
@@ -20,7 +22,7 @@ export const TABLE_MODES = [
 
 export const WEIGHT_UNITS = [
   { label: 'g', grams: 1 },
-  { label: 'oz', grams: 28.3495 },
+  { label: 'oz', grams: GRAMS_PER_OUNCE },
 ] as const
 
 /** Đơn vị phụ của một chất: `factor` nhân với số đã gõ để ra đơn vị gốc của chất. Đơn vị gốc luôn đứng đầu. */
@@ -57,7 +59,7 @@ export const NUTRIENT_ROWS: Readonly<Record<string, NutrientRowDef>> = Object.fr
       required: true,
       alt: [
         { label: 'kcal', factor: 1 },
-        { label: 'kJ', factor: 1 / 4.184 },
+        { label: 'kJ', factor: 1 / KJ_PER_KCAL },
       ],
       shortLabel: 'Energy',
     }),

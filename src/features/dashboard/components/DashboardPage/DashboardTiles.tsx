@@ -3,28 +3,33 @@
 import Link from 'next/link'
 import { ChevronRight, Database } from 'lucide-react'
 import { MetricTile } from './MetricTile'
-import { BalanceMini, FluxMini, GoalMini, INSIGHT_DAYS, TrendMini } from './InsightCharts'
-import { goalProgressPercent, lastDays, type BalanceMode } from '../../dashboard.utils'
-import { summarizeBalance, trendOf } from '../../energy-balance.utils'
+import { BalanceMini, ExpenditureMini, GoalMini, INSIGHT_DAYS, TrendMini } from './InsightCharts'
+import { lastDays, type BalanceMode } from '../../dashboard.utils'
+import { goalDuration } from '../../goal-progress.utils'
 import { useGoalProgress, usePersistedChoice } from '../../hooks/use-dashboard'
 import { useEnergyBalanceDetail } from '../../hooks/use-energy-balance-detail'
 import { useExpenditureDetail } from '../../hooks/use-expenditure-detail'
 import { useWeightTrendDetail } from '../../hooks/use-weight-trend-detail'
 import { routePath } from '@/config/route-path'
+import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
+import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useIsClient } from '@/hooks/use-is-client'
 import { todayIso } from '@/lib/date'
-
-const MS_PER_DAY = 86_400_000
 
 export const fixed = (value: number | null, digits = 1) =>
   value === null ? '---' : value.toFixed(digits)
 
 const BALANCE_MODES = ['expenditure', 'targets'] as const
 
-/** Ô Expenditure: cùng `GET /expenditure/series` + insights với trang chi tiết (dải Flux, trạng thái từng ngày, số hiện tại). */
+/** Ô Expenditure: cùng `GET /expenditure/series` + insights với trang chi tiết (đường từng ngày, trạng thái từng ngày, số hiện tại). */
 export function ExpenditureTile() {
   const exp = useExpenditureDetail('daily')
-  if (!exp.ready || exp.isLoading)
+  const { energy } = useUnits()
+  const derived = useDerivedGate()
+  if (derived.gate === 'failed')
+    return <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+  if (derived.gate === 'updating' || !exp.ready || exp.isLoading)
     return <MetricTile title="Expenditure" subtitle="Last 7 Days" value="" loading />
   const last = exp.daily[exp.daily.length - 1]
   const current = exp.current ?? last?.kcal ?? null
@@ -33,32 +38,37 @@ export function ExpenditureTile() {
       title="Expenditure"
       subtitle="Last 7 Days"
       href={routePath.dashboardExpenditure}
-      visual={<FluxMini window={lastDays(exp.today, INSIGHT_DAYS)} days={exp.daily} />}
-      value={current === null ? '---' : String(Math.round(current))}
-      unit="kcal"
+      visual={<ExpenditureMini window={lastDays(exp.today, INSIGHT_DAYS)} days={exp.daily} />}
+      value={current === null ? '---' : energy.format(current)}
+      unit={energy.unit}
     />
   )
 }
 
 /** Ô Weight Trend: cùng `GET /weights/trend` với trang chi tiết (xu hướng từng ngày, số hiện tại làm tròn 1 chữ số). */
 export function WeightTrendTile() {
-  const weight = useWeightTrendDetail('daily')
-  if (!weight.ready || weight.isLoading)
+  const trend = useWeightTrendDetail('daily')
+  const { weight } = useUnits()
+  const derived = useDerivedGate()
+  if (derived.gate === 'failed')
+    return <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+  if (derived.gate === 'updating' || !trend.ready || trend.isLoading)
     return <MetricTile title="Weight Trend" subtitle="Last 7 Days" value="" loading />
-  const last = weight.daily[weight.daily.length - 1]
+  const last = trend.daily[trend.daily.length - 1]
+  const current = trend.current ?? last?.trend ?? null
   return (
     <MetricTile
       title="Weight Trend"
       subtitle="Last 7 Days"
       href={routePath.dashboardWeightTrend}
-      visual={<TrendMini window={lastDays(weight.today, INSIGHT_DAYS)} days={weight.daily} />}
-      value={fixed(weight.current ?? last?.trend ?? null)}
-      unit="kg"
+      visual={<TrendMini window={lastDays(trend.today, INSIGHT_DAYS)} days={trend.daily} />}
+      value={current === null ? '---' : weight.format(current)}
+      unit={weight.unit}
     />
   )
 }
 
-/** Ô Energy Balance: cùng `GET /energy-balance/series` và `summarizeBalance` với trang chi tiết; tab Expenditure / Targets nhớ chung. */
+/** Ô Energy Balance: cùng `GET /energy-balance/series` + insights với trang chi tiết (số lớn là hàng 7 ngày của BE); tab Expenditure / Targets nhớ chung. */
 export function EnergyBalanceTile() {
   // Cùng key với trang Energy Balance và thẻ carousel nên ba nơi luôn đồng bộ
   const [mode] = usePersistedChoice<BalanceMode>(
@@ -67,12 +77,18 @@ export function EnergyBalanceTile() {
     BALANCE_MODES
   )
   const balance = useEnergyBalanceDetail('daily', mode)
-  if (!balance.ready || balance.isLoading)
+  const { energy } = useUnits()
+  const derived = useDerivedGate()
+  if (derived.gate === 'failed')
+    return <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+  if (derived.gate === 'updating' || !balance.ready || balance.isLoading)
     return <MetricTile title="Energy Balance" subtitle="Last 7 Days" value="" loading />
   const window = lastDays(balance.today, INSIGHT_DAYS)
   const week = balance.all.filter((point) => window.includes(point.date))
-  const { value } = summarizeBalance(week, mode)
-  const trend = value === null ? null : trendOf(value)
+  // Số lớn = hàng 7 ngày của `GET /energy-balance/insights` (BE tính: ngày hợp lệ, trung bình, trạng thái), không tự tính từ các ngày
+  const row = balance.changes.find((item) => item.days === INSIGHT_DAYS)
+  const value = row?.difference ?? null
+  const trend = row?.trend ?? null
   return (
     <MetricTile
       title="Energy Balance"
@@ -85,9 +101,13 @@ export function EnergyBalanceTile() {
           lineClassName={mode === 'targets' ? 'text-mf-tile-fat' : 'text-mf-tile-protein'}
         />
       }
-      value={value === null ? '---' : String(Math.abs(value))}
+      value={value === null ? '---' : energy.format(Math.abs(value))}
       unit={
-        trend === 'below' ? 'kcal deficit' : trend === 'above' ? 'kcal surplus' : 'kcal balance'
+        trend === 'below'
+          ? `${energy.unit} deficit`
+          : trend === 'above'
+            ? `${energy.unit} surplus`
+            : `${energy.unit} balance`
       }
     />
   )
@@ -98,16 +118,16 @@ export function GoalProgressTile() {
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
   const goal = useGoalProgress()
-  if (!today || goal.isLoading)
+  const derived = useDerivedGate()
+  if (derived.gate === 'failed')
+    return <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+  if (derived.gate === 'updating' || !today || goal.isLoading)
     return <MetricTile title="Goal Progress" subtitle="Since Start" value="" loading />
   const data = goal.data
-  const percent = data
-    ? (data.progressPercent ??
-      goalProgressPercent(data.startWeightKg, data.currentTrendKg, data.targetWeightKg))
-    : null
-  const days = data
-    ? Math.max(0, Math.round((Date.parse(today) - Date.parse(data.startDate)) / MS_PER_DAY)) + 1
-    : null
+  // % do BE tính (null khi chưa có cân mục tiêu, vd. Maintenance): hiện "---", FE không tự tính thay
+  const percent = data?.progressPercent == null ? null : Math.round(data.progressPercent)
+  // Cùng một cách đếm ngày với trang Goal Progress ("Duration")
+  const days = data ? goalDuration(data.startDate, today) : null
   return (
     <MetricTile
       title="Goal Progress"

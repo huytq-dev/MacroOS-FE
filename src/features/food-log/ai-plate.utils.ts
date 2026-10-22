@@ -113,7 +113,8 @@ export const toPlateItem = ({ ingredient, data }: LiveIngredient, key: string): 
   name: data.foodName ?? ingredient.name,
   foodServingId: data.servingId ?? null,
   servingLabel: data.unitLabel,
-  quantity: Number(data.quantity.toFixed(2)),
+  // BE chỉ nhận 0.01–10000: toFixed(2) của số rất nhỏ ra 0.00 nên kẹp vào khoảng đó
+  quantity: Math.min(10000, Math.max(0.01, Number(data.quantity.toFixed(2)))),
   calories: data.calories,
   protein: data.protein,
   carbs: data.carbs,

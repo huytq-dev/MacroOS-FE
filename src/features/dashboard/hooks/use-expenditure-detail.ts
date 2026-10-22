@@ -1,16 +1,37 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { averageExpDays, expHistory, recentExp, toExpDay } from '../expenditure-series'
+import {
+  averageExpDays,
+  expHistory,
+  holdingReasonsOf,
+  recentExp,
+  toExpDay,
+} from '../expenditure-series'
 import { CHANGE_DAYS, type Averaging } from '../expenditure.utils'
 import type {
   ExpenditureInsightsResponse,
   ExpenditureSeriesResponse,
 } from '../types/expenditure-series.types'
 import { apiRoutes } from '@/config/api-routes'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useIsClient } from '@/hooks/use-is-client'
 import { apiCall } from '@/lib/api'
 import { todayIso } from '@/lib/date'
+
+/**
+ * `GET /expenditure/insights` (số hiện tại, strategy, thay đổi): MỘT truy vấn dùng chung — trang Expenditure và ô Set TDEE của Program cùng
+ * khoá nên cùng một số và cùng bộ nhớ đệm. `currentKcal` null = BE chưa có ước tính. `enabled` = false thì chưa gọi (nơi chỉ cần khi mở một bảng).
+ */
+export function useExpenditureInsights(enabled = true) {
+  const isClient = useIsClient()
+  const today = isClient ? todayIso() : null
+  return useQuery({
+    queryKey: ['expenditure', 'insights', today],
+    queryFn: () => apiCall.get<ExpenditureInsightsResponse>(apiRoutes.expenditure.insights),
+    enabled: enabled && Boolean(today),
+  })
+}
 
 /**
  * Gom dữ liệu trang Expenditure từ hai lần gọi của BE (theo múi giờ người dùng; chuỗi liên tục từng ngày tới HÔM NAY, BE đã
@@ -21,6 +42,7 @@ import { todayIso } from '@/lib/date'
 export function useExpenditureDetail(averaging: Averaging) {
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
+  const { weekStartDay } = useUnits()
 
   const series = useQuery({
     queryKey: ['expenditure', 'series', 'history', today],
@@ -30,11 +52,7 @@ export function useExpenditureDetail(averaging: Averaging) {
       }),
     enabled: Boolean(today),
   })
-  const insights = useQuery({
-    queryKey: ['expenditure', 'insights', today],
-    queryFn: () => apiCall.get<ExpenditureInsightsResponse>(apiRoutes.expenditure.insights),
-    enabled: Boolean(today),
-  })
+  const insights = useExpenditureInsights()
 
   if (!today) return { ready: false as const, isLoading: true, isError: false }
 
@@ -49,11 +67,10 @@ export function useExpenditureDetail(averaging: Averaging) {
     /** Từng ngày (cũ → mới); Average / Difference tính trên chuỗi này. */
     daily,
     /** Dùng để vẽ: đã gộp D / W / M. */
-    days: averageExpDays(daily, averaging),
+    days: averageExpDays(daily, averaging, weekStartDay),
     current: info?.currentKcal ?? null,
     strategy: info?.strategy ?? null,
-    holdingReason: info?.holdingReason ?? null,
-    calibratingDaysLeft: info?.calibratingDaysLeft ?? null,
+    holdingReasons: holdingReasonsOf(info ?? null),
     changes: CHANGE_DAYS.map((span) => {
       const found = info?.changes.find((item) => item.days === span)
       return {

@@ -1,15 +1,10 @@
 import { Check, Hourglass, X } from 'lucide-react'
 import { CollapseItem } from '@/components/shared/CollapseItem'
-import type { GoalType } from '@/config/enums'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useExitingList } from '@/hooks/use-exiting-list'
-import { formatMonthDayYear } from '@/lib/date'
+import { formatDate } from '@/lib/date'
 import type { GoalHistoryItem } from '../../types/program.types'
-
-const TYPE_LABEL: Record<GoalType, string> = {
-  WeightLoss: 'Loss',
-  Maintenance: 'Maintain',
-  WeightGain: 'Gain',
-}
+import { goalShortOf } from '../../utils/goal-display'
 
 interface GoalHistoryProps {
   readonly items: readonly GoalHistoryItem[]
@@ -18,6 +13,7 @@ interface GoalHistoryProps {
 /** Mục "Goal History" của tab Strategy: mỗi goal một thẻ (khoảng ngày, cân, loại goal, đồng hồ cát khi đang chạy / dấu tick khi xong). */
 export function GoalHistory({ items }: GoalHistoryProps) {
   const rows = useExitingList(items, (item) => item.id)
+  const { weight } = useUnits()
   if (rows.length === 0) return null
   return (
     <section aria-labelledby="goal-history">
@@ -30,15 +26,14 @@ export function GoalHistory({ items }: GoalHistoryProps) {
             <div className="bg-card flex items-center justify-between gap-3 rounded-2xl px-4 py-4">
               <div className="min-w-0">
                 <p className="text-muted-foreground text-base">
-                  {formatMonthDayYear(item.startDate)} -{' '}
-                  {item.endDate ? formatMonthDayYear(item.endDate) : 'Now'}
+                  {formatDate(item.startDate)} - {item.endDate ? formatDate(item.endDate) : 'Now'}
                 </p>
                 <p className="text-xl font-medium tabular-nums">
-                  {item.startWeightKg === null ? '—' : `${item.startWeightKg.toFixed(1)} kg`}
+                  {weight.text(item.startWeightKg)}
                 </p>
               </div>
               <p className="text-muted-foreground flex shrink-0 items-center gap-2 text-base">
-                {TYPE_LABEL[item.goalType]}
+                {goalShortOf(item.goalType)}
                 {item.status === 'Active' ? (
                   <Hourglass
                     aria-label="In progress"

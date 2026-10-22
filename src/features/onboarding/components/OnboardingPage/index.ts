@@ -1,3 +1,4 @@
+export { CalorieShiftAlert } from './CalorieShiftAlert'
 export { ChoiceStep, StepHeading } from './ChoiceStep'
 export { DistributionStep } from './DistributionStep'
 export { FeatureCarouselStep, type CarouselSlide } from './FeatureCarouselStep'

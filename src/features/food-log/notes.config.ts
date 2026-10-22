@@ -1,7 +1,5 @@
 import type { NoteColor } from './types/food-log.types'
 
-/** Số ghi chú tối đa mỗi ngày khi BE chưa trả `notesMaxPerDay` (như MacroFactor "1 / 5"). */
-export const DEFAULT_MAX_NOTES = 5
 export const NOTE_NAME_MAX = 60
 export const NOTE_TEXT_MAX = 1000
 export const DEFAULT_NOTE_COLOR: NoteColor = 'Gray'

@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { SheetFrame } from '@/components/shared/SheetFrame'
-import { MONTH_NAMES, monthGrid } from '@/features/habits/habits.utils'
+import { monthGrid } from '@/features/habits/habits.utils'
+import { useUnits } from '@/features/users/hooks/use-units'
+import { MONTH_NAMES } from '@/lib/date'
+import { dayLetterOfDate, formatLongDate } from '@/lib/week'
 import { cn } from '@/lib/utils'
 
-const WEEKDAY_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const
 const NAV =
   'focus-visible:ring-ring/50 flex size-11 items-center justify-center rounded-full transition-transform focus-visible:ring-1 focus-visible:outline-none active:scale-90 disabled:opacity-30 motion-reduce:active:scale-100'
 
@@ -27,7 +29,7 @@ const monthOf = (iso: string) => {
   return { year, month: month - 1 }
 }
 
-/** Bảng "Select Date" kiểu MacroFactor: lưới tháng bắt đầu thứ Hai, ‹ › đổi tháng, ngày tương lai tắt, "Go to Today". */
+/** Bảng "Select Date" kiểu MacroFactor: lưới tháng bắt đầu từ ngày đầu tuần của user, ‹ › đổi tháng, ngày tương lai tắt, "Go to Today". */
 export function SelectDateSheet({
   open,
   onOpenChange,
@@ -37,6 +39,8 @@ export function SelectDateSheet({
   isDateEnabled,
 }: SelectDateSheetProps) {
   const [view, setView] = useState(() => monthOf(value))
+  const { weekStartDay } = useUnits()
+  const grid = monthGrid(view.year, view.month, weekStartDay)
   const current = monthOf(today)
   const atLatest = view.year === current.year && view.month === current.month
   const go = (delta: number) =>
@@ -82,12 +86,12 @@ export function SelectDateSheet({
           className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-200"
         >
           <div className="text-muted-foreground mb-1 grid grid-cols-7 text-center text-base">
-            {WEEKDAY_INITIALS.map((initial, index) => (
-              <span key={index}>{initial}</span>
+            {grid.slice(0, 7).map(({ iso }) => (
+              <span key={iso}>{dayLetterOfDate(iso)}</span>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-y-1">
-            {monthGrid(view.year, view.month).map(({ iso, day, inMonth }) => {
+            {grid.map(({ iso, day, inMonth }) => {
               const isDisabled = iso > today || (isDateEnabled ? !isDateEnabled(iso) : false)
               const isSelected = iso === value
               return (
@@ -96,12 +100,7 @@ export function SelectDateSheet({
                     type="button"
                     disabled={isDisabled}
                     aria-pressed={isSelected}
-                    aria-label={new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
+                    aria-label={formatLongDate(iso)}
                     onClick={() => pick(iso)}
                     className={cn(
                       'focus-visible:ring-ring/50 flex size-11 items-center justify-center rounded-full text-lg tabular-nums transition-[background-color,color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-90 disabled:active:scale-100 motion-reduce:active:scale-100',

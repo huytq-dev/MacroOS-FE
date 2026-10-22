@@ -3,48 +3,66 @@
 import Link from 'next/link'
 import {
   Apple,
+  BookOpen,
   ChevronRight,
+  ClipboardList,
+  Compass,
+  Eye,
+  FileDown,
+  Globe,
+  Info,
   LayoutDashboard,
-  LogOut,
+  LifeBuoy,
+  MapPin,
+  RefreshCw,
   Ruler,
   Scale,
+  Tag,
   Target,
+  Trash2,
   UserRound,
+  Waypoints,
+  Zap,
   type LucideIcon,
 } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
-import { routePath } from '@/config/route-path'
 import { useAuth } from '@/features/auth/hooks/use-auth'
 import { useProfile } from '@/features/users/hooks/use-profile'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
+import pkg from '../../../../package.json'
+import {
+  AFTER_THEME,
+  BEFORE_THEME,
+  UNAVAILABLE_TEXT,
+  type MoreIcon,
+  type MoreRow,
+  type MoreSection,
+} from '../more.config'
 
-interface MenuItem {
-  readonly label: string
-  readonly icon: LucideIcon
-  readonly href: string
+const ICONS: Record<MoreIcon, LucideIcon> = {
+  account: UserRound,
+  subscription: Tag,
+  integrations: RefreshCw,
+  units: Ruler,
+  language: Globe,
+  dashboard: LayoutDashboard,
+  foodLog: Apple,
+  shortcuts: Waypoints,
+  expenditure: Zap,
+  weightTrend: Scale,
+  strategy: Target,
+  dataExport: FileDown,
+  dataVisibility: Eye,
+  accountDeletion: Trash2,
+  knowledgeBase: BookOpen,
+  roadmap: MapPin,
+  support: LifeBuoy,
+  legal: ClipboardList,
+  tutorials: Compass,
+  about: Info,
 }
-
-const SECTIONS: readonly { readonly title: string; readonly items: readonly MenuItem[] }[] = [
-  {
-    title: 'General',
-    items: [
-      { label: 'Account', icon: UserRound, href: routePath.profile },
-      { label: 'Units', icon: Ruler, href: routePath.profile },
-    ],
-  },
-  {
-    title: 'Feature Settings',
-    items: [
-      { label: 'Dashboard', icon: LayoutDashboard, href: routePath.dashboardCustomize },
-      { label: 'Food Log', icon: Apple, href: routePath.foodLog },
-      { label: 'My Foods', icon: Apple, href: routePath.foods },
-      { label: 'Weight Trend', icon: Scale, href: routePath.weight },
-      { label: 'Strategy', icon: Target, href: routePath.program },
-    ],
-  },
-]
 
 const ROW = 'flex min-h-16 items-center gap-4 px-4 text-lg'
 
@@ -53,6 +71,47 @@ function MenuCard({ children }: { readonly children: React.ReactNode }) {
     <div className="bg-card divide-foreground/10 divide-y overflow-hidden rounded-xl">
       {children}
     </div>
+  )
+}
+
+/** Một hàng của More: có tính năng thì là liên kết; chưa có thì mờ, không bấm được, ghi "Not available yet" (không trang rỗng, không luồng giả). */
+function MenuRow({ row }: { readonly row: MoreRow }) {
+  const Icon = ICONS[row.icon]
+  if (row.status === 'ready' && row.href)
+    return (
+      <Link
+        href={row.href}
+        className={cn(
+          ROW,
+          'active:bg-muted focus-visible:ring-ring/50 focus-visible:ring-1 focus-visible:outline-none'
+        )}
+      >
+        <Icon aria-hidden="true" className="size-6 shrink-0" />
+        <span className="flex-1">{row.label}</span>
+        <ChevronRight aria-hidden="true" className="text-muted-foreground size-5" />
+      </Link>
+    )
+  return (
+    <div aria-disabled="true" className={cn(ROW, 'py-2 opacity-50')}>
+      <Icon aria-hidden="true" className="size-6 shrink-0" />
+      <span className="flex-1">
+        <span className="block leading-snug">{row.label}</span>
+        <span className="text-muted-foreground block text-sm">{UNAVAILABLE_TEXT}</span>
+      </span>
+    </div>
+  )
+}
+
+function Section({ section }: { readonly section: MoreSection }) {
+  return (
+    <section aria-label={section.title} className="space-y-3">
+      <h2 className="text-lg font-bold">{section.title}</h2>
+      <MenuCard>
+        {section.rows.map((row) => (
+          <MenuRow key={row.key} row={row} />
+        ))}
+      </MenuCard>
+    </section>
   )
 }
 
@@ -114,9 +173,12 @@ function ThemeCard({
   )
 }
 
-/** Trang "More" (tab cuối thanh dưới): hồ sơ, các nhóm cài đặt, chọn giao diện, đăng xuất — thay cho menu ảnh đại diện trên điện thoại. */
+/**
+ * Trang "More" (tab cuối thanh dưới) theo MacroFactor: hồ sơ, General, Feature Settings, Theme, Data Management, Community & Support, Other và số phiên bản
+ * thật (package.json). Đăng xuất nằm ở Account (hồ sơ). Hàng chưa có tính năng thật hiện mờ ("Not available yet"), xem `more.config.ts`.
+ */
 export function MorePage() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const profile = useProfile()
   const memberSince = profile.data?.createdAt
     ? new Date(profile.data.createdAt).toLocaleDateString('en-US', {
@@ -152,26 +214,8 @@ export function MorePage() {
         </div>
       </div>
 
-      {SECTIONS.map((section) => (
-        <section key={section.title} aria-label={section.title} className="space-y-3">
-          <h2 className="text-lg font-bold">{section.title}</h2>
-          <MenuCard>
-            {section.items.map(({ label, icon: Icon, href }) => (
-              <Link
-                key={label}
-                href={href}
-                className={cn(
-                  ROW,
-                  'active:bg-muted focus-visible:ring-ring/50 focus-visible:ring-1 focus-visible:outline-none'
-                )}
-              >
-                <Icon aria-hidden="true" className="size-6 shrink-0" />
-                <span className="flex-1">{label}</span>
-                <ChevronRight aria-hidden="true" className="text-muted-foreground size-5" />
-              </Link>
-            ))}
-          </MenuCard>
-        </section>
+      {BEFORE_THEME.map((section) => (
+        <Section key={section.key} section={section} />
       ))}
 
       <section aria-label="Theme" className="space-y-3">
@@ -188,22 +232,11 @@ export function MorePage() {
         </div>
       </section>
 
-      <section aria-label="Other" className="space-y-3">
-        <h2 className="text-lg font-bold">Other</h2>
-        <MenuCard>
-          <button
-            type="button"
-            onClick={logout}
-            className={cn(
-              ROW,
-              'text-destructive active:bg-muted w-full text-left focus-visible:ring-1 focus-visible:outline-none'
-            )}
-          >
-            <LogOut aria-hidden="true" className="size-6 shrink-0" />
-            Sign out
-          </button>
-        </MenuCard>
-      </section>
+      {AFTER_THEME.map((section) => (
+        <Section key={section.key} section={section} />
+      ))}
+
+      <p className="text-muted-foreground pb-2 text-center text-base">Version {pkg.version}</p>
     </div>
   )
 }

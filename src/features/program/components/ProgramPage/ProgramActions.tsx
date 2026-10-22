@@ -18,11 +18,70 @@ import {
   type ProteinLevel,
 } from '@/config/enums'
 import { toChoices } from '../../utils/choices'
+import {
+  TDEE_BOUNDS_HINT,
+  TDEE_MAX_KCAL,
+  TDEE_MIN_KCAL,
+  tdeeError,
+  tdeeEstimateHint,
+  tdeeSheetValue,
+  type TdeeEstimate,
+} from '../../utils/tdee.utils'
+import type { Feasibility } from '../../types/feasibility.types'
 import type { Program, UpdateProgramGoalRequest } from '../../types/program.types'
+import { reduceShiftRequestOf } from '../../utils/calorie-shift'
+import { isShiftInfeasible } from '../../utils/feasibility'
+import { FeasibilityNotice, type FeasibilityNoticeProps } from '../FeasibilityNotice'
 
 export interface ActionState {
   readonly isPending: boolean
   readonly error: string | null
+  /** 400 `FeasibilityResponse` của BE (nothing persisted); thay cho câu lỗi chung khi có. */
+  readonly feasibility?: Feasibility | null
+}
+
+/** Lỗi của một bảng: target không khả thi thì nêu vi phạm + cách chỉnh của BE (kèm nút xác nhận nếu bảng làm được), còn lại là câu lỗi chung. */
+function ActionError({
+  title,
+  state,
+  apply,
+}: {
+  readonly title: string
+  readonly state: ActionState
+  readonly apply?: FeasibilityNoticeProps['apply']
+}) {
+  if (state.feasibility) return <FeasibilityNotice feasibility={state.feasibility} apply={apply} />
+  return <FormErrorAlert title={title} message={state.error} />
+}
+
+/** Nút xác nhận của một lỗi Calorie Shift: giảm % (`reduceShiftRequestOf`) và chia đều; không do shift hoặc không áp được thì không có nút. */
+function shiftButtons(
+  program: Program,
+  feasibility: Feasibility | null | undefined,
+  submit: (payload: UpdateProgramGoalRequest) => void
+): FeasibilityNoticeProps['apply'] {
+  if (!feasibility || !isShiftInfeasible(feasibility)) return undefined
+  const reduce = reduceShiftRequestOf(program, feasibility)
+  return [
+    ...(reduce
+      ? [
+          {
+            code: 'REDUCE_SHIFT' as const,
+            label: `Use a ${reduce.calorieShiftPercent}% shift`,
+            onClick: () => submit(reduce),
+          },
+        ]
+      : []),
+    ...(feasibility.actions.includes('USE_EVEN_DISTRIBUTION')
+      ? [
+          {
+            code: 'USE_EVEN_DISTRIBUTION' as const,
+            label: 'Use an even split across the week',
+            onClick: () => submit({ calorieShiftMode: 'Even' }),
+          },
+        ]
+      : []),
+  ]
 }
 
 export type ActionKind = 'menu' | 'program' | 'style' | 'tdee' | 'end'
@@ -35,6 +94,8 @@ interface ProgramActionsProps {
   readonly programEdit: ActionState
   readonly style: ActionState
   readonly tdee: ActionState
+  /** TDEE ước tính hiện tại của BE (cùng nguồn với trang Expenditure): đang tải / lỗi / đã có. */
+  readonly tdeeEstimate: TdeeEstimate
   readonly end: ActionState
   readonly onSaveProgram: (payload: UpdateProgramGoalRequest, onDone: () => void) => void
   readonly onChangeStyle: (programType: ProgramType, onDone: () => void) => void
@@ -116,7 +177,12 @@ function ProgramBody({
       }}
     >
       <div className="space-y-5 p-4">
-        <FormErrorAlert title="Couldn't update program" message={state.error} />
+        <ActionError
+          title="Couldn't update program"
+          state={state}
+          // Chỉ gửi khi user bấm: giảm % (gửi lại ngày đang lưu của program) hoặc chia đều; không bao giờ tự chuyển sang Even
+          apply={shiftButtons(program, state.feasibility, onSubmit)}
+        />
         <fieldset className="space-y-2">
           <legend className="mb-2 text-base font-medium">Diet style</legend>
           <ChoiceGroup
@@ -179,7 +245,7 @@ function StyleBody({
         <p className="text-muted-foreground text-base">
           Your data is kept and your expenditure isn&apos;t reset.
         </p>
-        <FormErrorAlert title="Couldn't change style" message={state.error} />
+        <ActionError title="Couldn't change style" state={state} />
         <ChoiceGroup
           options={STYLE_CHOICES}
           value={style}
@@ -192,18 +258,22 @@ function StyleBody({
   )
 }
 
+/**
+ * Ô "Set TDEE": mở ở TDEE ƯỚC TÍNH HIỆN TẠI của BE (đang tải / lỗi / chưa có thì để trống và nói rõ lý do) — Lưu đặt lại thuật toán về đúng
+ * số trong ô nên không bao giờ điền sẵn số mặc định. Lưu bị khoá cho tới khi có số nguyên trong khoảng 1000–6000 của BE; ô trống thì hiện
+ * dòng nhắc giới hạn, nhập sai thì hiện lỗi. Ước tính về muộn chỉ điền vào ô còn CHƯA GÕ, không dựng lại ô.
+ */
 function TdeeBody({
-  program,
+  estimate,
   state,
   onCancel,
   onSubmit,
-}: BodyProps & { program: Program; onSubmit: (tdeeKcal: number) => void }) {
-  const [tdee, setTdee] = useState(String(program.manualInitialTdeeKcal ?? 2000))
-  const tdeeNumber = Number(tdee)
-  const error =
-    tdee.trim() !== '' && tdeeNumber >= 1000 && tdeeNumber <= 6000
-      ? undefined
-      : 'Enter 1000 to 6000 kcal'
+}: BodyProps & { estimate: TdeeEstimate; onSubmit: (tdeeKcal: number) => void }) {
+  // null = chưa gõ gì (ô theo ước tính của BE); đã gõ / đã xoá thì giữ đúng chuỗi người dùng nhập
+  const [typed, setTyped] = useState<string | null>(null)
+  const tdee = tdeeSheetValue(typed, estimate.kcal)
+  const error = tdeeError(tdee)
+  const empty = tdee.trim() === ''
   return (
     <form
       noValidate
@@ -211,23 +281,32 @@ function TdeeBody({
       onSubmit={(event) => {
         event.preventDefault()
         if (state.isPending || error) return
-        onSubmit(tdeeNumber)
+        onSubmit(Number(tdee))
       }}
     >
       <div className="space-y-4 p-4">
         <p className="text-muted-foreground text-base">
-          The expenditure algorithm relearns from today using this number.
+          The expenditure algorithm relearns from today using this number.{' '}
+          {tdeeEstimateHint(estimate)}
         </p>
-        <FormErrorAlert title="Couldn't set TDEE" message={state.error} />
-        <FormField label="TDEE (kcal/day)" required error={error}>
+        <ActionError title="Couldn't set TDEE" state={state} />
+        <FormField
+          label="TDEE (kcal/day)"
+          required
+          hint={empty ? TDEE_BOUNDS_HINT : undefined}
+          error={empty ? undefined : error}
+        >
           {(field) => (
             <Input
               {...field}
               type="number"
               inputMode="numeric"
+              min={TDEE_MIN_KCAL}
+              max={TDEE_MAX_KCAL}
+              step={1}
               className={INPUT}
               value={tdee}
-              onChange={(event) => setTdee(event.target.value)}
+              onChange={(event) => setTyped(event.target.value)}
             />
           )}
         </FormField>
@@ -255,6 +334,7 @@ export function ProgramActions({
   programEdit,
   style,
   tdee,
+  tdeeEstimate,
   end,
   onSaveProgram,
   onChangeStyle,
@@ -338,7 +418,7 @@ export function ProgramActions({
       >
         <TdeeBody
           key={session}
-          program={program}
+          estimate={tdeeEstimate}
           state={tdee}
           onCancel={close}
           onSubmit={(kcal) => onSetManualTdee(kcal, close)}

@@ -17,6 +17,7 @@ import {
   useSetCheckInModules,
   useSetIncompleteDays,
 } from '../hooks/use-check-in'
+import { feasibilityOfError } from '../utils/feasibility'
 
 /**
  * `/program/check-in/[module]`: một module (Introduction, Partial Logging, Program Update). Trang giữ mọi hook (session dùng chung,
@@ -33,6 +34,8 @@ export function CheckInModulePage({ module }: { readonly module: string }) {
   const setModules = useSetCheckInModules()
   const accept = useAcceptCheckIn()
   const reject = useRejectCheckIn()
+  // Accept bị 400 `FeasibilityResponse` (nothing persisted): nêu vi phạm + cách chỉnh thay cho câu lỗi chung
+  const refused = feasibilityOfError(accept.error)
   const data = session.data
   const notDue = Boolean(data) && (!data?.isDue || data?.alreadyCheckedInToday)
 
@@ -131,8 +134,11 @@ export function CheckInModulePage({ module }: { readonly module: string }) {
           preview={data.preview}
           isDeciding={accept.isPending || reject.isPending}
           error={
-            accept.error || reject.error ? getFormErrorMessage(accept.error ?? reject.error) : null
+            (accept.error && !refused) || reject.error
+              ? getFormErrorMessage(refused ? reject.error : (accept.error ?? reject.error))
+              : null
           }
+          refused={refused}
           onExit={backToHub}
           onAccept={() => accept.mutate(undefined, { onSuccess: finishCheckIn })}
           onDecline={() => reject.mutate(undefined, { onSuccess: finishCheckIn })}

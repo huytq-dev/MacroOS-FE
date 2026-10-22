@@ -4,12 +4,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { MetricChart } from './MetricChart'
 import { MetricHistoryList } from './MetricHistoryList'
-import {
-  averageMetric,
-  daysBetween,
-  summarizeMetric,
-  type MetricPoint,
-} from '../../body-metric.utils'
+import { averageMetric, summarizeMetric, type MetricPoint } from '../../body-metric.utils'
 import { slotsOf, viewWindow } from '@/features/dashboard/chart/geometry'
 import { useChartPan } from '@/features/dashboard/chart/use-chart-pan'
 import {
@@ -27,8 +22,10 @@ import {
   type TutorialStep,
 } from '@/features/dashboard/components/DetailPage'
 import { rangeLabel, type Averaging, type RangeKey } from '@/features/dashboard/expenditure.utils'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
+import { daysBetween } from '@/lib/date'
 
 interface BodyMetricViewProps {
   readonly title: string
@@ -63,6 +60,7 @@ export function BodyMetricView({
 }: BodyMetricViewProps) {
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
+  const { weekStartDay } = useUnits()
   const expand = useChartExpand()
   const total = today && points.length > 0 ? daysBetween(points[0].date, today) + 1 : 0
   const target = slotsOf(range, total)
@@ -112,7 +110,7 @@ export function BodyMetricView({
           // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
           key={averaging}
           className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
-          points={averageMetric(points, averaging)}
+          points={averageMetric(points, averaging, weekStartDay)}
           today={today}
           slots={slots}
           pos={pan.view.pos}

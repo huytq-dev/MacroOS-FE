@@ -3,20 +3,23 @@
 import {
   useDailyProgress,
   useDayNutrients,
+  useEnergyBalanceWindow,
   useExpenditureSeries,
   useGoalProgress,
   usePeriods,
   useSteps,
 } from './use-dashboard'
 import {
-  goalProgressPercent,
   habitCells,
   isLogged,
   lastDays,
+  latestByDate,
   weekCount,
   HABIT_DAYS,
-  WEEK_DAYS,
 } from '../dashboard.utils'
+import type { DashboardPending } from '../dashboard-pending'
+import type { EnergyBalanceSeriesResponse } from '../types/energy-balance.types'
+import { NO_GOAL } from '@/features/nutrition/goal-progress'
 import { NUTRIENT_CODE } from '../nutrient-codes'
 import { NUTRIENT_GROUPS } from '../nutrient-catalog'
 import type {
@@ -26,20 +29,24 @@ import type {
   NutrientValue,
 } from '../types/dashboard.types'
 import { periodDaySet } from '@/features/period/period.utils'
-import { KCAL_PER_GRAM } from '@/features/program/utils/day-macros'
+import { KCAL_PER_GRAM } from '@/features/nutrition/atwater'
 import { useDayLog } from '@/features/food-log/hooks/use-food-log'
 import type { MacroTotals } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { useVisualBodyFat, useWeights } from '@/features/weight/hooks/use-weights'
 import { addDaysIso } from '@/lib/date'
+import { DAYS_PER_WEEK } from '@/lib/week'
 
 const WEIGHT_LOOKBACK_DAYS = 365
 const PERIOD_LOOKBACK_DAYS = 364
 const SPARK_POINTS = 8
-const MS_PER_DAY = 86_400_000
 
 export interface DashboardData {
   readonly isLoading: boolean
+  /** Nguồn nào còn chờ BE: thẻ / ô của nguồn đó hiện khung xám thay vì "—" / "N/A" / "0/7" (`tilePending`, `focusPending`). */
+  readonly pending: DashboardPending
+  /** Energy Balance 30 ngày từ BE (thẻ Energy Balance): ngày + `summary`; undefined khi chưa tải. */
+  readonly energyBalance: EnergyBalanceSeriesResponse | undefined
   /** Truy vấn cân nặng thô, để màn thiết lập ban đầu biết đã có cân nặng chưa. */
   readonly weights: ReturnType<typeof useWeights>
   readonly tdee: number | null
@@ -59,8 +66,6 @@ export interface DashboardData {
   readonly period: { readonly cells: readonly boolean[]; readonly daysAgo: number | null }
   /** % quãng đường tới cân mục tiêu (`GET /goals/progress`); null = chưa có goal hoặc Maintenance. */
   readonly goalPercent: number | null
-  /** Số ngày từ lúc bắt đầu goal tới hôm nay (nhãn kỳ của Goal Progress); null = chưa có goal. */
-  readonly goalDays: number | null
   /** Tổng và target của hôm nay (vòng kcal "Dinh dưỡng hôm nay"); null khi chưa tải xong. */
   readonly todayTotals: MacroTotals | null
   readonly todayTarget: ProgramWeek | null
@@ -72,7 +77,7 @@ export interface DashboardData {
 
 /** Giá trị + mục tiêu của một chất đúng như BE trả (floor / target / ceiling nguyên vẹn; không suy mốc từ loại thanh của FE). */
 function nutrientFromApi(item: NutrientModel | undefined): NutrientValue {
-  if (!item) return { value: 0, floor: null, target: null, ceiling: null, known: false }
+  if (!item) return { value: 0, ...NO_GOAL, known: false }
   return {
     value: item.amount ?? 0,
     floor: item.floor,
@@ -87,10 +92,15 @@ function nutrientFromApi(item: NutrientModel | undefined): NutrientValue {
 export function useDashboardData(today: string | null, enabled: boolean): DashboardData {
   const weights = useWeights(today ? addDaysIso(today, -WEIGHT_LOOKBACK_DAYS) : null, today)
   const expenditure = useExpenditureSeries(
-    enabled && today ? addDaysIso(today, -(WEEK_DAYS * 2 - 1)) : null,
+    enabled && today ? addDaysIso(today, -(DAYS_PER_WEEK * 2 - 1)) : null,
     today
   )
   const dailyQuery = useDailyProgress(
+    enabled && today ? addDaysIso(today, -(HABIT_DAYS - 1)) : null,
+    today
+  )
+  // Thẻ Energy Balance: từng ngày + thống kê 30 ngày do BE tính (`summary`), không tự tính trung bình từ DailyProgress
+  const energyBalanceQuery = useEnergyBalanceWindow(
     enabled && today ? addDaysIso(today, -(HABIT_DAYS - 1)) : null,
     today
   )
@@ -101,11 +111,17 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
   const nutrients = useDayNutrients(enabled ? today : null)
 
   const visualBodyFat = useVisualBodyFat(today)
-  const bodyFatPercents = (visualBodyFat.data?.items ?? [])
-    .slice(-WEEK_DAYS)
-    .map((item) => item.percent)
+  // BE trả mới → cũ: lấy các lần đo MỚI NHẤT rồi xếp cũ → mới cho đường nhỏ (`slice(-n)` thẳng sẽ lấy các lần CŨ NHẤT)
+  const bodyFatPercents = latestByDate(
+    visualBodyFat.data?.items ?? [],
+    (item) => item.date,
+    DAYS_PER_WEEK
+  ).map((item) => item.percent)
   const entries = weights.data?.items ?? []
-  const scaleSpark = entries.slice(-WEEK_DAYS).map((entry) => entry.weightKg)
+  const scaleSpark = latestByDate(entries, (entry) => entry.logDate, DAYS_PER_WEEK).map(
+    (entry) => entry.weightKg
+  )
+  const sparkEntries = latestByDate(entries, (entry) => entry.logDate, SPARK_POINTS)
   const weightLatest = weights.data?.latestTrendKg ?? weights.data?.latestWeightKg ?? null
   const daily = dailyQuery.data ?? []
   const todayKey = today ?? ''
@@ -123,12 +139,14 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
       const code = NUTRIENT_CODE[nutrient.key]
       if (code) nutrientsToday[nutrient.key] = nutrientFromApi(byCode.get(code))
     }
-  // Calo và macro lấy từ log + target của program (cùng nguồn với vòng "Daily Nutrition"); chỉ có target, không floor / ceiling
+  // Calo và macro lấy từ log + target của program (cùng nguồn với vòng "Daily Nutrition"); chỉ có target, không floor / ceiling.
+  // Loại mục tiêu như BE: Target khi program có target, None khi chưa có.
   const macro = (value: number | undefined, goal: number | undefined): NutrientValue => ({
     value: value ?? 0,
     floor: null,
     target: goal ?? null,
     ceiling: null,
+    goalKind: goal === undefined ? 'None' : 'Target',
   })
   nutrientsToday.calories = macro(totals?.calories, target?.caloriesTarget)
   nutrientsToday.protein = macro(totals?.protein, target?.proteinTarget)
@@ -136,34 +154,50 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
   nutrientsToday.carbs = macro(totals?.carbs, target?.carbsTarget)
   // Ô "Macros": số lớn là kcal hôm nay (như MacroFactor), không có thanh target; cột chồng 7 ngày ở `macrosWeek`
   nutrientsToday.macros = macro(totals?.calories, undefined)
-  const macrosWeek = daily.slice(-WEEK_DAYS).map((point): MacroStackDay | null => {
-    if (!isLogged(point)) return null
-    const carbs = point.carbsConsumed * KCAL_PER_GRAM.carbs
-    const fat = point.fatConsumed * KCAL_PER_GRAM.fat
-    const protein = point.proteinConsumed * KCAL_PER_GRAM.protein
-    return {
-      date: point.snapshotDate,
-      carbs,
-      fat,
-      protein,
-      other: Math.max(0, point.caloriesConsumed - carbs - fat - protein),
+  // 7 NGÀY LỊCH kết thúc hôm nay, không phải 7 điểm cuối của `daily`: ngày thiếu điểm sẽ kéo cột của ngày cũ hơn vào "Last 7 Days".
+  const dailyByDate = new Map(daily.map((point) => [point.snapshotDate, point]))
+  const macrosWeek = (today ? lastDays(today, DAYS_PER_WEEK) : []).map(
+    (date): MacroStackDay | null => {
+      const point = dailyByDate.get(date)
+      if (!point || !isLogged(point)) return null
+      const carbs = point.carbsConsumed * KCAL_PER_GRAM.carbs
+      const fat = point.fatConsumed * KCAL_PER_GRAM.fat
+      const protein = point.proteinConsumed * KCAL_PER_GRAM.protein
+      return {
+        date,
+        carbs,
+        fat,
+        protein,
+        other: Math.max(0, point.caloriesConsumed - carbs - fat - protein),
+      }
     }
-  })
-  // Chất xơ luôn là số (log không có thì 0) dù BE trả amount null ở ngày trống; mốc tối thiểu vẫn lấy từ BE
-  nutrientsToday.fiber = { ...nutrientsToday.fiber, value: totals?.fiber ?? 0, known: true }
-
+  )
+  // Chất xơ lấy đúng số BE: 0 cho ngày trống, null (known: false → "---") khi có món nhưng không món nào có dữ liệu chất xơ, như Overview / Detail
   const steps = stepsQuery.data?.last7DayAverage ?? null
   const goalData = goal.data
   return {
     isLoading: weights.isLoading || (enabled && (expenditure.isLoading || dailyQuery.isLoading)),
+    /** `GET /energy-balance/series` của 30 ngày gần nhất (từng ngày + `summary` của BE) cho thẻ Energy Balance. */
+    energyBalance: energyBalanceQuery.data ?? undefined,
+    pending: {
+      weights: weights.isPending,
+      daily: dailyQuery.isPending,
+      energyBalance: energyBalanceQuery.isPending,
+      dayLog: dayLog.isPending,
+      nutrients: nutrients.isPending,
+      steps: stepsQuery.isPending,
+      periods: periodsQuery.isPending,
+      bodyFat: visualBodyFat.isPending,
+      expenditure: expenditure.isPending,
+    },
     weights,
     tdee: expenditure.data?.current?.estimatedTdeeKcal ?? null,
     tdeeSpark: (expenditure.data?.points ?? [])
       .slice(-SPARK_POINTS)
       .map((point) => point.estimatedTdeeKcal),
     weightLatest,
-    weightSpark: entries.slice(-SPARK_POINTS).map((entry) => entry.trendWeightKg ?? entry.weightKg),
-    weightRaw: entries.slice(-SPARK_POINTS).map((entry) => entry.weightKg),
+    weightSpark: sparkEntries.map((entry) => entry.trendWeightKg ?? entry.weightKg),
+    weightRaw: sparkEntries.map((entry) => entry.weightKg),
     daily,
     weighIn: { cells: habitCells(weighInDates, todayKey), week: weekCount(weighInDates, todayKey) },
     logging: { cells: habitCells(loggedDates, todayKey), week: weekCount(loggedDates, todayKey) },
@@ -174,21 +208,8 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
       cells: today ? lastDays(today, HABIT_DAYS).map((day) => periodSet.has(day)) : [],
       daysAgo: periodsQuery.data?.daysSinceLastStart ?? null,
     },
-    goalPercent: goalData
-      ? (goalData.progressPercent ??
-        goalProgressPercent(
-          goalData.startWeightKg,
-          goalData.currentTrendKg,
-          goalData.targetWeightKg
-        ))
-      : null,
-    goalDays:
-      today && goalData
-        ? Math.max(
-            0,
-            Math.round((Date.parse(todayKey) - Date.parse(goalData.startDate)) / MS_PER_DAY)
-          ) + 1
-        : null,
+    // % do BE tính (null khi chưa có cân mục tiêu, vd. Maintenance): không tự tính thay
+    goalPercent: goalData?.progressPercent == null ? null : Math.round(goalData.progressPercent),
     todayTotals: totals ?? null,
     todayTarget: target ?? null,
     nutrientsToday,

@@ -3,11 +3,8 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { SheetFrame } from '@/components/shared/SheetFrame'
+import { MONTH_SHORT } from '@/lib/date'
 import { cn } from '@/lib/utils'
-
-const MONTHS = Array.from({ length: 12 }, (_, month) =>
-  new Date(2000, month, 1).toLocaleDateString('en-US', { month: 'short' })
-)
 
 /** Ô năm hiện 12 năm: thập kỷ đang xem + 2 năm đầu thập kỷ sau (như MacroFactor). */
 const YEAR_CELLS = 12
@@ -64,7 +61,7 @@ export function MonthYearPickerSheet({
               aria-label={`Months of ${year}`}
               className="grid grid-cols-3 gap-x-3 gap-y-4 py-6"
             >
-              {MONTHS.map((label, index) => {
+              {MONTH_SHORT.map((label, index) => {
                 const selected = index === month
                 return (
                   <button

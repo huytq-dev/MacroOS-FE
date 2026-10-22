@@ -6,10 +6,13 @@ import {
   useQueries,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { foodService } from '../services/food.service'
 import type { CustomFoodRequest, FoodDetail, FoodSearchParams } from '../types/food.types'
+import { favoriteKeys } from './use-favorites'
+import { foodLogKeys } from '@/features/food-log/hooks/use-food-log'
 import { logger } from '@/lib/api'
 
 export const foodKeys = {
@@ -73,6 +76,15 @@ export const useFoodNutrients = (id: string | null, date: string | null) =>
     retry: false,
   })
 
+/**
+ * Món tự tạo hiện ở tìm món, ở tab Library của Add Food (cùng recipe) và ở Favorites: tạo / sửa / xoá một món làm mới cả ba, không thì Library và
+ * Favorites giữ món cũ (đã xoá, tên cũ) tới hết staleTime.
+ */
+export function invalidateFoodData(queryClient: QueryClient) {
+  for (const queryKey of [foodKeys.all, foodLogKeys.library, favoriteKeys.all])
+    void queryClient.invalidateQueries({ queryKey })
+}
+
 const useFoodMutation = <TVariables>(
   mutationFn: (variables: TVariables) => Promise<unknown>,
   successMessage: string
@@ -82,7 +94,7 @@ const useFoodMutation = <TVariables>(
     mutationFn,
     onSuccess: () => {
       toast.success(successMessage)
-      void queryClient.invalidateQueries({ queryKey: foodKeys.all })
+      invalidateFoodData(queryClient)
     },
     onError: (error) => {
       logger.error(error)

@@ -4,20 +4,51 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { userService } from '../services/user.service'
 import type { UpdateProfileRequest } from '../types/user.types'
+import { invalidateTargetData } from '@/features/food-log/hooks/use-food-log'
+import { weightKeys } from '@/features/weight/hooks/use-weights'
 import { logger } from '@/lib/api'
+import { setEffectiveTimeZone } from '@/lib/date'
 
 export const profileKeys = { me: ['profile', 'me'] as const }
 
+/**
+ * Trường hồ sơ mà BE dùng để TÍNH: ngày sinh / giới tính (mục tiêu vi chất theo tuổi, giới), chiều cao / mức vận động (program), ngày đầu tuần và múi giờ
+ * (bucket tuần, "hôm nay"). Đổi chúng thì mọi số suy ra phải đọc lại; đơn vị (kg / lb, kcal / kJ), tên và bio chỉ là hiển thị.
+ */
+const CALCULATION_FIELDS = [
+  'dateOfBirth',
+  'gender',
+  'heightCm',
+  'activityLevel',
+  'weekStartDay',
+  'timeZone',
+] as const
+
+/** `null` = giữ nguyên (hợp đồng BE) nên chỉ giá trị có nghĩa mới tính là đổi. */
+export const profileChangeAffectsData = (payload: UpdateProfileRequest): boolean =>
+  CALCULATION_FIELDS.some((field) => payload[field] !== undefined && payload[field] !== null)
+
+/** Đọc hồ sơ rồi đặt ngay múi giờ nghiệp vụ cho `todayIso()` (trước khi bất kỳ chỗ nào nhận dữ liệu) để "hôm nay" của FE khớp BE. */
+const fetchProfile = async () => {
+  const profile = await userService.getProfile()
+  setEffectiveTimeZone(profile?.effectiveTimeZone)
+  return profile
+}
+
 export const useProfile = () =>
-  useQuery({ queryKey: profileKeys.me, queryFn: userService.getProfile, staleTime: 5 * 60 * 1000 })
+  useQuery({ queryKey: profileKeys.me, queryFn: fetchProfile, staleTime: 5 * 60 * 1000 })
 
 export const useUpdateProfile = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: UpdateProfileRequest) => userService.updateProfile(payload),
-    onSuccess: () => {
+    onSuccess: (_data, payload) => {
       toast.success('Profile saved')
       void queryClient.invalidateQueries({ queryKey: profileKeys.me })
+      if (profileChangeAffectsData(payload)) {
+        invalidateTargetData(queryClient)
+        void queryClient.invalidateQueries({ queryKey: weightKeys.all })
+      }
     },
     onError: (error) => {
       logger.error(error)

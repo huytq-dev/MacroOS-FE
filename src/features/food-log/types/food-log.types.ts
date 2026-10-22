@@ -1,4 +1,5 @@
 import type { GoalKind } from '@/features/nutrition/goal-progress'
+import type { TargetProvenance } from '@/features/nutrition/target-provenance'
 import type { MealType } from '@/config/enums'
 import type { NutrientAmount } from '@/features/foods/types/food.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
@@ -28,12 +29,20 @@ export interface FoodLogEntry {
   carbs: number
   fat: number
   fiber: number | null
-  /** Biểu tượng emoji của món và tổng khối lượng (g); BE sẽ bổ sung, chưa có thì FE dùng mặc định / suy từ khẩu phần. */
-  emoji?: string | null
-  /** Khoá icon trong bộ icon món ăn (BE sẽ trả); có thì thay emoji bằng ảnh. */
-  iconKey?: string | null
-  weightGrams?: number | null
+  /** Emoji đại diện món suy từ nhóm món; null cho nhóm Other, recipe và Quick Add (FE hiện 🍽️). BE luôn gửi khoá này. */
+  emoji: string | null
+  /** Khoá icon trong bộ icon món ăn; có thì thay emoji bằng ảnh, null = không có. BE luôn gửi khoá này. */
+  iconKey: string | null
+  /** Tổng khối lượng dòng log (g); null cho recipe và Quick Add. BE luôn gửi khoá này. */
+  weightGrams: number | null
+  /** Nguồn của dòng: món thường, recipe hoặc Quick Add (FE không suy từ `weightGrams` / `servingName` null). */
+  entrySource: EntrySource
+  /** Đơn vị của `quantity`: Gram (log theo gram), Serving (số khẩu phần của món hoặc số phần recipe), Entry (Quick Add: một dòng nhập tay, không có khối lượng). */
+  quantityUnit: QuantityUnit
 }
+
+export type EntrySource = 'Food' | 'Recipe' | 'QuickAdd'
+export type QuantityUnit = 'Gram' | 'Serving' | 'Entry'
 
 // Khớp BE Contract/Models/FoodLogs/FoodLogModels.cs (WeekLogResponse)
 export interface WeekDay {
@@ -42,6 +51,8 @@ export interface WeekDay {
   isLogged: boolean
   totals: MacroTotals
   target: ProgramWeek | null
+  /** BE đánh dấu target ngày này LEGACY_UNVERIFIED: `target` bị bỏ (chỉ để tham khảo, không vẽ đạt / không đạt), hiện "Historical target not verified". */
+  targetUnverified?: boolean
 }
 
 export interface WeekLog {
@@ -63,16 +74,25 @@ export interface FoodLogNote {
   notedAt: string | null
 }
 
+// Khớp BE Contract/Models/FoodLogs/DayLogResponse.cs
 export interface DayLog {
   logDate: string
-  /** Chấp nhận cả chuỗi (BE cũ) lẫn mảng (BE mới); dùng `toNotes` để chuẩn hoá. */
-  notes: string | FoodLogNote[] | null
-  /** Số ghi chú tối đa mỗi ngày (BE = 5) cho nhãn "n / 5"; thiếu thì dùng mặc định. */
-  notesMaxPerDay?: number
-  isLogged?: boolean
+  /** Ngày có FoodLog; ngày nhịn ăn là true với 0 kcal. */
+  isLogged: boolean
+  notes: FoodLogNote[]
+  /** Số ghi chú tối đa mỗi ngày (BE = 5) cho nhãn "n / 5". */
+  notesMaxPerDay: number
   totals: MacroTotals
   target: ProgramWeek | null
+  /** BE đánh dấu target ngày này LEGACY_UNVERIFIED: `target` bị bỏ (chỉ để tham khảo, không vẽ đạt / không đạt), hiện "Historical target not verified". */
+  targetUnverified?: boolean
   entries: FoodLogEntry[]
+  /** Tổng nước uống ghi trong ngày (ml, `GET /food-logs/water`). */
+  waterMl: number
+  /** Ngày đánh dấu nhịn ăn (không có entry). */
+  isFasting: boolean
+  /** Ngày đánh dấu "log chưa đủ": expenditure bỏ qua ngày này. */
+  isIncomplete: boolean
 }
 
 // Khớp BE Notes: POST /food-logs/notes, PUT /food-logs/notes/{id} (notedAt "HH:mm:ss" hoặc "HH:mm")
@@ -114,14 +134,19 @@ export interface UpdateNoteRequest {
 // Khớp BE GET /nutrition/overview: value = tổng ngày (today) hoặc trung bình mỗi ngày đã log (các kỳ khác)
 export interface NutritionOverviewItem {
   key: string
-  value: number
-  /** Mục tiêu hiệu lực (xem `features/nutrition/goal-progress`); floor / ceiling vắng nghĩa là không có. */
+  /** null = chưa có dữ liệu chất này trong kỳ (khác 0): hiện "---". */
+  value: number | null
+  /** Mục tiêu hiệu lực (xem `features/nutrition/goal-progress`); BE luôn gửi cả bốn trường, null = không có mốc đó. */
   target: number | null
-  floor?: number | null
-  ceiling?: number | null
+  floor: number | null
+  ceiling: number | null
   /** Loại mục tiêu BE phân loại (Range / Minimum / Maximum / Target / TargetWithCeiling / None): quyết định mốc nào được vẽ. */
-  goalKind?: GoalKind | null
-  unit?: string
+  goalKind: GoalKind
+  unit: string
+  /** Chỉ calo / macro: today = provenance của target ngày đó; kỳ dài = VERIFIED khi `target` là trung bình các ngày VERIFIED, null khi không có ngày VERIFIED (target null). */
+  targetProvenance: TargetProvenance | null
+  /** Kỳ dài, calo / macro: số ngày đã log bị loại khỏi trung bình target vì LEGACY_UNVERIFIED (> 0 thì hiện "Historical target not verified"). BE luôn gửi (0 khi không áp dụng). */
+  unverifiedTargetDays: number
 }
 
 export interface NutritionOverviewResponse {
@@ -409,7 +434,3 @@ export interface PlateItem {
   /** Lượng các chất khác của dòng này (khoá danh mục dinh dưỡng → số theo đơn vị danh mục); món không có dữ liệu thì thiếu. */
   nutrients?: Readonly<Record<string, number>>
 }
-
-/** Chuẩn hoá `DayLog.notes` về mảng, bất kể BE cũ (chuỗi) hay mới (mảng). */
-export const toNotes = (notes: DayLog['notes']): FoodLogNote[] =>
-  Array.isArray(notes) ? notes : notes?.trim() ? [{ id: 'legacy', text: notes, notedAt: null }] : []

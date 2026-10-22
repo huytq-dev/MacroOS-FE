@@ -4,7 +4,7 @@ import { SwipeToDelete } from '@/components/shared/SwipeToDelete'
 import { Button } from '@/components/ui/button'
 import { useExitingList } from '@/hooks/use-exiting-list'
 import { cn } from '@/lib/utils'
-import { DEFAULT_MAX_NOTES, noteColorOf } from '../../notes.config'
+import { noteColorOf } from '../../notes.config'
 import type { FoodLogNote } from '../../types/food-log.types'
 
 interface NotesSectionProps {
@@ -13,8 +13,8 @@ interface NotesSectionProps {
   readonly onSelect: (note: FoodLogNote) => void
   /** Vuốt thẻ sang trái để xoá. */
   readonly onDelete: (note: FoodLogNote) => void
-  /** Số ghi chú tối đa mỗi ngày (BE trả `notesMaxPerDay`); thiếu thì mặc định 5. */
-  readonly max?: number
+  /** Số ghi chú tối đa mỗi ngày (BE trả `notesMaxPerDay`). */
+  readonly max: number
 }
 
 /**
@@ -29,7 +29,7 @@ function NoteCard({
   readonly onSelect: (note: FoodLogNote) => void
 }) {
   const name = note.name?.trim() ?? ''
-  const text = note.text?.trim() ?? ''
+  const text = note.text.trim()
   const title = name || text
   const body = name ? text : ''
   return (
@@ -63,13 +63,7 @@ function NoteCard({
  * Ghi chú của ngày: tiêu đề + đếm "n / 5" + nút + tròn trắng (khoá mờ khi đủ năm ghi chú, kèm dòng báo lý do), bên dưới là thẻ ghi
  * chú nền card không viền màu (chạm để sửa, vuốt trái để xoá; thẻ mới chèn vào và thẻ xoá thu gọn 300ms) hoặc "No notes to display".
  */
-export function NotesSection({
-  notes,
-  onAdd,
-  onSelect,
-  onDelete,
-  max = DEFAULT_MAX_NOTES,
-}: NotesSectionProps) {
+export function NotesSection({ notes, onAdd, onSelect, onDelete, max }: NotesSectionProps) {
   const rows = useExitingList(notes, (note) => note.id)
   const full = notes.length >= max
   return (

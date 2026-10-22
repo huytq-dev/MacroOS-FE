@@ -1,5 +1,7 @@
 import type { FoodCategory } from '@/config/enums'
 import type { CustomFoodRequest, FoodDetail } from '@/features/foods/types/food.types'
+import { roundTo } from '@/lib/units'
+import { nutrientPer100g } from './components/FoodLogPage/FoodDetail/food-detail.utils'
 import {
   LIMITS,
   NUTRIENT_ROWS,
@@ -31,20 +33,25 @@ export interface CreateFoodState {
 }
 
 const MACRO_KEYS = ['calories', 'protein', 'fat', 'carbs'] as const
-const SCALE = 10_000
+/** Số chữ số lẻ giữ lại cho số hiển thị trong ô và số gửi BE. */
+const DIGITS = 4
+
+/** Số thập phân thuần ("12", "12.5", "12,5", ".5", "-3"): không nhận "1,234.5", "0x10", "1e2" (Number() nuốt được nhưng không phải số người dùng định gõ). */
+const DECIMAL = /^-?(\d+[.,]?\d*|[.,]\d+)$/
 
 export const parseNumber = (text: string): number | null => {
-  const trimmed = text.trim().replace(',', '.')
+  const trimmed = text.trim()
   if (trimmed === '') return null
   // Phân số "1/2" (bàn phím số của iOS có phím "/")
   const fraction = trimmed.match(/^(\d+)\/(\d+)$/)
   if (fraction) return Number(fraction[2]) === 0 ? null : Number(fraction[1]) / Number(fraction[2])
-  const value = Number(trimmed)
+  if (!DECIMAL.test(trimmed)) return null
+  const value = Number(trimmed.replace(',', '.'))
   return Number.isFinite(value) ? value : null
 }
 
 /** Số hiển thị trong ô: tối đa 4 số lẻ, bỏ số 0 thừa ("115.96", "0.379", "30.796"). */
-export const formatValue = (value: number): string => String(Math.round(value * SCALE) / SCALE)
+export const formatValue = (value: number): string => String(roundTo(value, DIGITS))
 
 const weightUnitGrams = (unit: CreateFoodState['weightUnit']) =>
   WEIGHT_UNITS.find((item) => item.label === unit)?.grams ?? 1
@@ -81,17 +88,6 @@ export function basisLabel(state: CreateFoodState): string {
   return `per ${shownQty} ${state.servingName.trim() || 'serving'}${gramsText}`
 }
 
-/** Giá trị gốc (đơn vị gốc, trên 100 g) của một chất trong món nguồn; null = chưa có dữ liệu. */
-function sourcePer100g(food: FoodDetail, key: string): number | null {
-  const macros: Record<string, number> = {
-    calories: food.nutrition.caloriesPer100g,
-    protein: food.nutrition.proteinPer100g,
-    carbs: food.nutrition.carbsPer100g,
-    fat: food.nutrition.fatPer100g,
-  }
-  return macros[key] ?? food.nutrientsPer100g?.[key] ?? null
-}
-
 export const EMPTY_STATE: CreateFoodState = {
   name: '',
   brand: '',
@@ -119,7 +115,7 @@ export function initialState(source?: FoodDetail): CreateFoodState {
   const grams = onServing ? serving.weightInGrams : 100
   const values: Record<string, string> = {}
   for (const key of Object.keys(NUTRIENT_ROWS)) {
-    const per100g = sourcePer100g(source, key)
+    const per100g = nutrientPer100g(source, key)
     if (per100g !== null) values[key] = formatValue((per100g * grams) / 100)
   }
   // Tên khẩu phần của BE có thể đã kèm số lượng ("1 lát", "2 slices"): tách ra ô số lượng và ô tên như MacroFactor
@@ -201,7 +197,8 @@ export function buildRequest(
   for (const key of Object.keys(NUTRIENT_ROWS)) {
     const text = state.values[key] ?? ''
     const number = parseNumber(text)
-    if (text.trim() !== '' && (number === null || number < 0)) errors[key] = "Can't be negative"
+    if (text.trim() !== '' && number === null) errors[key] = 'Enter a valid number'
+    else if (number !== null && number < 0) errors[key] = "Can't be negative"
     else if (number !== null && grams !== null)
       per100g[key] = (number * unitFactor(key, state.units) * 100) / grams
   }
@@ -213,11 +210,11 @@ export function buildRequest(
     for (const key of ['protein', 'fat', 'carbs'] as const)
       if (per100g[key] > LIMITS.macroPer100g) errors[key] = `Max ${LIMITS.macroPer100g} g per 100 g`
     if (!errors.fat && per100g.protein + per100g.carbs + per100g.fat > LIMITS.macroSumPer100g)
-      errors.fat = "Protein + carbs + fat per 100 g can't exceed 100 g"
+      errors.fat = `Protein + carbs + fat per 100 g can't exceed ${LIMITS.macroSumPer100g} g`
   }
   if (Object.keys(errors).length > 0 || grams === null) return { errors }
 
-  const round = (value: number) => Math.round(value * SCALE) / SCALE
+  const round = (value: number) => roundTo(value, DIGITS)
   const barcode = state.barcode.trim()
   const servingName = state.servingName.trim()
   return {
@@ -227,11 +224,12 @@ export function buildRequest(
       category: state.category,
       barcode: barcode || null,
       iconKey: state.iconKey,
+      // BE lưu bốn macro với 2 số lẻ (FoodItemConfiguration HasPrecision): gửi đúng số sẽ lưu để xem trước = số mở lại; vi chất giữ 4 số lẻ
       nutrition: {
-        caloriesPer100g: round(per100g.calories),
-        proteinPer100g: round(per100g.protein),
-        carbsPer100g: round(per100g.carbs),
-        fatPer100g: round(per100g.fat),
+        caloriesPer100g: roundTo(per100g.calories, 2),
+        proteinPer100g: roundTo(per100g.protein, 2),
+        carbsPer100g: roundTo(per100g.carbs, 2),
+        fatPer100g: roundTo(per100g.fat, 2),
       },
       nutrients: Object.entries(per100g).flatMap(([key, amount]) => {
         const code = NUTRIENT_ROWS[key]?.code
@@ -243,7 +241,7 @@ export function buildRequest(
           ? [
               {
                 servingName: `${formatValue(qty ?? 1)} ${servingName}`,
-                weightInGrams: Math.round(grams * 100) / 100,
+                weightInGrams: roundTo(grams, 2),
                 isDefault: true,
               },
             ]

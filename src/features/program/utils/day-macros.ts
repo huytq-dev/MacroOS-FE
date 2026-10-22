@@ -1,12 +1,10 @@
 import { DAY_OF_WEEK, type DayOfWeek } from '@/config/enums'
+import { KCAL_PER_GRAM } from '@/features/nutrition/atwater'
 import type { DayTarget } from '../types/program.types'
 
-/** Thứ tự bảy ngày của chương trình: Monday → Sunday (khớp M T W T F S S trên biểu đồ). */
+/** Thứ tự bảy ngày của chương trình: Monday → Sunday (nhãn một chữ cái của từng ngày: `dayLetter` ở `lib/week`). */
 // Object.keys trả string[]; khoá của DAY_OF_WEEK chính là DayOfWeek nên ép kiểu an toàn
 export const WEEK_DAYS = Object.keys(DAY_OF_WEEK) as DayOfWeek[]
-export const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const
-
-export const KCAL_PER_GRAM = { protein: 4, carbs: 4, fat: 9 } as const
 
 export interface MacroGrams {
   readonly proteinG: number
@@ -66,13 +64,24 @@ export const maxProteinPerKg = (kcal: number, weightKg: number, cap: number) =>
 export const macroKcalOf = ({ proteinG, carbsG, fatG }: MacroGrams) =>
   KCAL_PER_GRAM.protein * proteinG + KCAL_PER_GRAM.carbs * carbsG + KCAL_PER_GRAM.fat * fatG
 
-/** Ngày đang sửa → mục tiêu gửi BE (gram làm tròn nguyên). */
-export const toDayTarget = (day: EditableDay, weightKg: number): DayTarget => {
+/**
+ * Ngày đang sửa → mục tiêu gửi BE (gram làm tròn nguyên). Protein không bao giờ vượt trần BE (`proteinPerKgMax` × cân nặng): ở đúng trần
+ * 4.0 × 72.38 = 289.52 g, làm tròn lên 290 sẽ bị BE từ chối (DayProteinMax) nên hạ xuống số nguyên không vượt trần (289).
+ */
+export const toDayTarget = (
+  day: EditableDay,
+  weightKg: number,
+  proteinPerKgMax?: number
+): DayTarget => {
   const { proteinG, carbsG, fatG } = macrosOf(day, weightKg)
+  const proteinCap =
+    proteinPerKgMax !== undefined && proteinPerKgMax > 0
+      ? Math.floor(proteinPerKgMax * weightKg + 1e-9)
+      : Infinity
   return {
     dayOfWeek: day.dayOfWeek,
     calories: Math.round(day.kcal),
-    proteinG: Math.round(proteinG),
+    proteinG: Math.min(Math.round(proteinG), proteinCap),
     carbsG: Math.round(carbsG),
     fatG: Math.round(fatG),
     isLocked: day.locked,

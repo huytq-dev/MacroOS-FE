@@ -8,6 +8,8 @@ import { authService, type LoginRequest } from '@/features/auth/services/auth.se
 import { decodeUserFromToken, isTokenValid } from '@/features/auth/auth.utils'
 import { getAccessToken } from '@/lib/axios'
 import { logger } from '@/lib/logger'
+import { queryClient } from '@/lib/query-client'
+import { clearAllDrafts } from '@/features/onboarding/onboarding-draft'
 import { routePath } from '@/config/route-path'
 
 export const useAuth = () => {
@@ -33,6 +35,8 @@ export const useAuth = () => {
       const decoded = decodeUserFromToken(response.accessToken)
       if (!decoded) throw new Error('Invalid token.')
 
+      // Cache khoá theo ngày / chất chứ không theo tài khoản: phiên mới không được thấy dữ liệu của tài khoản trước
+      queryClient.clear()
       setUser(decoded, response.accessToken)
       toast.success(`Welcome back, ${decoded.name}!`)
       return response
@@ -47,6 +51,9 @@ export const useAuth = () => {
       logger.error('Logout API error:', error)
     } finally {
       clearAuth()
+      queryClient.clear()
+      // Bản nháp wizard thiết lập (sessionStorage) không được sống sót sau đăng xuất
+      clearAllDrafts()
       toast.info('Signed out')
       router.push(routePath.login)
     }

@@ -3,13 +3,14 @@
 import { useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/date'
-import { WEEKDAY_LABELS, type CalendarDay } from '../../habits.utils'
+import { dayOfWeekOf } from '@/lib/week'
+import type { CalendarDay } from '../../habits.utils'
 
 /** Quãng vuốt ngang tối thiểu (px) để tính là chuyển tháng. */
 const SWIPE_MIN_PX = 48
 
 interface HabitCalendarProps {
-  /** Lưới 6 × 7 của tháng đang xem. */
+  /** Lưới 6 × 7 của tháng đang xem; hàng nhãn thứ lấy từ chính bảy ô đầu nên luôn khớp ngày đầu tuần của lưới. */
   readonly grid: readonly CalendarDay[]
   /** Đổi theo tháng: dựng lại lưới để chạy hoạt ảnh trượt. */
   readonly monthKey: string
@@ -26,7 +27,7 @@ interface HabitCalendarProps {
 
 /**
  * Lịch tháng kiểu MacroFactor: mỗi ngày một vòng tròn mảnh; ngày đã thực hiện có vòng xanh dày (hiện ra bằng fade + phóng nhẹ), hôm
- * nay có chấm nhỏ dưới số, ngày tương lai trong tháng vẫn đủ vòng như MacroOS (chỉ không bấm được), ngày của tháng kề mờ và không vòng. Hàng Mon → Sun nằm dưới lưới.
+ * nay có chấm nhỏ dưới số, ngày tương lai trong tháng vẫn đủ vòng như MacroOS (chỉ không bấm được), ngày của tháng kề mờ và không vòng. Hàng nhãn thứ (từ ngày đầu tuần của user) nằm dưới lưới.
  */
 export function HabitCalendar({
   grid,
@@ -122,8 +123,8 @@ export function HabitCalendar({
         })}
       </div>
       <div className="text-muted-foreground mt-3 grid grid-cols-7 text-center text-sm">
-        {WEEKDAY_LABELS.map((weekday) => (
-          <span key={weekday}>{weekday}</span>
+        {grid.slice(0, 7).map(({ iso }) => (
+          <span key={iso}>{dayOfWeekOf(iso).slice(0, 3)}</span>
         ))}
       </div>
     </div>

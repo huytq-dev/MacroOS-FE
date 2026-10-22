@@ -1,8 +1,9 @@
-import { BalanceTag, signedKcal } from './EnergyBalanceInsights'
-import { monthTitle } from '../../hooks/use-weight-trend-detail'
+import { BalanceTag, signedEnergy } from './EnergyBalanceInsights'
+import { formatMonthYear } from '@/lib/date'
+import { formatWeekdayMonthDay } from '@/lib/week'
+import { useUnits } from '@/features/users/hooks/use-units'
 import type { BalanceHistoryDay } from '../../hooks/use-energy-balance-detail'
 import type { BalanceMode } from '../../dashboard.utils'
-import { shortDay } from '../../expenditure.utils'
 
 interface BalanceHistoryProps {
   readonly mode: BalanceMode
@@ -15,6 +16,7 @@ interface BalanceHistoryProps {
  * (hoặc "▼ Below Target" ở tab Calorie Targets). Tháng và dòng hiện lần lượt.
  */
 export function BalanceHistory({ mode, history }: BalanceHistoryProps) {
+  const { energy } = useUnits()
   if (history.length === 0) return null
   const months = new Map<string, BalanceHistoryDay[]>()
   for (const day of history) {
@@ -24,8 +26,8 @@ export function BalanceHistory({ mode, history }: BalanceHistoryProps) {
   return (
     <div className="space-y-6">
       {[...months.entries()].map(([key, items]) => (
-        <section key={key} aria-label={monthTitle(key)} className="space-y-3">
-          <h2 className="text-xl font-bold">{monthTitle(key)}</h2>
+        <section key={key} aria-label={formatMonthYear(key)} className="space-y-3">
+          <h2 className="text-xl font-bold">{formatMonthYear(key)}</h2>
           <ul className="bg-card divide-foreground/10 divide-y overflow-hidden rounded-xl">
             {items.map((day, index) => (
               <li
@@ -34,8 +36,8 @@ export function BalanceHistory({ mode, history }: BalanceHistoryProps) {
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
                 <div>
-                  <p className="text-lg tabular-nums">{signedKcal(day.difference)}</p>
-                  <p className="text-muted-foreground">{shortDay(day.date)}</p>
+                  <p className="text-lg tabular-nums">{signedEnergy(day.difference, energy)}</p>
+                  <p className="text-muted-foreground">{formatWeekdayMonthDay(day.date)}</p>
                 </div>
                 <BalanceTag mode={mode} trend={day.trend} />
               </li>

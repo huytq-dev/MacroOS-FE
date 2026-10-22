@@ -1,25 +1,26 @@
 'use client'
 
 import { useGoalProgress } from './use-dashboard'
-import { buildWaterfall, goalDuration, optimisticEta, type GoalTab } from '../goal-progress.utils'
-import { useCurrentProgram } from '@/features/program/hooks/use-program'
+import { buildWaterfall, etaViewOf, goalDuration, type GoalTab } from '../goal-progress.utils'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useWeights } from '@/features/weight/hooks/use-weights'
 import { useIsClient } from '@/hooks/use-is-client'
 import { todayIso } from '@/lib/date'
 
 /**
- * Gom dữ liệu trang Goal Progress: goal (`GET /goals/progress`: ngày bắt đầu, cân bắt đầu, cân mục tiêu), các lần cân từ lúc
- * bắt đầu (`GET /weights`) và tốc độ mong muốn của program. Thác nước, khoảng cách, thời lượng và ETA lạc quan tính ở FE
- * theo từng tab (số cân thô / xu hướng).
+ * Gom dữ liệu trang Goal Progress: goal (`GET /goals/progress`: ngày bắt đầu, cân bắt đầu, cân mục tiêu, các tuần `weeks` theo trend) và
+ * tốc độ mong muốn của program. Tab Trend vẽ thác nước thẳng từ `weeks` của BE; tab Scale (BE chưa có chuỗi cân thô) gom từ các lần
+ * cân từ lúc bắt đầu (`GET /weights`). Khoảng cách, thời lượng và ETA lạc quan tính ở FE.
  */
 export function useGoalProgressDetail(tab: GoalTab) {
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
   const goal = useGoalProgress()
-  const program = useCurrentProgram()
-  const weights = useWeights(goal.data ? goal.data.startDate : null, today)
+  const { weight } = useUnits()
+  // Chỉ tab Scale cần các lần cân thật; tab Trend dùng `weeks` của BE nên không tải thêm
+  const weights = useWeights(goal.data && tab === 'scale' ? goal.data.startDate : null, today)
 
-  if (!today || goal.isLoading || program.isLoading || (goal.data && weights.isLoading))
+  if (!today || goal.isLoading || (goal.data && weights.isLoading))
     return { status: 'loading' as const }
   if (goal.isError || weights.isError) return { status: 'error' as const }
 
@@ -30,22 +31,27 @@ export function useGoalProgressDetail(tab: GoalTab) {
     return { status: 'empty' as const }
 
   const entries = weights.data?.items ?? []
-  const { bars, distance } = buildWaterfall({
+  const { bars, distance, reached, pastKg } = buildWaterfall({
     startKg,
     targetKg,
     startDate: data.startDate,
     today,
     entries,
     tab,
+    weeks: tab === 'trend' ? data.weeks : null,
+    weight,
   })
 
   return {
     status: 'ready' as const,
     bars,
     distance,
+    reached,
+    pastKg,
     startDate: data.startDate,
     targetKg,
     duration: goalDuration(data.startDate, today),
-    eta: optimisticEta(today, distance, program.data?.weeklyWeightChangeTargetKg ?? 0),
+    // ETA do BE quyết (ngày / đã đạt / lý do không có): FE không tự tính "Optimistic ETA" từ tốc độ program nữa
+    eta: etaViewOf(data),
   }
 }

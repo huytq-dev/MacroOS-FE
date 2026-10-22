@@ -1,4 +1,5 @@
 import type { GoalKind } from '@/features/nutrition/goal-progress'
+import type { TargetProvenance } from '@/features/nutrition/target-provenance'
 
 // Khớp BE Contract/Models/Expenditure/ExpenditureModels.cs
 export interface ExpenditurePoint {
@@ -8,19 +9,9 @@ export interface ExpenditurePoint {
   avgCaloriesConsumed: number
   weightChangeRateKgPerWeek: number | null
   windowDays: number
-  /** Dải flux (BE sẽ bổ sung); chưa có thì FE tự ước. */
-  fluxLowKcal?: number | null
-  fluxHighKcal?: number | null
-}
-
-/** Trạng thái điểm: Updating = đang cập nhật (vòng tròn); Holding/Calibrating = số không đang cập nhật (ô vuông). */
-export type ExpenditureStatus = 'Calibrating' | 'Updating' | 'Holding'
-
-export interface ExpenditureChange {
-  days: number
-  /** null khi Waiting (chưa có điểm ở mốc đó hoặc mốc trước ngày bắt đầu theo dõi). */
-  deltaKcal: number | null
-  status: 'Ready' | 'Waiting'
+  /** Dải flux (khoảng bất định của ước lượng); BE luôn gửi khoá, null khi chưa tính được. */
+  fluxLowKcal: number | null
+  fluxHighKcal: number | null
 }
 
 export interface ExpenditureSeries {
@@ -30,25 +21,29 @@ export interface ExpenditureSeries {
   points: ExpenditurePoint[]
 }
 
-// Khớp BE Contract/Models/Expenditure/ExpenditureModels.cs (DailyProgressModel).
-// isLogged và estimatedTdeeKcal: BE sẽ bổ sung; chưa có thì FE suy ra (đã ăn > 0 = đã log, TDEE hiện tại).
+// Khớp BE Contract/Models/Expenditure/DailyProgressModel.cs.
 export interface DailyProgress {
   snapshotDate: string
+  /** Ngày có FoodLog; false = chưa log (hiện "–" / N/A), khác với log 0 kcal. */
+  isLogged: boolean
   caloriesConsumed: number
   caloriesTarget: number
+  /** VERIFIED | LEGACY_UNVERIFIED | null (chưa có program phủ ngày): LEGACY_UNVERIFIED chỉ để tham khảo, KHÔNG dùng tính tỉ lệ đạt / streak / huy hiệu. */
+  targetProvenance?: TargetProvenance | null
   proteinConsumed: number
   carbsConsumed: number
   fatConsumed: number
   trendWeightKg: number | null
   macroProgramWeekId: string | null
-  isLogged?: boolean
-  estimatedTdeeKcal?: number | null
+  /** TDEE ước lượng cùng ngày (Energy Balance chế độ Expenditure); null khi chưa có snapshot. */
+  estimatedTdeeKcal: number | null
 }
 
 export interface NutrientDef {
   key: string
   name: string
-  unit: 'kcal' | 'g' | 'mg' | 'mcg'
+  /** Danh mục luôn ghi calo là 'kcal' (đơn vị của BE); 'kJ' chỉ xuất hiện ở bản đã đổi sang đơn vị hiển thị của user (`displayAmount`). */
+  unit: 'kcal' | 'kJ' | 'g' | 'mg' | 'mcg'
   /** Kỳ hiển thị trên ô; mặc định "Hôm nay". */
   period?: string
 }
@@ -69,7 +64,7 @@ export interface NutrientValue {
   target: number | null
   ceiling: number | null
   /** Loại mục tiêu BE phân loại (quyết định mốc nào được vẽ). */
-  goalKind?: GoalKind | null
+  goalKind: GoalKind
   /** false = BE chưa có dữ liệu chất này hôm nay (`amount` null): ô hiện "---" thay vì 0. Mặc định có. */
   known?: boolean
 }
@@ -117,7 +112,7 @@ export interface NutrientModel {
   floor: number | null
   target: number | null
   ceiling: number | null
-  goalKind?: GoalKind | null
+  goalKind: GoalKind
 }
 
 export interface NutrientsResponse {
@@ -125,14 +120,32 @@ export interface NutrientsResponse {
   items: NutrientModel[]
 }
 
-// Khớp BE Contract/Models/Metrics/MetricsModels.cs (GoalProgressResponse); trục cân nặng của BE là xu hướng (trend).
+/** Một tuần của thác nước Goal Progress do BE tính (tuần = 7 ngày kể từ `startDate`, theo TREND): `trendKg` null = tuần không có cân. */
+export interface GoalWeek {
+  weekStart: string
+  trendKg: number | null
+  /** Chênh so với tuần trước có dữ liệu (tuần đầu so với cân lúc bắt đầu); âm = giảm. */
+  deltaKg: number | null
+}
+
+// Khớp BE Contract/Models/Metrics/GoalProgressResponse.cs; trục cân nặng của BE là xu hướng (trend).
 export interface GoalProgress {
   goalType: string
   startDate: string
   startWeightKg: number | null
   targetWeightKg: number | null
   currentTrendKg: number | null
+  /** % quãng đường 0–100 (1 chữ số thập phân) do BE tính; null khi thiếu số hoặc không có cân mục tiêu (Maintenance): hiện "---", FE không tự tính. */
   progressPercent: number | null
   deviationKg: number | null
+  /** Ngày BE ngoại suy từ tốc độ 14 ngày gần nhất; CHỈ có khi `estimatedCompletionStatus` = Estimated. FE không tự tính ETA. */
   estimatedCompletionDate: string | null
+  /** Estimated | GoalAchieved (không có ngày) | Unavailable (xem `estimatedCompletionReasonCode`) | NotApplicable (Maintenance); thiếu = BE cũ. */
+  estimatedCompletionStatus?: EstimatedCompletionStatus | null
+  /** Khi Unavailable: lý do BE; còn lại null. */
+  estimatedCompletionReasonCode?: string | null
+  weeks: GoalWeek[]
 }
+
+export type EstimatedCompletionStatus =
+  'Estimated' | 'GoalAchieved' | 'Unavailable' | 'NotApplicable'

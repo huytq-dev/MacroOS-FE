@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { Pencil } from 'lucide-react'
 import { routePath } from '@/config/route-path'
+import { formatWeekdayMonthDay } from '@/lib/week'
 import { cn } from '@/lib/utils'
-import { ANGLES, photoOf, weekdayLabel } from '../progress-photos.utils'
+import { ANGLES, photoOf } from '../progress-photos.utils'
 import type { PhotoSession } from '../types/progress-photos.types'
 
 interface SessionRowProps {
@@ -44,12 +45,12 @@ export function SessionRow({ session, onEdit }: SessionRowProps) {
           ))}
         </span>
         <span className="text-muted-foreground ml-auto truncate text-base tabular-nums">
-          {weekdayLabel(session.date)}
+          {formatWeekdayMonthDay(session.date)}
         </span>
       </Link>
       <button
         type="button"
-        aria-label={`Edit photos from ${weekdayLabel(session.date)}`}
+        aria-label={`Edit photos from ${formatWeekdayMonthDay(session.date)}`}
         onClick={() => onEdit(session)}
         className="focus-visible:ring-ring/50 group flex size-11 shrink-0 items-center justify-center rounded-full focus-visible:ring-1 focus-visible:outline-none"
       >

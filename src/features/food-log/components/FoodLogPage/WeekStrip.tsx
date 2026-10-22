@@ -2,31 +2,25 @@
 
 import { useLayoutEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { addDaysIso } from '@/lib/date'
+import { useUnits } from '@/features/users/hooks/use-units'
+import { addDaysIso, daysBetween } from '@/lib/date'
+import { DAYS_PER_WEEK, dayOfWeekOf, weekDates, weekdayIndex, weekStartOf } from '@/lib/week'
 import { cn } from '@/lib/utils'
 import type { WeekDay } from '../../types/food-log.types'
 
-export const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
-
 /** Số tuần trước/sau tuần hôm nay mà thanh tuần và lịch dựng sẵn. */
-export const WEEKS_EACH_SIDE = 26
+const WEEKS_EACH_SIDE = 26
 
-/** Vị trí 0–6 (Thứ Hai = 0) của ngày trong tuần. */
-const weekdayIndex = (iso: string) => (new Date(`${iso}T00:00:00`).getDay() + 6) % 7
+const weeksBetween = (fromStart: string, toStart: string) =>
+  Math.round(daysBetween(fromStart, toStart) / DAYS_PER_WEEK)
 
-/** Thứ Hai của tuần chứa `iso`. */
-export const mondayOf = (iso: string) => addDaysIso(iso, -weekdayIndex(iso))
-
-const weeksBetween = (fromMonday: string, toMonday: string) =>
-  Math.round((Date.parse(toMonday) - Date.parse(fromMonday)) / (7 * 24 * 60 * 60 * 1000))
-
-/** Các Thứ Hai từ 26 tuần trước tới 26 tuần sau `anchor`, nới thêm nếu tuần `include` nằm ngoài khoảng đó. */
+/** Ngày đầu tuần từ 26 tuần trước tới 26 tuần sau `anchor`, nới thêm nếu tuần `include` nằm ngoài khoảng đó (cả hai là ngày đầu tuần). */
 export const weeksAround = (anchor: string, include: string) => {
   const offset = weeksBetween(anchor, include)
   const first = Math.min(-WEEKS_EACH_SIDE, offset)
   const last = Math.max(WEEKS_EACH_SIDE, offset)
   return Array.from({ length: last - first + 1 }, (_, index) =>
-    addDaysIso(anchor, (first + index) * 7)
+    addDaysIso(anchor, (first + index) * DAYS_PER_WEEK)
   )
 }
 
@@ -38,8 +32,7 @@ export const kcalPercent = (day: WeekDay | undefined, today: string | null) => {
   return Math.min(100, (day.totals.calories / goal) * 100)
 }
 
-export const prefersReducedMotion = () =>
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 interface DayPillProps {
   readonly day: string
@@ -108,8 +101,8 @@ interface WeekStripProps {
   readonly scrolling: 'Daily' | 'Weekly'
   /** Tổng theo ngày (map iso → WeekDay) cho vòng kcal. */
   readonly days: Readonly<Record<string, WeekDay>>
-  /** Báo các tuần (Thứ Hai) đang thấy để trang cha tải số liệu vòng kcal. */
-  readonly onWeeksView: (mondays: readonly string[]) => void
+  /** Báo các tuần (ngày đầu tuần theo cài đặt của user) đang thấy để trang cha tải số liệu vòng kcal. */
+  readonly onWeeksView: (weekStarts: readonly string[]) => void
 }
 
 /** Quãng kéo chuột tối thiểu để tính là vuốt (cảm ứng dùng cuộn gốc có quán tính). */
@@ -118,7 +111,7 @@ const SWIPE_MIN_PX = 40
 type TodaySide = 'left' | 'right' | null
 
 /**
- * Thanh tuần cuộn ngang kiểu MacroFactor: các tuần Mo→Su xếp liền (±26 tuần quanh hôm nay), cuộn gốc có quán tính và
+ * Thanh tuần cuộn ngang kiểu MacroFactor: các tuần bắt đầu từ ngày đầu tuần của user (Profile) xếp liền (±26 tuần quanh hôm nay), cuộn gốc có quán tính và
  * scroll-snap theo tuần (Weekly) hoặc theo ngày (Daily). Vuốt chỉ xem tuần khác, không đổi ngày đang chọn. Khi hôm nay ra
  * khỏi khung, nút trắng ‹ / › đè lên viên đầu / cuối phía hôm nay; bấm thì cuộn mượt về tuần hôm nay.
  */
@@ -128,14 +121,17 @@ export function WeekStrip({ date, today, onSelect, scrolling, days, onWeeksView 
   // Chuột không có cuộn ngang gốc: kéo đủ xa thì cuộn một bước, và chặn cú click ngay sau đó.
   const drag = useRef<{ x: number; swiped: boolean } | null>(null)
   const [todaySide, setTodaySide] = useState<TodaySide>(null)
-  const weeks = weeksAround(mondayOf(today ?? date), mondayOf(date))
-  const columnOf = (iso: string) => weeks.indexOf(mondayOf(iso)) * 7 + weekdayIndex(iso)
+  const { weekStartDay } = useUnits()
+  const startOf = (iso: string) => weekStartOf(iso, weekStartDay)
+  const weeks = weeksAround(startOf(today ?? date), startOf(date))
+  const columnOf = (iso: string) =>
+    weeks.indexOf(startOf(iso)) * 7 + weekdayIndex(iso, weekStartDay)
 
-  const scrollToWeek = (monday: string, smooth: boolean) => {
+  const scrollToWeek = (weekStart: string, smooth: boolean) => {
     const element = scroller.current
     if (!element) return
     element.scrollTo({
-      left: weeks.indexOf(monday) * element.clientWidth,
+      left: weeks.indexOf(weekStart) * element.clientWidth,
       behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'instant',
     })
   }
@@ -164,7 +160,7 @@ export function WeekStrip({ date, today, onSelect, scrolling, days, onWeeksView 
     const visible =
       left >= element.scrollLeft - 1 &&
       left + column <= element.scrollLeft + element.clientWidth + 1
-    if (!mounted.current || !visible) scrollToWeek(mondayOf(date), mounted.current)
+    if (!mounted.current || !visible) scrollToWeek(startOf(date), mounted.current)
     mounted.current = true
     onScroll()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy lại khi ngày chọn đổi
@@ -207,32 +203,29 @@ export function WeekStrip({ date, today, onSelect, scrolling, days, onWeeksView 
         }}
         className="flex snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden"
       >
-        {weeks.map((monday) => (
+        {weeks.map((weekStart) => (
           <div
-            key={monday}
+            key={weekStart}
             className={cn(
               'grid w-full shrink-0 grid-cols-7',
               scrolling === 'Weekly' && 'snap-start snap-always'
             )}
           >
-            {WEEKDAYS.map((label, index) => {
-              const day = addDaysIso(monday, index)
-              return (
-                <div
-                  key={day}
-                  className={cn('flex justify-center', scrolling === 'Daily' && 'snap-start')}
-                >
-                  <DayPill
-                    day={day}
-                    weekday={label}
-                    selected={day === date}
-                    isToday={day === today}
-                    percent={kcalPercent(days[day], today)}
-                    onSelect={onSelect}
-                  />
-                </div>
-              )
-            })}
+            {weekDates(weekStart).map((day) => (
+              <div
+                key={day}
+                className={cn('flex justify-center', scrolling === 'Daily' && 'snap-start')}
+              >
+                <DayPill
+                  day={day}
+                  weekday={dayOfWeekOf(day).slice(0, 2)}
+                  selected={day === date}
+                  isToday={day === today}
+                  percent={kcalPercent(days[day], today)}
+                  onSelect={onSelect}
+                />
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -247,7 +240,7 @@ export function WeekStrip({ date, today, onSelect, scrolling, days, onWeeksView 
           <button
             type="button"
             aria-label="Back to this week"
-            onClick={() => scrollToWeek(mondayOf(today), true)}
+            onClick={() => scrollToWeek(startOf(today), true)}
             className="bg-foreground text-background focus-visible:ring-ring/50 flex h-[3.75rem] w-11 items-center justify-center rounded-full transition-transform duration-150 focus-visible:ring-2 focus-visible:outline-none active:scale-95"
           >
             {todaySide === 'left' ? (

@@ -8,28 +8,29 @@ import {
   type MetricValues,
 } from '../components/BodyMetricPage'
 import { useDeleteWeight, useUpsertWeight, useWeightHistory } from '../hooks/use-weights'
-import { bodyFatValueSchema, LB_PER_KG, weightValueSchema } from '../schemas/body-metric.schema'
+import { bodyFatValueSchema, weightValueSchema } from '../schemas/body-metric.schema'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ScaleIcon } from '@/features/dashboard/components/DetailPage'
 import { usePersistedChoice } from '@/features/dashboard/hooks/use-dashboard'
-import { useProfile } from '@/features/users/hooks/use-profile'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { useIsClient } from '@/hooks/use-is-client'
 import { formatDate, todayIso } from '@/lib/date'
+import { kgToSend, roundTo } from '@/lib/units'
 
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
-const round1 = (value: number) => Math.round(value * 10) / 10
 
 /**
  * Trang Scale Weight (bấm ô Scale Weight ở Dashboard): biểu đồ + lịch sử số cân, bảng nhập Weight + Body Fat (% mỡ đo bằng cân,
- * BE lưu kèm ngày cân, tách khỏi Visual Body Fat). kg/lb theo hồ sơ, chỉ đổi khi hiển thị/nhập; BE luôn nhận kg.
+ * BE lưu kèm ngày cân, tách khỏi Visual Body Fat). kg/lb theo hồ sơ, chỉ đổi khi hiển thị/nhập; BE luôn nhận kg (đổi đúng bằng hằng số chung
+ * rồi làm tròn 2 chữ số, không làm tròn trước khi đổi); số cân không đổi thì gửi lại đúng kg đã lưu, không đi vòng qua lb.
  */
 export function ScaleWeightPage() {
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
   const history = useWeightHistory(today)
-  const profile = useProfile()
+  const { weight } = useUnits()
   const [tutorial, setTutorial] = usePersistedChoice(
     'scale-weight.tutorial',
     'show',
@@ -43,9 +44,9 @@ export function ScaleWeightPage() {
   const upsert = useUpsertWeight()
   const remove = useDeleteWeight()
 
-  const unit = profile.data?.unitPreference === 'Imperial' ? 'lb' : 'kg'
-  const toDisplay = (kg: number) => (unit === 'kg' ? kg : round1(kg * LB_PER_KG))
-  const toKg = (value: number) => (unit === 'kg' ? value : round1(value / LB_PER_KG))
+  const unit = weight.unit
+  // Số HIỂN THỊ / điền sẵn: 1 chữ số thập phân; chỉ để nhìn, không bao giờ là số gửi đi
+  const toDisplay = (kg: number) => roundTo(weight.convert(kg), 1)
 
   const items = history.data?.items ?? []
   const points = [...items]
@@ -69,7 +70,7 @@ export function ScaleWeightPage() {
     upsert.mutate(
       {
         logDate: sheetDate,
-        weightKg: toKg(values.weight),
+        weightKg: kgToSend(values.weight, unit, entry?.weightKg),
         notes: entry?.notes ?? null,
         ...(values.bodyFat !== null
           ? { bodyFatPercent: values.bodyFat }

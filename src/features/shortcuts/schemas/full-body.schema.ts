@@ -39,5 +39,3 @@ export const fullBodySchema = z.object({
     .partial()
     .nullable(),
 })
-
-export type FullBodyFormValues = z.infer<typeof fullBodySchema>

@@ -6,6 +6,7 @@ import { SheetFrame } from '@/components/shared/SheetFrame'
 import { WheelPicker, type WheelItem } from '@/components/shared/WheelPicker'
 import { Button } from '@/components/ui/button'
 import { addDaysIso } from '@/lib/date'
+import { relativeDayLabel } from '@/lib/week'
 
 /** Số ngày hiện được ở mỗi phía quanh ngày đang chọn. */
 const DAY_SPAN = 45
@@ -14,17 +15,6 @@ const HOURS: readonly WheelItem<string>[] = Array.from({ length: 24 }, (_, hour)
   const label = `${String(hour).padStart(2, '0')}:00`
   return { value: label, label }
 })
-
-const dayLabel = (iso: string, today: string) => {
-  if (iso === addDaysIso(today, -1)) return 'Yesterday'
-  if (iso === today) return 'Today'
-  if (iso === addDaysIso(today, 1)) return 'Tomorrow'
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
-}
 
 interface DateTimeSheetProps {
   readonly open: boolean
@@ -67,7 +57,7 @@ export function DateTimeSheet({
     { length: DAY_SPAN * 2 + 1 },
     (_, index) => {
       const iso = addDaysIso(date, index - DAY_SPAN)
-      return { value: iso, label: dayLabel(iso, today) }
+      return { value: iso, label: relativeDayLabel(iso, today) }
     }
   )
   // Giữ phút gốc khi giờ không đổi, đổi giờ thì về đầu giờ

@@ -1,21 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { smoothPath } from '../WeightTrendPage/WeightTrendChart'
 import { ChartAxes, PlotClip } from '../../chart/ChartAxes'
-import { PAD, PLOT_W, WIDTH, agoOf, visibleAgo, xOfAgo } from '../../chart/geometry'
+import { PAD, PLOT_W, WIDTH, agoOf, showMarkers, visibleAgo, xOfAgo } from '../../chart/geometry'
 import type { useChartPan } from '../../chart/use-chart-pan'
 import { useTween } from '../../chart/use-tween'
 import { expAxis, type ExpDay } from '../../expenditure-series'
-import { shortDay } from '../../expenditure.utils'
+import { bucketLabel } from '../../expenditure.utils'
 import { cn } from '@/lib/utils'
-
-/** Từng này ô trở xuống thì vẽ marker từng ngày (ô vuông = Holding / Calibrating, vòng tròn = Updating), nhiều hơn chỉ vẽ dải và đường. */
-const MARKER_MODE_MAX = 14.5
 
 interface ExpenditureChartProps {
   /** TOÀN BỘ chuỗi từng ngày (cũ → mới), biểu đồ tự lấy phần đang hiện. */
   readonly days: readonly ExpDay[]
+  /** Đơn vị của kcal trong `days` (kcal hoặc kJ): chuỗi đã đổi sẵn sang đơn vị này. */
+  readonly unit: string
   readonly today: string
   /** Số ô ngày trải trên vùng vẽ (số thực: chạy mượt khi đổi kỳ). */
   readonly slots: number
@@ -29,13 +27,14 @@ interface ExpenditureChartProps {
 const kcal = (value: number) => Math.round(value).toLocaleString('en-US')
 
 /**
- * Biểu đồ Expenditure kiểu MacroFactor: Flux Range là MỘT vùng cam mờ liền (mép trên / dưới cong mượt, hai đầu thẳng đứng), đường
- * Expenditure màu cam có marker mỗi ngày (ô vuông rỗng = Holding / Calibrating, vòng tròn rỗng = Updating). Kéo ngang để xem các ngày
- * trước (quán tính, bám theo ngày); đổi kỳ thì trục x giãn / co mượt, trục y luôn vừa khít dải Flux trong khung (chạy mượt khi kéo / đổi kỳ); chạm một ngày để xem
- * kcal, Flux low–high và trạng thái.
+ * Biểu đồ Expenditure kiểu MacroFactor: đường Expenditure màu cam (từ ước lượng từng ngày của BE) có marker mỗi ngày (ô vuông rỗng = Holding /
+ * Calibrating, vòng tròn rỗng = Updating, theo trạng thái của BE). KHÔNG vẽ dải Flux (công thức của BE không phải của MacroFactor, docs/UI.md).
+ * Kéo ngang để xem các ngày trước (quán tính, bám theo ngày); đổi kỳ thì trục x giãn / co mượt, trục y luôn vừa khít đường trong khung (chạy mượt khi
+ * kéo / đổi kỳ); chạm một ngày để xem kcal và trạng thái.
  */
 export function ExpenditureChart({
   days,
+  unit,
   today,
   slots,
   pos,
@@ -60,14 +59,9 @@ export function ExpenditureChart({
   const max = useTween(axis.max)
   const y = (value: number) => PAD.top + (1 - (value - min) / (max - min || 1)) * plotH
   const x = (date: string) => xOfAgo(agoOf(today, date), slots, pos)
-  const markers = slots <= MARKER_MODE_MAX
+  // Marker từng ngày (ô vuông = Holding / Calibrating, vòng tròn = Updating) ở kỳ ngắn, hoặc khi chỉ có MỘT điểm (không có đường / dải)
+  const markers = showMarkers(slots, shown.length)
 
-  const top = shown.map((day) => ({ x: x(day.date), y: y(day.high) }))
-  const bottom = shown.map((day) => ({ x: x(day.date), y: y(day.low) })).reverse()
-  const band =
-    shown.length > 1
-      ? `${smoothPath(top)} L ${bottom[0].x} ${bottom[0].y} ${smoothPath(bottom, false)} Z`
-      : ''
   const line = shown.map((day) => `${x(day.date)},${y(day.kcal)}`).join(' ')
 
   const pick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -121,7 +115,6 @@ export function ExpenditureChart({
               strokeDasharray="3 3"
             />
           )}
-          {band && <path d={band} className="fill-mf-flux-band/50" />}
           {shown.length > 1 && (
             <polyline
               points={line}
@@ -134,12 +127,13 @@ export function ExpenditureChart({
           )}
           {markers &&
             shown.map((day) => {
+              if (day.marker === null) return null
               const size = picked !== null && agoOf(today, day.date) === picked ? 5 : 3.5
               const common = {
                 strokeWidth: 1.5,
                 className: 'fill-background stroke-mf-tile-protein',
               }
-              return day.holding ? (
+              return day.marker === 'square' ? (
                 <rect
                   key={day.date}
                   x={x(day.date) - size}
@@ -172,13 +166,18 @@ export function ExpenditureChart({
           style={{ left: `${Math.min(78, Math.max(22, (selectedX / WIDTH) * 100))}%` }}
           className="bg-popover border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:animation-duration-200 pointer-events-none absolute top-0 -translate-x-1/2 rounded-lg border px-3 py-2 text-center whitespace-nowrap shadow-md"
         >
-          <p className="text-muted-foreground text-xs">{shortDay(selected.date)}</p>
+          <p className="text-muted-foreground text-xs">
+            {bucketLabel(selected.date, selected.end, selected.days)}
+          </p>
           <p className="text-sm font-medium tabular-nums">
-            {kcal(selected.kcal)} kcal{selected.holding ? ` · ${selected.status}` : ''}
+            {kcal(selected.kcal)} {unit}
+            {selected.status === 'Mixed' || selected.holding ? ` · ${selected.status}` : ''}
           </p>
-          <p className="text-muted-foreground text-xs tabular-nums">
-            Flux {kcal(selected.low)} – {kcal(selected.high)}
-          </p>
+          {selected.status === 'Mixed' && (
+            <p className="text-muted-foreground text-xs tabular-nums">
+              {selected.updatingDays} Updating · {selected.otherDays} Holding / Calibrating
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -1,8 +1,9 @@
 import type { FoodDetail, FoodServing } from '@/features/foods/types/food.types'
-import { parseQuantity, roundTo } from './components/FoodLogPage/FoodDetail/food-detail.utils'
+import { GRAMS_PER_OUNCE, GRAMS_PER_POUND, roundTo } from '@/lib/units'
+import { parseQuantity } from './components/FoodLogPage/FoodDetail/food-detail.utils'
 
 /** Gram của một đơn vị khối lượng / thể tích chuẩn (thể tích cần `gramsPerMl` của món). */
-const GRAMS = { g: 1, oz: 28.3495, lb: 453.592 } as const
+const GRAMS = { g: 1, oz: GRAMS_PER_OUNCE, lb: GRAMS_PER_POUND } as const
 const ML = { ml: 1, tsp: 4.92892, tbsp: 14.7868, floz: 29.5735, cup: 236.588 } as const
 
 export interface IngredientUnit {

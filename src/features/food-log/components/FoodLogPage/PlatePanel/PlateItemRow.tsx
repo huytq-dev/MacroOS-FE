@@ -1,6 +1,7 @@
 'use client'
 
 import { Flame } from 'lucide-react'
+import { Energy } from '@/components/shared/Energy'
 import { FoodIcon } from '@/components/shared/FoodIcon'
 import { SwipeToDelete } from '@/components/shared/SwipeToDelete'
 import { cn } from '@/lib/utils'
@@ -56,7 +57,7 @@ export function PlateItemRow({
         <p className="truncate text-base leading-snug font-medium">{item.name}</p>
         <p className="text-muted-foreground flex items-center gap-x-2 text-[13px] whitespace-nowrap tabular-nums">
           <span className="inline-flex items-center">
-            {Math.round(item.calories)}
+            <Energy kcal={item.calories} />
             <Flame aria-hidden="true" fill="currentColor" className="size-3.5" />
           </span>
           <span>{Math.round(item.protein)}P</span>

@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { FoodList } from '@/features/foods/components/FoodList'
 import type { FavoriteFood } from '@/features/foods/types/favorite.types'
 import {
+  scaleExact,
   scaleNutrition,
   servingAmountLabel,
   type FoodSummary,
@@ -158,10 +159,10 @@ export function LibraryPanel({
         ? food.defaultServingName
         : `${food.defaultServingGrams} g`,
       quantity: food.defaultServingId ? 1 : food.defaultServingGrams,
-      calories: scaleNutrition(food.caloriesPer100g, food.defaultServingGrams),
-      protein: scaleNutrition(food.proteinPer100g, food.defaultServingGrams),
-      carbs: scaleNutrition(food.carbsPer100g, food.defaultServingGrams),
-      fat: scaleNutrition(food.fatPer100g, food.defaultServingGrams),
+      calories: scaleExact(food.caloriesPer100g, food.defaultServingGrams),
+      protein: scaleExact(food.proteinPer100g, food.defaultServingGrams),
+      carbs: scaleExact(food.carbsPer100g, food.defaultServingGrams),
+      fat: scaleExact(food.fatPer100g, food.defaultServingGrams),
       emoji: food.emoji ?? null,
       iconKey: food.iconKey ?? null,
       grams: food.defaultServingGrams,

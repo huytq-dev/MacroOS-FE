@@ -1,3 +1,4 @@
+import { Energy } from '@/components/shared/Energy'
 import { cn } from '@/lib/utils'
 
 interface FoodMacroRowProps {
@@ -25,7 +26,7 @@ export function FoodMacroRow({ calories, protein, fat, carbs, shares }: FoodMacr
     <div className="flex items-end justify-between gap-4 py-5">
       <div>
         <p className="font-display text-[40px] leading-none font-extrabold tabular-nums">
-          {Math.round(calories)}
+          <Energy kcal={calories} />
         </p>
         <p className="text-muted-foreground mt-1 text-sm">Calories</p>
       </div>

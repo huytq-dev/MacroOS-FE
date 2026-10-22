@@ -3,6 +3,7 @@ import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { StepHeading } from '@/features/onboarding/components/OnboardingPage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DAY_OF_WEEK } from '@/config/enums'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { cn } from '@/lib/utils'
 import { macrosOf, maxProteinPerKg, type DayParams, type EditableDay } from '../../utils/day-macros'
 import { WeekMacroChart } from '../ProgramPage/WeekMacroChart'
@@ -43,6 +44,8 @@ export function EditorStep({
   error,
   onRetry,
 }: EditorStepProps) {
+  // Ô calo nhập / hiện theo kcal hoặc kJ của user; trạng thái và BE vẫn là kcal
+  const { energy } = useUnits()
   const day = days?.[selected]
   const chartDays = days?.map((item) => ({
     kcal: item.kcal,
@@ -117,11 +120,11 @@ export function EditorStep({
           >
             <NumberField
               label="Calorie targets"
-              value={day.kcal}
-              unit="kcal"
-              hint={`Set between 0 and ${Math.round(kcalMax)} kcal`}
-              onChange={(kcal) => {
-                const next = Math.min(Math.max(kcal, 0), kcalMax)
+              value={energy.convert(day.kcal)}
+              unit={energy.unit}
+              hint={`Set between 0 and ${Math.round(energy.convert(kcalMax))} ${energy.unit}`}
+              onChange={(shown) => {
+                const next = Math.min(Math.max(energy.revert(shown), 0), kcalMax)
                 onChange(selected, {
                   kcal: next,
                   proteinPerKg: Math.min(

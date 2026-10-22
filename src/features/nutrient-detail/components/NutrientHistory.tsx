@@ -1,14 +1,16 @@
 import type { NutrientInfo } from '../nutrient-detail.utils'
-import type { NutrientSeriesDay } from '../types/nutrient-detail.types'
+import type { NutrientSeriesPoint } from '../types/nutrient-detail.types'
+import { GoalPercent } from '@/features/nutrition/GoalPercent'
 import { NutrientGoalBar } from '@/features/nutrition/NutrientGoalBar'
-import { goalPercent, goalScaleMax, hasGoal, primaryGoal } from '@/features/nutrition/goal-progress'
+import { goalScaleMax, hasGoal, primaryGoal } from '@/features/nutrition/goal-progress'
 import { formatAmount } from '@/features/nutrition/nutrient-display'
-import { entryDayLabel, groupByMonth } from '@/features/weight/body-metric.utils'
+import { groupByMonth } from '@/features/weight/body-metric.utils'
+import { formatWeekdayMonthDay } from '@/lib/week'
 
 interface NutrientHistoryProps {
   readonly info: NutrientInfo
   /** Từng ngày (cũ → mới); chỉ ngày đã log được liệt kê. */
-  readonly days: readonly NutrientSeriesDay[]
+  readonly days: readonly NutrientSeriesPoint[]
 }
 
 /**
@@ -31,7 +33,6 @@ export function NutrientHistory({ info, days }: NutrientHistoryProps) {
             {month.items.map((day, index) => {
               const amount = day.amount ?? 0
               const target = primaryGoal(day)
-              const percent = goalPercent(day, amount)
               return (
                 <li
                   key={day.date}
@@ -39,15 +40,18 @@ export function NutrientHistory({ info, days }: NutrientHistoryProps) {
                   style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                 >
                   <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 text-base">
-                    <span className="whitespace-nowrap">{entryDayLabel(day.date)}</span>
+                    <span className="whitespace-nowrap">{formatWeekdayMonthDay(day.date)}</span>
                     <span className="text-center tabular-nums">
                       {target !== null
                         ? `${formatAmount(amount, nutrient.unit)} / ${formatAmount(target, nutrient.unit)} ${nutrient.unit}`
                         : `${formatAmount(amount, nutrient.unit)} ${nutrient.unit}`}
                     </span>
-                    <span className="text-muted-foreground text-right tabular-nums">
-                      {percent !== null ? `${percent}%` : 'No Target'}
-                    </span>
+                    <GoalPercent
+                      goal={day}
+                      consumed={amount}
+                      fallback="No Target"
+                      className="text-right"
+                    />
                   </div>
                   {hasGoal(day) && (
                     <div className="mt-3">

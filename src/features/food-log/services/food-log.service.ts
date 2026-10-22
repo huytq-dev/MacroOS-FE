@@ -3,6 +3,7 @@ import { apiRoutes } from '@/config/api-routes'
 import type { QueryResult } from '@/types/api'
 import type { FoodLogSettings } from '../food-log-settings'
 import { downscalePhoto } from '../ai-plate.utils'
+import { withoutUnverifiedTarget } from '@/features/nutrition/target-provenance'
 import type {
   AiAnalyzeResponse,
   AiConfirmRequest,
@@ -33,12 +34,18 @@ import type {
 const AI_ANALYZE_TIMEOUT_MS = 60_000
 
 export const foodLogService = {
-  getDay: (date: string) => apiCall.get<DayLog>(apiRoutes.foodLogs.root, { params: { date } }),
+  getDay: async (date: string) => {
+    const day = await apiCall.get<DayLog>(apiRoutes.foodLogs.root, { params: { date } })
+    return day && withoutUnverifiedTarget(day)
+  },
   nutritionOverview: (range: string, date: string) =>
     apiCall.get<NutritionOverviewResponse>(apiRoutes.nutrition.overview, {
       params: { range, date },
     }),
-  getWeek: (date: string) => apiCall.get<WeekLog>(apiRoutes.foodLogs.week, { params: { date } }),
+  getWeek: async (date: string) => {
+    const week = await apiCall.get<WeekLog>(apiRoutes.foodLogs.week, { params: { date } })
+    return week && { ...week, days: week.days.map(withoutUnverifiedTarget) }
+  },
   addEntry: (payload: AddEntryRequest) => apiCall.post<string>(apiRoutes.foodLogs.entries, payload),
   updateEntry: (id: string, payload: UpdateEntryRequest) =>
     apiCall.put(apiRoutes.foodLogs.entry(id), payload),

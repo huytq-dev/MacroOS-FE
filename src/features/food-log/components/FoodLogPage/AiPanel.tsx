@@ -66,8 +66,6 @@ interface AiPanelProps {
   readonly onRetryIngredient: (ingredient: AiIngredient) => void
   readonly onStartOver: () => void
   readonly onLog: (items: PlateItem[], confirmations: AiConfirmIngredient[]) => void
-  /** Chỉ truyền ở dev: xem thiết kế bằng dữ liệu mẫu khi BE chưa có API. */
-  readonly onPreviewSample?: () => void
 }
 
 function PhotoRow({ file, onRemove }: { readonly file: File; readonly onRemove: () => void }) {
@@ -125,7 +123,6 @@ export function AiPanel({
   onRetryIngredient,
   onStartOver,
   onLog,
-  onPreviewSample,
 }: AiPanelProps) {
   const [mode, setMode] = useState<AiMode>('snap')
   const [photos, setPhotos] = useState<File[]>([])
@@ -290,15 +287,6 @@ export function AiPanel({
 
         <div className="space-y-2 px-4 pt-2 pb-4">
           <FormErrorAlert title="Couldn't analyze your meal" message={error} />
-          {onPreviewSample && (
-            <button
-              type="button"
-              onClick={onPreviewSample}
-              className="text-muted-foreground focus-visible:ring-ring/50 block w-full rounded text-center text-sm focus-visible:ring-1 focus-visible:outline-none"
-            >
-              Preview sample
-            </button>
-          )}
           <button
             type="button"
             disabled={!canAnalyze || isAnalyzing}

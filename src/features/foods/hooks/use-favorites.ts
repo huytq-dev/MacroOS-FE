@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { favoriteService } from '../services/favorite.service'
-import type { FavoriteFood } from '../types/favorite.types'
 import { logger } from '@/lib/api'
 
 export const favoriteKeys = { all: ['food-favorites'] as const }
@@ -41,22 +40,3 @@ export const useAddFavorite = () =>
 
 export const useRemoveFavorite = () =>
   useFavoriteMutation(favoriteService.remove, 'Removed from favorites', "Couldn't remove favorite")
-
-/** Sắp xếp lại: cập nhật giao diện trước, lỗi thì tải lại và báo (UI.md mục 22). */
-export const useReorderFavorites = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: favoriteService.reorder,
-    onMutate: async (ids: string[]) => {
-      await queryClient.cancelQueries({ queryKey: favoriteKeys.all })
-      queryClient.setQueryData<FavoriteFood[]>(favoriteKeys.all, (current) =>
-        current ? [...current].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)) : current
-      )
-    },
-    onError: (error) => {
-      logger.error(error)
-      toast.error("Couldn't reorder favorites")
-      void queryClient.invalidateQueries({ queryKey: favoriteKeys.all })
-    },
-  })
-}

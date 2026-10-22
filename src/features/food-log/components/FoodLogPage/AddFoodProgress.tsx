@@ -2,6 +2,8 @@ import { Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { targetRatio } from '@/features/nutrition/goal-progress'
+import { useUnits } from '@/features/users/hooks/use-units'
+import { bannerValue } from '../../food-log-settings'
 import type { MacroTotals } from '../../types/food-log.types'
 
 export type BannerDisplay = 'PlateOnly' | 'AllDayAndPlate' | 'RemainingAfterPlate'
@@ -41,6 +43,11 @@ export function AddFoodProgress({
   display,
   layout = 'stack',
 }: AddFoodProgressProps) {
+  const { energy } = useUnits()
+  // Calo đổi sang kcal / kJ của user (BE luôn kcal) TRƯỚC khi làm tròn, rồi mọi phép "còn lại" tính ở đơn vị đang hiện (`bannerValue` →
+  // `shownProgress`, MỘT quy tắc chung với Daily / Weekly Nutrition và Food Log); macro là gram
+  const shownOf = (cell: Cell) => (value: number) =>
+    Math.round(cell.key === 'calories' ? energy.convert(value) : value)
   const all: (Cell & { on: boolean })[] = [
     {
       key: 'calories',
@@ -67,13 +74,6 @@ export function AddFoodProgress({
   ]
   const cells = all.filter((cell) => cell.on)
   const single = cells.length === 1
-  const valueOf = (cell: Cell) => {
-    const day = totals?.[cell.key] ?? 0
-    const inPlate = plate[cell.key]
-    if (display === 'PlateOnly') return Math.round(inPlate)
-    if (display === 'AllDayAndPlate') return Math.round(day + inPlate)
-    return Math.round((cell.goal ?? 0) - day - inPlate)
-  }
   return (
     <dl
       style={
@@ -89,13 +89,24 @@ export function AddFoodProgress({
       aria-label="Daily progress"
     >
       {cells.map((cell) => {
-        const value = valueOf(cell)
-        const used = display === 'RemainingAfterPlate' ? (cell.goal ?? 0) - value : value
-        const percent = cell.goal ? targetRatio(used, cell.goal).progress * 100 : 0
+        const toShown = shownOf(cell)
+        const goal = cell.goal ? toShown(cell.goal) : null
+        // null = "còn lại" mà chưa có target: hiện "—" và không có thanh (không suy ra số âm từ target 0)
+        const value = bannerValue(
+          display,
+          cell.goal,
+          totals?.[cell.key] ?? 0,
+          plate[cell.key],
+          toShown
+        )
+        const used = display === 'RemainingAfterPlate' ? (goal ?? 0) - (value ?? 0) : (value ?? 0)
+        const percent = goal && value !== null ? targetRatio(used, goal).progress * 100 : 0
         const text =
-          display === 'RemainingAfterPlate'
-            ? `${value} left`
-            : `${value}${cell.goal ? ` / ${Math.round(cell.goal)}` : ''}`
+          value === null
+            ? '—'
+            : display === 'RemainingAfterPlate'
+              ? `${value} left`
+              : `${value}${goal ? ` / ${goal}` : ''}`
         return (
           <div
             key={cell.key}

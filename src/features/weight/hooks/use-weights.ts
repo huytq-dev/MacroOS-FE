@@ -8,13 +8,29 @@ import type {
   UpsertVisualBodyFatRequest,
   UpsertWeightRequest,
 } from '../types/weight.types'
+import { refreshDerivedStatus } from '@/features/derived-data/derived-data.utils'
 import { logger } from '@/lib/api'
 
 export const weightKeys = {
   all: ['weights'] as const,
   range: (from: string, to: string) => ['weights', from, to] as const,
   history: (to: string) => ['weights', 'all', to] as const,
+  habit: (year: number) => ['weights', 'habit', year] as const,
 }
+
+/**
+ * Dữ liệu BE tính từ cân nặng (trend, và expenditure dựng lại từ ngày đó): ghi / xoá cân phải làm mới cả Goal Progress (`['goals']`: các tuần + %),
+ * Expenditure, Energy Balance, check-in (đề xuất theo trend) và hàng % mỡ cân của Full Body, không chỉ danh sách cân (staleTime 5 phút).
+ * MỘT danh sách cho mọi nơi ghi cân: ScaleWeightPage, ScaleWeightSheet, WeightShortcutPage.
+ */
+export const WEIGHT_INVALIDATE = [
+  weightKeys.all,
+  ['goals'],
+  ['expenditure'],
+  ['energy-balance'],
+  ['check-in'],
+  ['body-metrics'],
+] as const
 
 export const visualBodyFatKeys = {
   all: ['visual-body-fat'] as const,
@@ -41,6 +57,14 @@ export const useWeightHistory = (today: string | null) =>
     enabled: Boolean(today),
   })
 
+/** Habits Weigh-In của một năm (ngày có cân + streak toàn thời gian); `year` null = chưa cần. Cùng nhóm khoá `weightKeys.all` nên ghi / xoá cân làm mới nó. */
+export const useWeighInHabit = (year: number | null) =>
+  useQuery({
+    queryKey: weightKeys.habit(year ?? 0),
+    queryFn: () => weightService.habit(year ?? 0),
+    enabled: year !== null,
+  })
+
 /** Toàn bộ lịch sử Visual Body Fat tới hôm nay. */
 export const useVisualBodyFat = (today: string | null) =>
   useQuery({
@@ -60,6 +84,9 @@ const useMetricMutation = <TVariables>(
     onSuccess: () => {
       toast.success(successMessage)
       for (const queryKey of invalidate) void queryClient.invalidateQueries({ queryKey })
+      // Ghi / xoá cân làm BE dựng lại expenditure từ ngày đó: đọc trạng thái dựng lại một lần
+      if (invalidate.some((queryKey) => queryKey[0] === 'expenditure'))
+        refreshDerivedStatus(queryClient)
     },
     onError: (error) => {
       logger.error(error)
@@ -75,10 +102,14 @@ export const useUpsertWeight = () =>
   useMetricMutation(
     (payload: UpsertWeightRequest) => weightService.upsert(payload),
     'Weight logged',
-    [weightKeys.all]
+    WEIGHT_INVALIDATE
   )
 export const useDeleteWeight = () =>
-  useMetricMutation((logDate: string) => weightService.remove(logDate), 'Deleted', [weightKeys.all])
+  useMetricMutation(
+    (logDate: string) => weightService.remove(logDate),
+    'Deleted',
+    WEIGHT_INVALIDATE
+  )
 
 export const useUpsertVisualBodyFat = () =>
   useMetricMutation(

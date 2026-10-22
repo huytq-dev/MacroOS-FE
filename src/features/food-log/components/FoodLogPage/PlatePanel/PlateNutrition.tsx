@@ -1,10 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { NutrientGoalBar } from '@/features/nutrition/NutrientGoalBar'
-import { NO_GOAL, primaryGoal, type NutrientGoal } from '@/features/nutrition/goal-progress'
+import {
+  NO_GOAL,
+  goalOfModel,
+  primaryGoal,
+  type NutrientGoal,
+} from '@/features/nutrition/goal-progress'
 import { MACRO_TONE } from '@/features/nutrition/nutrient-display'
+import { useUnits } from '@/features/users/hooks/use-units'
+import { useDebounce } from '@/hooks/use-debounce'
 import { cn } from '@/lib/utils'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { usePlateNutrients } from '../../../hooks/use-food-log'
@@ -42,15 +49,6 @@ interface PlateNutritionProps {
   readonly allowDay?: boolean
 }
 
-/** Cộng lượng từng chất của các dòng plate (dòng không có dữ liệu chất đó coi như 0); dùng khi chưa có số từ BE. */
-function sumNutrients(plate: readonly PlateItem[]) {
-  const sums: Record<string, number> = {}
-  for (const item of plate)
-    for (const [key, amount] of Object.entries(item.nutrients ?? {}))
-      sums[key] = (sums[key] ?? 0) + amount
-  return sums
-}
-
 /** Dòng plate → dòng request của BE: món (serving null = gram), recipe (số khẩu phần), hoặc ước lượng chỉ có macro. */
 const toRequestItem = (item: PlateItem): PlateNutrientsItem =>
   item.recipeId
@@ -68,7 +66,8 @@ const toRequestItem = (item: PlateItem): PlateNutrientsItem =>
 /**
  * Mục Nutrition của Your Plate: công tắc Plate | Day, bốn thẻ Calories / Protein / Fat / Carbs (số, thanh với vạch mục tiêu) và
  * "Show all nutrients" mở đủ các nhóm chất. Số liệu đủ chất (kể cả vi chất của recipe và tổng ngày) lấy từ BE
- * `POST /food-logs/plate/nutrients` theo ngày đang ghi; trong lúc tải hoặc khi lỗi thì dùng số cộng tại chỗ từ các dòng plate.
+ * `POST /food-logs/plate/nutrients` theo ngày đang ghi; trong lúc tải hoặc khi lỗi thì bốn macro dùng số cộng tại chỗ (số thật, chưa làm tròn
+ * từng dòng), các chất khác "---".
  */
 export function PlateNutrition({
   date,
@@ -81,35 +80,22 @@ export function PlateNutrition({
   const [chosenView, setView] = useState<View>('plate')
   const view: View = allowDay ? chosenView : 'plate'
   const [showAll, setShowAll] = useState(false)
+  const { energy } = useUnits()
   const macroGoals = programGoals(target)
-  const remote = usePlateNutrients(
-    { date, items: plate.map(toRequestItem) },
-    showAll || view === 'day'
-  )
+  // Luôn lấy số từ BE (cả chế độ Plate, cả khi "Show all nutrients" tắt) để thẻ không đổi số khi bật/tắt; gõ lượng thì chờ 300 ms mới hỏi lại
+  const requestKey = useDebounce(JSON.stringify(plate.map(toRequestItem)), 300)
+  const items = useMemo<PlateNutrientsItem[]>(() => JSON.parse(requestKey), [requestKey])
+  const remote = usePlateNutrients({ date, items }, plate.length > 0 || view === 'day')
   const rows = view === 'plate' ? remote.data?.plate : remote.data?.day
   const remoteByKey: Record<string, { amount: number | null; goal: NutrientGoal }> = {}
   for (const row of rows ?? [])
-    if (row.key)
-      remoteByKey[row.key] = {
-        amount: row.amount,
-        goal: {
-          floor: row.floor,
-          target: row.target,
-          ceiling: row.ceiling,
-          goalKind: row.goalKind,
-        },
-      }
+    if (row.key) remoteByKey[row.key] = { amount: row.amount, goal: goalOfModel(row) }
 
-  const plateNutrients = sumNutrients(plate)
-  const localValue = (key: string) => {
-    const macro = MACRO_CARDS.some((card) => card.key === key)
-    if (macro) {
-      const plateValue = plateTotals[key as keyof MacroTotals]
-      return view === 'plate'
-        ? plateValue
-        : (dayTotals?.[key as keyof MacroTotals] ?? 0) + plateValue
-    }
-    return plateNutrients[key] ?? 0
+  // Số tạm trong lúc BE chưa trả: chỉ bốn macro (có số thật ở từng dòng); chất khác chưa biết thì null ("---"), không bịa 0
+  const localValue = (key: string): number | null => {
+    if (!MACRO_CARDS.some((card) => card.key === key)) return null
+    const plateValue = plateTotals[key as keyof MacroTotals]
+    return view === 'plate' ? plateValue : (dayTotals?.[key as keyof MacroTotals] ?? 0) + plateValue
   }
   // Số từ BE khi có (amount null = chưa có dữ liệu → "---"), không thì số cộng tại chỗ
   const valueOf = (key: string): number | null =>
@@ -139,16 +125,26 @@ export function PlateNutrition({
         {MACRO_CARDS.map((card) => {
           const goal = goalOf(card.key)
           const reference = primaryGoal(goal)
-          const value = valueOf(card.key) ?? 0
-          // kcal làm tròn nguyên, gram một số lẻ (bỏ ".0"): "618 / 2880 kcal", "16.1 / 137 g"
-          const shown = card.unit === 'kcal' ? Math.round(value) : Number(value.toFixed(1))
+          const amount = valueOf(card.key)
+          const value = amount ?? 0 // chỉ cho thanh; số hiển thị bên dưới giữ null là "---"
+          // kcal / kJ (theo user) làm tròn nguyên, gram một số lẻ (bỏ ".0"): "618 / 2880 kcal", "16.1 / 137 g"; thanh vẫn theo kcal
+          const isEnergy = card.unit === 'kcal'
+          const unit = isEnergy ? energy.unit : card.unit
+          const shown =
+            amount === null
+              ? '---'
+              : isEnergy
+                ? Math.round(energy.convert(amount))
+                : Number(amount.toFixed(1))
+          const shownReference =
+            reference === null ? null : Math.round(isEnergy ? energy.convert(reference) : reference)
           return (
             <li key={card.key} className="bg-card rounded-xl px-4 py-4">
               <p className="text-base font-medium">{card.label}</p>
               <p className="text-muted-foreground mt-1 text-sm tabular-nums">
                 {view === 'plate'
-                  ? `${shown} ${card.unit} in plate`
-                  : `${shown}${reference !== null ? ` / ${Math.round(reference)}` : ''} ${card.unit}`}
+                  ? `${shown} ${unit} in plate`
+                  : `${shown}${shownReference !== null ? ` / ${shownReference}` : ''} ${unit}`}
               </p>
               <div className="mt-4">
                 <NutrientGoalBar

@@ -3,9 +3,10 @@
 import { Slider } from '@/components/ui/slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { DayOfWeek } from '@/config/enums'
+import { SHIFT_PERCENT } from '@/features/program/utils/calorie-shift'
 import { StepHeading } from './ChoiceStep'
 import { OptionCard } from './OptionCard'
-import { DISTRIBUTION_OPTIONS } from '../../types/onboarding-options.types'
+import { DISTRIBUTION_OPTIONS, PROGRAM_STEP_TITLE } from '../../types/onboarding-options.types'
 import type { CalorieShiftMode } from '../../types/onboarding.types'
 
 const DAYS: readonly { value: DayOfWeek; short: string; full: string }[] = [
@@ -39,7 +40,7 @@ export function DistributionStep({
   const invalid = mode === 'Custom' && (days.length < 1 || days.length > 6)
   return (
     <div>
-      <StepHeading title="How do you want to spread your calorie target across the week?" />
+      <StepHeading title={PROGRAM_STEP_TITLE.distribution} />
       <div role="radiogroup" aria-label="Weekly calorie distribution" className="space-y-3">
         {DISTRIBUTION_OPTIONS.map((option, index) => (
           <OptionCard
@@ -85,9 +86,9 @@ export function DistributionStep({
                   </p>
                   <Slider
                     aria-label="Extra calorie percentage on chosen days"
-                    min={5}
-                    max={30}
-                    step={1}
+                    min={SHIFT_PERCENT.min}
+                    max={SHIFT_PERCENT.max}
+                    step={SHIFT_PERCENT.step}
                     value={[percent]}
                     onValueChange={([next]) => onPercentChange(next)}
                     className="py-2"

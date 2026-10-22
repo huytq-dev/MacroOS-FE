@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { ChatBubble, TypingDots } from './ChatBubbles'
+import { ErrorState } from '@/components/shared/ErrorState'
 import { PickerSheet } from '@/components/shared/PickerSheet'
+import { isClientError } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -22,6 +24,10 @@ interface EstimateChatStepProps {
   readonly manualTdee: number | null
   readonly onManualTdeeChange: (value: number) => void
   readonly onNext: () => void
+  /** Lỗi tải ước tính (vd. 400 thiếu câu trả lời): hiện lỗi + Try again thay cho vòng quay vô tận; không bịa số. */
+  readonly error?: unknown
+  readonly isRetrying?: boolean
+  readonly onRetry?: () => void
 }
 
 /** Màn trò chuyện giải thích TDEE (kiểu MacroFactor): bot gõ từng bong bóng, người dùng chọn câu trả lời gợi ý hoặc bỏ qua. */
@@ -31,6 +37,9 @@ export function EstimateChatStep({
   manualTdee,
   onManualTdeeChange,
   onNext,
+  error = null,
+  isRetrying = false,
+  onRetry,
 }: EstimateChatStepProps) {
   const tdee = manualTdee ?? estimate?.tdeeKcal ?? null
   const [path, setPath] = useState<readonly string[]>(['start'])
@@ -78,6 +87,17 @@ export function EstimateChatStep({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [revealed, typing])
 
+  if (error && !estimate)
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2">
+        <ErrorState error={error} variant="inline" onRetry={onRetry} isRetrying={isRetrying} />
+        {isClientError(error) && (
+          <p className="text-muted-foreground max-w-sm px-6 text-center text-sm">
+            Some of your answers may be missing. Go back, complete them, then try again.
+          </p>
+        )}
+      </div>
+    )
   if (isLoading || !estimate || !tdee || !nodes)
     return (
       <div className="flex flex-1 items-center justify-center" aria-busy="true">

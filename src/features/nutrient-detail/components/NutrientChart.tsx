@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import type { NutrientInfo } from '../nutrient-detail.utils'
-import type { NutrientSeriesDay } from '../types/nutrient-detail.types'
+import type { NutrientSeriesPoint } from '../types/nutrient-detail.types'
 import { ChartAxes, PlotClip } from '@/features/dashboard/chart/ChartAxes'
 import { PAD, PLOT_W, WIDTH, agoOf, visibleAgo, xOfAgo } from '@/features/dashboard/chart/geometry'
 import type { useChartPan } from '@/features/dashboard/chart/use-chart-pan'
 import { useTween } from '@/features/dashboard/chart/use-tween'
-import { shortDay } from '@/features/dashboard/expenditure.utils'
+import { bucketLabel } from '@/features/dashboard/expenditure.utils'
 import { niceAxis } from '@/features/dashboard/goal-progress.utils'
-import { normalizeGoal, primaryGoal } from '@/features/nutrition/goal-progress'
+import { goalAxisTop, normalizeGoal } from '@/features/nutrition/goal-progress'
 import { formatAmount } from '@/features/nutrition/nutrient-display'
 import { cn } from '@/lib/utils'
 
@@ -19,7 +19,7 @@ const EMPTY_TOP = 100
 interface NutrientChartProps {
   readonly info: NutrientInfo
   /** TOÀN BỘ ngày (cũ → mới, đã gộp D/W/M): `amount` null = chưa log, không vẽ cột. */
-  readonly days: readonly NutrientSeriesDay[]
+  readonly days: readonly NutrientSeriesPoint[]
   readonly today: string
   /** Số ô ngày trải trên vùng vẽ (số thực: chạy mượt khi đổi kỳ). */
   readonly slots: number
@@ -60,14 +60,9 @@ export function NutrientChart({
     const ago = agoOf(today, day.date)
     return ago >= pos - 0.5 && ago <= pos + slots - 0.5
   })
-  // Trục lấy theo lượng, target và floor trong khung (trần có thể cao hơn nhiều nên không tính)
-  const top = Math.max(
-    0,
-    ...inFrame.flatMap((day) => {
-      const goal = normalizeGoal(day)
-      return [day.amount ?? 0, goal.target ?? 0, goal.floor ?? 0, goal.ceiling ?? 0]
-    })
-  )
+  // Trục lấy theo lượng, target, floor và trần GẦN trong khung. Trần xa (vd. 2000 so với 90) không tính — nếu tính thì cột bị ép xuống
+  // đáy — mà ghi bằng chữ "Limit …" ở chú thích khi chạm một ngày (cùng luật `ceilingDrawn` với thanh mục tiêu)
+  const top = Math.max(0, ...inFrame.flatMap((day) => [day.amount ?? 0, goalAxisTop(day)]))
   const axis = niceAxis(top || EMPTY_TOP)
   const max = useTween(axis.max)
   const y = (value: number) => PAD.top + (1 - value / (max || 1)) * plotH
@@ -92,7 +87,7 @@ export function NutrientChart({
   const selectedX = selected ? x(selected.date) : 0
   const selectedVisible =
     selected !== undefined && selectedX >= PAD.left && selectedX <= PAD.left + PLOT_W
-  const selectedTarget = selected ? primaryGoal(selected) : null
+  const selectedGoal = selected ? normalizeGoal(selected) : null
 
   return (
     <div
@@ -119,7 +114,7 @@ export function NutrientChart({
           today={today}
           slots={slots}
           pos={pos}
-          integerTicks={nutrient.unit === 'kcal'}
+          integerTicks={nutrient.unit === 'kcal' || nutrient.unit === 'kJ'}
         />
 
         <g clipPath="url(#plot-clip)">
@@ -168,15 +163,27 @@ export function NutrientChart({
           style={{ left: `${Math.min(78, Math.max(22, (selectedX / WIDTH) * 100))}%` }}
           className="bg-popover border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:animation-duration-200 pointer-events-none absolute top-0 -translate-x-1/2 rounded-lg border px-3 py-2 text-center whitespace-nowrap shadow-md"
         >
-          <p className="text-muted-foreground text-xs">{shortDay(selected.date)}</p>
+          <p className="text-muted-foreground text-xs">
+            {bucketLabel(selected.date, selected.end ?? selected.date, selected.days ?? 1)}
+          </p>
           <p className="text-sm font-medium tabular-nums">
             {selected.amount === null
               ? 'Not logged'
               : `${formatAmount(selected.amount, nutrient.unit)} ${nutrient.unit}`}
           </p>
-          {selectedTarget !== null && (
+          {selectedGoal?.target != null && (
             <p className="text-muted-foreground text-xs tabular-nums">
-              Target {formatAmount(selectedTarget, nutrient.unit)}
+              Target {formatAmount(selectedGoal.target, nutrient.unit)}
+            </p>
+          )}
+          {selectedGoal?.target == null && selectedGoal?.floor != null && (
+            <p className="text-muted-foreground text-xs tabular-nums">
+              Minimum {formatAmount(selectedGoal.floor, nutrient.unit)}
+            </p>
+          )}
+          {selectedGoal?.ceiling != null && (
+            <p className="text-muted-foreground text-xs tabular-nums">
+              Limit {formatAmount(selectedGoal.ceiling, nutrient.unit)}
             </p>
           )}
         </div>

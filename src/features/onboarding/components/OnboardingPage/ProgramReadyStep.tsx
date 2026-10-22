@@ -2,42 +2,33 @@
 
 import { useEffect, useRef } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { KCAL_PER_GRAM } from '@/features/nutrition/atwater'
+import type { ReviewCopy, ReviewTone } from '@/features/program/utils/review-copy'
+import { dayLetter } from '@/lib/week'
 import { cn } from '@/lib/utils'
 import { StepHeading } from './ChoiceStep'
-import type { ProgramPreview } from '../../types/onboarding.types'
+import type { ProgramPreviewDay } from '../../types/onboarding.types'
 
-const DAY_SHORT: Record<string, string> = {
-  Monday: 'Mon',
-  Tuesday: 'Tue',
-  Wednesday: 'Wed',
-  Thursday: 'Thu',
-  Friday: 'Fri',
-  Saturday: 'Sat',
-  Sunday: 'Sun',
+const TONE_CLASS: Record<ReviewTone, string> = {
+  calories: 'text-mf-tile-calories-text',
+  carbs: 'text-mf-tile-carbs-text',
+  protein: 'text-mf-tile-protein-text',
+  fat: 'text-mf-tile-fat-text',
 }
 const BAR_HEIGHT = 190
 const MIN_SEGMENT = 24
 
 interface ProgramReadyStepProps {
-  readonly preview: ProgramPreview | undefined
-  readonly goalType: 'WeightLoss' | 'Maintenance' | 'WeightGain'
-  readonly ratePercent: number
-  readonly proteinLabel: string
-  readonly dietLabel: string
-  /** Báo khi người dùng đã cuộn tới cuối (mở khoá nút Xong như MacroFactor). */
+  readonly days: readonly ProgramPreviewDay[] | undefined
+  readonly copy: ReviewCopy | undefined
+  /** Báo khi cuối nội dung đã vào khung nhìn (mở khoá nút Done như MacroFactor); gọi lại khi `onReachedEnd` đổi, nên truyền hàm ổn định. */
   readonly onReachedEnd: () => void
 }
 
-/** "Chương trình macro của bạn đã sẵn sàng": biểu đồ 7 ngày (kcal, P, F, C) + 4 bước giải thích cách thiết kế + việc tiếp theo. */
-export function ProgramReadyStep({
-  preview,
-  goalType,
-  ratePercent,
-  proteinLabel,
-  dietLabel,
-  onReachedEnd,
-}: ProgramReadyStepProps) {
+/** "Your macro program is ready": biểu đồ 7 ngày (kcal, P, F, C) + "How was your program designed?" + "What's Next"; chữ giải thích do `reviewCopyOf` dựng theo kiểu program. */
+export function ProgramReadyStep({ days, copy, onReachedEnd }: ProgramReadyStepProps) {
   const endRef = useRef<HTMLDivElement>(null)
+  const ready = days !== undefined && copy !== undefined
 
   useEffect(() => {
     const element = endRef.current
@@ -53,40 +44,9 @@ export function ProgramReadyStep({
     )
     observer.observe(element)
     return () => observer.disconnect()
-  }, [onReachedEnd, preview])
+  }, [onReachedEnd, ready])
 
-  if (!preview) return <Skeleton className="h-96 rounded-2xl" aria-busy="true" />
-
-  const verb = goalType === 'WeightGain' ? 'gain' : goalType === 'WeightLoss' ? 'lose' : 'maintain'
-  const steps = [
-    {
-      title: 'Estimated expenditure',
-      value: `${preview.tdeeKcal} kcal`,
-      tone: 'text-mf-tile-calories-text',
-      text: `As you use MacroOS, your expenditure is continually fine-tuned. Based on your initial info, your daily expenditure is about ${preview.tdeeKcal} kcal.`,
-    },
-    {
-      title: 'Average target',
-      value: `${preview.averageCalories} kcal`,
-      tone: 'text-mf-tile-carbs-text',
-      text:
-        goalType === 'Maintenance'
-          ? `You want to maintain your weight, so your average kcal target equals your expenditure, about ${preview.averageCalories} kcal.`
-          : `You want to ${verb} ${ratePercent.toFixed(2)}% of your body weight per week, so your average daily kcal target is about ${preview.averageCalories} kcal.`,
-    },
-    {
-      title: 'Protein target',
-      value: `${preview.proteinGPerKg.toFixed(2)} g/kg`,
-      tone: 'text-mf-tile-protein-text',
-      text: `With your goal and a ${proteinLabel.toLowerCase()} protein level, eating ${preview.proteinGPerKg.toFixed(2)} g of protein per kg of body weight is a good average for your lifestyle and training.`,
-    },
-    {
-      title: 'Diet style',
-      value: dietLabel,
-      tone: 'text-mf-tile-fat-text',
-      text: `Finally, the remaining kcal are split between carbs and fat following a ${dietLabel.toLowerCase()} diet style.`,
-    },
-  ]
+  if (!days || !copy) return <Skeleton className="h-96 rounded-2xl" aria-busy="true" />
 
   return (
     <div className="space-y-8">
@@ -97,9 +57,13 @@ export function ProgramReadyStep({
           role="img"
           aria-label="Macro targets for the 7 days of the week"
         >
-          {preview.days.map((day, index) => {
-            const total = day.proteinG * 4 + day.fatG * 9 + day.carbsG * 4
-            const segment = (kcal: number) => Math.max(MIN_SEGMENT, (kcal / total) * BAR_HEIGHT)
+          {days.map((day, index) => {
+            const proteinKcal = day.proteinG * KCAL_PER_GRAM.protein
+            const fatKcal = day.fatG * KCAL_PER_GRAM.fat
+            const carbsKcal = day.carbsG * KCAL_PER_GRAM.carbs
+            const total = proteinKcal + fatKcal + carbsKcal
+            const segment = (kcal: number) =>
+              Math.max(MIN_SEGMENT, total > 0 ? (kcal / total) * BAR_HEIGHT : 0)
             return (
               <div
                 key={day.dayOfWeek}
@@ -109,24 +73,25 @@ export function ProgramReadyStep({
                 <span className="bg-mf-tile-calories rounded-full py-1">{day.calories}</span>
                 <span
                   className="bg-mf-tile-protein flex items-center justify-center rounded-[5px]"
-                  style={{ height: segment(day.proteinG * 4) }}
+                  style={{ height: segment(proteinKcal) }}
                 >
                   {Math.round(day.proteinG)} P
                 </span>
                 <span
                   className="bg-mf-tile-fat flex items-center justify-center rounded-[5px]"
-                  style={{ height: segment(day.fatG * 9) }}
+                  style={{ height: segment(fatKcal) }}
                 >
                   {Math.round(day.fatG)} F
                 </span>
                 <span
                   className="bg-mf-tile-carbs flex items-center justify-center rounded-[5px]"
-                  style={{ height: segment(day.carbsG * 4) }}
+                  style={{ height: segment(carbsKcal) }}
                 >
                   {Math.round(day.carbsG)} C
                 </span>
                 <span className="text-muted-foreground pt-1 text-sm font-normal">
-                  {DAY_SHORT[day.dayOfWeek]}
+                  <span aria-hidden="true">{dayLetter(day.dayOfWeek)}</span>
+                  <span className="sr-only">{day.dayOfWeek}</span>
                 </span>
               </div>
             )
@@ -136,12 +101,12 @@ export function ProgramReadyStep({
 
       <section aria-labelledby="designed-heading" className="space-y-5">
         <h2 id="designed-heading" className="text-lg font-semibold">
-          How is your program designed?
+          How was your program designed?
         </h2>
         <ol>
-          {steps.map((step, index) => (
-            <li key={step.title} className="relative flex gap-4 pb-7 last:pb-0">
-              {index < steps.length - 1 && (
+          {copy.details.map((detail, index) => (
+            <li key={detail.title} className="relative flex gap-4 pb-7 last:pb-0">
+              {index < copy.details.length - 1 && (
                 <span
                   aria-hidden="true"
                   className="bg-border absolute top-9 bottom-0 left-4 w-0.5"
@@ -154,9 +119,11 @@ export function ProgramReadyStep({
                 {index + 1}
               </span>
               <div className="min-w-0">
-                <h3 className="text-base font-medium">{step.title}</h3>
-                <p className={cn('text-base font-semibold', step.tone)}>{step.value}</p>
-                <p className="text-muted-foreground mt-1 text-base leading-snug">{step.text}</p>
+                <h3 className="text-base font-medium">{detail.title}</h3>
+                <p className={cn('text-base font-semibold', TONE_CLASS[detail.tone])}>
+                  {detail.value}
+                </p>
+                <p className="text-muted-foreground mt-1 text-base leading-snug">{detail.text}</p>
               </div>
             </li>
           ))}
@@ -165,13 +132,9 @@ export function ProgramReadyStep({
 
       <section aria-labelledby="next-heading" className="space-y-2">
         <h2 id="next-heading" className="text-lg font-semibold">
-          What happens next?
+          What&apos;s Next
         </h2>
-        <p className="text-muted-foreground text-base leading-snug">
-          MacroOS tracks the calories you eat and your weight changes to fine-tune your estimated
-          expenditure, then uses that to adjust your weekly calorie and macro budget to keep you on
-          track.
-        </p>
+        <p className="text-muted-foreground text-base leading-snug">{copy.next}</p>
       </section>
       <div ref={endRef} aria-hidden="true" className="h-px" />
     </div>

@@ -1,3 +1,4 @@
+import type { Feasibility } from '@/features/program/types/feasibility.types'
 import type {
   DayOfWeek,
   DietStyle,
@@ -51,8 +52,11 @@ export interface OnboardingState {
 export interface TdeeEstimate {
   tdeeKcal: number
   bmrKcal: number
-  method: 'MifflinStJeor' | 'KatchMcArdle'
+  /** BE: Cunningham khi user đã chọn mức mỡ cơ thể, không thì Mifflin-St Jeor. */
+  method: 'MifflinStJeor' | 'Cunningham'
   weightKg: number
+  /** % mỡ BE đã dùng (điểm giữa của dải user chọn); null khi không dùng công thức theo mỡ. */
+  bodyFatPercent: number | null
 }
 
 export interface ProgramPreviewDay {
@@ -74,6 +78,17 @@ export interface ProgramPreview {
   floorLowKcal: number
   currentWeightKg: number
   days: ProgramPreviewDay[]
+  /** Kiểm khả thi của BE (HTTP 200, không ném lỗi): `isFeasible = false` thì Create sẽ bị 400 cùng object này; thiếu = BE cũ. */
+  feasibility?: Feasibility | null
+}
+
+/**
+ * Phần của bản xem trước mà các màn Goal (đích + tốc độ, tóm tắt) cần: ngân sách kcal ban đầu (null = chưa có TDEE hoặc program Manual
+ * không có ngân sách tự động) và ngày dự kiến. Onboarding dựng từ `ProgramPreview`, Edit Goal từ `GoalEditPreview` của BE.
+ */
+export interface GoalPreview {
+  readonly budgetKcal: number | null
+  readonly projectedEndDate: string | null
 }
 
 // Khớp BE SaveOnboardingBasicsCommand (trường nào gửi mới cập nhật)
@@ -93,6 +108,18 @@ export interface SaveBasicsRequest {
   cardioExperience?: ExperienceLevel
   referralSource?: string
   affiliateCode?: string
+  /** Ngưỡng ĐÃ HIỆN cho câu Prior Weight (1–2000) + đơn vị của nó; gửi CÙNG `weighedMoreThanBefore`, đúng số đã hiện (BE v2, sau cờ PRIOR_WEIGHT_API). */
+  priorWeightThresholdShown?: number
+  priorWeightThresholdUnit?: 'kg' | 'lb'
+}
+
+/** `GET /onboarding/prior-weight-question`: số BE tính (nguồn duy nhất) để hiện trong câu "Have you ever weighed more than …?". `policy` không hiện ra giao diện. */
+export interface PriorWeightQuestion {
+  weightKg: number
+  thresholdKgExact: number
+  displayValue: number
+  displayUnit: 'kg' | 'lb'
+  policy: string
 }
 
 // Khớp BE PreviewProgramQuery
@@ -116,14 +143,35 @@ export interface CompleteRequest {
   acceptPrivacyNotice: boolean
 }
 
+/** Ba đáp án Basics có giá trị GỢI Ý ban đầu cho bánh xe: chỉ được tính là đã trả lời (và mới được gửi BE) khi người dùng chạm vào hoặc bấm xác nhận. */
+export interface ConfirmedBasics {
+  dateOfBirth: boolean
+  heightCm: boolean
+  weightKg: boolean
+}
+
+/**
+ * Cân mục tiêu và tốc độ chỉ là GỢI Ý (±10 % cân hiện tại, 0.5 %BW/tuần) cho tới khi người dùng kéo / gõ hoặc bấm "Use these values": chỉ giá trị đã xác nhận
+ * mới được coi là đáp án (mở nút Next, vào yêu cầu tạo program). Đổi loại mục tiêu hoặc cân nặng thì cả hai về chưa xác nhận.
+ */
+export interface GoalConfirmed {
+  targetWeightKg: boolean
+  weeklyRatePercent: boolean
+}
+
 /** Đáp án đang soạn của wizard; Basics lưu BE từng bước, Goal/Program giữ ở đây tới khi tạo program. */
 export interface WizardAnswers {
   gender: Gender | null
+  /** Ngày sinh / chiều cao / cân nặng: giá trị trên bánh xe; có thể chỉ là gợi ý — xem `confirmed`. */
   dateOfBirth: string | null
   heightCm: number
   weightKg: number
+  confirmed: ConfirmedBasics
   unit: UnitSystem
   weighedMoreThanBefore: WeightHistoryAnswer | null
+  /** Số + đơn vị BE đã đưa ra trong câu Prior Weight lúc người dùng trả lời (nhánh BE v2); null ở nhánh cũ. Gửi BE đúng như đã hiện. */
+  priorWeightThresholdShown: number | null
+  priorWeightThresholdUnit: 'kg' | 'lb' | null
   recentWeightTrend: WeightTrendAnswer | null
   bodyFat: BodyFatBand | null
   exerciseSessions: ExerciseSessionsBand | null
@@ -134,8 +182,10 @@ export interface WizardAnswers {
   affiliateCode: string
   manualTdeeKcal: number | null
   goalType: GoalType | null
+  /** Giá trị cân mục tiêu / tốc độ trên màn hình: có thể chỉ là gợi ý, xem `goalConfirmed`. */
   targetWeightKg: number | null
   weeklyRatePercent: number
+  goalConfirmed: GoalConfirmed
   dietStyle: DietStyle | null
   calorieFloor: CalorieFloorChoice | null
   trainingType: TrainingType | null
@@ -246,7 +296,7 @@ export const SECTION_OF: Record<StepId, SectionId> = {
 export const SECTION_TITLE: Record<SectionId, string> = {
   intro: '',
   basics: 'Basics',
-  goal: 'Set a new goal',
-  program: 'Create a new program',
+  goal: 'Set New Goal',
+  program: 'Set New Program',
   finish: '',
 }

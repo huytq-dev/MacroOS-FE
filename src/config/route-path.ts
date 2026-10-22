@@ -56,4 +56,9 @@ export const routePath = {
   /** Trang Create Food; `?from=<foodId>` điền sẵn từ một món ("To Custom"). */
   foodNew: '/foods/new',
   more: '/more',
+  /** More › Expenditure: Estimation Method, Calculation Start Date, BMR Equation, mode, algorithm, modifiers. */
+  moreExpenditure: '/more/expenditure',
+  /** More › Expenditure › BMR Equation: công thức BMR + các biến ảnh hưởng BMR. */
+  moreBmr: '/more/expenditure/bmr',
+  moreTutorials: '/more/tutorials',
 } as const

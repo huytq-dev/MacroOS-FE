@@ -3,6 +3,8 @@ import { ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ListSectionProps {
+  /** Mã neo cho liên kết `#id` (vd. More › Units → `/profile#units`). */
+  readonly id?: string
   /** Nhãn nhóm nhỏ phía trên (câu thường, không chữ hoa). */
   readonly label?: string
   /** Giá trị bên phải của nhãn (vd. tổng kcal của bữa). */
@@ -14,9 +16,16 @@ interface ListSectionProps {
 }
 
 /** Nhóm dòng kiểu danh sách của iOS: nền thẻ, bo mềm, vạch mảnh giữa các dòng, không viền ngoài. */
-export function ListSection({ label, labelEnd, footer, className, children }: ListSectionProps) {
+export function ListSection({
+  id,
+  label,
+  labelEnd,
+  footer,
+  className,
+  children,
+}: ListSectionProps) {
   return (
-    <section className={cn('space-y-1.5', className)}>
+    <section id={id} className={cn('scroll-mt-4 space-y-1.5', className)}>
       {label && (
         <div className="text-muted-foreground flex items-baseline justify-between px-1 text-sm md:text-xs">
           <h2>{label}</h2>

@@ -54,7 +54,7 @@ type WizardChoices = Pick<
 /** Mục tiêu theo ngày gửi BE: Collaborative = bảy ngày đã chỉnh; Manual = một bộ nhân bảy hoặc bảy bộ; Coached = BE tự tính. */
 export const dayTargetsOf = (choices: WizardChoices, setup: ProgramSetup): DayTarget[] | null => {
   if (choices.programType === 'Collaborative' && choices.days)
-    return choices.days.map((day) => toDayTarget(day, setup.weightKg))
+    return choices.days.map((day) => toDayTarget(day, setup.weightKg, setup.proteinPerKgMax))
   if (choices.programType === 'Manual' && choices.manualDays?.length)
     return WEEK_DAYS.map((dayOfWeek, index) => {
       const day = choices.manualDays?.[index] ?? choices.manualDays?.[0]
@@ -103,19 +103,14 @@ export const buildProgramRequest = (
   }
 }
 
-/** Bộ mục tiêu nhập tay ban đầu: ngày giữ cân đầu tiên BE trả trong setup; chưa có thì tự dựng (TDEE, protein 1.8 g/kg, fat 25% calo, còn lại là carb). */
-export const defaultManualDay = (setup?: ProgramSetup): ManualDay => {
+/**
+ * Bộ mục tiêu nhập tay ban đầu: ngày giữ cân đầu tiên BE trả trong `setup.defaults` (nguồn DUY NHẤT của số liệu; BE chia macro theo
+ * quy tắc của nó). Chưa tải được setup hoặc BE không trả ngày nào thì trả null: FE KHÔNG tự dựng macro từ số bịa (TDEE 2000, 75 kg,
+ * protein 1.8 g/kg, fat 25%) — nơi gọi phải chờ / thử lại / báo lỗi thay vì đi tiếp.
+ */
+export const defaultManualDay = (setup?: ProgramSetup | null): ManualDay | null => {
   const first = setup?.defaults?.[0]
-  if (first)
-    return {
-      kcal: first.calories,
-      proteinG: first.proteinG,
-      carbsG: first.carbsG,
-      fatG: first.fatG,
-    }
-  const kcal = Math.round(setup?.estimatedTdeeKcal ?? 2000)
-  const proteinG = Math.round((setup?.weightKg ?? 75) * 1.8)
-  const fatG = Math.round((kcal * 0.25) / 9)
-  const carbsG = Math.max(Math.round((kcal - proteinG * 4 - fatG * 9) / 4), 0)
-  return { kcal, proteinG, carbsG, fatG }
+  return first
+    ? { kcal: first.calories, proteinG: first.proteinG, carbsG: first.carbsG, fatG: first.fatG }
+    : null
 }

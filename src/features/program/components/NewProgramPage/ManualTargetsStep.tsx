@@ -1,5 +1,8 @@
 import { StepHeading } from '@/features/onboarding/components/OnboardingPage'
 import { DAY_OF_WEEK } from '@/config/enums'
+import { KCAL_PER_GRAM } from '@/features/nutrition/atwater'
+import { useUnits } from '@/features/users/hooks/use-units'
+import type { EnergyUnit, Measure } from '@/lib/units'
 import type { ManualDay } from '@/stores/program-wizard.store'
 import { macroKcalOf, WEEK_DAYS } from '../../utils/day-macros'
 import { WeekMacroChart } from '../ProgramPage/WeekMacroChart'
@@ -16,13 +19,18 @@ interface ManualTargetsStepProps {
   readonly kcalMax: number
 }
 
-/** Lệch giữa calo nhập và calo từ macro (4P+4C+9F) quá ngưỡng này (tỉ lệ) thì cảnh báo. */
+/** Lệch giữa calo nhập và calo từ macro (gram × hệ số Atwater) quá ngưỡng này (tỉ lệ) thì cảnh báo. */
 const MISMATCH_RATIO = 0.15
 
-/** Lỗi của một ngày nhập tay: calo ngoài khoảng, hoặc gram âm. */
-export const manualDayError = (day: ManualDay, kcalMin: number, kcalMax: number) => {
+/** Lỗi của một ngày nhập tay: calo ngoài khoảng (khoảng nêu theo kcal / kJ của user; so sánh luôn theo kcal), hoặc gram âm. */
+export const manualDayError = (
+  day: ManualDay,
+  kcalMin: number,
+  kcalMax: number,
+  energy: Measure<EnergyUnit>
+) => {
   if (!(day.kcal >= kcalMin && day.kcal <= kcalMax))
-    return `Enter between ${Math.round(kcalMin)} and ${Math.round(kcalMax)} kcal`
+    return `Enter between ${Math.round(energy.convert(kcalMin))} and ${Math.round(energy.convert(kcalMax))} ${energy.unit}`
   if (day.proteinG < 0 || day.carbsG < 0 || day.fatG < 0) return 'Macros cannot be negative'
   return null
 }
@@ -40,6 +48,7 @@ export function ManualTargetsStep({
   kcalMin,
   kcalMax,
 }: ManualTargetsStepProps) {
+  const { energy } = useUnits()
   const different = mode === 'different'
   const index = different ? selected : 0
   const day = days[index] ?? days[0]
@@ -47,7 +56,7 @@ export function ManualTargetsStep({
     const item = different ? (days[position] ?? days[0]) : days[0]
     return { kcal: item.kcal, proteinG: item.proteinG, carbsG: item.carbsG, fatG: item.fatG }
   })
-  const kcalError = manualDayError(day, kcalMin, kcalMax)
+  const kcalError = manualDayError(day, kcalMin, kcalMax, energy)
   const macroKcal = macroKcalOf(day)
   const mismatch = day.kcal > 0 && Math.abs(macroKcal - day.kcal) / day.kcal > MISMATCH_RATIO
 
@@ -75,10 +84,10 @@ export function ManualTargetsStep({
           {different && <h2 className="text-xl font-bold">{DAY_OF_WEEK[WEEK_DAYS[index]]}</h2>}
           <NumberField
             label="Calories"
-            value={day.kcal}
-            unit="kcal"
+            value={energy.convert(day.kcal)}
+            unit={energy.unit}
             error={kcalError ?? undefined}
-            onChange={(kcal) => onChange(index, { kcal })}
+            onChange={(shown) => onChange(index, { kcal: energy.revert(shown) })}
           />
           <NumberField
             label="Protein"
@@ -107,8 +116,8 @@ export function ManualTargetsStep({
             aria-live="polite"
           >
             {mismatch
-              ? `Your macros add up to ${Math.round(macroKcal)} kcal, which is far from your ${Math.round(day.kcal)} kcal target.`
-              : `Macros add up to ${Math.round(macroKcal)} kcal (4 × protein + 4 × carbs + 9 × fat).`}
+              ? `Your macros add up to ${energy.text(macroKcal)}, which is far from your ${energy.text(day.kcal)} target.`
+              : `Macros add up to ${energy.text(macroKcal)} (${energy.format(KCAL_PER_GRAM.protein)} × protein + ${energy.format(KCAL_PER_GRAM.carbs)} × carbs + ${energy.format(KCAL_PER_GRAM.fat)} × fat).`}
           </p>
         </div>
       </div>

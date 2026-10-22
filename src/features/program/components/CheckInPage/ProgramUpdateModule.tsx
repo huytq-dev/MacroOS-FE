@@ -3,11 +3,15 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { StepHeading, WizardShell } from '@/features/onboarding/components/OnboardingPage'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { FlowDirection } from '@/stores/flow.store'
 import type { CheckInPreview } from '../../types/check-in.types'
+import type { Feasibility } from '../../types/feasibility.types'
 import { reasonSentences } from '../../utils/check-in.utils'
+import { infeasibleOf } from '../../utils/feasibility'
+import { FeasibilityNotice } from '../FeasibilityNotice'
 import { OrbitAnimation } from './OrbitAnimation'
 
 interface ProgramUpdateModuleProps {
@@ -15,6 +19,8 @@ interface ProgramUpdateModuleProps {
   readonly preview: CheckInPreview
   readonly isDeciding: boolean
   readonly error: string | null
+  /** Accept bị BE từ chối 400 vì đề xuất không khả thi (cùng `FeasibilityResponse` với `preview.feasibility`; nothing persisted). */
+  readonly refused?: Feasibility | null
   readonly onExit: () => void
   readonly onAccept: () => void
   readonly onDecline: () => void
@@ -22,8 +28,6 @@ interface ProgramUpdateModuleProps {
 
 /** Thời gian tối thiểu hiện "Reviewing metabolic history…" (preview đã có sẵn trong session; chỉ để người dùng kịp thấy). */
 const REVIEW_MIN_MS = 1600
-
-const kcal = (value: number) => Math.round(value).toLocaleString('en-US')
 
 function MacroChange({
   label,
@@ -56,6 +60,7 @@ export function ProgramUpdateModule({
   direction,
   isDeciding,
   error,
+  refused = null,
   onExit,
   onAccept,
   onDecline,
@@ -65,10 +70,16 @@ export function ProgramUpdateModule({
     const timer = setTimeout(() => setReviewing(false), REVIEW_MIN_MS)
     return () => clearTimeout(timer)
   }, [])
+  const { weight, energy } = useUnits()
+  // Calo BE trả kcal, hiện theo kcal / kJ của user; macro là gram
+  const kcal = (value: number) => Math.round(energy.convert(value)).toLocaleString('en-US')
 
   const proposal = preview.proposal
-  const sentences = reasonSentences(preview)
+  const sentences = reasonSentences(preview, weight)
   const decidable = proposal !== null && preview.changed
+  // Đề xuất không khả thi (preview 200 hoặc Accept bị 400): Accept chắc chắn bị từ chối và không ghi gì, nên khoá; Decline vẫn dùng được
+  const infeasible = refused ?? infeasibleOf(preview.feasibility)
+  const acceptBlocked = decidable && infeasible !== null
 
   return (
     <WizardShell
@@ -79,7 +90,7 @@ export function ProgramUpdateModule({
       stepKey={reviewing ? 'reviewing' : 'result'}
       direction={direction}
       nextLabel={decidable ? 'Accept Program Changes' : 'Done'}
-      nextDisabled={false}
+      nextDisabled={acceptBlocked}
       isPending={isDeciding}
       pendingLabel="Saving…"
       onNext={onAccept}
@@ -91,7 +102,7 @@ export function ProgramUpdateModule({
           <div className="space-y-2">
             <Button
               className="h-12 w-full rounded-full text-base"
-              disabled={isDeciding}
+              disabled={isDeciding || acceptBlocked}
               aria-busy={isDeciding}
               onClick={onAccept}
             >
@@ -145,7 +156,7 @@ export function ProgramUpdateModule({
                   )}
                 >
                   {proposal.delta >= 0 ? '+' : '−'}
-                  {kcal(Math.abs(proposal.delta))} kcal
+                  {kcal(Math.abs(proposal.delta))} {energy.unit}
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -167,6 +178,7 @@ export function ProgramUpdateModule({
               </div>
             </section>
           )}
+          {infeasible && <FeasibilityNotice feasibility={infeasible} />}
           <section aria-labelledby="why">
             <h2 id="why" className="text-lg font-semibold">
               Why

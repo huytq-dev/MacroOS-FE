@@ -6,6 +6,7 @@ import { ChevronDown, ChevronLeft } from 'lucide-react'
 import { ChoiceSheet } from '@/components/shared/ChoiceSheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SlidingSwitch } from '@/features/food-log/components/FoodLogPage/SlidingSwitch'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useSheet } from '@/hooks/use-sheet'
 import { formatDate } from '@/lib/date'
 import { useProgressPhotoSessions } from '../hooks/use-progress-photos'
@@ -31,6 +32,7 @@ function ComparePhoto({
   readonly angle: PhotoAngle
 }) {
   const photo = photoOf(session, angle)
+  const { weight } = useUnits()
   return (
     <figure className="min-w-0 space-y-2">
       <figcaption className="text-center">
@@ -55,8 +57,8 @@ function ComparePhoto({
         )}
       </div>
       <p className="text-muted-foreground text-center text-sm tabular-nums">
-        {kgLabel(session?.trendWeightKg ?? null)} trend · {kgLabel(session?.scaleWeightKg ?? null)}{' '}
-        scale
+        {kgLabel(session?.trendWeightKg ?? null, weight)} trend ·{' '}
+        {kgLabel(session?.scaleWeightKg ?? null, weight)} scale
       </p>
     </figure>
   )
@@ -128,6 +130,7 @@ function SliderCompare({
  */
 export function ComparePage() {
   const router = useRouter()
+  const { weight } = useUnits()
   const query = useProgressPhotoSessions()
   const pick = useSheet<Slot>()
   const [angle, setAngle] = useState<PhotoAngle>('Front')
@@ -144,7 +147,8 @@ export function ComparePage() {
   const choices = timeline.map((session) => ({
     value: session.date,
     label: formatDate(session.date),
-    description: session.scaleWeightKg === null ? undefined : kgLabel(session.scaleWeightKg),
+    description:
+      session.scaleWeightKg === null ? undefined : kgLabel(session.scaleWeightKg, weight),
   }))
 
   return (

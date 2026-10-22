@@ -1,7 +1,7 @@
-// Khớp BE Contract/Models/CheckIns/CheckInModels.cs (GET /check-ins/session)
+import type { TargetProvenance } from '@/features/nutrition/target-provenance'
+import type { Feasibility } from './feasibility.types'
 
-/** Key module theo thứ tự BE trả; key lạ thì FE bỏ qua. */
-export type CheckInModuleKey = 'intro' | 'partial-logging' | 'program-update'
+// Khớp BE Contract/Models/CheckIns/CheckInModels.cs (GET /check-ins/session)
 
 /** required: bắt buộc; skippable: có thể bỏ qua; hidden: đã tắt (không hiện). */
 export type CheckInModuleState = 'required' | 'skippable' | 'hidden'
@@ -18,6 +18,8 @@ export interface CheckInDay {
   kcal: number | null
   /** null = chưa có target. */
   targetKcal: number | null
+  /** VERIFIED | LEGACY_UNVERIFIED | null (khi `targetKcal` null): LEGACY_UNVERIFIED = chỉ để tham khảo, không dùng cho kết luận đạt / không đạt. */
+  targetProvenance?: TargetProvenance | null
   suspectedIncomplete: boolean
   markedIncomplete: boolean
 }
@@ -43,6 +45,8 @@ export interface CheckInProposal {
   fatG: number
   clamped: boolean
   floorApplied: boolean
+  /** Câu lý do BE dựng sẵn (không hiện: FE ghép câu tiếng Anh từ `reasonCodes` + `reasonParams`). */
+  reason: string
   weeklyBudgetKcal: number | null
 }
 
@@ -72,6 +76,8 @@ export interface CheckInPreview {
   changed: boolean
   reasonCodes: string[]
   reasonParams: CheckInReasonParams
+  /** Kiểm khả thi của đề xuất (HTTP 200): `isFeasible = false` thì Accept bị 400 cùng object này và không ghi gì. */
+  feasibility?: Feasibility | null
 }
 
 export interface CheckInSession {

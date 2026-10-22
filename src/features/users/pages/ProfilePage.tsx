@@ -4,7 +4,8 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useProfile, useUpdateProfile } from '../hooks/use-profile'
-import { updateProfileSchema, type UpdateProfileFormValues } from '../schemas/update-profile.schema'
+import { profileUpdatePayload } from '../profile.utils'
+import { profileSchemaFor, type UpdateProfileFormValues } from '../schemas/update-profile.schema'
 import { ProfileForm } from '../components/ProfilePage'
 import { useAuth } from '@/features/auth/hooks/use-auth'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
@@ -18,16 +19,25 @@ export function ProfilePage() {
   const { user, logout } = useAuth()
 
   const form = useForm<UpdateProfileFormValues>({
-    resolver: zodResolver(updateProfileSchema),
+    // Schema theo dữ liệu hiện có (đọc lúc kiểm): trường đã có giá trị thì không được xoá trống, chưa từng có thì được để trống
+    resolver: (values, context, options) =>
+      zodResolver(
+        profileSchemaFor({
+          dateOfBirth: Boolean(profile.data?.dateOfBirth),
+          heightCm: profile.data?.heightCm != null,
+        })
+      )(values, context, options),
     mode: 'onTouched',
     defaultValues: {
       firstName: '',
       lastName: '',
       dateOfBirth: '',
       gender: 'Male',
-      heightCm: 170,
+      heightCm: undefined,
       activityLevel: 'LightlyActive',
       unitPreference: 'Metric',
+      energyUnit: 'Kcal',
+      weekStartDay: 'Monday',
       timeZone: '',
     },
   })
@@ -40,9 +50,12 @@ export function ProfilePage() {
       lastName: profile.data.lastName,
       dateOfBirth: profile.data.dateOfBirth ?? '',
       gender: profile.data.gender,
-      heightCm: profile.data.heightCm ?? 170,
+      // Chưa có chiều cao thì để trống (hiện "Not set"), không điền số mặc định
+      heightCm: profile.data.heightCm ?? undefined,
       activityLevel: profile.data.activityLevel,
       unitPreference: profile.data.unitPreference,
+      energyUnit: profile.data.energyUnit,
+      weekStartDay: profile.data.weekStartDay,
       timeZone: profile.data.timeZone ?? '',
     })
   }, [profile.data, form])
@@ -64,9 +77,11 @@ export function ProfilePage() {
           form={form}
           isPending={updateProfile.isPending}
           error={updateProfile.error ? getFormErrorMessage(updateProfile.error) : null}
-          onSubmit={(values) =>
-            updateProfile.mutate({ ...values, timeZone: values.timeZone || null })
-          }
+          // Chỉ gửi các trường người dùng đã sửa: giá trị chưa biết không bao giờ bị thay bằng số mặc định
+          onSubmit={(values) => {
+            const payload = profileUpdatePayload(values, form.formState.dirtyFields)
+            if (Object.keys(payload).length > 0) updateProfile.mutate(payload)
+          }}
           onLogout={() => void logout()}
         />
       )}

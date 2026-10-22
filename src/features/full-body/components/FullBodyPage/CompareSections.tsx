@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import { TrendingDown, TrendingUp } from 'lucide-react'
 import type { FullBodyHistoryItem } from '@/features/shortcuts/types/body-metrics.types'
+import { useUnits } from '@/features/users/hooks/use-units'
+import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import {
   METRIC_SECTIONS,
   changeTone,
   formatChange,
   formatMetric,
-  longDate,
   metricValue,
   type GoalType,
   type MetricRowDef,
@@ -19,6 +20,7 @@ const COUNT_MS = 500
 
 /** Số thay đổi đếm từ 0 lên giá trị thật (500ms, ease-out); tắt khi `prefers-reduced-motion`. */
 function CountUp({ delta, unit }: { readonly delta: number; readonly unit: MetricRowDef['unit'] }) {
+  const { weight } = useUnits()
   const [shown, setShown] = useState(delta)
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -32,7 +34,7 @@ function CountUp({ delta, unit }: { readonly delta: number; readonly unit: Metri
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
   }, [delta])
-  return <>{formatChange(shown, unit)}</>
+  return <>{formatChange(shown, unit, weight)}</>
 }
 
 const TONE = {
@@ -59,6 +61,7 @@ interface CompareSectionsProps {
  * là "—"; không có hoặc không đổi thì cột thay đổi để trống. Đổi một trong hai ngày thì khối hiện dần lại.
  */
 export function CompareSections({ from, to, fromDate, toDate, goalType }: CompareSectionsProps) {
+  const { weight } = useUnits()
   const sections = METRIC_SECTIONS.map((section) => ({
     ...section,
     rows: section.rows.flatMap((row) => {
@@ -69,7 +72,7 @@ export function CompareSections({ from, to, fromDate, toDate, goalType }: Compar
   })).filter((section) => section.rows.length > 0)
 
   const value = (number: number | null, unit: MetricRowDef['unit']) =>
-    number === null ? '—' : formatMetric(number, unit)
+    number === null ? '—' : formatMetric(number, unit, weight)
 
   return (
     <div
@@ -84,10 +87,10 @@ export function CompareSections({ from, to, fromDate, toDate, goalType }: Compar
               {section.title}
             </h2>
             <span className={cn(VALUE_COL, 'text-muted-foreground text-[10px] uppercase')}>
-              {longDate(fromDate)}
+              {formatDate(fromDate)}
             </span>
             <span className={cn(VALUE_COL, 'text-muted-foreground text-[10px] uppercase')}>
-              {longDate(toDate)}
+              {formatDate(toDate)}
             </span>
           </div>
           <ul className="bg-card rounded-xl">

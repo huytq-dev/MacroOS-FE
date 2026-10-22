@@ -6,5 +6,4 @@ export const shortcutsService = {
   get: () => apiCall.get<ShortcutConfig>(apiRoutes.shortcuts.root),
   save: (payload: { toolbarStyle: ToolbarStyle; items: ShortcutItem[] }) =>
     apiCall.put<ShortcutConfig>(apiRoutes.shortcuts.root, payload),
-  reset: () => apiCall.post<ShortcutConfig>(apiRoutes.shortcuts.reset),
 }

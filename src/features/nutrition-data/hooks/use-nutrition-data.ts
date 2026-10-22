@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { invalidateLogData } from '@/features/food-log/hooks/use-food-log'
 import { logger } from '@/lib/api'
 import { nutritionDataService } from '../services/nutrition-data.service'
 import type { SaveNutritionDayRequest } from '../types/nutrition-data.types'
@@ -16,15 +17,18 @@ export const useNutritionDays = () =>
     select: (data) => data?.items ?? [],
   })
 
-/** Lưu / xoá một ngày ảnh hưởng expenditure, xu hướng và log của ngày đó nên làm mới cả các nhóm này. */
+/**
+ * Lưu / xoá một ngày ảnh hưởng log của ngày đó, nutrients, Nutrition Overview, expenditure và Energy Balance (`invalidateLogData`), cộng danh sách ngày
+ * của trang này và xu hướng cân.
+ */
 const useInvalidate = () => {
   const queryClient = useQueryClient()
-  return () =>
-    Promise.all(
-      [KEY, ['expenditure'], ['food-log'], ['weights']].map((queryKey) =>
-        queryClient.invalidateQueries({ queryKey })
-      )
+  return () => {
+    invalidateLogData(queryClient)
+    return Promise.all(
+      [KEY, ['weights']].map((queryKey) => queryClient.invalidateQueries({ queryKey }))
     )
+  }
 }
 
 export const useSaveNutritionDay = () => {

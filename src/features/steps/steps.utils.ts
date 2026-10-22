@@ -1,10 +1,14 @@
 import { z } from 'zod'
-import { weekStart, type Averaging } from '@/features/dashboard/expenditure.utils'
+import { bucketEnd, bucketKey, type Averaging } from '@/features/dashboard/expenditure.utils'
+import type { DayOfWeek } from '@/config/enums'
 
 /** Một ngày có số bước (đã gộp D/W/M nếu có): `date` là ngày của bản ghi hoặc ngày đầu nhóm. */
 export interface StepsDay {
   readonly date: string
   readonly steps: number
+  /** Nhóm W / M: ngày cuối của nhóm và số ngày có dữ liệu trong nhóm (chỉ để nhãn điểm đang chạm). */
+  readonly end?: string
+  readonly days?: number
   /** Nguồn bản ghi của BE (nhập tay hay đồng bộ); chỉ có ở dòng lịch sử, không có ở điểm đã gộp D/W/M. */
   readonly source?: string
 }
@@ -19,15 +23,24 @@ export const stepsValueSchema = z
 const mean = (values: readonly number[]) =>
   values.reduce((sum, value) => sum + value, 0) / values.length
 
-/** Gộp theo tuần (thứ Hai) / tháng bằng trung bình các ngày có số; điểm đặt ở ngày đầu nhóm. Đầu vào tăng dần theo ngày. */
-export function averageSteps(days: readonly StepsDay[], averaging: Averaging): StepsDay[] {
+/** Gộp theo tuần (bắt đầu từ `weekStartDay` của user) / tháng bằng trung bình các ngày có số; điểm đặt ở ngày đầu nhóm. Đầu vào tăng dần theo ngày. */
+export function averageSteps(
+  days: readonly StepsDay[],
+  averaging: Averaging,
+  weekStartDay: DayOfWeek
+): StepsDay[] {
   if (averaging === 'daily') return [...days]
   const groups = new Map<string, number[]>()
   for (const day of days) {
-    const key = averaging === 'weekly' ? weekStart(day.date) : `${day.date.slice(0, 7)}-01`
+    const key = bucketKey(day.date, averaging, weekStartDay)
     groups.set(key, [...(groups.get(key) ?? []), day.steps])
   }
-  return [...groups.entries()].map(([date, values]) => ({ date, steps: Math.round(mean(values)) }))
+  return [...groups.entries()].map(([date, values]) => ({
+    date,
+    end: bucketEnd(date, averaging),
+    days: values.length,
+    steps: Math.round(mean(values)),
+  }))
 }
 
 /** Trung bình và tổng của các ngày đã ghi trong khung; null khi chưa có ngày nào. */

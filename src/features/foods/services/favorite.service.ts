@@ -6,5 +6,4 @@ export const favoriteService = {
   list: () => apiCall.get<FavoriteFood[]>(apiRoutes.foodFavorites.root),
   add: (payload: AddFavoriteRequest) => apiCall.post<string>(apiRoutes.foodFavorites.root, payload),
   remove: (id: string) => apiCall.delete(apiRoutes.foodFavorites.byId(id)),
-  reorder: (ids: string[]) => apiCall.put(apiRoutes.foodFavorites.order, { ids }),
 }

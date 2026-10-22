@@ -1,7 +1,8 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { measurementKeys, visualBodyFatKeys } from '@/features/weight/hooks/use-weights'
 import { logger } from '@/lib/api'
 import { bodyMetricsService } from '../services/body-metrics.service'
 import type { FullBodyRequest, PhotoAngle } from '../types/body-metrics.types'
@@ -28,13 +29,22 @@ export const useFullBodyHistory = () =>
     select: (data) => data?.items ?? [],
   })
 
+/**
+ * Full Body ghi cùng hàng Visual Body Fat và số đo vòng (cm) mà trang Body Fat, từng trang số đo và các ô Dashboard đọc, nên sau khi lưu / xoá phải làm mới cả
+ * nhóm 'body-metrics' lẫn hai nhóm đó (không thì chúng giữ số cũ tới hết staleTime 5 phút).
+ */
+export function invalidateFullBodyData(queryClient: QueryClient) {
+  for (const queryKey of [['body-metrics'], visualBodyFatKeys.all, measurementKeys.all])
+    void queryClient.invalidateQueries({ queryKey })
+}
+
 export const useSaveFullBody = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: FullBodyRequest) => bodyMetricsService.saveFullBody(payload),
     onSuccess: () => {
       toast.success('Metrics saved')
-      void queryClient.invalidateQueries({ queryKey: ['body-metrics'] })
+      invalidateFullBodyData(queryClient)
     },
     onError: (error) => {
       logger.error(error)
@@ -49,7 +59,7 @@ export const useDeleteFullBody = () => {
     mutationFn: (date: string) => bodyMetricsService.deleteFullBody(date),
     onSuccess: () => {
       toast.success('Metrics deleted')
-      void queryClient.invalidateQueries({ queryKey: ['body-metrics'] })
+      invalidateFullBodyData(queryClient)
     },
     onError: (error) => {
       logger.error(error)

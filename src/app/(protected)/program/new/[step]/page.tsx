@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { NewProgramStepPage } from '@/features/program/pages/NewProgramStepPage'
 import { isWizardStep } from '@/features/program/utils/new-program-steps'
 
-export const metadata: Metadata = { title: 'New program' }
+export const metadata: Metadata = { title: 'Set New Program' }
 
 export default async function NewProgramStepRoute({
   params,

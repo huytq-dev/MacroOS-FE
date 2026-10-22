@@ -10,26 +10,26 @@ import {
   GoalTargetStep,
   WizardShell,
 } from '@/features/onboarding/components/OnboardingPage'
-import type { ProgramPreview as ReadyPreview } from '@/features/onboarding/types/onboarding.types'
+import type { GoalPreview } from '@/features/onboarding/types/onboarding.types'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useDebounce } from '@/hooks/use-debounce'
+import { roundTo } from '@/lib/units'
 import { useCurrentProgram } from '../hooks/use-program'
 import { useFlowStore } from '@/stores/flow.store'
 import { useGoalEditStore } from '@/stores/goal-edit.store'
 import { useGoalEditPreview, useSaveGoalEdit } from '../hooks/use-goal-edit'
+import { FeasibilityNotice } from '../components/FeasibilityNotice'
+import type { Feasibility } from '../types/feasibility.types'
 import type { GoalEditPreview } from '../types/goal-edit.types'
+import { feasibilityOfError, infeasibleOf } from '../utils/feasibility'
 
-/** Preview của BE (`/goals/edit-preview`) → dạng preview của các màn Goal trong wizard thiết lập (ngân sách ban đầu, ngày dự kiến). */
-const toGoalPreview = (preview: GoalEditPreview): ReadyPreview => ({
-  tdeeKcal: 0,
-  averageCalories: preview.initialDailyBudgetKcal ?? 0,
-  proteinGPerKg: 0,
-  weeklyChangeKg: preview.weeklyRateKg,
-  weeklyChangePercent: preview.weeklyRatePercent,
+/**
+ * Preview của BE (`/goals/edit-preview`) → phần các màn Goal cần. Ngân sách null (program Manual hoặc chưa có TDEE) giữ nguyên là null
+ * để màn hiện "—" / ẩn ô, không bao giờ đổi thành 0 kcal.
+ */
+const toGoalPreview = (preview: GoalEditPreview): GoalPreview => ({
+  budgetKcal: preview.initialDailyBudgetKcal,
   projectedEndDate: preview.projectedEndDate,
-  floorStandardKcal: 0,
-  floorLowKcal: 0,
-  currentWeightKg: preview.currentWeightKg,
-  days: [],
 })
 
 /**
@@ -45,8 +45,11 @@ export function GoalEditStepPage({ step }: { readonly step: 'params' | 'review' 
   const setDirection = useFlowStore((state) => state.setDirection)
   const save = useSaveGoalEdit()
   const program = useCurrentProgram()
-  // BE: targetWeightKg null = không đặt đích (giữ cân), nên luôn gửi đích đang hiển thị: user đã sửa thì đích đó, chưa thì đích hiện tại của goal
-  const requestedTarget = edit.targetWeightKg ?? program.data?.targetWeightKg ?? null
+  const { weight, energy } = useUnits()
+  // BE: targetWeightKg null = không đặt đích (giữ cân), nên luôn gửi đích đang hiển thị: user đã sửa thì đích đó, chưa thì đích hiện tại của goal.
+  // Đích user kéo trên thước (kg hoặc lb) được đổi đúng sang kg và chỉ làm tròn 2 chữ số khi gửi (BE lưu kg 2 chữ số)
+  const editedTarget = edit.targetWeightKg === null ? null : roundTo(edit.targetWeightKg, 2)
+  const requestedTarget = editedTarget ?? program.data?.targetWeightKg ?? null
   const debouncedTarget = useDebounce(requestedTarget, 300)
   const debouncedRate = useDebounce(edit.weeklyRatePercent, 300)
   const query = useGoalEditPreview(
@@ -55,13 +58,23 @@ export function GoalEditStepPage({ step }: { readonly step: 'params' | 'review' 
   )
   const data = query.data
   const ready = data ? toGoalPreview(data) : undefined
+  // Kiểm khả thi của BE: preview 200 (`feasibility`) hoặc Done bị 400 cùng object (nothing persisted)
+  const infeasible = infeasibleOf(data?.feasibility)
+  const refused = feasibilityOfError(save.error)
+  const blocked = infeasible !== null && !data?.requiresNewProgram
   const currentKg = data?.currentWeightKg ?? 0
   const targetKg = edit.targetWeightKg ?? data?.targetWeightKg ?? currentKg
   const ratePercent = Math.max(
     edit.weeklyRatePercent ?? Math.abs(data?.weeklyRatePercent ?? 0),
     0.1
   )
-  const goalType = targetKg < currentKg ? 'WeightLoss' : 'WeightGain'
+  // Loại goal do BE quyết (Maintenance khi |đích − cân hiện tại| < 0.1, tốc độ 0); chưa có preview thì không có gì để hiện (màn đang skeleton)
+  const goalType =
+    data?.goalType === 'Maintenance'
+      ? 'Maintenance'
+      : data?.goalType === 'WeightGain'
+        ? 'WeightGain'
+        : 'WeightLoss'
 
   const leave = () => {
     setDirection('back')
@@ -69,7 +82,7 @@ export function GoalEditStepPage({ step }: { readonly step: 'params' | 'review' 
     router.push(routePath.program)
   }
   const done = () => {
-    if (!data) return
+    if (!data || blocked) return
     const weeklyRatePercent = Math.abs(data.weeklyRatePercent)
     if (data.requiresNewProgram) {
       edit.setPendingGoal({
@@ -97,7 +110,8 @@ export function GoalEditStepPage({ step }: { readonly step: 'params' | 'review' 
       stepKey={step}
       direction={direction}
       nextLabel={step === 'params' ? 'Next' : data?.requiresNewProgram ? 'Set new program' : 'Done'}
-      nextDisabled={!data}
+      // Preview không khả thi thì Done (PUT /goals/edit) chắc chắn bị 400 và không ghi gì: khoá, trừ đường đổi hướng goal (sang wizard New Program)
+      nextDisabled={!data || (blocked && step === 'review')}
       isPending={save.isPending}
       pendingLabel="Saving…"
       onNext={() => {
@@ -105,7 +119,7 @@ export function GoalEditStepPage({ step }: { readonly step: 'params' | 'review' 
         setDirection('forward')
         router.push(`${routePath.programGoalEdit}/review`)
       }}
-      error={save.error ? getFormErrorMessage(save.error) : null}
+      error={save.error && !refused ? getFormErrorMessage(save.error) : null}
     >
       {query.error && !data ? (
         <div className="space-y-3">
@@ -142,6 +156,9 @@ export function GoalEditStepPage({ step }: { readonly step: 'params' | 'review' 
             )
           }
           preview={ready}
+          weight={weight}
+          energy={energy}
+          manual={data.isManualProgram}
         />
       ) : (
         <GoalSummaryStep
@@ -154,7 +171,13 @@ export function GoalEditStepPage({ step }: { readonly step: 'params' | 'review' 
           targetWeightKg={data.targetWeightKg}
           ratePercent={Math.abs(data.weeklyRatePercent)}
           preview={ready}
+          weight={weight}
+          energy={energy}
+          manual={data.isManualProgram}
         />
+      )}
+      {(refused ?? infeasible) && (
+        <FeasibilityNotice feasibility={(refused ?? infeasible) as Feasibility} className="mt-5" />
       )}
     </WizardShell>
   )

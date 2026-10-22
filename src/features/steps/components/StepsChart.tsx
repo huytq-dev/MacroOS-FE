@@ -6,7 +6,7 @@ import { ChartAxes, PlotClip } from '@/features/dashboard/chart/ChartAxes'
 import { PAD, PLOT_W, WIDTH, agoOf, visibleAgo, xOfAgo } from '@/features/dashboard/chart/geometry'
 import type { useChartPan } from '@/features/dashboard/chart/use-chart-pan'
 import { useTween } from '@/features/dashboard/chart/use-tween'
-import { shortDay } from '@/features/dashboard/expenditure.utils'
+import { bucketLabel } from '@/features/dashboard/expenditure.utils'
 import { niceAxis } from '@/features/dashboard/goal-progress.utils'
 import { cn } from '@/lib/utils'
 
@@ -126,7 +126,9 @@ export function StepsChart({
           style={{ left: `${Math.min(78, Math.max(22, (selectedX / WIDTH) * 100))}%` }}
           className="bg-popover border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:animation-duration-200 pointer-events-none absolute top-0 -translate-x-1/2 rounded-lg border px-3 py-2 text-center whitespace-nowrap shadow-md"
         >
-          <p className="text-muted-foreground text-xs">{shortDay(selected.date)}</p>
+          <p className="text-muted-foreground text-xs">
+            {bucketLabel(selected.date, selected.end ?? selected.date, selected.days ?? 1)}
+          </p>
           <p className="text-sm font-medium tabular-nums">{formatSteps(selected.steps)} steps</p>
         </div>
       )}

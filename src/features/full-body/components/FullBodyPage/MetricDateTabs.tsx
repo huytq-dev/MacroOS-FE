@@ -1,8 +1,8 @@
 'use client'
 
 import { useLayoutEffect, useRef, useState } from 'react'
+import { formatMonthDay } from '@/lib/date'
 import { cn } from '@/lib/utils'
-import { tabDate } from '../../full-body.utils'
 
 interface MetricDateTabsProps {
   /** Ngày có số đo, cũ → mới (trái → phải như MacroFactor). */
@@ -61,7 +61,7 @@ export function MetricDateTabs({ dates, value, onChange }: MetricDateTabsProps) 
                 selected ? 'text-foreground' : 'text-muted-foreground'
               )}
             >
-              {tabDate(date)}
+              {formatMonthDay(date)}
             </button>
           )
         })}

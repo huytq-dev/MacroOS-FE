@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, Flame, Search, Trash2 } from 'lucide-react'
+import { Energy } from '@/components/shared/Energy'
 import { CollapseItem } from '@/components/shared/CollapseItem'
 import { FoodIcon } from '@/components/shared/FoodIcon'
 import { Button } from '@/components/ui/button'
@@ -61,7 +62,7 @@ function MacroLine({
   return (
     <span className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] tabular-nums">
       <span className="inline-flex items-center">
-        {Math.round(calories)}
+        <Energy kcal={calories} />
         <Flame aria-hidden="true" fill="currentColor" className="size-3.5" />
       </span>
       <span>{Math.round(protein)}P</span>

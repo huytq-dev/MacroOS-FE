@@ -1,14 +1,14 @@
 'use client'
 
 import type { UnitSystem } from '@/config/enums'
+import { roundTo, weightMeasure } from '@/lib/units'
 import { StepHeading } from './ChoiceStep'
 import { UnitToggle } from './OptionCard'
 import { RulerSlider } from './RulerSlider'
 
-export const LB_PER_KG = 2.20462
-
 const MIN_KG = 30
 const MAX_KG = 300
+const LB = weightMeasure('lb')
 
 interface WeightStepProps {
   readonly weightKg: number
@@ -17,7 +17,10 @@ interface WeightStepProps {
   readonly onUnitChange: (unit: UnitSystem) => void
 }
 
-/** Cân nặng hiện tại bằng thước kéo; hiển thị kg hoặc lb, lưu kg (làm lần cân đầu tiên và trend khởi điểm). */
+/**
+ * Cân nặng hiện tại bằng thước kéo; hiển thị kg hoặc lb, lưu kg (làm lần cân đầu tiên và trend khởi điểm). Số lb trên thước đổi sang kg
+ * ĐÚNG (hằng số chung `LB_PER_KG`), không làm tròn 0.1 kg trước khi lưu; chỉ khi gửi BE mới làm tròn 2 chữ số.
+ */
 export function WeightStep({ weightKg, unit, onChange, onUnitChange }: WeightStepProps) {
   const imperial = unit === 'Imperial'
   return (
@@ -37,10 +40,10 @@ export function WeightStep({ weightKg, unit, onChange, onUnitChange }: WeightSte
           <RulerSlider
             ariaLabel="Weight (lb)"
             unit="lb"
-            min={Math.round(MIN_KG * LB_PER_KG)}
-            max={Math.round(MAX_KG * LB_PER_KG)}
-            value={Math.round(weightKg * LB_PER_KG * 10) / 10}
-            onChange={(lb) => onChange(Math.round((lb / LB_PER_KG) * 10) / 10)}
+            min={Math.ceil(LB.convert(MIN_KG))}
+            max={Math.floor(LB.convert(MAX_KG))}
+            value={roundTo(LB.convert(weightKg), 1)}
+            onChange={(lb) => onChange(LB.revert(lb))}
           />
         ) : (
           <RulerSlider
@@ -48,7 +51,7 @@ export function WeightStep({ weightKg, unit, onChange, onUnitChange }: WeightSte
             unit="kg"
             min={MIN_KG}
             max={MAX_KG}
-            value={weightKg}
+            value={roundTo(weightKg, 1)}
             onChange={onChange}
           />
         )}

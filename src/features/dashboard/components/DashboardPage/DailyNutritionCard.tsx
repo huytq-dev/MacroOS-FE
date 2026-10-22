@@ -5,7 +5,9 @@ import { cn } from '@/lib/utils'
 import type { NutritionMode } from './WeekMatrix'
 import type { MacroTotals } from '@/features/food-log/types/food-log.types'
 import { targetRatio } from '@/features/nutrition/goal-progress'
+import { shownProgress } from '@/features/nutrition/remaining'
 import type { ProgramWeek } from '@/features/program/types/program.types'
+import { useUnits } from '@/features/users/hooks/use-units'
 
 interface ModeToggleProps<T extends string> {
   readonly value: T
@@ -89,9 +91,15 @@ export function DailyNutritionCard({
   mode,
   onModeChange,
 }: DailyNutritionCardProps) {
-  const consumed = Math.round(totals.calories)
-  const goal = target ? Math.round(target.caloriesTarget) : null
-  const remaining = goal === null ? null : Math.max(0, goal - consumed)
+  const { energy } = useUnits()
+  // Đổi sang kcal / kJ của user TRƯỚC khi làm tròn (như ô Calories của mục Nutrition), rồi Remaining = Target − Consumed ngay ở đơn vị đang hiện
+  // để ba số luôn cộng đúng (`shownProgress`: MỘT quy tắc chung với Weekly Nutrition, Food Log và ô nutrient); ở kcal không đổi gì
+  const shown = (kcal: number) => Math.round(energy.convert(kcal))
+  const { consumed, goal, remaining } = shownProgress(
+    totals.calories,
+    target?.caloriesTarget,
+    shown
+  )
   const consumedMode = mode === 'consumed'
   // 100% = target (`targetRatio` dùng chung); chế độ Remaining vẽ phần còn lại
   const arc = goal ? targetRatio(consumedMode ? consumed : (remaining ?? 0), goal).progress : 0
@@ -139,12 +147,17 @@ export function DailyNutritionCard({
 
       <div className="grid grid-cols-3 gap-4">
         {MACROS.map((macro) => {
-          const value = Math.round(totals[macro.key])
-          const macroGoal = target ? Math.round(macro.goal(target)) : null
-          const shown = consumedMode || macroGoal === null ? value : Math.max(0, macroGoal - value)
-          const ratio =
-            macroGoal === null || macroGoal <= 0 ? 0 : targetRatio(value, macroGoal).progress
-          const fill = consumedMode ? ratio : macroGoal === null || macroGoal <= 0 ? 0 : 1 - ratio
+          const progress = shownProgress(
+            totals[macro.key],
+            target ? macro.goal(target) : null,
+            Math.round
+          )
+          const value = progress.consumed
+          const macroGoal = progress.goal
+          const macroShown =
+            consumedMode || progress.remaining === null ? value : progress.remaining
+          const ratio = macroGoal === null ? 0 : targetRatio(value, macroGoal).progress
+          const fill = consumedMode ? ratio : macroGoal === null ? 0 : 1 - ratio
           return (
             <div key={macro.key} className="space-y-1 text-center">
               <p className="text-muted-foreground text-sm">{macro.label}</p>
@@ -158,7 +171,7 @@ export function DailyNutritionCard({
                 />
               </div>
               <p className="text-sm tabular-nums">
-                {shown} / {macroGoal ?? '—'}g
+                {macroShown} / {macroGoal ?? '—'}g
               </p>
             </div>
           )

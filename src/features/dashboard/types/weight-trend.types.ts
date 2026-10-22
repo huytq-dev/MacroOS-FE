@@ -60,13 +60,30 @@ export interface WeightTrendInsightsResponse {
     changeKg: number | null
     status: WeightChangeStatus
   }[]
-  /** kg / tuần (hồi quy tuyến tính trend 21 ngày); null khi < 7 ngày dữ liệu. */
+  /** kg / tuần (hồi quy tuyến tính trend 20 ngày); null khi `rateReasonCode` khác null. */
   weeklyChangeKg: number | null
-  /** kcal / ngày, âm khi đang giảm; null khi < 7 ngày dữ liệu. */
+  /** kcal / ngày, âm khi đang giảm; null khi `rateReasonCode` khác null. */
   energyDeficitKcalPerDay: number | null
   projected30DaysKg: number | null
   trendDays: number
   kcalPerKg: number
+  /**
+   * null = tốc độ / thâm hụt / dự báo đã tính. INSUFFICIENT_WEIGHT_DATA = chưa đủ ngày cân thật (< `minWeighIns` trong `rateWindowDays` ngày,
+   * hoặc các lần cân cách nhau < `minSpanDays` ngày); STALE_WEIGHT_DATA = đủ lần cân nhưng không có lần nào trong `recencyDays` ngày gần nhất.
+   * Khi khác null cả ba số trên đều null: FE hiện "Waiting" / "---", không bao giờ 0; trend và biểu đồ vẫn hợp lệ.
+   */
+  rateReasonCode?: WeightRateReason | null
+  /** Số NGÀY cân thật khác nhau trong cửa sổ `rateWindowDays` (ngày nội suy không tính). */
+  weighInCount?: number
+  weighInsLast7Days?: number
+  /** Số ngày từ lần cân cuối tới hôm nay; null = chưa có cân. */
+  daysSinceLastWeighIn?: number | null
+  /** Khoảng cách (ngày) giữa lần cân đầu và cuối trong cửa sổ. */
+  weighInSpanDays?: number
+  minWeighIns?: number
+  rateWindowDays?: number
+  recencyDays?: number
+  minSpanDays?: number
 }
 
-export type WeightTrendGranularity = 'Day' | 'Week' | 'Month'
+export type WeightRateReason = 'INSUFFICIENT_WEIGHT_DATA' | 'STALE_WEIGHT_DATA'

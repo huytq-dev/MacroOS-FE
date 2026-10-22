@@ -8,7 +8,7 @@ import { goalProgress, type NutrientGoal } from '@/features/nutrition/goal-progr
  * Vị trí do `goalScaleMax` tính (thang = ceiling × 1.15 = 166.75 → floor ≈ 0.36, target ≈ 0.60, ceiling ≈ 0.87), phần đã ăn ≈ 0.72
  * (đã qua target, chưa tới ceiling) — không có vị trí nào được gán tay.
  */
-const SAMPLE_GOAL: NutrientGoal = { floor: 60, target: 100, ceiling: 145 }
+const SAMPLE_GOAL: NutrientGoal = { floor: 60, target: 100, ceiling: 145, goalKind: 'Range' }
 const SAMPLE_CONSUMED = 120
 
 /**

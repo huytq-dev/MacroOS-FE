@@ -1,20 +1,21 @@
 import { ArrowRight, TrendingDown, TrendingUp } from 'lucide-react'
-import { monthTitle } from '../../hooks/use-weight-trend-detail'
+import { formatMonthYear } from '@/lib/date'
+import { formatWeekdayMonthDay } from '@/lib/week'
 import type { ExpHistoryDay } from '../../expenditure-series'
-import { shortDay } from '../../expenditure.utils'
+import { useUnits } from '@/features/users/hooks/use-units'
 
 interface MonthlyListProps {
   /** Mỗi ngày một dòng, mới trước. */
   readonly history: readonly ExpHistoryDay[]
 }
 
-/** "−3 kcal" / "+5 kcal" của ngày Updating so với hôm trước; không đổi thì "No Change". */
-const deltaText = (delta: number | null) =>
+/** "−3 kcal" / "+5 kJ" của ngày Updating so với hôm trước (đã đổi sang đơn vị của user); không đổi thì "No Change". */
+const deltaText = (delta: number | null, unit: string) =>
   delta === null || delta === 0
     ? delta === 0
       ? 'No Change'
       : 'Updating'
-    : `${delta > 0 ? '+' : '−'}${Math.abs(delta)} kcal`
+    : `${delta > 0 ? '+' : '−'}${Math.abs(delta)} ${unit}`
 
 /** Xu hướng lên / xuống (cam) hoặc mũi tên ngang khi không đổi. */
 function DeltaIcon({ delta }: { readonly delta: number | null }) {
@@ -29,6 +30,7 @@ function DeltaIcon({ delta }: { readonly delta: number | null }) {
  * Holding hoặc "○ −3 kcal" (thay đổi so với hôm trước) cho ngày Updating. Tháng và dòng hiện lần lượt.
  */
 export function MonthlyList({ history }: MonthlyListProps) {
+  const { energy } = useUnits()
   if (history.length === 0) return null
   const months = new Map<string, ExpHistoryDay[]>()
   for (const day of history) {
@@ -38,8 +40,8 @@ export function MonthlyList({ history }: MonthlyListProps) {
   return (
     <div className="space-y-6">
       {[...months.entries()].map(([key, items]) => (
-        <section key={key} aria-label={monthTitle(key)} className="space-y-3">
-          <h2 className="text-xl font-bold">{monthTitle(key)}</h2>
+        <section key={key} aria-label={formatMonthYear(key)} className="space-y-3">
+          <h2 className="text-xl font-bold">{formatMonthYear(key)}</h2>
           <ul className="bg-card divide-foreground/10 divide-y overflow-hidden rounded-xl">
             {items.map((day, index) => (
               <li
@@ -48,8 +50,10 @@ export function MonthlyList({ history }: MonthlyListProps) {
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
                 <div>
-                  <p className="text-lg tabular-nums">{Math.round(day.kcal)} kcal</p>
-                  <p className="text-muted-foreground text-base">{shortDay(day.date)}</p>
+                  <p className="text-lg tabular-nums">{energy.text(day.kcal)}</p>
+                  <p className="text-muted-foreground text-base">
+                    {formatWeekdayMonthDay(day.date)}
+                  </p>
                 </div>
                 <span className="text-muted-foreground flex items-center gap-2 text-base whitespace-nowrap tabular-nums">
                   {day.holding ? (
@@ -60,7 +64,12 @@ export function MonthlyList({ history }: MonthlyListProps) {
                   ) : (
                     <DeltaIcon delta={day.delta} />
                   )}
-                  {day.holding ? day.status : deltaText(day.delta)}
+                  {day.holding
+                    ? day.status
+                    : deltaText(
+                        day.delta === null ? null : Math.round(energy.convert(day.delta)),
+                        energy.unit
+                      )}
                 </span>
               </li>
             ))}

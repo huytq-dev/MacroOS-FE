@@ -55,16 +55,16 @@ export interface FoodDetail {
   isVerified: boolean
   isMine: boolean
   imageUrl: string | null
-  /** Emoji đại diện món (BE sẽ thêm vào chi tiết món); thiếu thì hiện 🍽️. */
-  emoji?: string | null
-  /** Khoá icon trong bộ icon món ăn (BE sẽ trả). */
-  iconKey?: string | null
+  /** Emoji đại diện món; null thì hiện 🍽️. BE luôn gửi khoá này. */
+  emoji: string | null
+  /** Khoá icon trong bộ icon món ăn; null = chưa có icon. BE luôn gửi khoá này. */
+  iconKey: string | null
   nutrition: FoodNutrition
-  /** Mọi chất trên 100 g theo khoá danh mục dinh dưỡng của FE (đơn vị theo danh mục); null = chưa có dữ liệu, 0 = biết bằng 0. */
-  nutrientsPer100g?: Record<string, number | null>
+  /** Mọi chất trên 100 g theo khoá danh mục dinh dưỡng của FE (đơn vị theo danh mục); null = chưa có dữ liệu, 0 = biết bằng 0. BE luôn gửi. */
+  nutrientsPer100g: Record<string, number | null>
   servings: FoodServing[]
-  /** Gram trên mỗi ml (món lỏng hoặc suy từ khẩu phần cup / tbsp…): có thì bật chip ml, cup, tbsp, tsp, fl oz; null / thiếu = chưa biết. */
-  gramsPerMl?: number | null
+  /** Gram trên mỗi ml (món lỏng hoặc suy từ khẩu phần cup / tbsp…): có thì bật chip ml, cup, tbsp, tsp, fl oz; null = chưa biết. BE luôn gửi khoá này. */
+  gramsPerMl: number | null
 }
 
 // Khớp BE NutrientAmountModel / FoodNutrientsResponse (GET /foods/{id}/nutrients): target hiệu lực của ngày hỏi
@@ -80,8 +80,8 @@ export interface NutrientAmount {
   floor: number | null
   target: number | null
   ceiling: number | null
-  /** Loại mục tiêu BE phân loại; quyết định mốc nào được vẽ. */
-  goalKind?: GoalKind | null
+  /** Loại mục tiêu BE phân loại (luôn có, "None" khi không có mục tiêu); quyết định mốc nào được vẽ. */
+  goalKind: GoalKind
   percentOfTarget: number | null
   isCore: boolean
   /** Khoá của danh mục dinh dưỡng FE; null với chất không thuộc danh mục. */
@@ -132,6 +132,9 @@ export interface CustomFoodRequest {
 export const servingAmountLabel = (quantity: number, servingName: string): string =>
   quantity === 1 ? servingName : `${quantity} × ${servingName}`
 
-/** Dinh dưỡng của một lượng gram (hiển thị trước khi log). */
+/** Dinh dưỡng CHƯA làm tròn của một lượng gram: số của dòng plate (cộng rồi mới làm tròn khi hiển thị, như BE cộng số thật, không cộng số nguyên từng dòng). */
+export const scaleExact = (per100g: number, grams: number): number => (per100g * grams) / 100
+
+/** Dinh dưỡng của một lượng gram làm tròn nguyên, chỉ để hiển thị một dòng (ô món, hàng tìm kiếm); không cộng các số này lại với nhau. */
 export const scaleNutrition = (per100g: number, grams: number): number =>
   Math.round((per100g * grams) / 100)

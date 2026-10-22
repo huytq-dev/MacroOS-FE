@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import type { UseFormReturn } from 'react-hook-form'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
@@ -10,10 +10,18 @@ import { ListRow, ListSection } from '@/components/shared/ListGroup'
 import { OptionList, PickerSheet } from '@/components/shared/PickerSheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ACTIVITY_LEVEL, GENDER, UNIT_SYSTEM, enumOptions } from '@/config/enums'
+import {
+  ACTIVITY_LEVEL,
+  DAY_OF_WEEK,
+  ENERGY_UNIT,
+  GENDER,
+  UNIT_SYSTEM,
+  enumOptions,
+} from '@/config/enums'
 import { routePath } from '@/config/route-path'
 import { TIME_ZONE_OPTIONS } from '@/config/time-zones'
 import { formatDate } from '@/lib/date'
+import { optionalNumberValue } from '../../profile.utils'
 import type { UpdateProfileFormValues } from '../../schemas/update-profile.schema'
 
 interface ProfileFormProps {
@@ -24,7 +32,17 @@ interface ProfileFormProps {
   readonly onLogout: () => void
 }
 
-type SheetKey = 'name' | 'dob' | 'gender' | 'height' | 'activity' | 'unit' | 'timeZone' | null
+type SheetKey =
+  | 'name'
+  | 'dob'
+  | 'gender'
+  | 'height'
+  | 'activity'
+  | 'unit'
+  | 'energy'
+  | 'weekStart'
+  | 'timeZone'
+  | null
 
 const GENDER_OPTIONS = enumOptions(GENDER)
 const ACTIVITY_OPTIONS = enumOptions(ACTIVITY_LEVEL).map((option) => {
@@ -32,6 +50,8 @@ const ACTIVITY_OPTIONS = enumOptions(ACTIVITY_LEVEL).map((option) => {
   return { value: option.value, label, description: detail?.replace(')', '') }
 })
 const UNIT_OPTIONS = enumOptions(UNIT_SYSTEM)
+const ENERGY_OPTIONS = enumOptions(ENERGY_UNIT)
+const WEEK_START_OPTIONS = enumOptions(DAY_OF_WEEK)
 const TIME_ZONE_PICKER = [
   { value: '', label: 'None' },
   ...TIME_ZONE_OPTIONS.map((zone) => ({
@@ -47,6 +67,11 @@ const TIME_ZONE_PICKER = [
  */
 export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: ProfileFormProps) {
   const [sheet, setSheet] = useState<SheetKey>(null)
+  // Form chỉ dựng sau khi hồ sơ tải xong nên neo `#units` (More › Units) trình duyệt không tự cuộn tới được: cuộn tay khi đã có phần tử
+  useEffect(() => {
+    if (window.location.hash === '#units')
+      document.getElementById('units')?.scrollIntoView({ block: 'start' })
+  }, [])
   const {
     register,
     handleSubmit,
@@ -57,8 +82,11 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
 
   const values = watch()
   const close = (next: boolean) => !next && setSheet(null)
-  const pick = (name: 'gender' | 'activityLevel' | 'unitPreference' | 'timeZone', value: string) =>
-    setValue(name, value as never, { shouldDirty: true, shouldValidate: true })
+  const pick = (
+    name:
+      'gender' | 'activityLevel' | 'unitPreference' | 'energyUnit' | 'weekStartDay' | 'timeZone',
+    value: string
+  ) => setValue(name, value as never, { shouldDirty: true, shouldValidate: true })
 
   const fullName = `${values.lastName} ${values.firstName}`.trim()
   const firstError = Object.values(errors)[0]?.message
@@ -102,11 +130,23 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
         />
       </ListSection>
 
-      <ListSection label="Display">
+      <ListSection id="units" label="Display">
         <ListRow
           label="Units"
           value={UNIT_SYSTEM[values.unitPreference]}
           onClick={() => setSheet('unit')}
+        />
+        <ListRow
+          label="Energy"
+          hint="Display only: your data stays in kcal"
+          value={ENERGY_UNIT[values.energyUnit]}
+          onClick={() => setSheet('energy')}
+        />
+        <ListRow
+          label="Week starts on"
+          hint="First day of weekly averages and calendars"
+          value={DAY_OF_WEEK[values.weekStartDay]}
+          onClick={() => setSheet('weekStart')}
         />
         <ListRow
           label="Time zone"
@@ -187,7 +227,7 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
               type="number"
               inputMode="decimal"
               step="0.1"
-              {...register('heightCm', { valueAsNumber: true })}
+              {...register('heightCm', { setValueAs: optionalNumberValue })}
             />
           )}
         </FormField>
@@ -213,6 +253,34 @@ export function ProfileForm({ form, isPending, error, onSubmit, onLogout }: Prof
           options={UNIT_OPTIONS}
           value={values.unitPreference}
           onValueChange={(value) => pick('unitPreference', value)}
+        />
+      </PickerSheet>
+
+      <PickerSheet
+        open={sheet === 'energy'}
+        onOpenChange={close}
+        title="Energy"
+        description="Display only: MacroOS keeps your data in kcal."
+      >
+        <OptionList
+          aria-label="Energy unit"
+          options={ENERGY_OPTIONS}
+          value={values.energyUnit}
+          onValueChange={(value) => pick('energyUnit', value)}
+        />
+      </PickerSheet>
+
+      <PickerSheet
+        open={sheet === 'weekStart'}
+        onOpenChange={close}
+        title="Week starts on"
+        description="The first day of every weekly average and calendar."
+      >
+        <OptionList
+          aria-label="Week starts on"
+          options={WEEK_START_OPTIONS}
+          value={values.weekStartDay}
+          onValueChange={(value) => pick('weekStartDay', value)}
         />
       </PickerSheet>
 

@@ -3,6 +3,9 @@
 import { useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { KCAL_PER_GRAM } from '@/features/nutrition/atwater'
+import { useUnits } from '@/features/users/hooks/use-units'
+import { convertEnergyText, energyMeasure, toApiKcal, type EnergyUnit } from '@/lib/units'
 import { ChoiceSheet } from '../FoodLogSettingsPage'
 
 /** id của form: nút "Quick Add" nằm ở thanh đáy AddFoodDialog (ngoài form) gửi form qua thuộc tính `form`. */
@@ -21,11 +24,7 @@ export interface QuickAddValues {
   fat: number
 }
 
-type EnergyUnit = 'kcal' | 'kJ'
-
-const KJ_PER_KCAL = 4.184
-/** Calo mỗi gram: đạm 4, bột đường 4, béo 9, cồn 7 (dòng "Macro sum"). */
-const KCAL_PER_GRAM = { protein: 4, carbs: 4, fat: 9, alcohol: 7 } as const
+/** Khớp validator của BE: calories 0–10000 (kcal), mỗi macro 0–1000 g. */
 const LIMITS = { calories: 10000, macro: 1000 } as const
 
 interface QuickAddPanelProps {
@@ -80,7 +79,10 @@ function GramField({
  * nhật ký bằng "Log Foods". Cồn chỉ dùng cho dòng gợi ý (BE không có trường riêng). Khớp BE: kcal 0–10000, macro 0–1000.
  */
 export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
-  const [unit, setUnit] = useState<EnergyUnit>('kcal')
+  // Đơn vị năng lượng của user (hồ sơ) là mặc định; đổi được ở đây cho riêng lần nhập này (`touched`)
+  const profileUnit = useUnits().energy.unit
+  const [unit, setUnit] = useState<EnergyUnit>(profileUnit)
+  const [touched, setTouched] = useState(false)
   const [unitOpen, setUnitOpen] = useState(false)
   const energyRef = useRef<HTMLInputElement>(null)
   const [energy, setEnergy] = useState('')
@@ -90,16 +92,14 @@ export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
   const [alcohol, setAlcohol] = useState('')
   const [name, setName] = useState('')
 
-  const macroKcal = Math.round(
+  const measure = energyMeasure(unit)
+  const macroKcal =
     toNumber(protein) * KCAL_PER_GRAM.protein +
-      toNumber(carbs) * KCAL_PER_GRAM.carbs +
-      toNumber(fat) * KCAL_PER_GRAM.fat +
-      toNumber(alcohol) * KCAL_PER_GRAM.alcohol
-  )
-  const macroSum = unit === 'kcal' ? macroKcal : Math.round(macroKcal * KJ_PER_KCAL)
-  const kcal = unit === 'kcal' ? toNumber(energy) : toNumber(energy) / KJ_PER_KCAL
+    toNumber(carbs) * KCAL_PER_GRAM.carbs +
+    toNumber(fat) * KCAL_PER_GRAM.fat +
+    toNumber(alcohol) * KCAL_PER_GRAM.alcohol
   const invalid = {
-    energy: outOfRange(energy, unit === 'kcal' ? LIMITS.calories : LIMITS.calories * KJ_PER_KCAL),
+    energy: outOfRange(energy, measure.convert(LIMITS.calories)),
     protein: outOfRange(protein, LIMITS.macro),
     fat: outOfRange(fat, LIMITS.macro),
     carbs: outOfRange(carbs, LIMITS.macro),
@@ -111,12 +111,11 @@ export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
   /** Đổi đơn vị thì quy đổi số đang nhập để năng lượng thực không đổi. */
   const changeUnit = (next: EnergyUnit) => {
     if (next === unit) return
-    if (energy.trim() !== '' && !Number.isNaN(Number(energy))) {
-      const value = next === 'kJ' ? Number(energy) * KJ_PER_KCAL : Number(energy) / KJ_PER_KCAL
-      setEnergy(String(Math.round(value)))
-    }
+    setEnergy(convertEnergyText(energy, unit, next))
     setUnit(next)
   }
+  // Hồ sơ tải xong sau lần render đầu (lúc đó là mặc định kcal) thì theo hồ sơ, trừ khi user đã tự chọn đơn vị ở đây
+  if (!touched && unit !== profileUnit) changeUnit(profileUnit)
 
   const reset = () => {
     setEnergy('')
@@ -140,7 +139,7 @@ export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
         }
         onAdd({
           name: name.trim() || null,
-          calories: Math.round(kcal * 10) / 10,
+          calories: toApiKcal(toNumber(energy), unit, 1),
           protein: toNumber(protein),
           carbs: toNumber(carbs),
           fat: toNumber(fat),
@@ -183,11 +182,12 @@ export function QuickAddPanel({ onAdd }: QuickAddPanelProps) {
           title="Unit"
           choices={UNIT_CHOICES}
           value={unit}
-          onSelect={(next) => changeUnit(next as EnergyUnit)}
+          onSelect={(next) => {
+            setTouched(true)
+            changeUnit(next as EnergyUnit)
+          }}
         />
-        <p className="text-muted-foreground text-sm">
-          Macro sum is {macroSum} {unit}
-        </p>
+        <p className="text-muted-foreground text-sm">Macro sum is {measure.text(macroKcal)}</p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

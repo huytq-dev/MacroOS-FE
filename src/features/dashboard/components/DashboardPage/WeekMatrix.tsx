@@ -2,8 +2,11 @@
 
 import { Flame } from 'lucide-react'
 import { ModeToggle } from './DailyNutritionCard'
+import { weekSummary } from '../../dashboard.utils'
 import { weekBarProgress } from '@/features/nutrition/goal-progress'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { formatDate } from '@/lib/date'
+import { dayLetterOfDate, dayOfWeekOf } from '@/lib/week'
 import { cn } from '@/lib/utils'
 import type { MacroTotals, WeekDay } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
@@ -24,8 +27,6 @@ const ROWS: readonly Row[] = [
   { key: 'fat', label: 'F', fill: 'bg-mf-tile-fat', goal: (t) => t.fatTarget },
   { key: 'carbs', label: 'C', fill: 'bg-mf-tile-carbs', goal: (t) => t.carbsTarget },
 ]
-const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 // Mỗi hàng chỉ số cao bằng nhau ở lưới và cột tổng bên phải để các số thẳng hàng với cột của nó.
 const ROW = 'h-12'
 // Thanh đổi chiều cao 400ms ease-out khi đổi Consumed ↔ Remaining (mép trên trượt trong ô, nắp đi theo)
@@ -37,6 +38,7 @@ const MIN_FILL_PX = 10
 interface WeekMatrixProps {
   readonly mode: NutritionMode
   readonly onModeChange: (mode: NutritionMode) => void
+  /** Bảy ngày theo thứ tự cột, bắt đầu từ ngày đầu tuần của user; nhãn cột lấy từ chính ngày đó. */
   readonly days: readonly WeekDay[]
   /** Ngày đang xem; null = cả tuần (chạm lại ngày đang chọn). */
   readonly selected: string | null
@@ -57,29 +59,23 @@ export function WeekMatrix({
   today,
 }: WeekMatrixProps) {
   const current = days.find((day) => day.logDate === selected)
+  const { energy } = useUnits()
+  // Calo hiện theo kcal / kJ của user (BE luôn kcal); macro là gram
+  const shown = (row: Row, value: number) =>
+    Math.round(row.key === 'calories' ? energy.convert(value) : value)
 
   const progressOf = (day: WeekDay, row: Row) =>
     weekBarProgress(consumedOf(day.totals, row.key), day.target ? row.goal(day.target) : 0, mode)
 
-  // Cả tuần: cộng đã ăn của 7 ngày so với tổng target các ngày đã có target.
-  const summary = (row: Row) => {
-    const scope = current ? [current] : days
-    const value = scope.reduce((sum, day) => sum + consumedOf(day.totals, row.key), 0)
-    const goals = scope
-      .filter((day) => day.target)
-      .map((day) => row.goal(day.target as ProgramWeek))
-    const goal = goals.length > 0 ? goals.reduce((sum, item) => sum + item, 0) : null
-    return {
-      value: Math.round(mode === 'remaining' && goal !== null ? Math.max(0, goal - value) : value),
-      goal,
-    }
-  }
+  // Cả tuần: cộng đã ăn của 7 ngày so với tổng target các ngày đã có target; số còn lại tính bằng quy tắc chung (`weekSummary` → `shownProgress`)
+  const summary = (row: Row) =>
+    weekSummary(current ? [current] : days, row.key, row.goal, mode, (value) => shown(row, value))
 
   return (
     <div className="flex flex-1 flex-col justify-between gap-3">
       <div className="flex gap-4">
         <div className="flex flex-1">
-          {days.map((day, index) => {
+          {days.map((day) => {
             const active = day.logDate === selected
             const isToday = day.logDate === today
             const future = today !== null && day.logDate > today
@@ -88,7 +84,7 @@ export function WeekMatrix({
                 key={day.logDate}
                 type="button"
                 aria-pressed={active}
-                aria-label={`${WEEKDAY_NAMES[index]} ${formatDate(day.logDate)}: ${Math.round(day.totals.calories)} kcal`}
+                aria-label={`${dayOfWeekOf(day.logDate)} ${formatDate(day.logDate)}: ${energy.text(day.totals.calories)}`}
                 onClick={() => onSelect(active ? null : day.logDate)}
                 className={cn(
                   'focus-visible:ring-ring/50 flex min-w-0 flex-1 flex-col rounded-xl border-[1.5px] transition-colors focus-visible:ring-1 focus-visible:outline-none',
@@ -150,7 +146,7 @@ export function WeekMatrix({
                     active && 'font-bold'
                   )}
                 >
-                  {WEEKDAY_LABELS[index]}
+                  {dayLetterOfDate(day.logDate)}
                 </span>
               </button>
             )
@@ -162,7 +158,7 @@ export function WeekMatrix({
             const { value, goal } = summary(row)
             return (
               <div key={row.key} className={cn('flex flex-col justify-center', ROW)}>
-                <dt className="sr-only">{row.label}</dt>
+                <dt className="sr-only">{row.key === 'calories' ? energy.unit : row.label}</dt>
                 <dd className="flex items-center gap-1 text-lg leading-none tabular-nums">
                   {value}
                   {row.key === 'calories' ? (
@@ -172,7 +168,7 @@ export function WeekMatrix({
                   )}
                 </dd>
                 <dd className="text-muted-foreground mt-0.5 text-sm tabular-nums">
-                  {goal !== null ? `of ${Math.round(goal)}` : 'of —'}
+                  {goal !== null ? `of ${goal}` : 'of —'}
                 </dd>
               </div>
             )

@@ -1,3 +1,5 @@
+import { shownProgress } from '@/features/nutrition/remaining'
+
 /** Cài đặt Food Log của người dùng, khớp BE `GET/PUT /api/food-logs/settings` (lưu trên server, đồng bộ nhiều thiết bị). */
 export interface FoodLogSettings {
   /** Nutrient Reporting: NoOverages = không hiện số âm khi vượt mục tiêu (chặn ở 0), ShowOverages = hiện số âm. */
@@ -243,6 +245,24 @@ export const FOOD_LOG_CHOICES = {
     { value: 'RemainingAfterPlate', label: 'Show Remaining After Plate' },
   ],
 } as const
+
+/**
+ * Số của một chất trên Logger Banner, ở đơn vị đang hiện: `shown` đổi (kcal → kJ) và làm tròn một số của BE (mặc định làm tròn kcal / gram).
+ * "Còn lại sau plate" cần target: chưa có target (hoặc 0) thì null — nơi hiển thị ghi "—" — chứ không tính từ 0, nếu không một chất không có
+ * mục tiêu sẽ hiện "−850 left". Còn lại = mục tiêu − (cả ngày + plate) với CẢ HAI làm tròn TRƯỚC (`shownProgress`, cùng quy tắc mọi màn
+ * "Remaining"); banner giữ số âm khi vượt như trước (chưa theo cài đặt Nutrient Reporting).
+ */
+export function bannerValue(
+  display: FoodLogSettings['loggerBannerDisplay'],
+  goal: number | null | undefined,
+  day: number,
+  inPlate: number,
+  shown: (value: number) => number = Math.round
+): number | null {
+  if (display === 'PlateOnly') return shown(inPlate)
+  if (display === 'AllDayAndPlate') return shown(day + inPlate)
+  return shownProgress(day + inPlate, goal, shown, true).remaining
+}
 
 /** "7 AM" / "11 PM" (nhãn trên thanh trượt Hour Range). */
 export const hour12Label = (hour: number) =>

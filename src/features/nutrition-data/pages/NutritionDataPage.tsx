@@ -3,15 +3,15 @@
 import { useState } from 'react'
 import { ChartPie, Pencil, Plus, Utensils } from 'lucide-react'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { Energy, EnergyUnit } from '@/components/shared/Energy'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
-import { shortDay } from '@/features/dashboard/expenditure.utils'
-import { monthTitle } from '@/features/dashboard/hooks/use-weight-trend-detail'
 import { useSheet } from '@/hooks/use-sheet'
-import { todayIso } from '@/lib/date'
+import { formatMonthYear, todayIso } from '@/lib/date'
+import { formatWeekdayMonthDay } from '@/lib/week'
 import { NutritionDaySheet } from '../components/NutritionDaySheet'
 import {
   useDeleteNutritionDay,
@@ -89,7 +89,7 @@ export function NutritionDataPage() {
             style={{ animationDelay: `${index * 70}ms` }}
           >
             <h2 id={`nutrition-${key}`} className="text-xl font-bold">
-              {monthTitle(key)}
+              {formatMonthYear(key)}
             </h2>
             <ul className="bg-card divide-foreground/10 divide-y overflow-hidden rounded-xl">
               {items.map((day) => (
@@ -102,7 +102,7 @@ export function NutritionDataPage() {
                     <Utensils className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1 text-base tabular-nums">
-                    {Math.round(day.calories)} kcal
+                    <Energy kcal={day.calories} /> <EnergyUnit />
                     {day.isFasting && <span className="text-muted-foreground"> · Fasting</span>}
                   </span>
                   {day.isIncomplete && (
@@ -113,11 +113,11 @@ export function NutritionDataPage() {
                     />
                   )}
                   <span className="text-muted-foreground shrink-0 text-base tabular-nums">
-                    {shortDay(day.date)}
+                    {formatWeekdayMonthDay(day.date)}
                   </span>
                   <button
                     type="button"
-                    aria-label={`Edit nutrition for ${shortDay(day.date)}`}
+                    aria-label={`Edit nutrition for ${formatWeekdayMonthDay(day.date)}`}
                     onClick={() => open(day.date)}
                     className="focus-visible:ring-ring/50 group flex size-11 shrink-0 items-center justify-center rounded-full focus-visible:ring-1 focus-visible:outline-none"
                   >

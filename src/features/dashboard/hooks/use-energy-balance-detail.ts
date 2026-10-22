@@ -16,6 +16,7 @@ import type {
   EnergyBalanceSeriesResponse,
 } from '../types/energy-balance.types'
 import { apiRoutes } from '@/config/api-routes'
+import { isUnverifiedTarget } from '@/features/nutrition/target-provenance'
 import { useIsClient } from '@/hooks/use-is-client'
 import { apiCall } from '@/lib/api'
 import { todayIso } from '@/lib/date'
@@ -57,12 +58,24 @@ export function useEnergyBalanceDetail(averaging: Averaging, mode: BalanceMode) 
   const all: BalancePoint[] = days.map((day) => fromSeriesDay(day, mode))
 
   const history: BalanceHistoryDay[] = [...days].reverse().flatMap((day): BalanceHistoryDay[] => {
-    const difference = mode === 'targets' ? day.vsTargetKcal : day.vsExpenditureKcal
+    // Ngày target LEGACY_UNVERIFIED không có chênh lệch (không đạt / không đạt) trong lịch sử tab Target
+    const unverified = mode === 'targets' && isUnverifiedTarget(day.targetProvenance)
+    const difference = unverified
+      ? null
+      : mode === 'targets'
+        ? day.vsTargetKcal
+        : day.vsExpenditureKcal
     return difference === null ? [] : [{ date: day.date, difference, trend: trendOf(difference) }]
   })
 
   const rows =
     mode === 'targets' ? insights.data?.relativeToTargets : insights.data?.relativeToExpenditure
+  // Có target chưa xác minh trong chuỗi hoặc ở các hàng "Relative to Targets" (BE đã loại chúng khỏi thống kê): hiện "Historical target not verified"
+  const targetUnverified =
+    mode === 'targets' &&
+    (days.some((day) => isUnverifiedTarget(day.targetProvenance)) ||
+      (rows ?? []).some((row) => (row.unverifiedDays ?? 0) > 0) ||
+      (series.data?.summary.unverifiedTargetDays ?? 0) > 0)
   const changes = BALANCE_CHANGE_DAYS.map((span) => {
     const found = rows?.find((row) => row.days === span)
     return {
@@ -83,5 +96,6 @@ export function useEnergyBalanceDetail(averaging: Averaging, mode: BalanceMode) 
     points: averageBalancePoints(all, averaging),
     changes,
     history,
+    targetUnverified,
   }
 }

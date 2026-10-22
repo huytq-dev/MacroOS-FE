@@ -1,3 +1,4 @@
+import type { Measure, WeightUnit } from '@/lib/units'
 import type { CheckInModule, CheckInPreview } from '../types/check-in.types'
 
 export interface ModuleMeta {
@@ -31,26 +32,21 @@ export const isModuleKey = (value: string): boolean => value in MODULE_META
 export const visibleModules = (modules: readonly CheckInModule[]): CheckInModule[] =>
   modules.filter((module) => module.state !== 'hidden' && isModuleKey(module.key))
 
-/** Chữ cái thứ của một ngày yyyy-MM-dd (M T W T F S S) cho nhãn biểu đồ. */
-export const dayLetterOf = (iso: string): string =>
-  ['S', 'M', 'T', 'W', 'T', 'F', 'S'][new Date(`${iso}T00:00:00`).getDay()]
-
-const kg = (value: number | null) => (value === null ? '' : Math.abs(value).toFixed(1))
-
 /**
- * Mã lý do BE → câu tiếng Anh, ghép số từ `reasonParams`. Mã lạ thì bỏ; không có câu nào thì dùng câu chung (BE có thể thêm mã mới
- * mà FE chưa cập nhật).
+ * Mã lý do BE → câu tiếng Anh, ghép số từ `reasonParams` (cân nặng BE trả kg, hiện theo kg / lb của user). Mã lạ thì bỏ; không có câu
+ * nào thì dùng câu chung (BE có thể thêm mã mới mà FE chưa cập nhật).
  */
-export function reasonSentences(preview: CheckInPreview): string[] {
+export function reasonSentences(preview: CheckInPreview, weight: Measure<WeightUnit>): string[] {
   const params = preview.reasonParams
+  const kg = (value: number | null) => (value === null ? '' : weight.format(Math.abs(value)))
   const templates: Record<string, string> = {
     CALIBRATING:
       "We're still learning how your metabolism works, so your targets stay the same for now.",
     HOLDING:
       'We need a bit more data before changing anything, so your targets stay the same this week.',
     INCOMPLETE_DAYS: `You marked ${params.daysMarkedIncomplete} ${params.daysMarkedIncomplete === 1 ? 'day' : 'days'} as incomplete, so we left ${params.daysMarkedIncomplete === 1 ? 'it' : 'them'} out of your estimate.`,
-    FASTER_THAN_TARGET: `Your weight trend is moving faster than your goal${params.weightChangeKg === null ? '' : ` (${kg(params.weightChangeKg)} kg this week)`}.`,
-    SLOWER_THAN_TARGET: `Your weight trend is moving slower than your goal${params.weightChangeKg === null ? '' : ` (${kg(params.weightChangeKg)} kg this week)`}.`,
+    FASTER_THAN_TARGET: `Your weight trend is moving faster than your goal${params.weightChangeKg === null ? '' : ` (${kg(params.weightChangeKg)} ${weight.unit} this week)`}.`,
+    SLOWER_THAN_TARGET: `Your weight trend is moving slower than your goal${params.weightChangeKg === null ? '' : ` (${kg(params.weightChangeKg)} ${weight.unit} this week)`}.`,
     ON_TARGET: "You're right on track with your goal.",
     CLAMPED: 'We limited this change so your adjustments stay gradual.',
     FLOOR_APPLIED: 'We stopped at your Calorie floor.',

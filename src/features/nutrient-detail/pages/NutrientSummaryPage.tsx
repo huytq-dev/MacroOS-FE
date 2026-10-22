@@ -2,19 +2,17 @@
 
 import { NutrientTiming } from '../components/NutrientTiming'
 import { useNutrientDay } from '../hooks/use-nutrient-detail'
-import type { NutrientInfo } from '../nutrient-detail.utils'
+import { displayNutrient, scaleDayResponse, type NutrientInfo } from '../nutrient-detail.utils'
 import type { NutrientDayResponse } from '../types/nutrient-detail.types'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
 import { NutrientGoalBar } from '@/features/nutrition/NutrientGoalBar'
-import {
-  goalPercent,
-  hasGoal,
-  primaryGoal,
-  type NutrientGoal,
-} from '@/features/nutrition/goal-progress'
+import { GoalPercent } from '@/features/nutrition/GoalPercent'
+import { hasGoal, primaryGoal, type NutrientGoal } from '@/features/nutrition/goal-progress'
 import { UNKNOWN_AMOUNT, formatAmount } from '@/features/nutrition/nutrient-display'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
+import { UNVERIFIED_TARGET_NOTE, isUnverifiedTarget } from '@/features/nutrition/target-provenance'
 import { useIsClient } from '@/hooks/use-is-client'
 import { todayIso } from '@/lib/date'
 
@@ -33,7 +31,6 @@ function SummaryRow({
   const { nutrient, tone } = info
   const known = amount !== null
   const reference = primaryGoal(goal)
-  const percent = goalPercent(goal, amount)
   return (
     <li className="px-4 py-4">
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-base">
@@ -42,9 +39,12 @@ function SummaryRow({
           {known ? formatAmount(amount, nutrient.unit) : UNKNOWN_AMOUNT}
           {reference !== null && ` / ${formatAmount(reference, nutrient.unit)}`} {nutrient.unit}
         </span>
-        <span className="text-muted-foreground text-right tabular-nums">
-          {percent !== null ? `${percent}%` : reference === null ? 'No Target' : ''}
-        </span>
+        <GoalPercent
+          goal={goal}
+          consumed={amount}
+          fallback={reference === null ? 'No Target' : ''}
+          className="text-right"
+        />
       </div>
       {hasGoal(goal) && (
         <div className="mt-3">
@@ -75,6 +75,13 @@ function ActiveGoal({
     return (
       <p className="bg-card text-muted-foreground rounded-xl p-4 text-base">
         No goal is set for {name}.
+      </p>
+    )
+  // Target của ngày LEGACY_UNVERIFIED (cờ BE): chỉ để tham khảo, không hiện như mục tiêu đang áp
+  if (isUnverifiedTarget(day.targetProvenance))
+    return (
+      <p className="bg-card text-muted-foreground rounded-xl p-4 text-base">
+        {UNVERIFIED_TARGET_NOTE}
       </p>
     )
   const strategy = day.targetSource === 'Strategy'
@@ -112,7 +119,10 @@ const SECTION =
  * Trang tóm tắt một chất (bấm thẻ "<Nutrient> Today"): Today / Past Week / Past Month so với mục tiêu, Active Goal (nguồn mục tiêu +
  * floor / target / ceiling), All Contributors của hôm nay (trượt vào lần lượt) và Nutrient Timing (24 giờ). Các phần hiện lần lượt.
  */
-export function NutrientSummaryPage({ info }: { readonly info: NutrientInfo }) {
+export function NutrientSummaryPage({ info: catalogInfo }: { readonly info: NutrientInfo }) {
+  // Calo hiện theo kcal / kJ của user: mọi số của ngày đổi bằng `factor`; `info` mang đơn vị hiển thị
+  const { energy } = useUnits()
+  const { info, factor } = displayNutrient(catalogInfo, energy)
   const { nutrient } = info
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
@@ -130,7 +140,7 @@ export function NutrientSummaryPage({ info }: { readonly info: NutrientInfo }) {
       </div>
     )
 
-  const day = query.data
+  const day = scaleDayResponse(query.data, factor)
   const goal: NutrientGoal = day
 
   return (

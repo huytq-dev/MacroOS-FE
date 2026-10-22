@@ -50,5 +50,3 @@ export const recipeSchema = z.object({
     .optional(),
   iconKey: z.string().optional(),
 })
-
-export type RecipePayload = z.infer<typeof recipeSchema>

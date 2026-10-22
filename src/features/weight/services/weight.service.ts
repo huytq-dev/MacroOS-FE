@@ -6,6 +6,7 @@ import type {
   UpsertVisualBodyFatRequest,
   UpsertWeightRequest,
   VisualBodyFatEntries,
+  WeighInHabit,
   WeightEntries,
 } from '../types/weight.types'
 
@@ -15,6 +16,8 @@ export const weightService = {
   /** Toàn bộ lịch sử tới `to` (BE `all=true`: từ lần cân đầu tiên). */
   listAll: (to: string) =>
     apiCall.get<WeightEntries>(apiRoutes.weights.root, { params: { to, all: true } }),
+  /** Trang Habits (Weigh-In): ngày có cân của cả năm + streak toàn thời gian (không giới hạn ở năm đang xem). */
+  habit: (year: number) => apiCall.get<WeighInHabit>(apiRoutes.weights.habit, { params: { year } }),
   upsert: (payload: UpsertWeightRequest) => apiCall.post<string>(apiRoutes.weights.root, payload),
   remove: (logDate: string) => apiCall.delete(apiRoutes.weights.byDate(logDate)),
 

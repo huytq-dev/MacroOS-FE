@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronLeft, Flame, Loader2, Plus } from 'lucide-react'
+import { Energy } from '@/components/shared/Energy'
 import { FoodIcon } from '@/components/shared/FoodIcon'
 import { HighlightedText } from '@/lib/search-highlight'
 import { cn } from '@/lib/utils'
@@ -196,7 +197,7 @@ function SearchResultRow({
           </span>
           <span className="text-muted-foreground mt-0.5 flex items-center gap-x-1.5 text-xs leading-tight tabular-nums">
             <span className="inline-flex shrink-0 items-center">
-              {per(food.caloriesPer100g)}
+              <Energy kcal={scaleNutrition(food.caloriesPer100g, food.defaultServingGrams)} />
               <Flame aria-hidden="true" fill="currentColor" className="size-3" />
             </span>
             <span className="shrink-0">

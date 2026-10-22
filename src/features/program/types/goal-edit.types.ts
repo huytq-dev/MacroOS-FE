@@ -1,3 +1,5 @@
+import type { Feasibility } from './feasibility.types'
+
 // Khớp BE Contract/Models/Goals/GoalEditModels.cs (POST /goals/edit-preview, PUT /goals/edit)
 
 export interface GoalRateBounds {
@@ -42,6 +44,8 @@ export interface GoalEditPreview {
   requiresNewProgram: boolean
   isManualProgram: boolean
   changes: { weight: GoalEditChange; rate: GoalEditChange }
+  /** Kiểm khả thi của BE (HTTP 200): `isFeasible = false` thì Done (PUT /goals/edit) bị 400 cùng object này và không ghi gì. */
+  feasibility?: Feasibility | null
 }
 
 export interface GoalEditPreviewRequest {

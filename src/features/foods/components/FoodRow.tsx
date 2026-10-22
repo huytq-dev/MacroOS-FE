@@ -1,4 +1,5 @@
 import { ChevronRight, Plus } from 'lucide-react'
+import { Energy, EnergyUnit } from '@/components/shared/Energy'
 import { Badge } from '@/components/ui/badge'
 import { FoodIcon } from './FoodIcon'
 import { scaleNutrition, type FoodSummary } from '../types/food.types'
@@ -28,7 +29,7 @@ export function FoodRow({ food, onSelect, onQuickAdd, trailing }: FoodRowProps) 
           </span>
           <span className="block text-sm tabular-nums md:text-xs">
             <span className="text-mf-calories font-semibold">
-              {scaleNutrition(food.caloriesPer100g, grams)} kcal
+              <Energy kcal={scaleNutrition(food.caloriesPer100g, grams)} /> <EnergyUnit />
             </span>
             <span className="text-muted-foreground">
               {'  '}

@@ -26,6 +26,21 @@ interface WizardShellProps {
 }
 
 /**
+ * Đưa focus bàn phím về nút chính của wizard (sau khi nó được bật): dùng khi một nút trong nội dung bước biến mất lúc được bấm (vd. "Use this
+ * value") để focus không rơi về `body`.
+ */
+export function focusWizardNext() {
+  requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-wizard-next]')?.focus())
+}
+
+/** Đưa focus về vùng nội dung của bước (vd. một nút sửa biến mất lúc được bấm) để bàn phím không rơi về `body`; nút chính có thể đang khoá. */
+export function focusWizardContent() {
+  requestAnimationFrame(() =>
+    document.querySelector<HTMLElement>('[data-wizard-content]')?.focus({ preventScroll: true })
+  )
+}
+
+/**
  * Khung wizard kiểu app: tiêu đề phần + thanh tiến độ ở đầu, nội dung chuyển bước trượt theo hướng đi/lùi,
  * nút chính dính đáy (tầm ngón cái, chừa safe-area). Tôn trọng prefers-reduced-motion.
  */
@@ -88,6 +103,7 @@ export function WizardShell({
       <div
         key={stepKey}
         ref={contentRef}
+        data-wizard-content=""
         tabIndex={-1}
         className={cn(
           'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-300 flex flex-1 flex-col px-4 pt-4 pb-6 outline-none',
@@ -106,6 +122,7 @@ export function WizardShell({
             ? null
             : (footer ?? (
                 <Button
+                  data-wizard-next=""
                   className="h-12 w-full rounded-full text-base"
                   disabled={nextDisabled || isPending}
                   aria-busy={isPending}

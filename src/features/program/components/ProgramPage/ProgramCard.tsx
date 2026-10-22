@@ -1,5 +1,6 @@
 import { Pencil, RefreshCw } from 'lucide-react'
 import { routePath } from '@/config/route-path'
+import { UNVERIFIED_TARGET_NOTE, isUnverifiedTarget } from '@/features/nutrition/target-provenance'
 import { formatMonthDay } from '@/lib/date'
 import type { Program } from '../../types/program.types'
 import { ActionChip } from './ActionChip'
@@ -10,26 +11,20 @@ interface ProgramCardProps {
   readonly onEdit: () => void
 }
 
-/** Bảy ngày của biểu đồ: BE trả `days` khi các ngày khác nhau, không thì mọi ngày bằng mục tiêu của tuần hiện tại. */
-const chartDaysOf = (program: Program): ChartDay[] | null => {
-  if (program.days && program.days.length === 7)
-    return program.days.map((day) => ({
-      kcal: day.calories,
-      proteinG: day.proteinG,
-      carbsG: day.carbsG,
-      fatG: day.fatG,
-      locked: day.isLocked,
-    }))
-  const week = program.currentWeek
-  if (!week) return null
-  const day = {
-    kcal: week.caloriesTarget,
-    proteinG: week.proteinTarget,
-    carbsG: week.carbsTarget,
-    fatG: week.fatTarget,
-  }
-  return Array.from({ length: 7 }, () => day)
-}
+/**
+ * Bảy ngày của biểu đồ: đúng `days` BE trả (luôn đủ 7 khi có tuần hiện tại, kể cả khi các ngày bằng nhau). Thiếu thì không có biểu đồ:
+ * không bao giờ dựng bảy ngày từ một mục tiêu tuần (ngày dịch kcal / Collaborative khác mục tiêu tuần).
+ */
+const chartDaysOf = (program: Program): ChartDay[] | null =>
+  program.days?.length === 7
+    ? program.days.map((day) => ({
+        kcal: day.calories,
+        proteinG: day.proteinG,
+        carbsG: day.carbsG,
+        fatG: day.fatG,
+        locked: day.isLocked,
+      }))
+    : null
 
 /**
  * Thẻ "<Style> Program" của tab Strategy (như MacroFactor): tên + khoảng ngày, biểu đồ bảy ngày dùng chung với wizard
@@ -37,6 +32,8 @@ const chartDaysOf = (program: Program): ChartDay[] | null => {
  */
 export function ProgramCard({ program, onEdit }: ProgramCardProps) {
   const days = chartDaysOf(program)
+  // Cờ của BE (tuần hoặc ngày): target cũ chưa xác minh chỉ để tham khảo; thẻ này không có đạt / không đạt nên chỉ thêm câu giải thích
+  const unverified = (program.days ?? []).some((day) => isUnverifiedTarget(day.targetProvenance))
   return (
     <section className="bg-card rounded-2xl p-4 pt-5">
       <h3 className="text-xl font-medium">{program.programType} Program</h3>
@@ -48,9 +45,10 @@ export function ProgramCard({ program, onEdit }: ProgramCardProps) {
         </div>
       ) : (
         <p className="text-muted-foreground mt-4 text-base">
-          Manual program: you set your own targets, so no weekly targets are generated.
+          There are no daily targets to show for this week yet.
         </p>
       )}
+      {unverified && <p className="text-muted-foreground mt-3 text-sm">{UNVERIFIED_TARGET_NOTE}</p>}
 
       <div className="border-border mt-5 flex flex-wrap gap-2 border-t pt-4">
         <ActionChip icon={RefreshCw} label="New Program" href={routePath.programNew} />

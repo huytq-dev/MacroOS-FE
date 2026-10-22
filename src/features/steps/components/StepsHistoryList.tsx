@@ -1,7 +1,8 @@
 import Image from 'next/image'
 import { Pencil, Smartphone } from 'lucide-react'
 import { formatSteps, type StepsDay } from '../steps.utils'
-import { entryDayLabel, groupByMonth } from '@/features/weight/body-metric.utils'
+import { groupByMonth } from '@/features/weight/body-metric.utils'
+import { formatWeekdayMonthDay } from '@/lib/week'
 
 interface StepsHistoryListProps {
   readonly days: readonly StepsDay[]
@@ -48,11 +49,13 @@ export function StepsHistoryList({ days, onEdit }: StepsHistoryListProps) {
                 <SourceIcon source={day.source} />
                 <div className="min-w-0 flex-1">
                   <p className="text-lg font-medium tabular-nums">{formatSteps(day.steps)} steps</p>
-                  <p className="text-muted-foreground text-base">{entryDayLabel(day.date)}</p>
+                  <p className="text-muted-foreground text-base">
+                    {formatWeekdayMonthDay(day.date)}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  aria-label={`Edit ${entryDayLabel(day.date)}`}
+                  aria-label={`Edit ${formatWeekdayMonthDay(day.date)}`}
                   onClick={() => onEdit(day.date)}
                   className="bg-secondary active:bg-muted focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
                 >

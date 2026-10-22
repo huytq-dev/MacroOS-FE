@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react'
+import { Energy, EnergyUnit } from '@/components/shared/Energy'
 import { FoodIcon } from '@/features/foods/components/FoodIcon'
 import type { FavoriteFood } from '@/features/foods/types/favorite.types'
 
@@ -39,7 +40,7 @@ export function FavoritesBar({ favorites, onQuickAdd }: FavoritesBarProps) {
                 {favorite.foodName}
               </span>
               <span className="text-muted-foreground text-xs tabular-nums">
-                {favorite.calories} kcal
+                <Energy kcal={favorite.calories} /> <EnergyUnit />
               </span>
             </button>
           </li>

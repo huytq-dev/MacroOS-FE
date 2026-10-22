@@ -9,6 +9,7 @@ import { useProgressPhotoSessions } from '@/features/progress-photos/hooks/use-p
 import { photoOf } from '@/features/progress-photos/progress-photos.utils'
 import { useProfile } from '@/features/users/hooks/use-profile'
 import { formatDate } from '@/lib/date'
+import { bodyRatios } from '../../dashboard.utils'
 import { useMeasurementOverview } from '../../hooks/use-measurement-overview'
 import { MetricTile } from './MetricTile'
 import { Sparkline } from './TileVisuals'
@@ -69,6 +70,7 @@ export function MeasureTile({
       }
       value={metric && values.length > 0 ? trim(metric.latestCm) : '---'}
       unit={key ? 'cm' : ''}
+      loading={overview.isPending}
     />
   )
 }
@@ -89,18 +91,16 @@ export function RatioTile({
   const metrics = overview.data?.metrics
   const waist = metrics?.find((item) => item.key === 'waist')
   const hips = metrics?.find((item) => item.key === 'hips')
-  const heightCm = profile.data?.heightCm ?? null
-  // Mới → cũ như BE; mỗi điểm là tỉ lệ của một lần đo vòng eo (Waist to Hip chỉ tính ngày có cả hông)
-  const ratios = (waist?.entries ?? []).flatMap((entry) => {
-    const divisor =
-      tileKey === 'waistToHeight'
-        ? heightCm
-        : (hips?.entries.find((item) => item.date === entry.date)?.valueCm ?? null)
-    return divisor ? [entry.valueCm / divisor] : []
-  })
-  const latestDivisor = tileKey === 'waistToHeight' ? heightCm : (hips?.latestCm ?? null)
-  const latest = waist && latestDivisor ? waist.latestCm / latestDivisor : null
-  const spark = [...ratios].reverse()
+  // Mới → cũ như BE; số lớn và đường nhỏ đọc CÙNG danh sách này: Waist to Hip lấy eo ÷ hông đo cùng ngày, không ghép eo mới nhất với
+  // hông của ngày khác
+  const ratios = bodyRatios(
+    tileKey,
+    waist?.entries ?? [],
+    hips?.entries ?? [],
+    profile.data?.heightCm ?? null
+  )
+  const latest = ratios[0]?.ratio ?? null
+  const spark = ratios.map((point) => point.ratio).reverse()
   return (
     <MetricTile
       title={title}
@@ -112,6 +112,7 @@ export function RatioTile({
         ) : undefined
       }
       value={latest === null ? '---' : latest.toFixed(2)}
+      loading={overview.isPending || profile.isPending}
     />
   )
 }
@@ -133,6 +134,7 @@ export function ProgressPhotosTile() {
         visual={<Camera aria-hidden="true" className="text-muted-foreground size-8" />}
         value="Add"
         href={routePath.progressPhotos}
+        loading={query.isPending}
       />
     )
   return (
@@ -193,6 +195,7 @@ export function FullBodyTile() {
         value="---"
         unit="metrics"
         href={routePath.fullBody}
+        loading={history.isPending}
       />
     )
   return (

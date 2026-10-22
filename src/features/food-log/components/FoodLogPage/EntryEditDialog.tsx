@@ -98,7 +98,10 @@ function loggedFood(entry: FoodLogEntry): FoodDetail {
       carbsPer100g: entry.carbs / units,
       fatPer100g: entry.fat / units,
     },
+    // Món ảo không có bảng chất trên 100 g (màn sửa hiện bảng toàn 0) và không biết g/ml
+    nutrientsPer100g: {},
     servings: [{ id: LOGGED_UNIT, servingName: 'serving', weightInGrams: 100, isDefault: true }],
+    gramsPerMl: null,
   }
 }
 

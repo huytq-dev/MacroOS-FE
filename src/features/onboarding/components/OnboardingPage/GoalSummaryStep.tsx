@@ -1,9 +1,10 @@
 'use client'
 
 import { formatDate } from '@/lib/date'
+import type { EnergyUnit, Measure, WeightUnit } from '@/lib/units'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StepHeading } from './ChoiceStep'
-import type { ProgramPreview } from '../../types/onboarding.types'
+import type { GoalPreview } from '../../types/onboarding.types'
 
 interface SummaryCardProps {
   readonly title: string
@@ -32,13 +33,18 @@ interface GoalSummaryStepProps {
   readonly currentWeightKg: number
   readonly targetWeightKg: number | null
   readonly ratePercent: number
-  readonly preview: ProgramPreview | undefined
+  readonly preview: GoalPreview | undefined
+  /** Đơn vị cân nặng và năng lượng hiển thị; các số trong props luôn là kg / kcal. */
+  readonly weight: Measure<WeightUnit>
+  readonly energy: Measure<EnergyUnit>
+  /** Program Manual: không có ngân sách kcal tự động và MacroOS không chỉnh target, nên ẩn thẻ ngân sách và đổi lời giải thích tốc độ. */
+  readonly manual?: boolean
 }
 
 const GOAL_LABEL = {
-  WeightLoss: 'Lose weight',
-  Maintenance: 'Maintain weight',
-  WeightGain: 'Gain weight',
+  WeightLoss: 'Weight Loss',
+  Maintenance: 'Maintain Weight',
+  WeightGain: 'Weight Gain',
 } as const
 
 /** Tóm tắt mục tiêu trước khi sang Program: loại mục tiêu, tốc độ, ngân sách ban đầu và ngày dự kiến kèm lời giải thích. */
@@ -48,6 +54,9 @@ export function GoalSummaryStep({
   targetWeightKg,
   ratePercent,
   preview,
+  weight,
+  energy,
+  manual = false,
 }: GoalSummaryStepProps) {
   const maintain = goalType === 'Maintenance'
   const verb = goalType === 'WeightGain' ? 'gain' : 'lose'
@@ -60,7 +69,7 @@ export function GoalSummaryStep({
         <span>{GOAL_LABEL[goalType]}</span>
         {!maintain && targetWeightKg !== null && (
           <span className="tabular-nums">
-            {currentWeightKg.toFixed(0)} kg » {targetWeightKg.toFixed(0)} kg
+            {weight.text(currentWeightKg, 0)} » {weight.text(targetWeightKg, 0)}
           </span>
         )}
       </div>
@@ -68,26 +77,39 @@ export function GoalSummaryStep({
       {!maintain && (
         <SummaryCard
           index={0}
-          title="Goal rate"
-          value={`${goalType === 'WeightGain' ? '+' : '−'}${ratePercent.toFixed(2)}% per week`}
+          title="Goal Rate"
+          value={`${goalType === 'WeightGain' ? '+' : '−'}${ratePercent.toFixed(2)}% BW per week`}
         >
-          MacroOS will adjust your calorie target as needed so you {verb} about{' '}
-          {ratePercent.toFixed(2)}% of your body weight per week. The kg per week will change as
-          your weight changes.
+          {manual ? (
+            <>
+              You aim to {verb} about {ratePercent.toFixed(2)}% of your body weight per week.
+              Because you set your own targets, MacroOS won&apos;t adjust them; it tracks your
+              progress so you can see how close you are.
+            </>
+          ) : (
+            <>
+              MacroOS will adjust your calorie target as needed so you {verb} about{' '}
+              {ratePercent.toFixed(2)}% of your body weight per week. The {weight.unit} per week
+              will change as your weight changes.
+            </>
+          )}
         </SummaryCard>
       )}
-      <SummaryCard
-        index={1}
-        title="Starting daily budget"
-        value={`${preview.averageCalories} kcal`}
-      >
-        This budget is estimated from your current expenditure. Your expenditure keeps changing with
-        your eating and activity; at each weekly check-in, MacroOS updates your plan to match.
-      </SummaryCard>
+      {!manual && (
+        <SummaryCard
+          index={1}
+          title="Initial Daily Budget"
+          value={preview.budgetKcal === null ? '—' : energy.text(preview.budgetKcal)}
+        >
+          {preview.budgetKcal === null
+            ? 'Your starting budget will appear once MacroOS has an estimate of your expenditure.'
+            : 'This budget is estimated from your current expenditure. Your expenditure keeps changing with your eating and activity; at each weekly check-in, MacroOS updates your plan to match.'}
+        </SummaryCard>
+      )}
       {!maintain && (
         <SummaryCard
           index={2}
-          title="Projected completion date"
+          title="Estimated End Date"
           value={preview.projectedEndDate ? formatDate(preview.projectedEndDate) : '—'}
         >
           This is an optimistic estimate, assuming your expenditure stays perfectly stable and you

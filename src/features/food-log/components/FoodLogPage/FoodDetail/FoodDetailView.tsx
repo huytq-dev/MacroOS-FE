@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { FavoriteFood } from '@/features/foods/types/favorite.types'
-import {
-  scaleNutrition,
-  servingAmountLabel,
-  type FoodDetail,
-} from '@/features/foods/types/food.types'
+import { servingAmountLabel, type FoodDetail } from '@/features/foods/types/food.types'
 import type { PlateItem } from '../../../types/food-log.types'
 import { DetailActions } from './DetailActions'
 import { FoodDetailHeader } from './FoodDetailHeader'
@@ -22,12 +18,12 @@ import {
   nutrientPer100g,
   parseQuantity,
   quantityOf,
-  roundTo,
   scaledNutrients,
   type EntryMode,
   type MacroKey,
   type QuantityUnit,
 } from './food-detail.utils'
+import { roundTo } from '@/lib/units'
 
 interface FoodDetailViewProps {
   readonly food: FoodDetail
@@ -141,7 +137,8 @@ export function FoodDetailView({
   const grams = Number.isFinite(quantityNumber)
     ? gramsOf(quantityNumber, unit, serving?.weightInGrams ?? 0)
     : 0
-  const logQuantity = unit === 'serving' ? quantityNumber : roundTo(grams, 2)
+  // BE lưu Quantity 2 số lẻ (HasPrecision(8,2)): làm tròn trước khi kiểm, gửi và so với yêu thích, để "1/3" không gửi 0.3333… rồi sửa lại lệch ~1%
+  const logQuantity = roundTo(unit === 'serving' ? quantityNumber : grams, 2)
   const valid = Number.isFinite(quantityNumber) && logQuantity >= 0.01 && logQuantity <= 10000
   const shownGrams = valid ? grams : 0
 
@@ -237,14 +234,16 @@ export function FoodDetailView({
         ? servingAmountLabel(quantityNumber, serving.servingName)
         : `${roundTo(grams, 1)} g`,
     quantity: logQuantity,
-    calories: scaleNutrition(food.nutrition.caloriesPer100g, shownGrams),
-    protein: scaleNutrition(food.nutrition.proteinPer100g, shownGrams),
-    carbs: scaleNutrition(food.nutrition.carbsPer100g, shownGrams),
-    fat: scaleNutrition(food.nutrition.fatPer100g, shownGrams),
+    // Không làm tròn: plate cộng số thật rồi chỉ làm tròn khi hiển thị (BE cộng theo 2 số lẻ, không theo số nguyên từng dòng)
+    calories,
+    protein,
+    carbs,
+    fat,
     nutrients: scaledNutrients(food, shownGrams),
     emoji: food.emoji ?? null,
     iconKey: food.iconKey ?? null,
-    grams: roundTo(shownGrams, 1),
+    // Khối lượng thật (không làm tròn): sửa lượng trong plate quy đổi theo tỉ lệ khối lượng nên làm tròn ở đây sẽ lệch macro (4.9 g → 9.8 g phải gấp đôi)
+    grams: shownGrams,
     servings: food.servings.map((item) => ({
       id: item.id,
       name: item.servingName,

@@ -10,7 +10,7 @@ interface BodyFatReferenceSheetProps {
   readonly onOpenChange: (open: boolean) => void
   /** Bộ hình theo giới tính trong hồ sơ; mặc định nam. */
   readonly body?: ReferenceBody
-  /** Chọn một khoảng: trả về % mỡ giữa khoảng (50%+ là 53). */
+  /** Chọn một khoảng: trả về % mỡ giữa khoảng (50%+ là 52, như BE). */
   readonly onSelect: (percent: number) => void
 }
 

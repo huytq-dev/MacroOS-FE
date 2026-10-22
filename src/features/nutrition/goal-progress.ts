@@ -15,11 +15,22 @@ export interface NutrientGoal {
   readonly floor: number | null
   readonly target: number | null
   readonly ceiling: number | null
-  /** Loại mục tiêu BE trả; có thì quyết định mốc nào được vẽ, thiếu thì suy từ chính các số. */
-  readonly goalKind?: GoalKind | null
+  /** Loại mục tiêu BE phân loại (mọi model dinh dưỡng của BE đều có); quyết định mốc nào được vẽ. FE KHÔNG suy loại từ các con số. */
+  readonly goalKind: GoalKind
 }
 
-export const NO_GOAL: NutrientGoal = { floor: null, target: null, ceiling: null }
+export const NO_GOAL: NutrientGoal = { floor: null, target: null, ceiling: null, goalKind: 'None' }
+
+/**
+ * Mục tiêu từ một model dinh dưỡng của BE (`NutrientModel` của Dashboard, `NutrientAmountModel` của chi tiết món / plate / recipe,
+ * `NutritionOverviewItem`...): đúng bốn trường BE trả, MỘT chỗ chung để mọi nơi vẽ thanh đi cùng đường với Dashboard.
+ */
+export const goalOfModel = (model: NutrientGoal): NutrientGoal => ({
+  floor: model.floor,
+  target: model.target,
+  ceiling: model.ceiling,
+  goalKind: model.goalKind,
+})
 
 // ── Hằng số của thang thích ứng (mỗi hệ số là "chừa bao nhiêu chỗ phía sau mốc cuối cùng của thanh") ────────────────────────────────
 
@@ -34,7 +45,12 @@ export const CEILING_REACH = 2
 /** Trần được vẽ: thang = ceiling × 1.15 → ceiling ở ≈ 0.87, floor / target phân bố tuyến tính trước đó. */
 export const CEILING_HEADROOM = 1.15
 
-export type GoalStatus = 'empty' | 'below' | 'inRange' | 'met' | 'over'
+/**
+ * Trạng thái so với mục tiêu. Vượt có HAI loại khác hẳn nhau: `overTarget` chỉ là thông tin (ăn nhiều hơn target, vd. "112%": giữ tông
+ * trung tính) còn `overCeiling` là cảnh báo (qua giới hạn thật của BE: tông destructive). Mục tiêu Minimum không có trạng thái vượt, và
+ * "vượt" không bao giờ suy từ hằng số chừa chỗ để vẽ (`*_HEADROOM`) — chỉ từ mốc thật.
+ */
+export type GoalStatus = 'empty' | 'below' | 'inRange' | 'met' | 'overTarget' | 'overCeiling'
 
 export interface GoalProgress {
   /** Giá trị ứng với đầu phải của thanh; 0 khi không có mục tiêu. KHÔNG đổi theo lượng đã ăn. */
@@ -61,17 +77,19 @@ const positive = (value: number | null | undefined) =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
 
 /**
- * Làm sạch một mục tiêu: số không dương thành null, rồi để `goalKind` (nếu có) quyết định mốc nào còn lại — None: không mốc nào;
- * Target: chỉ target; Maximum: chỉ ceiling; Minimum: không ceiling; TargetWithCeiling: không floor; Range: giữ cả ba.
+ * Làm sạch một mục tiêu: số không dương thành null, rồi để `goalKind` của BE quyết định mốc nào còn lại — None: không mốc nào;
+ * Target: chỉ target; Maximum: chỉ ceiling; Minimum: không ceiling; TargetWithCeiling: không floor; Range: giữ cả ba. `goalKind` là
+ * trường bắt buộc (BE luôn gửi), FE KHÔNG đoán loại từ các con số; không có mục tiêu (null / undefined) thì là `NO_GOAL`.
  */
-export function normalizeGoal(goal: Partial<NutrientGoal> | null | undefined): NutrientGoal {
-  const floor = positive(goal?.floor)
-  const target = positive(goal?.target)
-  const ceiling = positive(goal?.ceiling)
-  const goalKind = goal?.goalKind ?? null
+export function normalizeGoal(goal: NutrientGoal | null | undefined): NutrientGoal {
+  if (!goal) return NO_GOAL
+  const floor = positive(goal.floor)
+  const target = positive(goal.target)
+  const ceiling = positive(goal.ceiling)
+  const { goalKind } = goal
   switch (goalKind) {
     case 'None':
-      return { ...NO_GOAL, goalKind }
+      return NO_GOAL
     case 'Target':
       return { floor: null, target, ceiling: null, goalKind }
     case 'Maximum':
@@ -86,13 +104,13 @@ export function normalizeGoal(goal: Partial<NutrientGoal> | null | undefined): N
 }
 
 /** Có ít nhất một mốc (floor / target / ceiling) dương: chất không có mục tiêu thì không vẽ thanh và hiện "No Target". */
-export const hasGoal = (goal: Partial<NutrientGoal> | null | undefined): boolean => {
+export const hasGoal = (goal: NutrientGoal | null | undefined): boolean => {
   const g = normalizeGoal(goal)
   return g.floor !== null || g.target !== null || g.ceiling !== null
 }
 
 /** Mốc dùng cho phần trăm và "còn lại": target, thiếu thì floor, chỉ trần thì ceiling (MỘT quy tắc cho mọi nơi; goalKind None = null). */
-export function primaryGoal(goal: Partial<NutrientGoal> | null | undefined): number | null {
+export function primaryGoal(goal: NutrientGoal | null | undefined): number | null {
   const g = normalizeGoal(goal)
   return g.target ?? g.floor ?? g.ceiling
 }
@@ -105,6 +123,15 @@ function ceilingDrawn(g: NutrientGoal): boolean {
 }
 
 /**
+ * Mốc cao nhất của MỘT mục tiêu mà biểu đồ lịch sử phải chừa chỗ (trục y): target, floor và trần GẦN (cùng luật `ceilingDrawn` với thanh).
+ * Trần xa (vd. vitamin C 90 / 2000) không được tính — nếu tính thì cột dữ liệu bị ép xuống đáy — mà ghi bằng chữ "Limit …".
+ */
+export function goalAxisTop(goal: NutrientGoal | null | undefined): number {
+  const g = normalizeGoal(goal)
+  return Math.max(g.target ?? 0, g.floor ?? 0, ceilingDrawn(g) ? (g.ceiling ?? 0) : 0)
+}
+
+/**
  * Thang (giá trị ứng với đầu phải của thanh) cho MỘT mục tiêu; 0 khi không có mục tiêu (không vẽ thanh). Theo loại mục tiêu:
  * - chỉ target (Target): target × TARGET_HEADROOM; có floor nhưng không trần (Minimum): mốc × MIN_HEADROOM;
  * - chỉ trần (Maximum): ceiling × LIMIT_HEADROOM;
@@ -112,7 +139,7 @@ function ceilingDrawn(g: NutrientGoal): boolean {
  *   trên thanh; trần xa → mốc × MIN_HEADROOM và trần không vẽ.
  * Chỉ phụ thuộc mục tiêu: đổi lượng đã ăn không bao giờ đổi thang.
  */
-export function goalScaleMax(goal: Partial<NutrientGoal> | null | undefined): number {
+export function goalScaleMax(goal: NutrientGoal | null | undefined): number {
   const g = normalizeGoal(goal)
   const base = g.target ?? g.floor
   if (base === null) return g.ceiling === null ? 0 : g.ceiling * LIMIT_HEADROOM
@@ -122,6 +149,33 @@ export function goalScaleMax(goal: Partial<NutrientGoal> | null | undefined): nu
   return g.floor === null ? base * TARGET_HEADROOM : base * MIN_HEADROOM
 }
 
+/** Mục tiêu Minimum (chỉ floor và/hoặc target, không trần): ăn nhiều hơn mức tối thiểu là điều tốt nên không có trạng thái vượt. Chỉ theo `goalKind` của BE. */
+const isMinimum = (g: NutrientGoal) => g.goalKind === 'Minimum'
+
+/**
+ * Trạng thái của một lượng đã ăn so với mục tiêu đã làm sạch, chỉ theo các mốc THẬT: qua trần → `overCeiling`; qua target → `overTarget`
+ * (trừ Minimum: `met`). Không phụ thuộc thang vẽ nên một thanh đầy không có nghĩa là vượt.
+ */
+function statusOf(g: NutrientGoal, eaten: number): GoalStatus {
+  if (g.floor === null && g.target === null && g.ceiling === null) return 'empty'
+  if (eaten === 0) return 'empty'
+  if (g.ceiling !== null && eaten > g.ceiling) return 'overCeiling'
+  if (g.target !== null) {
+    if (eaten < g.target) return g.floor !== null && eaten >= g.floor ? 'inRange' : 'below'
+    return eaten > g.target && !isMinimum(g) ? 'overTarget' : 'met'
+  }
+  if (g.floor !== null) return eaten >= g.floor ? 'met' : 'below'
+  return 'inRange'
+}
+
+/** Trạng thái không cần hình học (chữ phần trăm, màu chữ...): cùng quy tắc với `goalProgress(...).status`. */
+export function goalStatus(
+  goal: NutrientGoal | null | undefined,
+  consumed: number | null
+): GoalStatus {
+  return statusOf(normalizeGoal(goal), positive(consumed) ?? 0)
+}
+
 /**
  * Hình học và trạng thái của một thanh. Vị trí của mọi mốc và của phần đã ăn = giá trị / scaleMax (kẹp 0–1, tuyến tính, cùng một thang);
  * ăn vượt thang thì fill = 1 chứ không giãn thang. `scaleMax` mặc định là thang của chính mục tiêu; danh sách nhiều hàng (lịch sử, tóm tắt)
@@ -129,7 +183,7 @@ export function goalScaleMax(goal: Partial<NutrientGoal> | null | undefined): nu
  * (`goalPercent`) là consumed / mốc chính, TÁCH khỏi vị trí.
  */
 export function goalProgress(
-  goal: Partial<NutrientGoal> | null | undefined,
+  goal: NutrientGoal | null | undefined,
   consumed: number | null,
   scaleMax: number = goalScaleMax(goal)
 ): GoalProgress {
@@ -155,16 +209,6 @@ export function goalProgress(
   const drawn = ceilingDrawn(g)
   const ceilingAt = drawn ? at(g.ceiling) : null
 
-  let status: GoalStatus
-  if (eaten === 0) status = 'empty'
-  else if (g.ceiling !== null && eaten > g.ceiling) status = 'over'
-  // Không có trần mà ăn vượt cả thang: thanh đầy và coi là vượt (có trần xa thì chỉ vượt khi qua trần thật)
-  else if (g.ceiling === null && eaten > scaleMax) status = 'over'
-  else if (g.target !== null)
-    status = eaten >= g.target ? 'met' : g.floor !== null && eaten >= g.floor ? 'inRange' : 'below'
-  else if (g.floor !== null) status = eaten >= g.floor ? 'met' : 'below'
-  else status = 'inRange'
-
   return {
     scaleMax,
     fill: at(eaten) ?? 0,
@@ -175,26 +219,17 @@ export function goalProgress(
     ceilingValue: g.ceiling,
     zone:
       g.floor === null && g.ceiling === null ? null : [floorAt ?? targetAt ?? 0, ceilingAt ?? 1],
-    status,
+    status: statusOf(g, eaten),
   }
 }
 
 /** Phần trăm so với mốc chính (làm tròn); null khi chưa có số hoặc chưa có mục tiêu ("No Target"). */
 export function goalPercent(
-  goal: Partial<NutrientGoal> | null | undefined,
+  goal: NutrientGoal | null | undefined,
   consumed: number | null
 ): number | null {
   const reference = primaryGoal(goal)
   return reference === null || consumed === null ? null : Math.round((consumed / reference) * 100)
-}
-
-/** Còn lại tới mốc chính (không âm); null khi chưa có mục tiêu. */
-export function goalRemaining(
-  goal: Partial<NutrientGoal> | null | undefined,
-  consumed: number | null
-): number | null {
-  const reference = primaryGoal(goal)
-  return reference === null ? null : Math.max(0, reference - (consumed ?? 0))
 }
 
 /**
@@ -216,10 +251,10 @@ export function weekBarProgress(
 
 /**
  * Tỉ lệ đã ăn / target cho vòng, hàng tuần và thanh macro nhỏ (100% = target, như MacroFactor): `progress` kẹp 0–1, `over` khi vượt.
- * Target 0 / null mà đã ăn thì coi như đầy và vượt; chưa ăn thì 0.
+ * Target 0 / null (không có mục tiêu) thì không có gì để vượt hay đầy: `{ progress: 0, over: false }`, không bịa trạng thái "vượt".
  */
 export function targetRatio(consumed: number, target: number | null | undefined) {
   const goal = positive(target)
-  if (goal === null) return { progress: consumed > 0 ? 1 : 0, over: consumed > 0 }
+  if (goal === null) return { progress: 0, over: false }
   return { progress: Math.min(1, Math.max(0, consumed / goal)), over: consumed > goal }
 }

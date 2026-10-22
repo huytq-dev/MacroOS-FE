@@ -1,6 +1,7 @@
 'use client'
 
 import { Flame } from 'lucide-react'
+import { Energy } from '@/components/shared/Energy'
 import { FoodIcon } from '@/components/shared/FoodIcon'
 import { SwipeToDelete } from '@/components/shared/SwipeToDelete'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -50,7 +51,7 @@ export function RecipeIngredientRow({ data, editing, onEdit, onRemove }: RecipeI
         {macros ? (
           <p className="text-muted-foreground flex items-center gap-x-1.5 text-[13px] whitespace-nowrap tabular-nums">
             <span className="inline-flex items-center">
-              {Math.round(macros.calories)}
+              <Energy kcal={macros.calories} />
               <Flame aria-hidden="true" fill="currentColor" className="size-3.5" />
             </span>
             <span>{Math.round(macros.protein)}P</span>

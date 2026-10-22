@@ -1,5 +1,7 @@
 import { TAPE_GROUPS } from '@/features/shortcuts/full-body.config'
 import type { FullBodyHistoryItem, TapeField } from '@/features/shortcuts/types/body-metrics.types'
+import { formatMonthYear } from '@/lib/date'
+import type { Measure, WeightUnit } from '@/lib/units'
 
 export type MetricKey = 'scaleWeightKg' | 'trendWeightKg' | 'visualBodyFatPercent' | TapeField
 
@@ -44,12 +46,25 @@ export const metricValue = (item: FullBodyHistoryItem | undefined, key: MetricKe
 /** Một số lẻ, bỏ ".0": 26 → "26", 26.45 → "26.5". */
 const trim = (value: number) => String(Math.round(value * 10) / 10)
 
-export const formatMetric = (value: number, unit: MetricRowDef['unit']) =>
-  unit === '%' ? `${trim(value)}%` : `${trim(value)} ${unit}`
+/** Hàng cân nặng có đơn vị 'kg' (BE trả kg) nhưng hiện theo kg / lb của user (`weight`); % và cm giữ nguyên. */
+export const formatMetric = (
+  value: number,
+  unit: MetricRowDef['unit'],
+  weight: Measure<WeightUnit>
+) =>
+  unit === '%'
+    ? `${trim(value)}%`
+    : unit === 'kg'
+      ? `${trim(weight.convert(value))} ${weight.unit}`
+      : `${trim(value)} ${unit}`
 
 /** "+3 cm" / "−1 cm" (dấu trừ thật), 0 thì "0 cm". */
-export const formatChange = (delta: number, unit: MetricRowDef['unit']) => {
-  const text = formatMetric(Math.abs(delta), unit)
+export const formatChange = (
+  delta: number,
+  unit: MetricRowDef['unit'],
+  weight: Measure<WeightUnit>
+) => {
+  const text = formatMetric(Math.abs(delta), unit, weight)
   return delta > 0 ? `+${text}` : delta < 0 ? `−${text}` : text
 }
 
@@ -71,25 +86,10 @@ export const changeTone = (delta: number, key: MetricKey, goalType: GoalType) =>
 export const groupByMonth = (items: readonly FullBodyHistoryItem[]) => {
   const groups: { label: string; items: FullBodyHistoryItem[] }[] = []
   for (const item of items) {
-    const label = new Date(`${item.date}T00:00:00`).toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric',
-    })
+    const label = formatMonthYear(item.date)
     const last = groups.at(-1)
     if (last?.label === label) last.items.push(item)
     else groups.push({ label, items: [item] })
   }
   return groups
 }
-
-const dateText = (iso: string, options: Intl.DateTimeFormatOptions) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', options)
-
-/** "Fri, Oct 16" (hàng danh sách). */
-export const rowDate = (iso: string) =>
-  dateText(iso, { weekday: 'short', month: 'short', day: 'numeric' })
-/** "Oct 16" (tab ngày). */
-export const tabDate = (iso: string) => dateText(iso, { month: 'short', day: 'numeric' })
-/** "Oct 16, 2026" (pill so sánh, đầu cột). */
-export const longDate = (iso: string) =>
-  dateText(iso, { month: 'short', day: 'numeric', year: 'numeric' })

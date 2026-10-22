@@ -2,7 +2,7 @@
 
 import { Minus, Plus } from 'lucide-react'
 import { StepHeading } from './ChoiceStep'
-import { LB_PER_KG } from './WeightStep'
+import { weightMeasure } from '@/lib/units'
 import { Slider } from '@/components/ui/slider'
 import type { UnitSystem } from '@/config/enums'
 import { cn } from '@/lib/utils'
@@ -38,8 +38,7 @@ export function BodyFatStep({ value, onChange, weightKg, unit }: BodyFatStepProp
     const target = BODY_FAT_BANDS[Math.min(MAX_LEVEL, Math.max(0, next))]
     if (!chosen || target.value !== band.value) onChange(target.value)
   }
-  const mass = (kg: number) =>
-    unit === 'Imperial' ? `${Math.round(kg * LB_PER_KG)} lb` : `${Math.round(kg)} kg`
+  const mass = (kg: number) => weightMeasure(unit === 'Imperial' ? 'lb' : 'kg').text(kg, 0)
   const fatKg = (weightKg * band.midPercent) / 100
 
   return (

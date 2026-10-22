@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { invalidateLogData, invalidateTargetData } from '@/features/food-log/hooks/use-food-log'
 import { logger } from '@/lib/api'
 import { checkInService } from '../services/check-in.service'
 import type { SetCheckInModulesRequest } from '../types/check-in.types'
@@ -27,6 +28,9 @@ export const useSetIncompleteDays = () => {
     mutationFn: (dates: string[]) => checkInService.setIncompleteDays(dates),
     onSuccess: (session) => {
       if (session) queryClient.setQueryData(checkInKeys.session, session)
+      // BE dựng lại expenditure từ tập ngày chưa đủ và đổi cờ `isIncomplete` của các ngày: nhật ký, nutrients, Nutrition Overview, Expenditure và
+      // Energy Balance đều phải đọc lại (`invalidateLogData`)
+      invalidateLogData(queryClient)
     },
     onError: (error) => {
       logger.error(error)
@@ -48,15 +52,12 @@ export const useSetCheckInModules = () => {
   })
 }
 
-/** Accept / Reject đổi target tuần → làm mới program, goal, nhật ký (target hiển thị) và check-in. Lặp cùng quyết định là an toàn (BE trả Id cũ). */
+/** Accept / Reject đổi target tuần → làm mới program, goal, check-in và mọi số hiển thị theo target (`invalidateTargetData`). Lặp cùng quyết định là an toàn (BE trả Id cũ). */
 const useDecision = (decide: () => Promise<unknown>) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: decide,
-    onSuccess: () => {
-      for (const key of [['check-in'], ['program'], ['goals'], ['food-log']])
-        void queryClient.invalidateQueries({ queryKey: key })
-    },
+    onSuccess: () => invalidateTargetData(queryClient),
     onError: (error) => {
       logger.error(error)
       toast.error("Couldn't update your program")

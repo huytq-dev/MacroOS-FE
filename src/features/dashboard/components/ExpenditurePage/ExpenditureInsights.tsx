@@ -11,6 +11,7 @@ import {
 import type { ExpDay } from '../../expenditure-series'
 import type { ExpenditureChangeStatus } from '../../types/expenditure-series.types'
 import { routePath } from '@/config/route-path'
+import { useUnits } from '@/features/users/hooks/use-units'
 
 interface ChangeRow {
   readonly days: number
@@ -26,18 +27,17 @@ interface InsightsProps {
   readonly changes: readonly ChangeRow[]
   readonly current: number | null
   readonly strategy: 'Calibrating' | 'Updating' | 'Holding' | null
-  /** Câu giải thích của BE khi Holding. */
-  readonly holdingReason: string | null
-  readonly calibratingDaysLeft: number | null
+  /** Lý do Holding bằng tiếng Anh dựng từ mã của BE (`holdingReasonsOf`); rỗng = chỉ hiện câu chung. */
+  readonly holdingReasons: readonly string[]
 }
 
 const STRATEGY_TEXT = {
   Holding:
     'Holding safeguards your expenditure estimate against insufficient data. Updating requires at least 4 days of nutrition data and 1 day of weight data per 7-day period.',
   Updating:
-    'MacroFactor is actively analyzing your weight and nutrition data to update your expenditure estimate.',
+    'MacroOS is actively analyzing your weight and nutrition data to update your expenditure estimate.',
   Calibrating:
-    'MacroFactor is calibrating your expenditure from your first weeks of weight and nutrition data.',
+    'MacroOS is calibrating your expenditure from your first weeks of weight and nutrition data.',
 }
 
 /** Giảm hiện "−4", tăng hiện "4" (không dấu +, như Weight Trend); nhãn Increase / Decrease đã báo hướng. */
@@ -66,13 +66,8 @@ function ChangeStatus({ status }: { readonly status: ExpenditureChangeStatus }) 
  * "Insights & Data": Expenditure Changes (3/7/14/30/90-day có vùng thu nhỏ, kcal và Decrease / Increase / Waiting), Current
  * Expenditure, Current Strategy (Updating / Holding + giải thích) và Data Sources (Nutrition Data Manager, Scale Weight).
  */
-export function ExpenditureInsights({
-  changes,
-  current,
-  strategy,
-  holdingReason,
-  calibratingDaysLeft,
-}: InsightsProps) {
+export function ExpenditureInsights({ changes, current, strategy, holdingReasons }: InsightsProps) {
+  const { energy } = useUnits()
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-bold">Insights & Data</h2>
@@ -85,7 +80,7 @@ export function ExpenditureInsights({
           {changes.map(({ days, delta, status, area }) => (
             <li
               key={days}
-              className="grid grid-cols-[4rem_3.5rem_1fr_auto] items-center gap-2.5 text-base"
+              className="grid grid-cols-[4rem_minmax(0,3.5rem)_1fr_auto] items-center gap-2.5 text-base max-[359px]:grid-cols-[3.25rem_minmax(0,3.5rem)_1fr_auto] max-[359px]:text-sm"
             >
               <span className="text-muted-foreground whitespace-nowrap">{days}-day</span>
               <MiniArea
@@ -95,8 +90,10 @@ export function ExpenditureInsights({
                 )}
                 className="text-mf-tile-protein"
               />
-              <span className="tabular-nums">
-                {status === 'Waiting' || delta === null ? '-- kcal' : `${changeText(delta)} kcal`}
+              <span className="whitespace-nowrap tabular-nums">
+                {status === 'Waiting' || delta === null
+                  ? `-- ${energy.unit}`
+                  : `${changeText(Math.round(energy.convert(delta)))} ${energy.unit}`}
               </span>
               <ChangeStatus status={status} />
             </li>
@@ -108,9 +105,9 @@ export function ExpenditureInsights({
         <div className="flex items-start gap-4">
           <StatBox>
             <span className="text-2xl font-semibold tabular-nums">
-              {current === null ? '---' : Math.round(current)}
+              {current === null ? '---' : energy.format(current)}
             </span>
-            <span className="text-muted-foreground text-base">kcal</span>
+            <span className="text-muted-foreground text-base">{energy.unit}</span>
           </StatBox>
           <div>
             <h3 className="text-lg">Current Expenditure</h3>
@@ -129,14 +126,12 @@ export function ExpenditureInsights({
             <p className="text-muted-foreground text-base leading-snug">
               {strategy ? STRATEGY_TEXT[strategy] : STRATEGY_TEXT.Calibrating}
             </p>
-            {strategy === 'Holding' && holdingReason && (
-              <p className="text-muted-foreground/80 mt-1 text-sm">{holdingReason}</p>
-            )}
-            {strategy === 'Calibrating' && calibratingDaysLeft !== null && (
-              <p className="text-muted-foreground/80 mt-1 text-sm">
-                {calibratingDaysLeft} {calibratingDaysLeft === 1 ? 'day' : 'days'} left
-              </p>
-            )}
+            {strategy === 'Holding' &&
+              holdingReasons.map((reason) => (
+                <p key={reason} className="text-muted-foreground/80 mt-1 text-sm">
+                  {reason}
+                </p>
+              ))}
           </div>
         </div>
       </section>

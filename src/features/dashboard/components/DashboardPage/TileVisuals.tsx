@@ -7,12 +7,20 @@ const HEIGHT = 44
 const TOP = 7
 const BOTTOM = 37
 
-/** Đổi giá trị → toạ độ y: tự co giãn theo min–max của chính dữ liệu (không bắt đầu từ 0); chuỗi phẳng nằm giữa khung. */
+/** Thang y không hẹp hơn 1,25% mức trung bình của chính chuỗi (như `MIN_WEIGHT_SPAN_KG` = 1 kg ở ~80 kg của ô Weight Trend): dao động nhỏ không thành đường dốc. */
+const MIN_SPAN_RATIO = 0.0125
+
+/**
+ * Đổi giá trị → toạ độ y: tự co giãn theo min–max của chính dữ liệu (không bắt đầu từ 0) nhưng không hẹp hơn `MIN_SPAN_RATIO`; chuỗi
+ * phẳng hoặc dao động rất nhỏ nằm quanh giữa khung.
+ */
 const yOf = (values: readonly number[]) => {
-  const min = Math.min(...values)
-  const span = Math.max(...values) - min
-  return (value: number) =>
-    span === 0 ? (TOP + BOTTOM) / 2 : BOTTOM - ((value - min) / span) * (BOTTOM - TOP)
+  const lo = Math.min(...values)
+  const hi = Math.max(...values)
+  const mid = (hi + lo) / 2
+  const span = Math.max(hi - lo, Math.abs(mid) * MIN_SPAN_RATIO)
+  const center = (TOP + BOTTOM) / 2
+  return (value: number) => (span === 0 ? center : center - ((value - mid) / span) * (BOTTOM - TOP))
 }
 
 const xOf = (index: number, count: number) =>

@@ -1,6 +1,10 @@
 import { Lock } from 'lucide-react'
+import { KCAL_PER_GRAM } from '@/features/nutrition/atwater'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { cn } from '@/lib/utils'
-import { DAY_LETTERS } from '../../utils/day-macros'
+import { dayLetter } from '@/lib/week'
+import { WEEK_DAYS } from '../../utils/day-macros'
+import { KCAL_EXTRA_EM, MACRO_EXTRA_EM, cellFontSize } from './chart-fit'
 
 export interface ChartDay {
   readonly kcal: number
@@ -21,9 +25,19 @@ interface WeekMacroChartProps {
 }
 
 const BLOCKS = [
-  { key: 'P', field: 'proteinG', kcalPerGram: 4, color: 'bg-[var(--mf-tile-protein)]' },
-  { key: 'F', field: 'fatG', kcalPerGram: 9, color: 'bg-[var(--mf-tile-fat)]' },
-  { key: 'C', field: 'carbsG', kcalPerGram: 4, color: 'bg-[var(--mf-tile-carbs)]' },
+  {
+    key: 'P',
+    field: 'proteinG',
+    kcalPerGram: KCAL_PER_GRAM.protein,
+    color: 'bg-[var(--mf-tile-protein)]',
+  },
+  { key: 'F', field: 'fatG', kcalPerGram: KCAL_PER_GRAM.fat, color: 'bg-[var(--mf-tile-fat)]' },
+  {
+    key: 'C',
+    field: 'carbsG',
+    kcalPerGram: KCAL_PER_GRAM.carbs,
+    color: 'bg-[var(--mf-tile-carbs)]',
+  },
 ] as const
 
 const GROW = 'transition-[flex-grow] duration-300 ease-out motion-reduce:transition-none'
@@ -31,7 +45,8 @@ const GROW = 'transition-[flex-grow] duration-300 ease-out motion-reduce:transit
 /**
  * Biểu đồ bảy ngày của một program: mỗi cột có viên calo xanh dương và ba khối P / F / C xếp chồng, chiều cao mỗi khối tỉ lệ số
  * calo chất đó đóng góp (gram × kcal/g). Chiều cao là `flex-grow` có transition nên kéo slider ở editor thì các khối đổi mượt tức
- * thì; truyền `onSelect` để hàng chữ cái ngày thành nút chọn ngày (ngày khoá có icon khoá).
+ * thì; truyền `onSelect` để hàng chữ cái ngày thành nút chọn ngày (ngày khoá có icon khoá). Mỗi cột là một `@container` và chữ trong ô co theo
+ * bề rộng cột (`cellFontSize`) nên số calo (kcal hoặc kJ) và "175 P" luôn nằm gọn một dòng, kể cả ở 320px.
  */
 export function WeekMacroChart({
   days,
@@ -39,42 +54,53 @@ export function WeekMacroChart({
   onSelect,
   chartClassName = 'h-64',
 }: WeekMacroChartProps) {
+  const { energy } = useUnits()
   return (
     <div>
-      <ul aria-label="Daily targets" className="flex gap-2">
-        {days.map((day, index) => (
-          <li key={index} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-            <span className="flex h-8 w-full items-center justify-center rounded-full bg-[var(--mf-tile-calories)] text-sm font-medium text-black/80 tabular-nums">
-              {Math.round(day.kcal)}
-            </span>
-            <div className={cn('flex w-full flex-col gap-2', chartClassName)}>
-              {BLOCKS.map((block) => {
-                const grams = day[block.field]
-                return (
-                  <span
-                    key={block.key}
-                    style={{ flexGrow: Math.max(grams * block.kcalPerGram, 0.0001) }}
-                    className={cn(
-                      block.color,
-                      GROW,
-                      'flex basis-0 items-center justify-center overflow-hidden rounded-lg text-sm font-medium text-black/80 tabular-nums',
-                      grams > 0 ? 'min-h-9' : 'min-h-0'
-                    )}
-                  >
-                    {grams > 0 && `${Math.round(grams)} ${block.key}`}
-                  </span>
-                )
-              })}
-            </div>
-          </li>
-        ))}
+      <ul aria-label="Daily targets" className="flex gap-1.5">
+        {days.map((day, index) => {
+          const kcalText = energy.format(day.kcal)
+          return (
+            <li key={index} className="@container flex min-w-0 flex-1 flex-col items-center gap-2">
+              <span
+                style={{ fontSize: cellFontSize(kcalText.length, KCAL_EXTRA_EM) }}
+                className="flex h-8 w-full items-center justify-center rounded-full bg-[var(--mf-tile-calories)] font-medium whitespace-nowrap text-black/80 tabular-nums"
+              >
+                {kcalText}
+              </span>
+              <div className={cn('flex w-full flex-col gap-2', chartClassName)}>
+                {BLOCKS.map((block) => {
+                  const grams = day[block.field]
+                  const rounded = Math.round(grams)
+                  return (
+                    <span
+                      key={block.key}
+                      style={{
+                        flexGrow: Math.max(grams * block.kcalPerGram, 0.0001),
+                        fontSize: cellFontSize(String(rounded).length, MACRO_EXTRA_EM),
+                      }}
+                      className={cn(
+                        block.color,
+                        GROW,
+                        'flex basis-0 items-center justify-center overflow-hidden rounded-lg font-medium whitespace-nowrap text-black/80 tabular-nums',
+                        grams > 0 ? 'min-h-9' : 'min-h-0'
+                      )}
+                    >
+                      {grams > 0 && `${rounded} ${block.key}`}
+                    </span>
+                  )
+                })}
+              </div>
+            </li>
+          )
+        })}
       </ul>
 
-      <ul className="mt-3 flex gap-2" aria-label={onSelect ? 'Select a day' : undefined}>
+      <ul className="mt-3 flex gap-1.5" aria-label={onSelect ? 'Select a day' : undefined}>
         {days.map((day, index) => {
           const content = (
             <>
-              {DAY_LETTERS[index]}
+              {dayLetter(WEEK_DAYS[index])}
               {day.locked && (
                 <Lock
                   aria-label="Locked"

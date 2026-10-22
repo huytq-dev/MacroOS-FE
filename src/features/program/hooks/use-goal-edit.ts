@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { logger } from '@/lib/api'
 import { goalEditService } from '../services/goal-edit.service'
 import type { GoalEditPreviewRequest, GoalEditRequest } from '../types/goal-edit.types'
-import { programKeys } from './use-program'
+import { invalidateTargetData } from '@/features/food-log/hooks/use-food-log'
 
 /**
  * Preview của màn Edit Goal: mọi số (ngân sách, ngày dự kiến, tốc độ, các thay đổi) do BE tính, FE không tự tính công thức. Khoá theo
@@ -30,16 +30,12 @@ export const useGoalEditPreview = (request: GoalEditPreviewRequest, enabled = tr
     retry: false,
   })
 
-/** Lưu goal (một lệnh atomic); xong thì làm mới program, goal, lịch sử goal và check-in. */
+/** Lưu goal (một lệnh atomic); xong thì làm mới program, goal, lịch sử goal, check-in và mọi số hiển thị theo target (`invalidateTargetData`). */
 export const useSaveGoalEdit = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: GoalEditRequest) => goalEditService.save(payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: programKeys.current })
-      void queryClient.invalidateQueries({ queryKey: ['goals'] })
-      void queryClient.invalidateQueries({ queryKey: ['check-in'] })
-    },
+    onSuccess: () => invalidateTargetData(queryClient),
     onError: (error) => {
       logger.error(error)
       toast.error("Couldn't update your goal")

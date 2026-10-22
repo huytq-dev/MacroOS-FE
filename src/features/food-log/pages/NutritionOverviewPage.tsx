@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { NutrientCard, RangeTabs } from '../components/NutritionOverviewPage'
+import { UNVERIFIED_TARGET_NOTE } from '@/features/nutrition/target-provenance'
 import { useNutritionOverview } from '../hooks/use-nutrition-overview'
 import {
   OVERVIEW_GROUPS,
@@ -20,7 +21,8 @@ const CONTRIBUTOR_GROUPS = new Set(['calories', 'macros'])
 /**
  * "Nutrition Overview" (Food Log → More → Nutrition Overview): tab kỳ Today / 1 Week / 1 Month / 3 Months / 1 Year, mỗi chất một
  * thẻ có thanh tiến độ theo mục tiêu. Công tắc Contributors (chỉ có ở Today) mở danh sách ba món đóng góp nhiều nhất dưới
- * Calories và các macro. Dữ liệu từng kỳ do BE tổng hợp (hiện là dữ liệu mẫu, xem `useNutritionOverview`).
+ * Calories và các macro. Dữ liệu từng kỳ do BE tổng hợp (`GET /nutrition/overview`); lỗi thì hiện ErrorState có nút Thử lại, không
+ * thay bằng target suy từ chương trình.
  */
 export function NutritionOverviewPage() {
   const [range, setRange] = useState<OverviewRange>('today')
@@ -28,7 +30,7 @@ export function NutritionOverviewPage() {
   const data = useNutritionOverview(range)
   const isToday = range === 'today'
 
-  if (data.isError) return <ErrorState error={new Error('Could not load Nutrition Overview')} />
+  if (data.isError) return <ErrorState error={data.error} onRetry={() => void data.refetch()} />
 
   return (
     <div className="flex max-w-2xl flex-col gap-8 pb-8">
@@ -73,6 +75,11 @@ export function NutritionOverviewPage() {
                     </label>
                   )}
                 </div>
+                {group.nutrients.some(
+                  (nutrient) => data.values[nutrient.key]?.targetUnverified
+                ) && (
+                  <p className="text-muted-foreground -mt-1 text-sm">{UNVERIFIED_TARGET_NOTE}</p>
+                )}
                 <ul className="grid grid-cols-2 gap-3">
                   {group.nutrients.map((nutrient) => {
                     const { value, goal } = data.values[nutrient.key] ?? UNKNOWN_OVERVIEW

@@ -16,7 +16,7 @@ import {
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
 import { RangeBar, StatBlock, TutorialCard } from '@/features/dashboard/components/DetailPage'
 import { usePersistedChoice } from '@/features/dashboard/hooks/use-dashboard'
-import { daysBetween, slotsOf, viewWindow } from '@/features/dashboard/chart/geometry'
+import { slotsOf, viewWindow } from '@/features/dashboard/chart/geometry'
 import { useChartPan } from '@/features/dashboard/chart/use-chart-pan'
 import {
   ExpandableChart,
@@ -27,13 +27,14 @@ import {
 import { useTween } from '@/features/dashboard/chart/use-tween'
 import { rangeLabel, type Averaging, type RangeKey } from '@/features/dashboard/expenditure.utils'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { MetricEntrySheet } from '@/features/weight/components/BodyMetricPage'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { IconButton } from '@/components/shared/IconButton'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsClient } from '@/hooks/use-is-client'
-import { formatDate, todayIso } from '@/lib/date'
+import { daysBetween, formatDate, todayIso } from '@/lib/date'
 
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
 
@@ -48,6 +49,7 @@ export function StepsPage() {
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
   const history = useStepsHistory(today)
+  const { weekStartDay } = useUnits()
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
   const expand = useChartExpand()
@@ -126,7 +128,7 @@ export function StepsPage() {
           // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
           key={averaging}
           className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
-          days={averageSteps(days, averaging)}
+          days={averageSteps(days, averaging, weekStartDay)}
           today={today}
           slots={slots}
           pos={pan.view.pos}

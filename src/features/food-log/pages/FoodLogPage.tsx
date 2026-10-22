@@ -50,7 +50,6 @@ import {
   NoteSheet,
   NotesSection,
   QuickAddPanel,
-  mondayOf,
   goalsByKey,
   type AddTab,
   type LibraryView,
@@ -64,7 +63,6 @@ import type {
   PlateItem,
   UpdateEntryRequest,
 } from '../types/food-log.types'
-import { toNotes } from '../types/food-log.types'
 import {
   useBarcodeLookup,
   useFoodDetail,
@@ -91,7 +89,10 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useSheet } from '@/hooks/use-sheet'
 import { aiErrorMessage, liveIngredients, toPlateItem } from '../ai-plate.utils'
+import { entryEditErrorOf } from '../entry-edit.utils'
 import { addDaysIso, formatDate, todayIso } from '@/lib/date'
+import { weekStartOf } from '@/lib/week'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useUiStore, type AddFoodRequest } from '@/stores/ui.store'
 
 const SEARCH_PAGE = 25
@@ -166,11 +167,16 @@ export function FoodLogPage() {
   const day = useDayLog(date)
   // Các tuần đã hiện trên thanh tuần / lịch (chỉ thêm, không bớt) để vòng kcal không mất khi cuộn qua lại.
   const [viewedWeeks, setViewedWeeks] = useState<readonly string[]>([])
-  const viewWeeks = (mondays: readonly string[]) =>
+  const { weekStartDay } = useUnits()
+  const viewWeeks = (weekStarts: readonly string[]) =>
     setViewedWeeks((seen) =>
-      mondays.every((monday) => seen.includes(monday)) ? seen : [...new Set([...seen, ...mondays])]
+      weekStarts.every((start) => seen.includes(start))
+        ? seen
+        : [...new Set([...seen, ...weekStarts])]
     )
-  const weekDays = useWeekDays(date ? [...new Set([mondayOf(date), ...viewedWeeks])] : viewedWeeks)
+  const weekDays = useWeekDays(
+    date ? [...new Set([weekStartOf(date, weekStartDay), ...viewedWeeks])] : viewedWeeks
+  )
   const debouncedSearch = useDebounce(search.trim(), 300)
   // Lazy: chỉ tìm khi sheet mở ở tab tìm món
   const foods = useFoodSearch(
@@ -512,7 +518,9 @@ export function FoodLogPage() {
       // Ngày mới chưa tải xong thì lấy tổng từ dữ liệu tuần (đã có cho thanh tuần) để số không nháy về 0
       totals={day.data?.totals ?? weekDays[date]?.totals ?? EMPTY_TOTALS}
       target={day.data?.target ?? weekDays[date]?.target ?? null}
+      targetUnverified={day.data?.targetUnverified ?? weekDays[date]?.targetUnverified ?? false}
       showOverages={settings.overages === 'ShowOverages'}
+      summaryPending={day.isPending && !weekDays[date]}
       weekBanner={settings.weekBanner}
       calendarScrolling={settings.calendarScrolling}
       weekDays={weekDays}
@@ -583,7 +591,7 @@ export function FoodLogPage() {
             }}
           />
           <NotesSection
-            notes={toNotes(day.data.notes)}
+            notes={day.data.notes}
             onAdd={() => {
               addNote.reset()
               noteSheet.show(null)
@@ -858,9 +866,6 @@ export function FoodLogPage() {
               aiPlate.confirm(confirmations)
               aiPlate.reset()
             }}
-            onPreviewSample={
-              process.env.NODE_ENV === 'development' ? aiPlate.previewSample : undefined
-            }
           />
         ) : tab === 'library' ? (
           <LibraryPanel
@@ -943,7 +948,7 @@ export function FoodLogPage() {
         food={editingFood.data ?? undefined}
         isFoodLoading={editingFood.isLoading}
         isPending={updateEntry.isPending}
-        error={updateEntry.error ? getFormErrorMessage(updateEntry.error) : null}
+        error={updateEntry.error ? entryEditErrorOf(updateEntry.error) : null}
         totals={day.data?.totals}
         target={day.data?.target}
         banner={settings}

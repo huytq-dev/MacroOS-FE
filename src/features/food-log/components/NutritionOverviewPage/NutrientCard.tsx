@@ -1,13 +1,15 @@
 import { ChevronRight } from 'lucide-react'
 import type { NutrientDef } from '@/features/dashboard/types/dashboard.types'
 import { NutrientGoalBar } from '@/features/nutrition/NutrientGoalBar'
+import { GoalPercent } from '@/features/nutrition/GoalPercent'
+import { hasGoal, primaryGoal, type NutrientGoal } from '@/features/nutrition/goal-progress'
 import {
-  goalPercent,
-  hasGoal,
-  primaryGoal,
-  type NutrientGoal,
-} from '@/features/nutrition/goal-progress'
-import { UNKNOWN_AMOUNT, formatAmount, nutrientTone } from '@/features/nutrition/nutrient-display'
+  UNKNOWN_AMOUNT,
+  displayAmount,
+  formatAmount,
+  nutrientTone,
+} from '@/features/nutrition/nutrient-display'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { cn } from '@/lib/utils'
 import { displayName, type Contributor } from '../../nutrition-overview.utils'
 
@@ -16,7 +18,7 @@ interface NutrientCardProps {
   /** null = chưa có dữ liệu chất này: hiện "---" thay vì 0 (0 nghĩa là biết bằng 0) và thanh rỗng. */
   readonly value: number | null
   /** floor / target / ceiling hiệu lực; không có mốc nào thì hàng chỉ hiện số kèm "No Target" và không có thanh. */
-  readonly goal: Partial<NutrientGoal> | null | undefined
+  readonly goal: NutrientGoal | null | undefined
   /** Lớp nền màu nhóm của chất (calo / macro tự dùng màu riêng, xem `nutrientTone`). */
   readonly tone: string
   /** Món đóng góp (chỉ calo/macro ở tab Today): undefined = thẻ không có phần này, null = có nhưng đang thu lại, mảng = đang mở. */
@@ -44,10 +46,15 @@ export function NutrientCard({
   period,
   wide = false,
 }: NutrientCardProps) {
-  const unit = nutrient.unit
+  // Calo (danh mục 'kcal') hiện theo kcal / kJ của user; thanh và % vẫn tính trên số của BE
+  const { energy } = useUnits()
+  const unit = displayAmount(0, nutrient.unit, energy).unit
+  const shown = (amount: number) => {
+    const display = displayAmount(amount, nutrient.unit, energy)
+    return formatAmount(display.value, display.unit)
+  }
   const known = value !== null
   const reference = primaryGoal(goal)
-  const percent = goalPercent(goal, value)
   const barTone = nutrientTone(nutrient.key, tone)
   const bar = hasGoal(goal) && (
     <NutrientGoalBar
@@ -79,7 +86,7 @@ export function NutrientCard({
                 <li key={item.name} className="flex justify-between gap-3">
                   <span className="truncate">{item.name}</span>
                   <span className="tabular-nums">
-                    {formatAmount(item.value, unit)} {unit}
+                    {shown(item.value)} {unit}
                   </span>
                 </li>
               ))}
@@ -103,7 +110,7 @@ export function NutrientCard({
         </div>
         <div className="border-foreground/10 mt-auto flex items-center justify-between border-t pt-3">
           <span className="tabular-nums">
-            <span className="text-2xl">{known ? formatAmount(value, unit) : UNKNOWN_AMOUNT}</span>{' '}
+            <span className="text-2xl">{known ? shown(value) : UNKNOWN_AMOUNT}</span>{' '}
             <span className="text-muted-foreground text-lg">{unit}</span>
           </span>
           <ChevronRight aria-hidden="true" className="text-muted-foreground size-5" />
@@ -117,12 +124,15 @@ export function NutrientCard({
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-base">
         <span className="min-w-0 truncate">{displayName(nutrient)}</span>
         <span className="text-center tabular-nums">
-          {known ? formatAmount(value, unit) : UNKNOWN_AMOUNT}
-          {reference !== null && ` / ${formatAmount(reference, unit)}`} {unit}
+          {known ? shown(value) : UNKNOWN_AMOUNT}
+          {reference !== null && ` / ${shown(reference)}`} {unit}
         </span>
-        <span className="text-muted-foreground text-right tabular-nums">
-          {percent !== null ? `${percent}%` : reference === null ? 'No Target' : ''}
-        </span>
+        <GoalPercent
+          goal={goal}
+          consumed={value}
+          fallback={reference === null ? 'No Target' : ''}
+          className="text-right"
+        />
       </div>
       {bar && <div className="mt-3">{bar}</div>}
       {contributorList}

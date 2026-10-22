@@ -1,5 +1,6 @@
 import { Pencil } from 'lucide-react'
-import { entryDayLabel, groupByMonth, type MetricPoint } from '../../body-metric.utils'
+import { formatWeekdayMonthDay } from '@/lib/week'
+import { groupByMonth, type MetricPoint } from '../../body-metric.utils'
 
 interface MetricHistoryListProps {
   readonly points: readonly MetricPoint[]
@@ -27,11 +28,13 @@ export function MetricHistoryList({ points, unit, icon, onEdit }: MetricHistoryL
                     {point.value.toFixed(1)}
                     {unit === '%' ? '%' : ` ${unit}`}
                   </p>
-                  <p className="text-muted-foreground text-base">{entryDayLabel(point.date)}</p>
+                  <p className="text-muted-foreground text-base">
+                    {formatWeekdayMonthDay(point.date)}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  aria-label={`Edit ${entryDayLabel(point.date)}`}
+                  aria-label={`Edit ${formatWeekdayMonthDay(point.date)}`}
                   onClick={() => onEdit(point.date)}
                   className="bg-secondary active:bg-muted focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
                 >

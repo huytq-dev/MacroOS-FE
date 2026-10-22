@@ -12,6 +12,7 @@ import { HabitCalendar } from '@/features/habits/components/HabitsPage/HabitCale
 import { HabitControls } from '@/features/habits/components/HabitsPage/HabitControls'
 import { HabitLegend } from '@/features/habits/components/HabitsPage/HabitSummary'
 import { monthGrid } from '@/features/habits/habits.utils'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -29,6 +30,7 @@ interface View {
 
 function PeriodContent({ today }: { readonly today: string }) {
   const history = usePeriodHistory(today)
+  const { weekStartDay } = useUnits()
   const setDay = useSetPeriodDay()
   const deleteDay = useDeletePeriodDay()
   const sheet = useSheet<string>()
@@ -82,7 +84,7 @@ function PeriodContent({ today }: { readonly today: string }) {
         <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       ) : (
         <HabitCalendar
-          grid={monthGrid(view.year, view.month)}
+          grid={monthGrid(view.year, view.month, weekStartDay)}
           monthKey={`${view.year}-${view.month}`}
           direction={view.direction}
           tracked={tracked}

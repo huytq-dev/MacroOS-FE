@@ -48,17 +48,3 @@ export const useSaveShortcuts = () => {
     },
   })
 }
-
-export const useResetShortcuts = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: () => shortcutsService.reset(),
-    onSuccess: (config) => {
-      queryClient.setQueryData(shortcutKeys.config, config ?? DEFAULT_SHORTCUTS)
-    },
-    onError: (error) => {
-      logger.error(error)
-      toast.error("Couldn't reset shortcuts")
-    },
-  })
-}

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import type { FullBodyHistoryItem } from '@/features/shortcuts/types/body-metrics.types'
+import { formatWeekdayMonthDay } from '@/lib/week'
 import { cn } from '@/lib/utils'
-import { groupByMonth, rowDate } from '../../full-body.utils'
+import { groupByMonth } from '../../full-body.utils'
 
 /** Thời gian hàng bị xoá co lại trước khi gỡ khỏi danh sách (khớp `duration-300`). */
 const LEAVE_MS = 300
@@ -78,7 +79,7 @@ export function FullBodyList({ items, onOpen }: FullBodyListProps) {
                           {item.metricCount} {item.metricCount === 1 ? 'metric' : 'metrics'}
                         </span>
                         <span className="text-muted-foreground text-base">
-                          {rowDate(item.date)}
+                          {formatWeekdayMonthDay(item.date)}
                         </span>
                       </span>
                     </button>

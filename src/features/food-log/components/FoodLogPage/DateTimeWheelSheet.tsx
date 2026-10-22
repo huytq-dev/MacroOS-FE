@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { addDaysIso } from '@/lib/date'
+import { formatWeekdayMonthDay } from '@/lib/week'
 
 /** Số ngày hiện được ở mỗi phía quanh ngày gốc của bánh xe ngày. */
 const DAY_SPAN = 60
@@ -29,14 +30,6 @@ const MINUTES: readonly WheelItem<string>[] = Array.from({ length: 60 }, (_, min
   value: pad(minute),
   label: pad(minute),
 }))
-
-/** "Tue, Oct 20": tên ngày theo tiếng Anh (không phụ thuộc ngôn ngữ máy). */
-const dayLabel = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
 
 interface DateTimeWheelSheetProps {
   readonly open: boolean
@@ -72,7 +65,7 @@ export function DateTimeWheelSheet({
     { length: DAY_SPAN * 2 + 1 },
     (_, index) => {
       const iso = addDaysIso(date, index - DAY_SPAN)
-      return { value: iso, label: dayLabel(iso) }
+      return { value: iso, label: formatWeekdayMonthDay(iso) }
     }
   )
   // To Date & Time chỉ chọn giờ tròn: giữ phút gốc nếu người dùng không đổi giờ

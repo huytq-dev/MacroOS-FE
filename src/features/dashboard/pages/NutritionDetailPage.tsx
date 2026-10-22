@@ -32,6 +32,7 @@ export function NutritionDetailPage() {
             group={group}
             values={data.nutrientsToday}
             macrosWeek={data.macrosWeek}
+            pending={data.pending}
             index={index}
           />
         ))

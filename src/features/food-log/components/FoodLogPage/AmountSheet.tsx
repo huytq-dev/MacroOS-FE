@@ -51,7 +51,13 @@ export function AmountSheet({
   // Chọn theo nhãn: chip khẩu phần tải muộn làm danh sách đổi thứ tự cũng không lệch lựa chọn
   const unit = units.find((item) => item.label === unitLabel) ?? units[0]
   const amount = Number(text)
-  const valid = text.trim() !== '' && amount > 0
+  // Cùng khoảng BE chấp nhận cho một lượng (InclusiveBetween 0.01–10000): 0.004 g hay 50000 g không lưu được nên chặn ngay ở đây
+  const valid =
+    text.trim() !== '' &&
+    Number.isFinite(amount) &&
+    amount * unit.gramsPerUnit >= 0.01 &&
+    amount >= 0.01 &&
+    amount <= 10000
 
   const changeUnit = (next: AmountUnit) => {
     setUnitLabel(next.label)

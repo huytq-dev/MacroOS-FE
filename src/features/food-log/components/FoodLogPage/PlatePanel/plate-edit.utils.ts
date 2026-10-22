@@ -1,11 +1,11 @@
 import { servingAmountLabel } from '@/features/foods/types/food.types'
+import { roundTo } from '@/lib/units'
 import { normalizeDecimal } from '@/lib/utils'
 import type { PlateItem } from '../../../types/food-log.types'
 import {
   gramsOf,
   parseQuantity,
   quantityOf,
-  roundTo,
   type QuantityUnit,
 } from '../FoodDetail/food-detail.utils'
 
@@ -66,7 +66,7 @@ export function applyEdit(item: PlateItem, edit: PlateEdit): PlateItem | null {
   if (!item.grams || !Number.isFinite(quantity) || quantity <= 0) return null
   if (edit.unit === 'serving' && !serving) return null
   const grams = gramsOf(quantity, edit.unit, serving?.weightInGrams ?? 0)
-  const logQuantity = serving ? quantity : roundTo(grams, 2)
+  const logQuantity = roundTo(serving ? quantity : grams, 2) // BE lưu 2 số lẻ: "1/3" khẩu phần không gửi 0.3333…
   if (logQuantity < 0.01 || logQuantity > 10000) return null
   const ratio = grams / item.grams
   return {
@@ -74,7 +74,8 @@ export function applyEdit(item: PlateItem, edit: PlateEdit): PlateItem | null {
     foodServingId: serving?.id ?? null,
     quantity: logQuantity,
     servingLabel: serving ? servingAmountLabel(quantity, serving.name) : `${roundTo(grams, 1)} g`,
-    grams: roundTo(grams, 1),
+    // Khối lượng thật, không làm tròn: lần sửa sau lấy tỉ lệ từ số này nên làm tròn 1 số lẻ sẽ lệch macro
+    grams,
     calories: item.calories * ratio,
     protein: item.protein * ratio,
     carbs: item.carbs * ratio,

@@ -1,6 +1,7 @@
 'use client'
 
 import { Equal, Flame, Loader2, Plus } from 'lucide-react'
+import { Energy } from '@/components/shared/Energy'
 import {
   closestCenter,
   DndContext,
@@ -235,7 +236,7 @@ export function RecipePreparation({
               {macros ? (
                 <>
                   <span className="inline-flex items-center">
-                    {Math.round(macros.calories)}
+                    <Energy kcal={macros.calories} />
                     <Flame aria-hidden="true" fill="currentColor" className="size-3.5" />
                   </span>
                   <span>{Math.round(macros.protein)}P</span>

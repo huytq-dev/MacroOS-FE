@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   keepPreviousData,
   useMutation,
@@ -11,7 +11,6 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { SAMPLE_AI_PLATE } from '../components/FoodLogPage/ai-sample'
 import { EMPTY_AI_EDITS, type AiPlateEdits, type IngredientEdit } from '../ai-plate.utils'
 import { foodLogService } from '../services/food-log.service'
 import type {
@@ -37,7 +36,9 @@ import type {
   WeekDay,
   WeekLog,
 } from '../types/food-log.types'
+import { refreshDerivedStatus } from '@/features/derived-data/derived-data.utils'
 import { logger } from '@/lib/api'
+import { weekBlocksOf, weekDates } from '@/lib/week'
 
 export const foodLogKeys = {
   all: ['food-log'] as const,
@@ -58,6 +59,23 @@ const LOG_DERIVED_KEYS = [
 export function invalidateLogData(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: foodLogKeys.all })
   for (const queryKey of LOG_DERIVED_KEYS) void queryClient.invalidateQueries({ queryKey })
+  // BE có thể còn dựng lại số dẫn xuất sau lần ghi này: đọc trạng thái một lần (màn dẫn xuất hiện khung xám nếu Updating)
+  refreshDerivedStatus(queryClient)
+}
+
+/**
+ * Chương trình / goal / check-in: target hiển thị ở nhật ký, Dashboard, Energy Balance, Expenditure và Overview đều đi theo chúng, cả target từng chất ở màn Food Detail
+ * (`GET /foods/{id}/nutrients?date` dựng từ program + hồ sơ, giữ 5 phút).
+ */
+const TARGET_KEYS = [['program'], ['goals'], ['check-in'], ['foods', 'detail']] as const
+
+/**
+ * Tạo / sửa / đổi kiểu / TDEE thủ công / kết thúc program, Edit Goal và check-in Accept / Reject đổi target: làm mới program, goal, check-in
+ * VÀ mọi số hiển thị theo target (cùng danh sách với `invalidateLogData`, MỘT nơi giữ danh sách này), nếu không target cũ nằm lại tới hết staleTime.
+ */
+export function invalidateTargetData(queryClient: QueryClient) {
+  invalidateLogData(queryClient)
+  for (const queryKey of TARGET_KEYS) void queryClient.invalidateQueries({ queryKey })
 }
 
 /**
@@ -127,32 +145,61 @@ export const useDayLog = (date: string | null) =>
     enabled: Boolean(date),
   })
 
-export const useWeekLog = (date: string | null) =>
-  useQuery({
-    queryKey: foodLogKeys.week(date ?? ''),
-    queryFn: () => foodLogService.getWeek(date ?? ''),
-    enabled: Boolean(date),
-  })
+/** Một tuần bắt đầu ngày khác Thứ Hai nằm trên hai khối của BE (`weekBlocksOf`): gọi cả hai (khoá theo Thứ Hai của khối) rồi ghép theo `logDate`. */
+interface WeekBlocks {
+  readonly days: Readonly<Record<string, WeekDay>>
+  readonly isLoading: boolean
+  readonly error: Error | null
+}
 
-const byDate = (results: UseQueryResult<WeekLog | null>[]) => {
+const combineBlocks = (results: UseQueryResult<WeekLog | null>[]): WeekBlocks => {
   const days: Record<string, WeekDay> = {}
   results.forEach((result) => result.data?.days.forEach((day) => (days[day.logDate] = day)))
-  return days
+  return {
+    days,
+    isLoading: results.some((result) => result.isLoading),
+    error: results.find((result) => result.error)?.error ?? null,
+  }
+}
+
+const useWeekBlocks = (weekStarts: readonly string[]) =>
+  useQueries({
+    queries: weekBlocksOf(weekStarts).map((block) => ({
+      queryKey: foodLogKeys.week(block),
+      queryFn: () => foodLogService.getWeek(block),
+      staleTime: 60 * 1000,
+    })),
+    combine: combineBlocks,
+  })
+
+/**
+ * Bảy ngày của tuần bắt đầu từ `weekStart` (ngày đầu tuần theo cài đặt của user) cho lưới Weekly Nutrition, theo thứ tự cột.
+ * `days` chỉ có khi đủ cả bảy ngày (chưa tải xong hoặc lỗi thì undefined); `weekStart` null = không gọi.
+ */
+export const useWeekLog = (weekStart: string | null) => {
+  const queryClient = useQueryClient()
+  const { days, isLoading, error } = useWeekBlocks(weekStart ? [weekStart] : [])
+  const week = weekStart ? weekDates(weekStart).map((date) => days[date]) : []
+  return {
+    days: week.length > 0 && week.every(Boolean) ? week : undefined,
+    isLoading,
+    isError: error !== null,
+    error,
+    // Chỉ các khối tuần của chính mình (không kéo theo mọi query food-log đang mở)
+    refetch: () =>
+      Promise.all(
+        (weekStart ? weekBlocksOf([weekStart]) : []).map((block) =>
+          queryClient.refetchQueries({ queryKey: foodLogKeys.week(block) })
+        )
+      ),
+  }
 }
 
 /**
- * Tổng từng ngày của nhiều tuần (mỗi tuần gọi theo Thứ Hai) cho vòng kcal trên viên ngày của thanh tuần và lịch.
+ * Tổng từng ngày của nhiều tuần (mỗi phần tử là ngày đầu tuần theo cài đặt của user) cho vòng kcal trên viên ngày của thanh tuần và lịch.
  * Gộp thành map ngày iso → WeekDay; ghi/xoá món invalidate `foodLogKeys.all` nên vòng tự cập nhật.
  */
-export const useWeekDays = (mondays: readonly string[]) =>
-  useQueries({
-    queries: mondays.map((monday) => ({
-      queryKey: foodLogKeys.week(monday),
-      queryFn: () => foodLogService.getWeek(monday),
-      staleTime: 60 * 1000,
-    })),
-    combine: byDate,
-  })
+export const useWeekDays = (weekStarts: readonly string[]) => useWeekBlocks(weekStarts).days
 
 /** Mọi thay đổi log ảnh hưởng tổng ngày của nhiều ngày (copy) → invalidate cả nhóm. */
 const useLogMutation = <TVariables, TResult = unknown>(
@@ -252,9 +299,6 @@ export const useAiAnalyze = () =>
     onError: (error) => logger.error(error),
   })
 
-const SAMPLE_DELAY_MS = 700
-const SAMPLE_STEP_MS = 900
-
 /**
  * AI Plate hai pha: `analyze` lấy món + nguyên liệu, rồi mỗi nguyên liệu gọi `resolveIngredient` song song, trạng thái riêng từng
  * dòng (`states`). Gọi lại `analyze`/`reset` thì kết quả của lượt cũ bị bỏ (đếm lượt bằng `run`).
@@ -268,13 +312,6 @@ export const useAiPlate = () => {
   // Chỉnh sửa của user (gram, xoá, thay món, số "plate"); mất khi phân tích lại hoặc bắt đầu lại
   const [edits, setEdits] = useState<AiPlateEdits>(EMPTY_AI_EDITS)
   const run = useRef(0)
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
-
-  const clearTimers = () => {
-    timers.current.forEach(clearTimeout)
-    timers.current = []
-  }
-  useEffect(() => clearTimers, [])
 
   const setState = (id: string, state: IngredientState) =>
     setStates((current) => ({ ...current, [id]: state }))
@@ -319,7 +356,6 @@ export const useAiPlate = () => {
 
   const reset = () => {
     run.current += 1
-    clearTimers()
     setDishes(null)
     setStates({})
     setScanId(null)
@@ -344,31 +380,6 @@ export const useAiPlate = () => {
       .catch((error: unknown) => logger.warn('AI confirm failed (ignored):', error))
   }
 
-  // ponytail: chỉ để xem thiết kế khi BE chưa có API; xoá cùng ai-sample.ts khi BE có endpoint.
-  const previewSample = () => {
-    reset()
-    const runId = run.current
-    setDishes(SAMPLE_AI_PLATE.dishes)
-    SAMPLE_AI_PLATE.dishes
-      .flatMap((dish) => dish.ingredients)
-      .forEach((item, index) => {
-        setState(item.id, { status: 'searching' })
-        timers.current.push(
-          setTimeout(
-            () => {
-              if (run.current !== runId) return
-              const data = SAMPLE_AI_PLATE.resolved[item.id]
-              setState(
-                item.id,
-                data.matched ? { status: 'matched', data } : { status: 'not-found' }
-              )
-            },
-            SAMPLE_DELAY_MS + index * SAMPLE_STEP_MS
-          )
-        )
-      })
-  }
-
   return {
     dishes,
     states,
@@ -389,6 +400,5 @@ export const useAiPlate = () => {
     retryIngredient: (item: AiIngredient) => resolve(item, run.current),
     confirm,
     reset,
-    previewSample,
   }
 }

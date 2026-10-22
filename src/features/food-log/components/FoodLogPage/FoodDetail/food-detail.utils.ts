@@ -1,9 +1,9 @@
 import { NUTRIENT_GROUPS } from '@/features/dashboard/nutrient-catalog'
 import type { NutrientGroup } from '@/features/dashboard/types/dashboard.types'
 import type { FoodDetail, NutrientAmount } from '@/features/foods/types/food.types'
-import type { NutrientGoal } from '@/features/nutrition/goal-progress'
-
-export const OUNCE_GRAMS = 28.3495
+import { KCAL_PER_GRAM } from '@/features/nutrition/atwater'
+import { goalOfModel, type NutrientGoal } from '@/features/nutrition/goal-progress'
+import { GRAMS_PER_OUNCE } from '@/lib/units'
 
 export type QuantityUnit = 'serving' | 'g' | 'oz'
 
@@ -27,13 +27,8 @@ export function parseQuantity(text: string): number {
   return /^(\d+\.?\d*|\.\d+)$/.test(value) ? Number(value) : NaN
 }
 
-export const roundTo = (value: number, digits: number) => {
-  const factor = 10 ** digits
-  return Math.round(value * factor) / factor
-}
-
 const gramsPerUnit = (unit: QuantityUnit, servingGrams: number) =>
-  unit === 'g' ? 1 : unit === 'oz' ? OUNCE_GRAMS : servingGrams
+  unit === 'g' ? 1 : unit === 'oz' ? GRAMS_PER_OUNCE : servingGrams
 
 export const gramsOf = (quantity: number, unit: QuantityUnit, servingGrams: number) =>
   quantity * gramsPerUnit(unit, servingGrams)
@@ -41,14 +36,17 @@ export const gramsOf = (quantity: number, unit: QuantityUnit, servingGrams: numb
 export const quantityOf = (grams: number, unit: QuantityUnit, servingGrams: number) =>
   grams / gramsPerUnit(unit, servingGrams)
 
-/** % calo đến từ mỗi macro (P×4, C×4, F×9 trên tổng); tổng bằng 0 thì cả ba là 0. */
+/** % calo đến từ mỗi macro (gram × hệ số Atwater trên tổng); tổng bằng 0 thì cả ba là 0. */
 export function macroShares(protein: number, carbs: number, fat: number) {
-  const total = protein * 4 + carbs * 4 + fat * 9
+  const proteinKcal = protein * KCAL_PER_GRAM.protein
+  const carbsKcal = carbs * KCAL_PER_GRAM.carbs
+  const fatKcal = fat * KCAL_PER_GRAM.fat
+  const total = proteinKcal + carbsKcal + fatKcal
   if (total <= 0) return { protein: 0, carbs: 0, fat: 0 }
   return {
-    protein: Math.round(((protein * 4) / total) * 100),
-    carbs: Math.round(((carbs * 4) / total) * 100),
-    fat: Math.round(((fat * 9) / total) * 100),
+    protein: Math.round((proteinKcal / total) * 100),
+    carbs: Math.round((carbsKcal / total) * 100),
+    fat: Math.round((fatKcal / total) * 100),
   }
 }
 
@@ -60,30 +58,23 @@ export function nutrientPer100g(food: FoodDetail, key: string): number | null {
     carbs: food.nutrition.carbsPer100g,
     fat: food.nutrition.fatPer100g,
   }
-  return macros[key] ?? food.nutrientsPer100g?.[key] ?? null
+  return macros[key] ?? food.nutrientsPer100g[key] ?? null
 }
 
 /** Lượng mọi chất có dữ liệu của `grams` gam món (bỏ chất null): đi kèm dòng plate để bảng Your Plate cộng đủ chất. */
 export function scaledNutrients(food: FoodDetail, grams: number): Record<string, number> {
   const result: Record<string, number> = {}
-  for (const key of Object.keys(food.nutrientsPer100g ?? {})) {
+  for (const key of Object.keys(food.nutrientsPer100g)) {
     const per100g = nutrientPer100g(food, key)
     if (per100g !== null) result[key] = (per100g * grams) / 100
   }
   return result
 }
 
-/** Mục tiêu hiệu lực (floor / target / ceiling NGUYÊN VẸN từ BE) theo khoá danh mục; chất thiếu = không có mục tiêu ("No Target"). */
+/** Mục tiêu hiệu lực (floor / target / ceiling / goalKind NGUYÊN VẸN từ BE, như Dashboard) theo khoá danh mục; chất thiếu = không có mục tiêu ("No Target"). */
 export function goalsByKey(items: readonly NutrientAmount[] | undefined) {
   const result: Record<string, NutrientGoal> = {}
-  for (const item of items ?? [])
-    if (item.key)
-      result[item.key] = {
-        floor: item.floor,
-        target: item.target,
-        ceiling: item.ceiling,
-        goalKind: item.goalKind,
-      }
+  for (const item of items ?? []) if (item.key) result[item.key] = goalOfModel(item)
   return result
 }
 

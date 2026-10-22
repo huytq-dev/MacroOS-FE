@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { Check, ClipboardPaste, Flame, Plus } from 'lucide-react'
 import { MEAL_DEFAULT_TIME } from '@/config/enums'
 import { CollapseItem } from '@/components/shared/CollapseItem'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useExitingList } from '@/hooks/use-exiting-list'
 import { cn } from '@/lib/utils'
 import { servingAmountLabel } from '@/features/foods/types/food.types'
@@ -201,14 +202,16 @@ function HourTotals({
   readonly carbs: number
   readonly className?: string
 }) {
+  // Calo của giờ hiện theo kcal / kJ của user (BE luôn kcal); macro là gram
+  const { energy } = useUnits()
   return (
     <p
       className={cn('flex items-center justify-between', className)}
-      aria-label={`${calories} kcal, ${protein} protein, ${fat} fat, ${carbs} carbs`}
+      aria-label={`${energy.text(calories)}, ${protein} protein, ${fat} fat, ${carbs} carbs`}
     >
       <TotalBadge
         label={<Flame aria-hidden="true" fill="currentColor" className="size-3.5" />}
-        value={calories}
+        value={Math.round(energy.convert(calories))}
       />
       <TotalBadge label="P" value={protein} />
       <TotalBadge label="F" value={fat} />
@@ -219,17 +222,27 @@ function HourTotals({
 
 /** Dữ liệu ô món từ một dòng log: khẩu phần ("1 cup" hoặc gram) và khối lượng (BE trả `weightGrams`, log theo gram thì chính là số lượng). */
 const tileDataOf = (entry: FoodLogEntry): FoodTileData => {
-  const grams = entry.weightGrams ?? (entry.servingName ? null : entry.quantity)
+  // Nguồn + đơn vị do BE gửi (không suy từ null): Quick Add = một dòng nhập tay, không có khối lượng (quantity 100 không phải gram); recipe = số phần;
+  // món thường = khẩu phần có tên ("1 cup") hoặc gram
+  const servingText =
+    entry.entrySource === 'QuickAdd'
+      ? 'Quick Add'
+      : entry.entrySource === 'Recipe'
+        ? `${entry.quantity} ${entry.quantity === 1 ? 'serving' : 'servings'}`
+        : entry.quantityUnit === 'Serving' && entry.servingName
+          ? servingAmountLabel(entry.quantity, entry.servingName)
+          : `${entry.quantity} g`
   return {
     name: entry.foodName,
     calories: entry.calories,
     protein: entry.protein,
     fat: entry.fat,
     carbs: entry.carbs,
-    servingText: entry.servingName
-      ? servingAmountLabel(entry.quantity, entry.servingName)
-      : `${entry.quantity} g`,
-    weightText: grams === null ? null : `${Math.round(grams)} g`,
+    servingText,
+    weightText:
+      entry.entrySource === 'QuickAdd' || entry.weightGrams === null
+        ? null
+        : `${Math.round(entry.weightGrams)} g`,
     emoji: entry.emoji ?? null,
     iconKey: entry.iconKey ?? null,
   }

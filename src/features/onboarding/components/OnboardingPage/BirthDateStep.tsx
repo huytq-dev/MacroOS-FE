@@ -4,12 +4,10 @@ import { useMemo } from 'react'
 import { StepHeading } from './ChoiceStep'
 import { BadgeAlert } from './SolidIcons'
 import { WheelPicker } from '@/components/shared/WheelPicker'
+import { MONTH_NAMES } from '@/lib/date'
 import { ageOn } from '../../onboarding.utils'
 
-const MONTHS = Array.from({ length: 12 }, (_, index) => ({
-  value: index + 1,
-  label: new Date(2000, index, 1).toLocaleString('en-US', { month: 'long' }),
-}))
+const MONTHS = MONTH_NAMES.map((label, index) => ({ value: index + 1, label }))
 
 const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate()
 const toIso = (year: number, month: number, day: number) =>

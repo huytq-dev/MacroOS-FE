@@ -21,7 +21,10 @@ import {
   type ActionKind,
 } from '../components/ProgramPage'
 import { useGoalProgress } from '@/features/dashboard/hooks/use-dashboard'
+import { useExpenditureInsights } from '@/features/dashboard/hooks/use-expenditure-detail'
+import { tdeeEstimateOf } from '../utils/tdee.utils'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { feasibilityOfError } from '../utils/feasibility'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ErrorState } from '@/components/shared/ErrorState'
@@ -47,6 +50,8 @@ export function ProgramPage() {
   const setManualTdee = useSetManualExpenditure()
   const endProgram = useEndProgram()
   const [open, setOpen] = useState<ActionKind | null>(null)
+  // Ước tính TDEE hiện tại chỉ cần cho bảng Set TDEE: chỉ gọi khi bảng đó mở (cùng truy vấn / bộ nhớ đệm với trang Expenditure)
+  const expenditure = useExpenditureInsights(open === 'tdee')
 
   if (program.isError)
     return <ErrorState error={program.error} onRetry={() => void program.refetch()} />
@@ -54,6 +59,8 @@ export function ProgramPage() {
   const stateOf = (mutation: { isPending: boolean; error: Error | null }) => ({
     isPending: mutation.isPending,
     error: mutation.error ? getFormErrorMessage(mutation.error) : null,
+    // 400 `FeasibilityResponse` (nothing persisted): bảng nêu vi phạm + cách chỉnh thay cho câu lỗi chung
+    feasibility: feasibilityOfError(mutation.error),
   })
   const resetFor = (kind: ActionKind) => {
     if (kind === 'program') updateProgram.reset()
@@ -67,6 +74,7 @@ export function ProgramPage() {
   }
 
   const current = program.data
+  const tdeeEstimate = tdeeEstimateOf(expenditure)
   const createButton = (
     <Button asChild size="sm">
       <Link href={routePath.programNew}>Create program</Link>
@@ -145,6 +153,7 @@ export function ProgramPage() {
             programEdit={stateOf(updateProgram)}
             style={stateOf(changeStyle)}
             tdee={stateOf(setManualTdee)}
+            tdeeEstimate={tdeeEstimate}
             end={stateOf(endProgram)}
             onSaveProgram={(payload, onDone) =>
               updateProgram.mutate(payload, { onSuccess: onDone })

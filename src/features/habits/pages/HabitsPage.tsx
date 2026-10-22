@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { routePath } from '@/config/route-path'
@@ -16,11 +17,11 @@ import { HabitHeatmap } from '../components/HabitsPage/HabitHeatmap'
 import { HabitLegend, HabitSummary } from '../components/HabitsPage/HabitSummary'
 import { ScaleWeightSheet } from '../components/HabitsPage/ScaleWeightSheet'
 import { useHabitDays } from '../hooks/use-habit-days'
-import { monthGrid, streakOf, type HabitKind } from '../habits.utils'
+import { monthGrid, type HabitKind } from '../habits.utils'
 
-const COPY: Record<HabitKind, { title: string; unit: string }> = {
-  'weigh-in': { title: 'Weigh-In', unit: 'kg' },
-  'food-logging': { title: 'Food Logging', unit: 'kcal' },
+const COPY: Record<HabitKind, { title: string }> = {
+  'weigh-in': { title: 'Weigh-In' },
+  'food-logging': { title: 'Food Logging' },
 }
 
 interface View {
@@ -42,6 +43,9 @@ function HabitsContent({ kind, today }: { readonly kind: HabitKind; readonly tod
   const summary = useHabitDays(kind, currentYear, today)
   const shown = useHabitDays(kind, view.year, today)
   const copy = COPY[kind]
+  // Số hôm nay: cân nặng theo kg / lb, năng lượng theo kcal / kJ của user (BE luôn trả kg, kcal)
+  const { weight, energy, weekStartDay } = useUnits()
+  const measure = kind === 'weigh-in' ? weight : energy
 
   if (summary.isError) return <ErrorState error={summary.error} onRetry={summary.refetch} />
 
@@ -58,15 +62,15 @@ function HabitsContent({ kind, today }: { readonly kind: HabitKind; readonly tod
     <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 pb-24 md:pb-0">
       <SubPageHeader title={copy.title} />
       <HabitSummary
-        todayValue={summary.todayValue}
-        unit={copy.unit}
-        streak={streakOf(summary.tracked, today)}
+        todayValue={summary.todayValue === null ? null : measure.convert(summary.todayValue)}
+        unit={measure.unit}
+        streak={summary.streak}
       />
       {shown.isLoading ? (
         <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       ) : (
         <HabitCalendar
-          grid={monthGrid(view.year, view.month)}
+          grid={monthGrid(view.year, view.month, weekStartDay)}
           monthKey={`${view.year}-${view.month}`}
           direction={view.direction}
           tracked={shown.tracked}

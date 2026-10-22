@@ -2,20 +2,18 @@
 
 import { useDailyProgress } from '@/features/dashboard/hooks/use-dashboard'
 import { isLogged } from '@/features/dashboard/dashboard.utils'
-import { useWeights } from '@/features/weight/hooks/use-weights'
-import { yearRange, type HabitKind } from '../habits.utils'
+import { useWeighInHabit } from '@/features/weight/hooks/use-weights'
+import { streakOf, yearRange, type HabitKind } from '../habits.utils'
 
 /**
- * Các ngày đã thực hiện thói quen trong một năm (cộng 7 ngày hai đầu cho ô tháng kề) và giá trị của hôm nay: Weigh-In lấy từ
- * danh sách cân (kg), Food Logging từ tiến độ từng ngày (kcal, ngày có log món). `today` null (chưa mount) thì không tải.
+ * Các ngày đã thực hiện thói quen trong một năm, giá trị của hôm nay và streak. Weigh-In đọc `GET /weights/habit` (ngày có cân, kg, và
+ * streak TOÀN THỜI GIAN của BE: không đứt ở đầu năm); Food Logging đọc tiến độ từng ngày (kcal, ngày có log món; BE chưa có endpoint
+ * habit cho ghi món nên streak tính ở FE trên khoảng đã tải). `today` null (chưa mount) thì không tải.
  */
 export function useHabitDays(kind: HabitKind, year: number, today: string | null) {
   const range = today ? yearRange(year, today) : null
   const weighIn = kind === 'weigh-in'
-  const weights = useWeights(
-    weighIn ? (range?.from ?? null) : null,
-    weighIn ? (range?.to ?? null) : null
-  )
+  const habit = useWeighInHabit(weighIn && today ? year : null)
   const daily = useDailyProgress(
     weighIn ? null : (range?.from ?? null),
     weighIn ? null : (range?.to ?? null)
@@ -23,23 +21,29 @@ export function useHabitDays(kind: HabitKind, year: number, today: string | null
 
   const tracked = new Set<string>()
   let todayValue: number | null = null
+  let streak = 0
   if (weighIn) {
-    for (const entry of weights.data?.items ?? []) {
-      tracked.add(entry.logDate)
-      if (entry.logDate === today) todayValue = entry.weightKg
+    for (const day of habit.data?.days ?? []) {
+      // Ngày chỉ có % mỡ (không có cân) không phải lần cân
+      if (day.weightKg === null) continue
+      tracked.add(day.date)
+      if (day.date === today) todayValue = day.weightKg
     }
+    streak = habit.data?.currentStreak ?? 0
   } else {
     for (const point of daily.data ?? []) {
       if (!isLogged(point)) continue
       tracked.add(point.snapshotDate)
       if (point.snapshotDate === today) todayValue = point.caloriesConsumed
     }
+    streak = today ? streakOf(tracked, today) : 0
   }
 
-  const query = weighIn ? weights : daily
+  const query = weighIn ? habit : daily
   return {
     tracked,
     todayValue,
+    streak,
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,

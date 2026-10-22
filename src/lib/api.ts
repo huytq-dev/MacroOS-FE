@@ -1,6 +1,6 @@
 import { api } from './axios'
 import { AxiosError, type AxiosRequestConfig } from 'axios'
-import type { ApiResponse } from '@/types/api'
+import type { ApiError, ApiResponse } from '@/types/api'
 import { logger } from './logger'
 
 // ──────────────────────────────────────────────────────────────
@@ -54,18 +54,30 @@ export const getFieldErrors = (error: unknown): Record<string, string> => {
   return result
 }
 
+/** Thân lỗi BE (`ApiResponse` của phản hồi lỗi), kể cả `data` máy đọc được; null khi không có phản hồi HTTP (mất mạng, huỷ). */
+export const getApiError = (error: unknown): ApiError | null => {
+  if (!(error instanceof AxiosError) || !error.response) return null
+  const body = error.response.data as Partial<ApiResponse<unknown>> | undefined
+  return {
+    message: body?.message || error.message,
+    errors: body?.errors,
+    statusCode: error.response.status,
+    data: body?.data ?? undefined,
+  }
+}
+
 export { logger }
 
-export const isNetworkError = (error: unknown): boolean => {
-  return error instanceof AxiosError && !error.response
-}
+/** Lỗi 4xx (yêu cầu sai / bị từ chối): gửi lại y nguyên sẽ cho đúng kết quả đó nên không nên tự thử lại. */
+export const isClientError = (error: unknown): boolean =>
+  error instanceof AxiosError &&
+  error.response !== undefined &&
+  error.response.status >= 400 &&
+  error.response.status < 500
 
 export const isSystemError = (error: unknown): boolean => {
   return error instanceof AxiosError && (!error.response || error.response.status >= 500)
 }
-
-export const isConflictError = (error: unknown): boolean =>
-  error instanceof AxiosError && error.response?.status === 409
 
 export type ErrorKind = 'forbidden' | 'unauthorized' | 'notFound' | 'network' | 'server' | 'unknown'
 

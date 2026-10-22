@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { NutrientInfo } from '../nutrient-detail.utils'
 import type { NutrientDayResponse } from '../types/nutrient-detail.types'
 import { NutrientCard } from '@/features/food-log/components/NutritionOverviewPage/NutrientCard'
+import { Skeleton } from '@/components/ui/skeleton'
 import { routePath } from '@/config/route-path'
 
 const TOP = 3
@@ -13,11 +14,15 @@ const TOP = 3
 export function NutrientTodayCard({
   info,
   day,
+  loading = false,
 }: {
   readonly info: NutrientInfo
   readonly day: NutrientDayResponse | undefined
+  /** Ngày chưa về: khung xám thay vì "---" / thanh trống (không đọc như "chưa có dữ liệu"). */
+  readonly loading?: boolean
 }) {
   const { nutrient, tone } = info
+  if (loading) return <Skeleton className="h-40 rounded-xl" aria-busy="true" />
   return (
     <Link
       href={routePath.dashboardNutrientSummary(nutrient.key)}

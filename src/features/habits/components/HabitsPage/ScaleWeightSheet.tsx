@@ -12,11 +12,13 @@ import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { useFullBody, useSaveFullBody } from '@/features/shortcuts/hooks/use-body-metrics'
 import { fullBodySchema } from '@/features/shortcuts/schemas/full-body.schema'
 import type { TapeMeasurements } from '@/features/shortcuts/types/body-metrics.types'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useDeleteWeight, useUpsertWeight, useWeights } from '@/features/weight/hooks/use-weights'
 import { logWeightSchema } from '@/features/weight/schemas/log-weight.schema'
 import type { WeightEntry } from '@/features/weight/types/weight.types'
 import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
 import { formatDate } from '@/lib/date'
+import { kgToSend, roundTo } from '@/lib/units'
 import { cn, normalizeDecimal } from '@/lib/utils'
 
 type Field = 'weight' | 'bodyFat'
@@ -35,13 +37,19 @@ interface EntryFormProps {
   readonly onSaved: () => void
 }
 
-/** Form của một ngày: Weight (kg) + Body Fat (%), Save, bàn phím số riêng trên cảm ứng. Dựng lại (key) khi dữ liệu của ngày tải xong. */
+/**
+ * Form của một ngày: Weight (kg hoặc lb theo hồ sơ) + Body Fat (%), Save, bàn phím số riêng trên cảm ứng. Dựng lại (key) khi dữ liệu của
+ * ngày tải xong. Số cân gửi BE luôn là kg: đổi đúng rồi làm tròn 2 chữ số; không đổi số đã điền sẵn thì gửi lại đúng kg đã lưu.
+ */
 function EntryForm({ date, entry, bodyFat, tape, onSaved }: EntryFormProps) {
   const coarse = useCoarsePointer()
   const upsert = useUpsertWeight()
   const saveBody = useSaveFullBody()
+  const { weight: measure } = useUnits()
+  // Số điền sẵn là số HIỂN THỊ (1 chữ số thập phân), không phải số gửi đi
+  const shownWeight = (kg: number) => roundTo(measure.convert(kg), 1)
   const [texts, setTexts] = useState<Record<Field, string>>({
-    weight: toText(entry?.weightKg),
+    weight: toText(entry ? shownWeight(entry.weightKg) : null),
     bodyFat: toText(bodyFat),
   })
   const [active, setActive] = useState<Field>('weight')
@@ -64,7 +72,7 @@ function EntryForm({ date, entry, bodyFat, tape, onSaved }: EntryFormProps) {
       return
     }
     if (weight !== null) {
-      const result = logWeightSchema.safeParse({ logDate: date, weightKg: weight })
+      const result = logWeightSchema(measure.unit).safeParse({ logDate: date, weight })
       if (!result.success) {
         setError(result.error.issues[0]?.message ?? 'Check your weight')
         return
@@ -79,7 +87,11 @@ function EntryForm({ date, entry, bodyFat, tape, onSaved }: EntryFormProps) {
     }
     try {
       if (weight !== null)
-        await upsert.mutateAsync({ logDate: date, weightKg: weight, notes: entry?.notes ?? null })
+        await upsert.mutateAsync({
+          logDate: date,
+          weightKg: kgToSend(weight, measure.unit, entry?.weightKg),
+          notes: entry?.notes ?? null,
+        })
       // Ghi body fat kèm số đo cm sẵn có của ngày để không xoá mất
       if (fat !== null) await saveBody.mutateAsync({ date, visualBodyFatPercent: fat, tape })
       onSaved()
@@ -119,10 +131,10 @@ function EntryForm({ date, entry, bodyFat, tape, onSaved }: EntryFormProps) {
           <span className={box('weight')}>
             <input
               {...fieldProps('weight')}
-              aria-label="Weight in kilograms"
+              aria-label={`Weight in ${measure.unit === 'kg' ? 'kilograms' : 'pounds'}`}
               className="w-0 min-w-0 flex-1 bg-transparent text-right text-lg tabular-nums outline-none"
             />
-            <span className="text-muted-foreground text-base">kg</span>
+            <span className="text-muted-foreground text-base">{measure.unit}</span>
           </span>
         </label>
         <label className="min-w-0 space-y-1.5 text-sm">
@@ -167,7 +179,7 @@ interface ScaleWeightSheetProps {
 }
 
 /**
- * Bảng nhập cân của một ngày (bấm một ngày trên lịch Habits): tiêu đề là ngày, phụ đề "Scale Weight", ô Weight (kg) + Body Fat (%),
+ * Bảng nhập cân của một ngày (bấm một ngày trên lịch Habits): tiêu đề là ngày, phụ đề "Scale Weight", ô Weight (kg / lb) + Body Fat (%),
  * Save, nút thùng rác ở góc phải chỉ khi ngày đó đã có bản ghi cân (xoá có xác nhận). Điền sẵn từ bản ghi sẵn có.
  */
 export function ScaleWeightSheet({ open, onOpenChange, date }: ScaleWeightSheetProps) {

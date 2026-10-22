@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { addDaysIso } from '@/lib/date'
+import { useUnits } from '@/features/users/hooks/use-units'
+import { MONTH_SHORT, addDaysIso } from '@/lib/date'
+import { dayOfWeekOf, weekDates, weekStartOf } from '@/lib/week'
 import { cn } from '@/lib/utils'
 import type { WeekDay } from '../../types/food-log.types'
-import { DayPill, WEEKDAYS, kcalPercent, mondayOf, weeksAround } from './WeekStrip'
+import { DayPill, kcalPercent, weeksAround } from './WeekStrip'
 
 const COLUMNS = 7
 
@@ -17,15 +19,12 @@ interface CalendarSheetProps {
   readonly onExited: () => void
   /** Tổng theo ngày (map iso → WeekDay) cho vòng kcal. */
   readonly days: Readonly<Record<string, WeekDay>>
-  /** Báo các tuần (Thứ Hai) đang thấy để trang cha tải số liệu vòng kcal. */
-  readonly onWeeksView: (mondays: readonly string[]) => void
+  /** Báo các tuần (ngày đầu tuần theo cài đặt của user) đang thấy để trang cha tải số liệu vòng kcal. */
+  readonly onWeeksView: (weekStarts: readonly string[]) => void
 }
 
 /** Thời gian hoạt ảnh đóng, khớp `duration-200` bên dưới. */
 const EXIT_MS = 200
-
-const monthName = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short' })
 
 /** Số tháng (1–12) của ngày iso; tháng chẵn nền sáng, tháng lẻ nền tối nên ranh giới tháng hiện rõ như MacroFactor. */
 const monthOf = (iso: string) => Number(iso.slice(5, 7))
@@ -39,7 +38,7 @@ const visibleWeeks = (element: HTMLElement, weeks: readonly string[]) => {
 }
 
 /**
- * Lịch cuộn theo tuần phủ kín phần dưới header: mỗi hàng là một tuần Mo→Su (±26 tuần quanh hôm nay), mở ra thì tuần của ngày
+ * Lịch cuộn theo tuần phủ kín phần dưới header: mỗi hàng là một tuần bắt đầu từ ngày đầu tuần của user (±26 tuần quanh hôm nay), mở ra thì tuần của ngày
  * đang chọn nằm ở đầu. Mỗi tháng là một mảng nền riêng (xen kẽ sáng/tối, góc bo ở chỗ đổi tháng) và nhãn tháng nằm trên ngày
  * mùng 1, mỗi viên ngày có vòng kcal như thanh tuần (chỉ tải số liệu của các tuần đang thấy). Chọn một ngày thì chuyển ngày và đóng lịch (trang cha lo phần đóng).
  */
@@ -58,8 +57,12 @@ export function CalendarSheet({
     return () => clearTimeout(timer)
   }, [open, onExited])
   const selectedRow = useRef<HTMLLIElement>(null)
-  const weeks = weeksAround(mondayOf(today ?? date), mondayOf(date))
-  const selectedWeek = mondayOf(date)
+  const { weekStartDay } = useUnits()
+  const weeks = weeksAround(
+    weekStartOf(today ?? date, weekStartDay),
+    weekStartOf(date, weekStartDay)
+  )
+  const selectedWeek = weekStartOf(date, weekStartDay)
 
   useEffect(() => {
     const row = selectedRow.current
@@ -89,14 +92,13 @@ export function CalendarSheet({
       )}
     >
       <ol>
-        {weeks.map((monday) => (
+        {weeks.map((weekStart) => (
           <li
-            key={monday}
-            ref={monday === selectedWeek ? selectedRow : undefined}
+            key={weekStart}
+            ref={weekStart === selectedWeek ? selectedRow : undefined}
             className="grid grid-cols-7"
           >
-            {WEEKDAYS.map((weekday, column) => {
-              const day = addDaysIso(monday, column)
+            {weekDates(weekStart).map((day, column) => {
               const month = monthOf(day)
               // Góc ngoài của mảng tháng bo tròn khi cả hai cạnh kề đều thuộc tháng khác (mép màn hình không tính).
               const otherAbove = monthOf(addDaysIso(day, -COLUMNS)) !== month
@@ -117,12 +119,12 @@ export function CalendarSheet({
                 >
                   {day.endsWith('-01') && (
                     <span className="border-foreground/30 bg-background absolute top-0.5 left-1/2 z-10 -translate-x-1/2 rounded-full border px-3 text-sm leading-4">
-                      {monthName(day)}
+                      {MONTH_SHORT[month - 1]}
                     </span>
                   )}
                   <DayPill
                     day={day}
-                    weekday={weekday}
+                    weekday={dayOfWeekOf(day).slice(0, 2)}
                     selected={day === date}
                     isToday={day === today}
                     percent={kcalPercent(days[day], today)}

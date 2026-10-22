@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { LogWeightDialog } from '@/features/weight/components/WeightPage'
 import { useDeleteWeight, useUpsertWeight, useWeights } from '@/features/weight/hooks/use-weights'
 import {
@@ -12,6 +13,7 @@ import {
 } from '@/features/weight/schemas/log-weight.schema'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { addDaysIso, formatDate, todayIso } from '@/lib/date'
+import { toApiKg } from '@/lib/units'
 
 interface WeightShortcutPageProps {
   readonly open: boolean
@@ -28,10 +30,13 @@ export function WeightShortcutPage({ open, onOpenChange }: WeightShortcutPagePro
   const weights = useWeights(addDaysIso(today, -LOOKBACK_DAYS), today)
   const upsert = useUpsertWeight()
   const remove = useDeleteWeight()
+  const { weight } = useUnits()
   const form = useForm<LogWeightFormValues>({
-    resolver: zodResolver(logWeightSchema),
+    // Giới hạn theo đơn vị hiện tại của user (đọc lúc kiểm: hồ sơ có thể tải xong sau khi form được tạo)
+    resolver: (values, context, options) =>
+      zodResolver(logWeightSchema(weight.unit))(values, context, options),
     mode: 'onTouched',
-    defaultValues: { logDate: today, weightKg: Number.NaN },
+    defaultValues: { logDate: today, weight: Number.NaN },
   })
 
   return (
@@ -40,6 +45,7 @@ export function WeightShortcutPage({ open, onOpenChange }: WeightShortcutPagePro
         open={open}
         onOpenChange={onOpenChange}
         form={form}
+        unit={weight.unit}
         entryDates={weights.data?.items.map((item) => item.logDate)}
         onDelete={(logDate) => {
           onOpenChange(false)
@@ -49,7 +55,7 @@ export function WeightShortcutPage({ open, onOpenChange }: WeightShortcutPagePro
         error={upsert.error ? getFormErrorMessage(upsert.error) : null}
         onSubmit={(values) =>
           upsert.mutate(
-            { logDate: values.logDate, weightKg: values.weightKg, notes: null },
+            { logDate: values.logDate, weightKg: toApiKg(values.weight, weight.unit), notes: null },
             { onSuccess: () => onOpenChange(false) }
           )
         }

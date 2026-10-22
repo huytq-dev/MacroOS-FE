@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { programService } from '../services/program.service'
 import type { ProgramType } from '@/config/enums'
 import type { CreateProgramRequest, UpdateProgramGoalRequest } from '../types/program.types'
+import { invalidateTargetData } from '@/features/food-log/hooks/use-food-log'
 import { logger } from '@/lib/api'
 
 export const programKeys = { current: ['program', 'current'] as const }
@@ -42,9 +43,8 @@ const useProgramMutation = <TVariables>(
     mutationFn,
     onSuccess: () => {
       toast.success(successMessage)
-      void queryClient.invalidateQueries({ queryKey: programKeys.current })
-      void queryClient.invalidateQueries({ queryKey: ['goals'] })
-      void queryClient.invalidateQueries({ queryKey: ['check-in'] })
+      // Target đổi theo program ở mọi nơi (nhật ký, Dashboard, Energy Balance, Expenditure, Overview): làm mới chung một danh sách
+      invalidateTargetData(queryClient)
     },
     onError: (error) => {
       logger.error(error)

@@ -12,9 +12,13 @@ import {
 import { ExpandableChart, ExpandButton, useChartExpand } from '../chart/use-chart-expand'
 import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useGoalProgressDetail } from '../hooks/use-goal-progress-detail'
+import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
+import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
 import type { GoalTab } from '../goal-progress.utils'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useUnits } from '@/features/users/hooks/use-units'
+import { formatDate } from '@/lib/date'
 
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
 
@@ -45,13 +49,6 @@ const TABS = [
   },
 ] as const
 
-const shortDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-
 /**
  * Chi tiết "Goal Progress" (bấm ô Goal Progress ở Dashboard): hai tab Scale Weight / Trend Weight, khoảng cách còn lại tới
  * cân mục tiêu, biểu đồ thác nước, hướng dẫn và Insights & Data.
@@ -65,6 +62,8 @@ export function GoalProgressPage() {
     TUTORIAL_CHOICES
   )
   const data = useGoalProgressDetail(tab)
+  const derived = useDerivedGate()
+  const { weight } = useUnits()
 
   if (data.status === 'error')
     return <ErrorState error={new Error('Could not load Goal Progress')} />
@@ -74,19 +73,38 @@ export function GoalProgressPage() {
       <SubPageHeader title="Goal Progress" />
       <UnderlineTabs tabs={TABS} value={tab} onChange={setTab} ariaLabel="Weight basis" />
 
-      {data.status === 'loading' && <Skeleton className="h-96 rounded-xl" aria-busy="true" />}
-      {data.status === 'empty' && (
+      {derived.gate === 'failed' && (
+        <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+      )}
+      {derived.gate === 'ready' && data.status === 'loading' && (
+        <Skeleton className="h-96 rounded-xl" aria-busy="true" />
+      )}
+      {derived.gate === 'updating' && <Skeleton className="h-96 rounded-xl" aria-busy="true" />}
+      {derived.gate === 'ready' && data.status === 'empty' && (
         <p className="bg-card text-muted-foreground rounded-xl p-4 text-base">
           Set a target weight in your goal to see your progress here.
         </p>
       )}
-      {data.status === 'ready' && (
+      {derived.gate === 'ready' && data.status === 'ready' && (
         <>
           <div className="flex items-start justify-between gap-3">
-            <StatBlock label="Distance" value={data.distance.toFixed(1)} unit="kg" />
+            <StatBlock label="Distance" value={weight.format(data.distance)} unit={weight.unit} />
             <ExpandButton expand={expand} />
           </div>
-          <p className="text-muted-foreground -mt-3 text-lg">{shortDate(data.startDate)} – Today</p>
+          <p className="text-muted-foreground -mt-3 text-lg">
+            {formatDate(data.startDate)} – Today
+          </p>
+          {data.reached && (
+            <p role="status" className="text-foreground -mt-2 text-base font-medium">
+              Goal reached
+              {data.pastKg >= 0.05 && (
+                <span className="text-muted-foreground font-normal">
+                  {' '}
+                  · {weight.text(data.pastKg)} past your target
+                </span>
+              )}
+            </p>
+          )}
 
           <ExpandableChart expand={expand}>
             <WaterfallChart bars={data.bars} height={expand.height} />

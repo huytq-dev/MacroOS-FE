@@ -1,6 +1,8 @@
 // Kiểm tra Adaptive Goal Scale: `goalScaleMax` / `goalProgress` / `goalPercent` / `primaryGoal` / `targetRatio` / `weekBarProgress`
+// và D18 (vượt target = thông tin ≠ vượt trần = cảnh báo; Minimum không có trạng thái vượt) — cả phần nối vào thanh / chữ phần trăm.
 // (repo chưa có test runner). Chạy: node scripts/check-goal-progress.mjs   (Node ≥ 22.18 chạy thẳng file .ts)
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   CEILING_HEADROOM,
   CEILING_REACH,
@@ -9,21 +11,29 @@ import {
   TARGET_HEADROOM,
   goalPercent,
   goalProgress,
-  goalRemaining,
   goalScaleMax,
   primaryGoal,
   targetRatio,
   weekBarProgress,
 } from '../src/features/nutrition/goal-progress.ts'
+// Namespace riêng cho hàm mới (goalStatus): bản cũ không có nó thì chỉ check của nó FAIL, không làm sập cả file
+import * as progress from '../src/features/nutrition/goal-progress.ts'
 
+const source = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8')
 const close = (actual, expected, label, tolerance = 0.001) =>
   assert.ok(Math.abs(actual - expected) < tolerance, `${label}: ${actual} ≠ ${expected}`)
 const goal = (floor, target, ceiling, goalKind) => ({ floor, target, ceiling, goalKind })
 let checks = 0
+let failures = 0
 function check(name, fn) {
-  fn()
-  checks += 1
-  console.log(`ok  ${name}`)
+  try {
+    fn()
+    checks += 1
+    console.log(`ok    ${name}`)
+  } catch (error) {
+    failures += 1
+    console.log(`FAIL  ${name}\n        ${String(error.message).split('\n')[0]}`)
+  }
 }
 
 check(
@@ -40,7 +50,7 @@ check(
     // MF Dashboard ref: Calories 3258 / 2880 → fill ≈ 0.905 past the tick, 53 / 137 → ≈ 0.31
     const cal = goalProgress(goal(null, 2880, null, 'Target'), 3258)
     close(cal.fill, 0.905, 'calories fill', 0.005)
-    assert.ok(cal.fill > cal.targetAt && cal.status === 'met')
+    assert.ok(cal.fill > cal.targetAt && cal.status === 'overTarget')
     close(goalProgress(goal(null, 137, null, 'Target'), 53).fill, 0.31, 'protein fill 0.31', 0.005)
   }
 )
@@ -55,7 +65,7 @@ check('the scale never depends on the amount eaten (and is not stretched by it)'
   }
   const over = goalProgress(g, 500)
   assert.equal(over.fill, 1)
-  assert.equal(over.status, 'over')
+  assert.equal(over.status, 'overTarget')
   assert.equal(goalProgress(g, 125).fill, 1)
 })
 
@@ -84,7 +94,7 @@ check(
     assert.deepEqual(ok.zone, [0, ok.ceilingAt])
     const over = goalProgress(g, 30)
     assert.equal(over.fill, 1)
-    assert.equal(over.status, 'over')
+    assert.equal(over.status, 'overCeiling')
     assert.equal(over.scaleMax, ok.scaleMax)
   }
 )
@@ -98,8 +108,8 @@ check(
     close(p.targetAt, 0.567, 'sodium target 0.567')
     close(p.ceilingAt, 0.87, 'sodium ceiling 0.870')
     assert.equal(p.ceilingOffScale, false)
-    assert.equal(goalProgress(sodium, 1800).status, 'met')
-    assert.equal(goalProgress(sodium, 2400).status, 'over')
+    assert.equal(goalProgress(sodium, 1800).status, 'overTarget')
+    assert.equal(goalProgress(sodium, 2400).status, 'overCeiling')
     close(
       goalProgress(sodium, 2400).fill,
       2400 / (2300 * CEILING_HEADROOM),
@@ -141,12 +151,12 @@ check(
     assert.equal(p.ceilingOffScale, true)
     assert.equal(p.ceilingValue, 2000)
     assert.deepEqual(p.zone, [p.targetAt, 1])
-    assert.equal(goalProgress(g, 120).status, 'met')
-    // past the scale but under the real ceiling: full bar, NOT over
+    assert.equal(goalProgress(g, 120).status, 'overTarget')
+    // past the scale but under the real ceiling: full bar, over the TARGET (information) but NOT over the ceiling
     const high = goalProgress(g, 500)
     assert.equal(high.fill, 1)
-    assert.equal(high.status, 'met')
-    assert.equal(goalProgress(g, 2500).status, 'over')
+    assert.equal(high.status, 'overTarget')
+    assert.equal(goalProgress(g, 2500).status, 'overCeiling')
   }
 )
 
@@ -239,9 +249,6 @@ check(
     assert.equal(primaryGoal(goal(null, null, null)), null)
     assert.equal(goalPercent(goal(null, null, null), 50), null)
     assert.equal(goalPercent(goal(null, 100, null), null), null)
-    assert.equal(goalRemaining(goal(null, 100, null), 130), 0)
-    assert.equal(goalRemaining(goal(null, 100, null), null), 100)
-    assert.equal(goalRemaining(goal(null, null, null), 5), null)
   }
 )
 
@@ -249,8 +256,9 @@ check('targetRatio (dial / week / small macro bars): 100% = target', () => {
   assert.deepEqual(targetRatio(50, 100), { progress: 0.5, over: false })
   assert.deepEqual(targetRatio(150, 100), { progress: 1, over: true })
   assert.deepEqual(targetRatio(0, 0), { progress: 0, over: false })
-  assert.deepEqual(targetRatio(10, 0), { progress: 1, over: true })
-  assert.deepEqual(targetRatio(10, null), { progress: 1, over: true })
+  // N-06: không có target thì không vượt, không đầy (không bịa trạng thái)
+  assert.deepEqual(targetRatio(10, 0), { progress: 0, over: false })
+  assert.deepEqual(targetRatio(10, null), { progress: 0, over: false })
 })
 
 check('weekBarProgress: Consumed fills up, Remaining drains, both clamp', () => {
@@ -265,4 +273,128 @@ check('weekBarProgress: Consumed fills up, Remaining drains, both clamp', () => 
   assert.deepEqual(weekBarProgress(100, null, 'consumed'), { progress: 0, over: false })
 })
 
-console.log(`\n${checks} groups passed`)
+// ── D18: vượt target (thông tin) ≠ vượt trần (cảnh báo); Minimum không có trạng thái vượt ─────────────────────────────────────────────
+
+check(
+  'D18 over the TARGET alone is `overTarget` (information), exactly the target is `met`',
+  () => {
+    for (const g of [
+      goal(null, 2880, null, 'Target'),
+      goal(null, 1500, 2300, 'TargetWithCeiling'),
+      goal(60, 100, 145, 'Range'),
+    ]) {
+      assert.equal(goalProgress(g, g.target).status, 'met', `${g.goalKind} at exactly the target`)
+      assert.equal(goalProgress(g, g.target * 1.12).status, 'overTarget', `${g.goalKind} at 112%`)
+    }
+  }
+)
+
+check('D18 over the real CEILING is `overCeiling` (warning) for every kind that has one', () => {
+  for (const [g, eaten] of [
+    [goal(null, null, 22, 'Maximum'), 22.1],
+    [goal(null, 1500, 2300, 'TargetWithCeiling'), 2301],
+    [goal(60, 100, 145, 'Range'), 150],
+    [goal(null, 90, 2000, 'TargetWithCeiling'), 2001],
+  ])
+    assert.equal(goalProgress(g, eaten).status, 'overCeiling', `${g.goalKind} at ${eaten}`)
+  assert.equal(goalProgress(goal(null, null, 22, 'Maximum'), 22).status, 'inRange', 'at the limit')
+})
+
+check('D18 "over" is decided by the real marks, never by the display headroom', () => {
+  // inside the drawn scale (target × 1.25) but already above the target → over the target
+  assert.equal(goalProgress(goal(null, 100, null, 'Target'), 101).status, 'overTarget')
+  assert.equal(goalProgress(goal(null, 100, null, 'Target'), 125).status, 'overTarget')
+  // a full bar under the real ceiling is not over the ceiling
+  const far = goal(null, 90, 2000, 'TargetWithCeiling')
+  assert.equal(goalProgress(far, 500).fill, 1)
+  assert.notEqual(goalProgress(far, 500).status, 'overCeiling')
+  const maximum = goal(null, null, 22, 'Maximum')
+  assert.equal(goalProgress(maximum, 22 * LIMIT_HEADROOM - 0.1).status, 'overCeiling')
+  assert.equal(goalProgress(maximum, 20).status, 'inRange')
+})
+
+check('D18 Minimum goals have NO over state, even far past the drawn scale', () => {
+  const minimum = goal(60, 100, null, 'Minimum')
+  const scale = goalScaleMax(minimum)
+  for (const eaten of [100, 120, scale, scale * 3, 5000])
+    assert.equal(goalProgress(minimum, eaten).status, 'met', `Minimum at ${eaten}`)
+  assert.equal(goalProgress(goal(40, null, null, 'Minimum'), 4000).status, 'met', 'floor only')
+  // the kind is the BE's call (every nutrient model carries it): without one NOTHING is guessed from the numbers, so floor + target
+  // and no ceiling is not a "Minimum by its numbers" and can be over its target
+  assert.equal(goalProgress(goal(60, 100, null), 5000).status, 'overTarget', 'no kind, no guess')
+  // a lone target is a Target goal and can be over
+  assert.equal(goalProgress(goal(null, 100, null), 5000).status, 'overTarget')
+})
+
+check('D18 below / in range / empty are unchanged', () => {
+  const range = goal(60, 100, 145, 'Range')
+  assert.equal(goalProgress(range, 0).status, 'empty')
+  assert.equal(goalProgress(range, 30).status, 'below')
+  assert.equal(goalProgress(range, 80).status, 'inRange')
+  assert.equal(goalProgress(goal(null, null, 22, 'Maximum'), 5).status, 'inRange')
+})
+
+check('D18 goalStatus (no geometry) gives exactly goalProgress(...).status', () => {
+  assert.equal(typeof progress.goalStatus, 'function', 'goalStatus is not exported')
+  const goals = [
+    goal(null, 2880, null, 'Target'),
+    goal(null, null, 22, 'Maximum'),
+    goal(60, 100, null, 'Minimum'),
+    goal(60, 100, 145, 'Range'),
+    goal(null, 90, 2000, 'TargetWithCeiling'),
+    goal(40, null, null),
+    goal(null, null, null),
+  ]
+  for (const g of goals)
+    for (const eaten of [null, 0, 1, 30, 80, 100, 101, 130, 150, 2500, 5000])
+      assert.equal(
+        progress.goalStatus(g, eaten),
+        goalProgress(g, eaten).status,
+        `${JSON.stringify(g)} at ${eaten}`
+      )
+  assert.equal(progress.goalStatus(null, 50), 'empty')
+  assert.equal(progress.goalStatus(goal(null, 0, null), 50), 'empty')
+})
+
+check(
+  '[wiring] the bar warns only over the CEILING; the "Limit …" caption turns destructive too',
+  () => {
+    const bar = source('features/nutrition/NutrientGoalBar.tsx')
+    assert.match(bar, /const overCeiling = progress\.status === 'overCeiling'/)
+    assert.match(bar, /const overStart = overCeiling \? progress\.ceilingAt : null/)
+    assert.ok(!/status === 'over'/.test(bar), 'the old single "over" state must be gone')
+    assert.match(bar, /overCeiling \? 'text-destructive' : 'text-muted-foreground'/)
+    const model = source('features/nutrition/goal-progress.ts')
+    assert.ok(
+      !/status = 'over'/.test(model) && !/eaten > scaleMax/.test(model),
+      'no headroom-derived over'
+    )
+  }
+)
+
+check('[wiring] percent text: destructive ONLY over the ceiling, neutral for over-target', () => {
+  const percent = source('features/nutrition/GoalPercent.tsx')
+  assert.match(percent, /goalStatus\(goal, consumed\) === 'overCeiling'/)
+  assert.match(percent, /overCeiling \? 'text-destructive' : 'text-muted-foreground'/)
+  assert.ok(!/overTarget/.test(percent), 'over-target must not get its own warning tone')
+  assert.match(percent, /sr-only/, 'not colour alone')
+  for (const file of [
+    'features/food-log/components/NutritionOverviewPage/NutrientCard.tsx',
+    'features/nutrient-detail/pages/NutrientSummaryPage.tsx',
+    'features/nutrient-detail/components/NutrientHistory.tsx',
+  ]) {
+    const text = source(file)
+    assert.match(text, /<GoalPercent/, `${file} uses GoalPercent`)
+    assert.ok(!/\$\{percent\}%/.test(text), `${file} must not hand-format the percent any more`)
+  }
+  const tile = source('features/dashboard/components/DashboardPage/NutrientTile.tsx')
+  assert.match(tile, /goalStatus\(goal, value\) === 'overCeiling'/)
+  assert.match(tile, /warning=\{overCeiling && display === 'percent' && percent !== null\}/)
+  assert.match(
+    source('features/dashboard/components/DashboardPage/MetricTile.tsx'),
+    /warning && 'text-destructive'/
+  )
+})
+
+console.log(`\n${checks} groups passed${failures ? `, ${failures} FAILED` : ''}`)
+process.exit(failures === 0 ? 0 : 1)

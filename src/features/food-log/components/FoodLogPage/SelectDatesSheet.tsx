@@ -4,8 +4,10 @@ import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { SheetFrame } from '@/components/shared/SheetFrame'
 import { Button } from '@/components/ui/button'
-import { MONTH_NAMES, monthGrid } from '@/features/habits/habits.utils'
-import { addDaysIso } from '@/lib/date'
+import { monthGrid } from '@/features/habits/habits.utils'
+import { useUnits } from '@/features/users/hooks/use-units'
+import { MONTH_NAMES, addDaysIso } from '@/lib/date'
+import { dayLetterOfDate, formatLongDate } from '@/lib/week'
 import { cn } from '@/lib/utils'
 import { SlidingSwitch } from './SlidingSwitch'
 
@@ -16,7 +18,6 @@ const MODES = [
   { value: 'ranges', label: 'Ranges' },
 ] as const
 
-const WEEKDAY_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const
 /** Giới hạn số ngày một lần dán (khoảng chọn dài hơn bị cắt). */
 const MAX_DATES = 62
 
@@ -58,7 +59,8 @@ export function SelectDatesSheet({
     year: Number(today.slice(0, 4)),
     month: Number(today.slice(5, 7)) - 1,
   })
-  const grid = monthGrid(view.year, view.month)
+  const { weekStartDay } = useUnits()
+  const grid = monthGrid(view.year, view.month, weekStartDay)
 
   const selected =
     mode === 'dates'
@@ -128,8 +130,8 @@ export function SelectDatesSheet({
           className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-200"
         >
           <div className="text-muted-foreground mb-1 grid grid-cols-7 text-center text-base">
-            {WEEKDAY_INITIALS.map((initial, index) => (
-              <span key={index}>{initial}</span>
+            {grid.slice(0, 7).map(({ iso }) => (
+              <span key={iso}>{dayLetterOfDate(iso)}</span>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-y-1">
@@ -155,11 +157,7 @@ export function SelectDatesSheet({
                   <button
                     type="button"
                     aria-pressed={isChosen}
-                    aria-label={new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
+                    aria-label={formatLongDate(iso)}
                     onClick={() => tap(iso)}
                     className={cn(
                       'focus-visible:ring-ring/50 relative flex size-11 items-center justify-center rounded-full text-lg tabular-nums transition-[background-color,color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100',

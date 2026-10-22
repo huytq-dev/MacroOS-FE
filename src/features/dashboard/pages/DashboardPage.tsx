@@ -19,27 +19,29 @@ import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useDashboardLayout } from '../hooks/use-dashboard-layout'
 import { useDashboardData } from '../hooks/use-dashboard-data'
 import type { BalanceMode } from '../dashboard.utils'
+import { focusPending } from '../dashboard-pending'
+import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
+import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
 import { useWeekLog } from '@/features/food-log/hooks/use-food-log'
 import type { MacroTotals } from '@/features/food-log/types/food-log.types'
 import { useCurrentProgram } from '@/features/program/hooks/use-program'
 import { useProfile } from '@/features/users/hooks/use-profile'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Skeleton } from '@/components/ui/skeleton'
 import { routePath } from '@/config/route-path'
 import { useIsClient } from '@/hooks/use-is-client'
 import { formatDate, todayIso } from '@/lib/date'
+import { dayOfWeekOf, weekStartOf } from '@/lib/week'
 import { useUiStore } from '@/stores/ui.store'
 
 const EMPTY_TOTALS: MacroTotals = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
 const NUTRITION_MODES = ['consumed', 'remaining'] as const
 const BALANCE_MODES = ['expenditure', 'targets'] as const
 
-/** "Thứ Sáu, 16/10/2026" theo ngày iso; chỉ gọi sau khi mount để không lệch hydration. */
-const dayLabel = (iso: string) => {
-  const weekday = new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long' })
-  return `${weekday}, ${formatDate(iso)}`
-}
+/** "Friday, Oct 16, 2026" theo ngày iso; chỉ gọi sau khi mount để không lệch hydration. */
+const dayLabel = (iso: string) => `${dayOfWeekOf(iso)}, ${formatDate(iso)}`
 
 export function DashboardPage() {
   const router = useRouter()
@@ -63,8 +65,10 @@ export function DashboardPage() {
   const profile = useProfile()
   const hasProgram = Boolean(program.data)
   const data = useDashboardData(today, hasProgram)
-  // Lazy: dữ liệu theo dõi chỉ tải khi đã có program (chưa có target thì không có gì để so sánh).
-  const week = useWeekLog(hasProgram ? today : null)
+  const { weekStartDay } = useUnits()
+  // Lazy: dữ liệu theo dõi chỉ tải khi đã có program (chưa có target thì không có gì để so sánh). Tuần bắt đầu từ ngày đầu tuần của user.
+  const derived = useDerivedGate()
+  const week = useWeekLog(hasProgram && today ? weekStartOf(today, weekStartDay) : null)
   const setAddFoodOpen = useUiStore((state) => state.setAddFoodOpen)
 
   const searchFood = () => {
@@ -137,7 +141,7 @@ export function DashboardPage() {
     )
   }
 
-  const days = week.data?.days
+  const days = week.days
   const weekIncludesToday = days?.some((day) => day.logDate === today) ?? false
   const selected =
     selectedDate === undefined ||
@@ -168,19 +172,26 @@ export function DashboardPage() {
     weekly: { label: 'Weekly Nutrition', node: weekly },
     energy: {
       label: 'Energy Balance',
-      node: (
-        <EnergyBalanceCard
-          points={data.daily}
-          currentTdee={data.tdee}
-          currentTarget={data.todayTarget?.caloriesTarget ?? null}
-          mode={balanceMode}
-          onModeChange={setBalanceMode}
-        />
-      ),
+      node:
+        derived.gate === 'failed' ? (
+          <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+        ) : derived.gate === 'updating' || focusPending('energy', data.pending) ? (
+          <Skeleton className="h-72 rounded-2xl" aria-busy="true" />
+        ) : (
+          <EnergyBalanceCard
+            data={data.energyBalance}
+            currentTdee={data.tdee}
+            currentTarget={data.todayTarget?.caloriesTarget ?? null}
+            mode={balanceMode}
+            onModeChange={setBalanceMode}
+          />
+        ),
     },
     daily: {
       label: 'Daily Nutrition',
-      node: (
+      node: focusPending('daily', data.pending) ? (
+        <Skeleton className="h-72 rounded-2xl" aria-busy="true" />
+      ) : (
         <DailyNutritionCard
           totals={data.todayTotals ?? EMPTY_TOTALS}
           target={data.todayTarget}

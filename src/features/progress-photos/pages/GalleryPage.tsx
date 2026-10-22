@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { useSheet } from '@/hooks/use-sheet'
 import { formatDate, todayIso } from '@/lib/date'
 import { cn } from '@/lib/utils'
@@ -94,6 +95,7 @@ function AngleTabs({
 
 function Gallery() {
   const router = useRouter()
+  const { weight } = useUnits()
   const params = useSearchParams()
   const query = useProgressPhotoSessions()
   const save = useSavePhotoSession()
@@ -276,10 +278,12 @@ function Gallery() {
                 className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-300 space-y-1 px-6 pt-5 text-center text-base"
               >
                 <span className="block">
-                  Trend Weight: <b className="font-semibold">{kgLabel(session.trendWeightKg)}</b>
+                  Trend Weight:{' '}
+                  <b className="font-semibold">{kgLabel(session.trendWeightKg, weight)}</b>
                 </span>
                 <span className="block">
-                  Scale Weight: <b className="font-semibold">{kgLabel(session.scaleWeightKg)}</b>
+                  Scale Weight:{' '}
+                  <b className="font-semibold">{kgLabel(session.scaleWeightKg, weight)}</b>
                 </span>
               </p>
             </div>

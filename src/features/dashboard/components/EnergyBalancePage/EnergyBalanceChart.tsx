@@ -7,7 +7,7 @@ import type { useChartPan } from '../../chart/use-chart-pan'
 import { useTween } from '../../chart/use-tween'
 import type { BalanceMode } from '../../dashboard.utils'
 import { balanceScale, type BalancePoint } from '../../energy-balance.utils'
-import { shortDay } from '../../expenditure.utils'
+import { bucketLabel } from '../../expenditure.utils'
 import { cn } from '@/lib/utils'
 
 interface EnergyBalanceChartProps {
@@ -19,6 +19,8 @@ interface EnergyBalanceChartProps {
   readonly slots: number
   /** Số ngày đã kéo lùi về quá khứ (số thực khi đang kéo). */
   readonly pos: number
+  /** Đơn vị của consumed / baseline trong `points` (kcal hoặc kJ): chuỗi đã đổi sẵn sang đơn vị này. */
+  readonly unit: string
   /** Chiều cao biểu đồ (số thực: chạy mượt khi bấm nút mở rộng). */
   readonly height: number
   readonly pan: ReturnType<typeof useChartPan>
@@ -38,6 +40,7 @@ export function EnergyBalanceChart({
   mode,
   slots,
   pos,
+  unit,
   height,
   pan,
   className,
@@ -144,9 +147,11 @@ export function EnergyBalanceChart({
           style={{ left: `${Math.min(78, Math.max(22, (selectedX / WIDTH) * 100))}%` }}
           className="bg-popover border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:animation-duration-200 pointer-events-none absolute top-0 -translate-x-1/2 rounded-lg border px-3 py-2 text-center whitespace-nowrap shadow-md"
         >
-          <p className="text-muted-foreground text-xs">{shortDay(selected.date)}</p>
+          <p className="text-muted-foreground text-xs">
+            {bucketLabel(selected.date, selected.end ?? selected.date, selected.days ?? 1)}
+          </p>
           <p className="text-sm font-medium tabular-nums">
-            {selected.consumed === null ? 'Not logged' : `${kcal(selected.consumed)} kcal`}
+            {selected.consumed === null ? 'Not logged' : `${kcal(selected.consumed)} ${unit}`}
             {selected.incomplete ? ' · Incomplete' : ''}
           </p>
           {selected.baseline !== null && (

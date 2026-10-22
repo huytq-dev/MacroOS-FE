@@ -1,8 +1,11 @@
+import type { TargetProvenance } from '@/features/nutrition/target-provenance'
+import type { Feasibility } from './feasibility.types'
 import type {
   AdjustmentReason,
   DayOfWeek,
   DietStyle,
   GoalType,
+  ProgramGoalType,
   ProgramType,
   ProteinLevel,
 } from '@/config/enums'
@@ -17,12 +20,15 @@ export interface ProgramWeek {
   fatTarget: number
   adjustmentReason: AdjustmentReason
   previousCaloriesTarget: number | null
+  /** VERIFIED | LEGACY_UNVERIFIED (BE): target cũ chưa xác minh chỉ để tham khảo; null = không có. FE chỉ đọc, không suy. */
+  targetProvenance?: TargetProvenance | null
 }
 
 export interface Program {
   id: string
   programType: ProgramType
-  goalType: GoalType
+  /** Phản hồi của BE có thể là MỌI loại goal (cả MuscleGain / Endurance / Flexibility), không chỉ ba lựa chọn của picker (`GoalType`). */
+  goalType: ProgramGoalType
   dietStyle: DietStyle
   weeklyWeightChangeTargetPercent: number
   weeklyWeightChangeTargetKg: number
@@ -41,10 +47,16 @@ export interface Program {
   isActive: boolean
   currentWeek: ProgramWeek | null
   weeks: ProgramWeek[]
-  /** Mục tiêu từng ngày trong tuần (BE trả khi các ngày khác nhau); thiếu thì mọi ngày = currentWeek. */
-  days?: DayTarget[]
+  /** Mục tiêu từng ngày trong tuần: BE luôn trả đủ 7 ngày khi có tuần hiện tại (kể cả khi các ngày bằng nhau), null khi chưa có. */
+  days?: DayTarget[] | null
   /** BE: đã tới ngày check-in và chưa check-in hôm nay → Strategy hiện nút Check In thay vòng đếm ngược. */
   checkInDue?: boolean
+  /** Cấu hình Calorie Shift ĐANG LƯU (để gửi lại đúng khi user xác nhận shift nhỏ hơn qua `PUT /programs/goal`). */
+  calorieShiftMode?: 'Even' | 'TrainingDays' | 'Custom'
+  /** Các thứ ăn thêm theo thứ tự tuần; [] khi Even. */
+  calorieShiftDays?: DayOfWeek[]
+  /** % shift đang lưu; null khi Even. */
+  calorieShiftPercent?: number | null
 }
 
 /** active = đang chạy; Achieved = đạt mục tiêu; Superseded = bị goal mới thay; Cancelled = huỷ. */
@@ -53,7 +65,7 @@ export type GoalStatus = 'Active' | 'Achieved' | 'Superseded' | 'Cancelled'
 /** Một goal trong lịch sử, `GET /goals/history` (mới nhất trước). `endDate` null = đang chạy; `ratePerWeekKg` âm = giảm. */
 export interface GoalHistoryItem {
   id: string
-  goalType: GoalType
+  goalType: ProgramGoalType
   targetWeightKg: number | null
   startWeightKg: number | null
   ratePerWeekKg: number | null
@@ -64,7 +76,7 @@ export interface GoalHistoryItem {
 
 export type TrainingType = 'None' | 'Lifting' | 'Cardio' | 'Both'
 
-/** Mục tiêu một ngày (calo + macro gram). `isLocked`: ngày khoá không bị check-in / Reset All Days đụng tới. */
+/** Mục tiêu một ngày (calo + macro gram). `isLocked`: ngày khoá không bị check-in / Reset All Days đụng tới. Phản hồi của BE (`ProgramDayModel`) không có `isFastingDay`. */
 export interface DayTarget {
   dayOfWeek: DayOfWeek
   calories: number
@@ -72,8 +84,8 @@ export interface DayTarget {
   carbsG: number
   fatG: number
   isLocked?: boolean
-  /** Ngày nhịn ăn (BE hỗ trợ, wizard chưa dùng): calo hiệu lực = 0. */
-  isFastingDay?: boolean
+  /** VERIFIED | LEGACY_UNVERIFIED (BE `ProgramDayModel`). */
+  targetProvenance?: TargetProvenance | null
 }
 
 // Khớp BE GET /programs/setup: mọi số wizard New Program cần để vẽ và chặn nhập (FE không tự tính)
@@ -106,6 +118,8 @@ export interface ProgramPreview {
   weeklyChangePercent: number
   projectedEndDate: string | null
   warnings: ProgramDraftWarning[]
+  /** Kiểm khả thi của BE (HTTP 200): `isFeasible = false` thì Create bị 400 cùng object này; `warnings` bên trong là cảnh báo không chặn (macro ≠ kcal). */
+  feasibility?: Feasibility | null
 }
 
 /** MACRO_KCAL_MISMATCH (calo từ macro lệch quá 15% calo đã nhập) | BELOW_FLOOR (calo ngày thấp hơn sàn đã chọn). */
@@ -127,7 +141,8 @@ export interface CreateProgramRequest {
   // Wizard thiết lập: cân mục tiêu, loại tập, kiểu phân bổ kcal trong tuần (Custom = dồn vào các ngày chọn)
   targetWeightKg?: number | null
   trainingType?: 'None' | 'Lifting' | 'Cardio' | 'Both' | null
-  calorieShiftMode?: 'Even' | 'Custom' | null
+  /** BE `CalorieShiftMode`: Even | TrainingDays | Custom. Wizard chỉ gửi Even / Custom; phản hồi của program không trả lại giá trị này. */
+  calorieShiftMode?: 'Even' | 'TrainingDays' | 'Custom' | null
   calorieShiftDays?: DayOfWeek[] | null
   calorieShiftPercent?: number | null
   /** Collaborative / Manual: mục tiêu theo ngày (7 phần tử); bỏ trống = đồng nhất cả tuần. */
@@ -143,4 +158,11 @@ export interface UpdateProgramGoalRequest {
   fixedProteinGrams?: number | null
   calorieFloorKcal?: number | null
   checkInWeekday?: DayOfWeek | null
+  /**
+   * Chỉ gửi sau khi user XÁC NHẬN một đề xuất Feasibility (USE_EVEN_DISTRIBUTION = `Even`; REDUCE_SHIFT cần cả ngày + %); null = giữ nguyên. BE kiểm khả thi
+   * lại trước khi lưu. Phản hồi của program không trả cấu hình shift hiện tại nên FE không tự gửi `Custom` (thiếu ngày).
+   */
+  calorieShiftMode?: 'Even' | 'TrainingDays' | 'Custom' | null
+  calorieShiftDays?: DayOfWeek[] | null
+  calorieShiftPercent?: number | null
 }

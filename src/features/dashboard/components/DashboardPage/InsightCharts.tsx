@@ -13,10 +13,8 @@ export const INSIGHT_DAYS = 7
 /** Lề ngang / dọc (px) trong vùng vẽ để marker và cột không bị cắt mép. */
 const PAD_X = 7
 const PAD_Y = 8
-/** Dải Flux chiếm tối đa chừng này chiều cao vùng vẽ (MF để dải thấp, không kín cả ô). */
-const FLUX_FILL = 0.45
-/** Thang tối thiểu (kcal): dải Flux hẹp / phẳng không được kéo giãn thành khối cao; ô nhỏ chỉ để nhìn xu hướng. */
-const MIN_FLUX_SPAN_KCAL = 200
+/** Thang tối thiểu (kcal): đường Expenditure phẳng / dao động nhỏ không được kéo giãn thành đường dốc; ô nhỏ chỉ để nhìn xu hướng. */
+const MIN_EXPENDITURE_SPAN_KCAL = 200
 /** Thang tối thiểu (kg) của đường cân: dao động vài trăm gram không được phóng thành đường dốc, nhưng cũng không bị dẹt về 0. */
 const MIN_WEIGHT_SPAN_KG = 1
 /** Cột Energy Balance chiếm chừng này một ô ngày; cột thấp nhất vẫn cao ít nhất MIN_BAR_PX để thấy được. */
@@ -75,49 +73,32 @@ function inWindow<T extends { readonly date: string }>(
   })
 }
 
-interface FluxMiniProps {
+interface ExpenditureMiniProps {
   readonly window: readonly string[]
   readonly days: readonly ExpDay[]
 }
 
 /**
- * Expenditure nhỏ (cùng nguồn với trang chi tiết): dải Flux cam mờ liền (mép trên / dưới cong mượt theo low / high từng ngày, hai đầu
- * thẳng đứng), đường Expenditure mảnh và marker mỗi ngày (ô vuông rỗng = Holding / Calibrating, vòng tròn = Updating), vẽ từ ngày đầu
- * có dữ liệu tới hôm nay trên trục 7 ngày; thang y quanh dải, đủ rộng để dải không thành khối cao.
+ * Expenditure nhỏ (cùng nguồn với trang chi tiết): đường Expenditure mảnh và marker mỗi ngày (ô vuông rỗng = Holding / Calibrating, vòng tròn =
+ * Updating theo trạng thái của BE), vẽ từ ngày đầu có dữ liệu tới hôm nay trên trục 7 ngày; thang y quanh đường, không hẹp hơn MIN_EXPENDITURE_SPAN_KCAL.
  */
-export function FluxMini({ window, days }: FluxMiniProps) {
+export function ExpenditureMini({ window, days }: ExpenditureMiniProps) {
   const shown = inWindow(window, days)
   if (shown.length === 0) return null
   return (
     <ChartArea>
       {({ width, height }) => {
-        const lo = Math.min(...shown.map(({ item }) => item.low))
-        const hi = Math.max(...shown.map(({ item }) => item.high))
-        const span = Math.max((hi - lo) / FLUX_FILL, MIN_FLUX_SPAN_KCAL)
+        const values = shown.map(({ item }) => item.kcal)
+        const lo = Math.min(...values)
+        const hi = Math.max(...values)
+        const span = Math.max(hi - lo, MIN_EXPENDITURE_SPAN_KCAL)
         const mid = (hi + lo) / 2
         const y = (value: number) => height / 2 - ((value - mid) / span) * (height - 2 * PAD_Y)
-        // Đầu phải của dải thu về một điểm ở ngày cuối (đúng điểm đường kết thúc), như MacroFactor
-        const lastIndex = shown.length - 1
-        const edge = (pick: 'high' | 'low') =>
-          shown.map(({ item, index }, position) => ({
-            x: lineX(index, width),
-            y: y(position === lastIndex && lastIndex > 0 ? item.kcal : item[pick]),
-          }))
-        const top = edge('high')
-        const bottom = edge('low').reverse()
-        const band =
-          shown.length > 1
-            ? `${smoothPath(top)} L ${bottom[0].x} ${bottom[0].y} ${smoothPath(bottom, false)} Z`
-            : `M ${top[0].x - 6} ${top[0].y} H ${top[0].x + 6} V ${bottom[0].y} H ${top[0].x - 6} Z`
         const line = shown
           .map(({ item, index }) => `${lineX(index, width)},${y(item.kcal)}`)
           .join(' ')
         return (
           <g className="text-mf-tile-protein">
-            <path
-              d={band}
-              className="fill-mf-flux-band/50 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500"
-            />
             {shown.length > 1 && (
               <polyline
                 points={line}
@@ -138,7 +119,8 @@ export function FluxMini({ window, days }: FluxMiniProps) {
                 strokeWidth: 1.5,
                 className: 'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500',
               }
-              return item.holding ? (
+              if (item.marker === null) return null
+              return item.marker === 'square' ? (
                 <rect key={item.date} x={cx - 3.5} y={cy - 3.5} width="7" height="7" {...common} />
               ) : (
                 <circle key={item.date} cx={cx} cy={cy} r="3.5" {...common} />

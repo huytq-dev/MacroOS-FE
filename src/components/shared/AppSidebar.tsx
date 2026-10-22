@@ -28,7 +28,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', href: routePath.dashboard },
   { icon: UtensilsCrossed, label: 'Food log', href: routePath.foodLog },
   { icon: Apple, label: 'Foods', href: routePath.foods },
-  { icon: Target, label: 'Program', href: routePath.program },
+  { icon: Target, label: 'Strategy', href: routePath.program },
   { icon: Scale, label: 'Weight', href: routePath.weight },
   { icon: UserRound, label: 'Profile', href: routePath.profile },
 ]

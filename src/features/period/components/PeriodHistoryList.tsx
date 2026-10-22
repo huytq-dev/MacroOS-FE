@@ -1,5 +1,6 @@
 import { Pencil } from 'lucide-react'
-import { entryDayLabel, groupByMonth } from '@/features/weight/body-metric.utils'
+import { groupByMonth } from '@/features/weight/body-metric.utils'
+import { formatWeekdayMonthDay } from '@/lib/week'
 
 interface PeriodHistoryListProps {
   /** Các ngày hành kinh (yyyy-MM-dd), thứ tự bất kỳ. */
@@ -28,11 +29,11 @@ export function PeriodHistoryList({ days, onEdit }: PeriodHistoryListProps) {
               >
                 <span className="flex-1">Period</span>
                 <span className="text-muted-foreground text-base tabular-nums">
-                  {entryDayLabel(date)}
+                  {formatWeekdayMonthDay(date)}
                 </span>
                 <button
                   type="button"
-                  aria-label={`Edit ${entryDayLabel(date)}`}
+                  aria-label={`Edit ${formatWeekdayMonthDay(date)}`}
                   onClick={() => onEdit(date)}
                   className="bg-secondary active:bg-muted focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
                 >

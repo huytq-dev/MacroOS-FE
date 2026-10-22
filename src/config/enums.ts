@@ -15,12 +15,30 @@ export type ActivityLevel = keyof typeof ACTIVITY_LEVEL
 export const UNIT_SYSTEM = { Metric: 'Metric (kg, cm)', Imperial: 'Imperial (lb, in)' } as const
 export type UnitSystem = keyof typeof UNIT_SYSTEM
 
+/** Đơn vị hiển thị năng lượng (BE `EnergyUnit`): chỉ là cài đặt hiển thị, mọi số liệu BE vẫn là kcal. */
+export const ENERGY_UNIT = { Kcal: 'Kilocalories (kcal)', Kj: 'Kilojoules (kJ)' } as const
+
 export const GOAL_TYPE = {
   WeightLoss: 'Lose weight',
   Maintenance: 'Maintain weight',
   WeightGain: 'Gain weight',
 } as const
 export type GoalType = keyof typeof GOAL_TYPE
+
+/**
+ * MỌI loại goal BE có thể TRẢ về (`Domain/Enums/Users/GoalType.cs`: WeightLoss, WeightGain, MuscleGain, Maintenance, Endurance, Flexibility) cùng nhãn hiển thị
+ * chỉ-đọc: `short` cho dòng Goal History, `title` cho thẻ Goal của tab Strategy. Khác `GOAL_TYPE` ở trên (ba lựa chọn của các picker Lose / Maintain / Gain):
+ * FE chỉ cho CHỌN ba loại đó nhưng phải ĐỌC được cả sáu (Edit Goal giữ nguyên MuscleGain...), nên kiểu của phản hồi là `ProgramGoalType`.
+ */
+export const PROGRAM_GOAL_TYPE = {
+  WeightLoss: { short: 'Loss', title: 'Weight Loss Goal' },
+  WeightGain: { short: 'Gain', title: 'Weight Gain Goal' },
+  MuscleGain: { short: 'Muscle Gain', title: 'Muscle Gain Goal' },
+  Maintenance: { short: 'Maintain', title: 'Maintenance Goal' },
+  Endurance: { short: 'Endurance', title: 'Endurance Goal' },
+  Flexibility: { short: 'Flexibility', title: 'Flexibility Goal' },
+} as const
+export type ProgramGoalType = keyof typeof PROGRAM_GOAL_TYPE
 
 export const PROGRAM_TYPE = {
   Coached: 'Coached — the app sets your kcal + macros each day',

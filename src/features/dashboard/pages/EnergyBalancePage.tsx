@@ -23,9 +23,13 @@ import { usePersistedChoice } from '../hooks/use-dashboard'
 import { useEnergyBalanceDetail } from '../hooks/use-energy-balance-detail'
 import type { BalanceMode } from '../dashboard.utils'
 import { summarizeBalance } from '../energy-balance.utils'
+import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
+import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
 import { rangeLabel, type Averaging, type RangeKey } from '../expenditure.utils'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
+import { UNVERIFIED_TARGET_NOTE } from '@/features/nutrition/target-provenance'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { cn } from '@/lib/utils'
 
 const BALANCE_MODES = ['expenditure', 'targets'] as const
@@ -46,10 +50,12 @@ export function EnergyBalancePage() {
     BALANCE_MODES
   )
   const data = useEnergyBalanceDetail(averaging, mode)
+  const derived = useDerivedGate()
   const total = data.ready ? data.all.length : 0
   const target = slotsOf(range, total)
   const slots = useTween(target)
   const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
+  const { energy } = useUnits()
 
   if (data.isError) return <ErrorState error={new Error('Could not load Energy Balance')} />
 
@@ -65,26 +71,37 @@ export function EnergyBalancePage() {
       <SubPageHeader title="Energy Balance" />
       <ModeTabs value={mode} onChange={setMode} />
 
-      {!data.ready || data.isLoading || !win ? (
+      {derived.gate === 'failed' ? (
+        <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+      ) : derived.gate === 'updating' || !data.ready || data.isLoading || !win ? (
         <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       ) : (
         <>
           <div className="flex items-start justify-between gap-3">
             <StatBlock
               label={summary.label}
-              value={summary.value === null ? null : String(summary.value)}
-              unit="kcal"
+              value={summary.value === null ? null : energy.format(summary.value)}
+              unit={energy.unit}
             />
             <ExpandButton expand={expand} />
           </div>
           <p className="text-muted-foreground -mt-3 text-lg">{rangeLabel(win.from, win.to)}</p>
+          {data.targetUnverified && (
+            <p className="text-muted-foreground -mt-2 text-sm">{UNVERIFIED_TARGET_NOTE}</p>
+          )}
 
           <ExpandableChart expand={expand}>
             <EnergyBalanceChart
               // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
               key={averaging}
               className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
-              points={data.points}
+              // Biểu đồ vẽ theo kcal / kJ của user để vạch trục và chú thích đúng đơn vị đó
+              points={data.points.map((point) => ({
+                ...point,
+                consumed: point.consumed === null ? null : energy.convert(point.consumed),
+                baseline: point.baseline === null ? null : energy.convert(point.baseline),
+              }))}
+              unit={energy.unit}
               today={data.today}
               mode={mode}
               slots={slots}

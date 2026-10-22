@@ -140,9 +140,9 @@ export const CARDIO_OPTIONS = experienceOptions('doing cardio')
 export const GOAL_OPTIONS: readonly ChoiceOption<
   Extract<GoalType, 'WeightLoss' | 'Maintenance' | 'WeightGain'>
 >[] = [
-  { value: 'WeightLoss', label: 'Lose weight', icon: ScaleLose },
-  { value: 'Maintenance', label: 'Maintain weight', icon: ScaleKeep },
-  { value: 'WeightGain', label: 'Gain weight', icon: ScaleGain },
+  { value: 'WeightLoss', label: 'Lose Weight', icon: ScaleLose },
+  { value: 'Maintenance', label: 'Maintain Weight', icon: ScaleKeep },
+  { value: 'WeightGain', label: 'Gain Weight', icon: ScaleGain },
 ]
 
 export const DIET_OPTIONS: readonly ChoiceOption<DietStyle>[] = [
@@ -154,13 +154,13 @@ export const DIET_OPTIONS: readonly ChoiceOption<DietStyle>[] = [
   },
   {
     value: 'LowFat',
-    label: 'Low fat',
+    label: 'Low-fat',
     description: 'Less fat to make room for carbs and protein',
     icon: ButterDish,
   },
   {
     value: 'LowCarb',
-    label: 'Low carb',
+    label: 'Low-carb',
     description: 'Fewer carbs to make room for fat and protein',
     icon: Fish,
   },
@@ -173,22 +173,22 @@ export const DIET_OPTIONS: readonly ChoiceOption<DietStyle>[] = [
 ]
 
 export const TRAINING_OPTIONS: readonly ChoiceOption<TrainingType>[] = [
-  { value: 'None', label: 'No training or light activity', icon: Meditator },
+  { value: 'None', label: 'None or Relaxed Activity', icon: Meditator },
   { value: 'Lifting', label: 'Lifting', icon: Dumbbell },
   { value: 'Cardio', label: 'Cardio', icon: Runner },
-  { value: 'Both', label: 'Cardio and lifting', icon: CheckCheck },
+  { value: 'Both', label: 'Cardio & Lifting', icon: CheckCheck },
 ]
 
 export const DISTRIBUTION_OPTIONS: readonly ChoiceOption<CalorieShiftMode>[] = [
   {
     value: 'Even',
-    label: 'Even',
+    label: 'Distribute Evenly',
     description: 'Spread your kcal target evenly across the week',
     icon: Menu,
   },
   {
     value: 'Custom',
-    label: 'Shift kcal to chosen days',
+    label: 'Shift Calorie Targets',
     description: 'Eat more on the days you choose; the weekly total stays the same',
     icon: Waves,
   },
@@ -200,16 +200,44 @@ export const PROTEIN_OPTIONS: readonly ChoiceOption<ProteinLevel>[] = [
   { value: 'High', label: 'High', description: 'High end of the optimal range', icon: Hamburger },
   {
     value: 'ExtraHigh',
-    label: 'Very high',
+    label: 'Extra High',
     description: 'Highest recommended level',
     icon: Skewers,
   },
 ]
 
-export const FLOOR_ICON: Record<Exclude<CalorieFloorChoice, 'Off'>, OptionIcon> = {
+const FLOOR_ICON: Record<Exclude<CalorieFloorChoice, 'Off'>, OptionIcon> = {
   Standard: BadgeStar,
   Low: BadgeAlert,
 }
+
+/** Tiêu đề các câu hỏi của phần Program (đúng chữ của MacroFactor), dùng chung cho onboarding và wizard New Program. */
+export const PROGRAM_STEP_TITLE = {
+  diet: 'What is your preferred diet?',
+  floor: 'What Calorie floor do you prefer?',
+  training: 'What training will you do during this program?',
+  distribution: 'How would you like to distribute Calorie targets throughout the week?',
+  protein: 'What is your preferred protein intake?',
+} as const
+
+/** Hai lựa chọn sàn calo dùng chung; số kcal do BE tính (chưa có thì "…"). */
+export const floorOptionsOf = (
+  standardKcal: number | undefined,
+  lowKcal: number | undefined
+): readonly ChoiceOption<'Standard' | 'Low'>[] => [
+  {
+    value: 'Standard',
+    label: 'Standard Floor',
+    description: `Your calorie recommendation will never drop below ${standardKcal ?? '…'} kcal`,
+    icon: FLOOR_ICON.Standard,
+  },
+  {
+    value: 'Low',
+    label: 'Low Floor',
+    description: `Your calorie recommendation will never drop below ${lowKcal ?? '…'} kcal (consider carefully)`,
+    icon: FLOOR_ICON.Low,
+  },
+]
 
 export const BODY_FAT_BANDS: readonly {
   value: BodyFatBand
@@ -260,7 +288,8 @@ export const BODY_FAT_BANDS: readonly {
     midPercent: 46,
     description: 'Large belly, fuller arms and waist',
   },
-  { value: 'Bf50Plus', label: '50%+', midPercent: 53, description: 'Very full, thick belly fat' },
+  // 52 = giá trị BE dùng tính BMR (OnboardingCalculator, band 50%+): màn hình hiện mỡ/nạc theo đúng số này, không 53
+  { value: 'Bf50Plus', label: '50%+', midPercent: 52, description: 'Very full, thick belly fat' },
 ]
 
 export const REFERRAL_OPTIONS: readonly string[] = [

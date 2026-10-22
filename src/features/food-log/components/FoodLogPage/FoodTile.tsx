@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Flame } from 'lucide-react'
+import { Energy } from '@/components/shared/Energy'
 import { FoodIcon } from '@/components/shared/FoodIcon'
 import type { TileOptions } from '../../food-log-settings'
 import { HighlightedText } from '@/lib/search-highlight'
@@ -144,7 +145,7 @@ export function FoodTile({
   const detail = detailOf(food, settings.showServing, settings.showWeight)
   const hasStats = showKcalInline || settings.showMacros
   const comfort = settings.density === 'Comfort'
-  const kcal = Math.round(food.calories)
+  const kcal = <Energy kcal={food.calories} />
 
   const main = (
     <>

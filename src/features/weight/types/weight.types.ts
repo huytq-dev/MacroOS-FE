@@ -13,7 +13,39 @@ export interface WeightEntries {
   items: WeightEntry[]
   latestWeightKg: number | null
   latestTrendKg: number | null
+  /** null khi `rateReasonCode` khác null (chưa đủ cân thật / lâu không cân): hiện "Waiting", không bao giờ 0. */
   rateKgPerWeek: number | null
+  /** null = đã tính; INSUFFICIENT_WEIGHT_DATA | STALE_WEIGHT_DATA (cùng cổng dữ liệu với Weight Trend Insights). */
+  rateReasonCode?: 'INSUFFICIENT_WEIGHT_DATA' | 'STALE_WEIGHT_DATA' | null
+}
+
+/** Một ngày có cân và / hoặc % mỡ trong trang Habits (BE `WeighInDayModel`); `weightKg` null = ngày chỉ có % mỡ, không phải lần cân. */
+export interface WeighInDay {
+  date: string
+  weightId: string | null
+  weightKg: number | null
+  trendWeightKg: number | null
+  bodyFatId: string | null
+  bodyFatPercent: number | null
+  bodyFatMethod: string | null
+}
+
+// Khớp BE GET /api/weights/habit (WeighInHabitResponse): `days` chỉ có ngày có dữ liệu của năm / tháng đã chọn, các số còn lại là toàn thời gian
+export interface WeighInHabit {
+  year: number
+  /** null = cả năm. */
+  month: number | null
+  days: WeighInDay[]
+  weighInDaysInPeriod: number
+  totalWeighIns: number
+  /** Số ngày cân liên tiếp kết thúc hôm nay (hôm nay chưa cân thì tính tới hôm qua), toàn thời gian. */
+  currentStreak: number
+  longestStreak: number
+  streakIncludesToday: boolean
+  firstWeighInDate: string | null
+  lastWeighInDate: string | null
+  /** Hôm nay theo múi giờ của user. */
+  today: string
 }
 
 // Khớp BE UpsertWeightEntryCommand

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { wordFontSize } from '@/lib/text-fit'
 import { cn } from '@/lib/utils'
 
 interface MetricTileProps {
@@ -10,6 +11,8 @@ interface MetricTileProps {
   readonly visual?: React.ReactNode
   readonly value: string
   readonly unit?: string
+  /** Giá trị là cảnh báo (vd. vượt giới hạn dinh dưỡng): chữ destructive kèm chữ ẩn cho trình đọc màn hình, không chỉ dựa vào màu. */
+  readonly warning?: boolean
   /** Chưa có trang chi tiết thì không có đường dẫn: ô vẫn hiện, chevron mờ, không bấm được. */
   readonly href?: string
   /** Đang tải: khung xám thay hình và số (không hiện 0). */
@@ -24,14 +27,20 @@ export function MetricTile({
   visual,
   value,
   unit,
+  warning = false,
   href,
   loading,
   className,
 }: MetricTileProps) {
   const body = (
     <>
-      <div className="min-w-0">
-        <h3 className="line-clamp-2 text-lg leading-tight font-medium">{title}</h3>
+      <div className="@container min-w-0">
+        <h3
+          style={{ fontSize: wordFontSize(title, 1.125) }}
+          className="line-clamp-2 leading-tight font-medium"
+        >
+          {title}
+        </h3>
         <p className="text-muted-foreground truncate text-sm leading-snug">{subtitle}</p>
       </div>
       <div className="flex min-h-14 flex-1 flex-col justify-end">
@@ -41,9 +50,16 @@ export function MetricTile({
         {loading ? (
           <Skeleton className="h-6 w-20" />
         ) : (
-          <p className="min-w-0 text-lg leading-6 tabular-nums">
+          <p
+            className={cn('min-w-0 text-lg leading-6 tabular-nums', warning && 'text-destructive')}
+          >
             {value}
-            {unit && <span className="text-muted-foreground ml-1 text-sm">{unit}</span>}
+            {unit && (
+              <span className={cn('ml-1 text-sm', !warning && 'text-muted-foreground')}>
+                {unit}
+              </span>
+            )}
+            {warning && <span className="sr-only"> over the limit</span>}
           </p>
         )}
         <ChevronRight

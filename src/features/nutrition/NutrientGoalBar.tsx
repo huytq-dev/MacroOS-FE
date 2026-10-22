@@ -7,7 +7,7 @@ export type GoalBarLayout = 'tile' | 'row'
 
 interface NutrientGoalBarProps {
   /** floor / target / ceiling hiệu lực; thiếu hoặc không có mốc nào thì thanh trống, không vạch. */
-  readonly goal: Partial<NutrientGoal> | null | undefined
+  readonly goal: NutrientGoal | null | undefined
   /** null = chưa có dữ liệu chất này (thanh trống; chữ "---" do nơi dùng hiển thị). */
   readonly consumed: number | null
   /** Lớp nền literal của chất (vd. `bg-mf-tile-fat`, xem `nutrientTone`). */
@@ -39,7 +39,9 @@ export function NutrientGoalBar({
 }: NutrientGoalBarProps) {
   const progress = goalProgress(goal, consumed, scaleMax)
   const thin = layout === 'row'
-  const overStart = progress.status === 'over' ? progress.ceilingAt : null
+  // Chỉ vượt TRẦN (giới hạn thật) mới đổi màu cảnh báo; vượt target chỉ là thông tin nên thanh giữ màu chất
+  const overCeiling = progress.status === 'overCeiling'
+  const overStart = overCeiling ? progress.ceilingAt : null
   // Ô Dashboard (đo từ ảnh MF): ô nền cao ~14px, phần đã ăn là vạch mảnh ~5px nằm giữa ô; hàng chất (thin) tô kín chiều cao thanh mảnh
   const fillBox = thin ? 'inset-y-0' : 'top-1/2 h-[5px] -translate-y-1/2'
   // Vạch target sáng khi đã chạm / vượt, mờ khi chưa tới (như ảnh MF)
@@ -105,8 +107,14 @@ export function NutrientGoalBar({
       {thin ? <div className="w-full">{track}</div> : track}
       {thin && tick}
       {!thin && unit && progress.ceilingOffScale && progress.ceilingValue !== null && (
-        <p className="text-muted-foreground mt-1 truncate text-xs">
+        <p
+          className={cn(
+            'mt-1 truncate text-xs',
+            overCeiling ? 'text-destructive' : 'text-muted-foreground'
+          )}
+        >
           Limit {formatAmount(progress.ceilingValue, unit)} {unit}
+          {overCeiling && <span className="sr-only">, exceeded</span>}
         </p>
       )}
     </div>

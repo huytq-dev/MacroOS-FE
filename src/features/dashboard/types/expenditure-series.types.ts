@@ -44,8 +44,17 @@ export interface ExpenditureInsightsResponse {
   strategy: 'Calibrating' | 'Updating' | 'Holding' | null
   /** Câu giải thích khi Holding. */
   holdingReason: string | null
-  holdingReasonCodes: ('MissingLogs' | 'NoRecentWeighIn')[]
+  holdingReasonCodes: ('MissingLogs' | 'NoRecentWeighIn' | 'RecoveringLogs')[]
   calibratingDaysLeft: number | null
+  /**
+   * BE vòng 6 (chưa bật tới khi S25 áp dụng, nên tuỳ chọn): số ngày DỰ KIẾN để Updating chạy lại NẾU người dùng tiếp tục ghi dữ liệu hợp lệ (không phải cam kết);
+   * null khi chưa có lần cân gần đây.
+   */
+  resumeInDays?: number | null
+  /** BE vòng 6: số ngày liên tiếp có dữ liệu hợp lệ để Updating chạy lại (BE trả, FE không gõ cứng). */
+  resumeConsecutiveDays?: number | null
+  /** BE vòng 6: tên thuật toán duy nhất (cũng có ở `/expenditure/settings`). */
+  algorithmName?: string | null
   loggedDaysLast7: number
   weighInDaysLast7: number
   changes: {

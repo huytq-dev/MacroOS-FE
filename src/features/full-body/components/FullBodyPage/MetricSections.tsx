@@ -1,4 +1,5 @@
 import type { FullBodyHistoryItem } from '@/features/shortcuts/types/body-metrics.types'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { cn } from '@/lib/utils'
 import { METRIC_SECTIONS, formatMetric, metricValue } from '../../full-body.utils'
 
@@ -13,6 +14,7 @@ interface MetricSectionsProps {
  * số phải); nhóm trống bị ẩn. Đổi ngày thì cả khối hiện dần + trượt 300ms theo hướng vuốt.
  */
 export function MetricSections({ item, direction }: MetricSectionsProps) {
+  const { weight } = useUnits()
   const sections = METRIC_SECTIONS.map((section) => ({
     ...section,
     rows: section.rows.flatMap((row) => {
@@ -44,7 +46,7 @@ export function MetricSections({ item, direction }: MetricSectionsProps) {
               >
                 <span className="flex-1 text-base">{row.label}</span>
                 <span className="text-muted-foreground text-base tabular-nums">
-                  {formatMetric(row.value, row.unit)}
+                  {formatMetric(row.value, row.unit, weight)}
                 </span>
               </li>
             ))}

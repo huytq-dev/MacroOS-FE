@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
-import { formatDate } from '@/lib/date'
-import { MONTH_NAMES, yearHeatmap } from '../../habits.utils'
+import { useUnits } from '@/features/users/hooks/use-units'
+import { MONTH_NAMES, formatDate } from '@/lib/date'
+import { yearHeatmap } from '../../habits.utils'
 
 /** Ô 10px + khoảng cách 3px: một cột tuần rộng 13px. */
 const COLUMN_PX = 13
@@ -15,12 +16,13 @@ interface HabitHeatmapProps {
 }
 
 /**
- * Heatmap cả năm như MacroFactor: mỗi cột là một tuần (Mon → Sun), ô nhỏ bo nhẹ, ô trống rất tối, ô đã thực hiện màu xanh, ngày
+ * Heatmap cả năm như MacroFactor: mỗi cột là một tuần (từ ngày đầu tuần của user), ô nhỏ bo nhẹ, ô trống rất tối, ô đã thực hiện màu xanh, ngày
  * chưa tới còn tối hơn. Nhãn tháng nằm dưới cột tuần chứa mùng 1; quá rộng so với màn hình thì cuộn ngang và tự cuộn tới tháng hiện
  * tại (năm đang xem là năm nay). Cả khối hiện dần khi đổi năm.
  */
 export function HabitHeatmap({ year, tracked, today }: HabitHeatmapProps) {
-  const { weeks, monthLabels } = yearHeatmap(year)
+  const { weekStartDay } = useUnits()
+  const { weeks, monthLabels } = yearHeatmap(year, weekStartDay)
   const scroller = useRef<HTMLDivElement>(null)
   const currentColumn = monthLabels[Number(today.slice(5, 7)) - 1]?.column ?? 0
   const isThisYear = String(year) === today.slice(0, 4)

@@ -2,16 +2,13 @@
 
 import { useState } from 'react'
 import { ChartAxes, PlotClip } from '../../chart/ChartAxes'
-import { PAD, PLOT_W, WIDTH, agoOf, visibleAgo, xOfAgo } from '../../chart/geometry'
+import { PAD, PLOT_W, WIDTH, agoOf, showMarkers, visibleAgo, xOfAgo } from '../../chart/geometry'
 import type { useChartPan } from '../../chart/use-chart-pan'
 import { useTween } from '../../chart/use-tween'
-import { shortDay } from '../../expenditure.utils'
+import { bucketLabel } from '../../expenditure.utils'
 import { yAxis } from '../../weight-trend-series'
 import type { ScaleDay, TrendDay } from '../../weight-trend-series'
 import { cn } from '@/lib/utils'
-
-/** Từng này ô trở xuống thì vẽ vòng tròn rỗng mỗi ngày trên đường xu hướng, nhiều hơn chỉ vẽ đường. */
-const MARKER_MODE_MAX = 14.5
 
 /** Scale Weight = tím đậm, Trend Weight = tím nhạt (cùng họ màu `--mf-purple`, pha đen / trắng). */
 export const SCALE_COLOR = 'color-mix(in srgb, var(--mf-purple) 55%, black)'
@@ -21,13 +18,13 @@ interface WeightTrendChartProps {
   /** TOÀN BỘ xu hướng từng ngày (cũ → mới), biểu đồ tự lấy phần đang hiện. */
   readonly trend: readonly TrendDay[]
   readonly scale: readonly ScaleDay[]
+  /** Đơn vị của các giá trị trend / scale (kg hoặc lb): chuỗi đã đổi sẵn sang đơn vị này. */
+  readonly unit: string
   readonly today: string
   /** Số ô ngày đang trải trên vùng vẽ (số thực: chạy mượt từ kỳ cũ sang kỳ mới khi đổi bộ lọc). */
   readonly slots: number
   /** Số ngày đã kéo lùi về quá khứ (số thực khi đang kéo). */
   readonly pos: number
-  /** false = trục từ 0 (0 / 50 / 100); true = vừa khít dữ liệu đang hiện. */
-  readonly fit: boolean
   readonly pan: ReturnType<typeof useChartPan>
   readonly height?: number
   readonly className?: string
@@ -54,10 +51,10 @@ export function smoothPath(points: readonly { x: number; y: number }[], move = t
 export function WeightTrendChart({
   trend,
   scale,
+  unit,
   today,
   slots,
   pos,
-  fit,
   pan,
   height = 300,
   className,
@@ -79,13 +76,10 @@ export function WeightTrendChart({
     const ago = agoOf(today, date)
     return ago >= pos - 0.5 && ago <= pos + slots - 0.5
   }
-  const axis = yAxis(
-    [
-      ...trend.filter((day) => inFrame(day.date)).map((day) => day.trend),
-      ...scale.filter((day) => inFrame(day.date)).map((day) => day.value),
-    ],
-    fit
-  )
+  const axis = yAxis([
+    ...trend.filter((day) => inFrame(day.date)).map((day) => day.trend),
+    ...scale.filter((day) => inFrame(day.date)).map((day) => day.value),
+  ])
   const min = useTween(axis.min)
   const max = useTween(axis.max)
   const y = (value: number) => PAD.top + (1 - (value - min) / (max - min || 1)) * plotH
@@ -93,7 +87,8 @@ export function WeightTrendChart({
 
   const scalePoints = scaleShown.map((point) => ({ x: x(point.date), y: y(point.value) }))
   const trendLine = trendShown.map((point) => `${x(point.date)},${y(point.trend)}`).join(' ')
-  const markers = slots <= MARKER_MODE_MAX
+  // Vòng tròn rỗng mỗi ngày trên đường xu hướng ở kỳ ngắn, hoặc khi chỉ có MỘT điểm (không có đường để vẽ)
+  const markers = showMarkers(slots, trendShown.length)
 
   const pick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (pan.wasDragged()) return
@@ -203,10 +198,16 @@ export function WeightTrendChart({
           style={{ left: `${Math.min(78, Math.max(22, (selectedX / WIDTH) * 100))}%` }}
           className="bg-popover border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:animation-duration-200 pointer-events-none absolute top-0 -translate-x-1/2 rounded-lg border px-3 py-2 text-center whitespace-nowrap shadow-md"
         >
-          <p className="text-muted-foreground text-xs">{shortDay(selected.date)}</p>
-          <p className="text-sm font-medium tabular-nums">Trend {selected.trend.toFixed(1)} kg</p>
+          <p className="text-muted-foreground text-xs">
+            {bucketLabel(selected.date, selected.end ?? selected.date, selected.days ?? 1)}
+          </p>
+          <p className="text-sm font-medium tabular-nums">
+            Trend {selected.trend.toFixed(1)} {unit}
+          </p>
           {selectedScale && (
-            <p className="text-sm tabular-nums">Scale {selectedScale.value.toFixed(1)} kg</p>
+            <p className="text-sm tabular-nums">
+              Scale {selectedScale.value.toFixed(1)} {unit}
+            </p>
           )}
         </div>
       )}

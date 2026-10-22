@@ -1,34 +1,14 @@
+import type { DayOfWeek } from '@/config/enums'
 import { addDaysIso } from '@/lib/date'
+import { weekStartOf } from '@/lib/week'
 
 /** Hai trang Habits dùng chung một bộ thành phần: cân nặng (Weigh-In) và ghi món (Food Logging). */
 export type HabitKind = 'weigh-in' | 'food-logging'
 
-export const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const
-
-/** Tuần bắt đầu từ thứ Hai (như MacroFactor). */
-export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
-
 const pad = (value: number) => String(value).padStart(2, '0')
 
 /** yyyy-MM-dd từ năm, tháng (0–11) và ngày. */
-export const isoOf = (year: number, month: number, day: number) =>
-  `${year}-${pad(month + 1)}-${pad(day)}`
-
-/** Thứ trong tuần, Mon = 0 … Sun = 6. */
-export const weekdayIndex = (iso: string) => (new Date(`${iso}T00:00:00`).getDay() + 6) % 7
+const isoOf = (year: number, month: number, day: number) => `${year}-${pad(month + 1)}-${pad(day)}`
 
 export interface CalendarDay {
   readonly iso: string
@@ -36,10 +16,10 @@ export interface CalendarDay {
   readonly inMonth: boolean
 }
 
-/** Lưới lịch tháng 6 hàng × 7 cột (Mon → Sun), có ngày của tháng trước và tháng sau ở hai đầu. */
-export function monthGrid(year: number, month: number): CalendarDay[] {
+/** Lưới lịch tháng 6 hàng × 7 cột bắt đầu từ `weekStart` (ngày đầu tuần của user), có ngày của tháng trước và tháng sau ở hai đầu. */
+export function monthGrid(year: number, month: number, weekStart: DayOfWeek): CalendarDay[] {
   const first = isoOf(year, month, 1)
-  const start = addDaysIso(first, -weekdayIndex(first))
+  const start = weekStartOf(first, weekStart)
   return Array.from({ length: 42 }, (_, index) => {
     const iso = addDaysIso(start, index)
     const [, isoMonth, isoDay] = iso.split('-')
@@ -58,11 +38,8 @@ export function streakOf(tracked: ReadonlySet<string>, today: string) {
   return count
 }
 
-/** "1 day" / "5 days". */
-export const dayCount = (count: number) => `${count} ${count === 1 ? 'day' : 'days'}`
-
 export interface HeatmapWeek {
-  /** Bảy ngày Mon → Sun; `null` = ngoài năm đang xem (ô trống không vẽ). */
+  /** Bảy ngày từ ngày đầu tuần của user; `null` = ngoài năm đang xem (ô trống không vẽ). */
   readonly days: readonly (string | null)[]
 }
 
@@ -72,11 +49,11 @@ export interface YearHeatmap {
   readonly monthLabels: readonly { readonly month: number; readonly column: number }[]
 }
 
-/** Heatmap cả năm: mỗi cột là một tuần (Mon → Sun), từ tuần chứa 1/1 tới tuần chứa 31/12. */
-export function yearHeatmap(year: number): YearHeatmap {
+/** Heatmap cả năm: mỗi cột là một tuần bắt đầu từ `weekStart`, từ tuần chứa 1/1 tới tuần chứa 31/12. */
+export function yearHeatmap(year: number, weekStart: DayOfWeek): YearHeatmap {
   const first = isoOf(year, 0, 1)
   const last = isoOf(year, 11, 31)
-  const start = addDaysIso(first, -weekdayIndex(first))
+  const start = weekStartOf(first, weekStart)
   const weeks: HeatmapWeek[] = []
   for (let cursor = start; cursor <= last; cursor = addDaysIso(cursor, 7)) {
     weeks.push({

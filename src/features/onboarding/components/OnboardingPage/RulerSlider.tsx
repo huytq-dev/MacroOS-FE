@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef } from 'react'
+import { roundTo } from '@/lib/units'
 
 const TICK_WIDTH = 10
 const STEPS_PER_UNIT = 10
@@ -16,8 +17,6 @@ interface RulerSliderProps {
   /** Tô vùng từ `highlightFrom` tới giá trị hiện tại (màn chọn cân mục tiêu). */
   readonly highlightFrom?: number
 }
-
-const round1 = (value: number) => Math.round(value * 10) / 10
 
 /**
  * Thước kéo ngang kiểu MacroFactor: cuộn để chọn, vạch giữa là giá trị; vạch vẽ bằng gradient nên
@@ -65,12 +64,12 @@ export function RulerSlider({
       const element = scrollRef.current
       if (!element) return
       const steps = Math.min(totalSteps, Math.max(0, Math.round(element.scrollLeft / TICK_WIDTH)))
-      const next = round1(min + steps / STEPS_PER_UNIT)
-      if (next !== round1(value)) onChange(next)
+      const next = roundTo(min + steps / STEPS_PER_UNIT, 1)
+      if (next !== roundTo(value, 1)) onChange(next)
     })
   }
 
-  const nudge = (delta: number) => onChange(round1(Math.min(max, Math.max(min, value + delta))))
+  const nudge = (delta: number) => onChange(roundTo(Math.min(max, Math.max(min, value + delta)), 1))
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     const delta =
