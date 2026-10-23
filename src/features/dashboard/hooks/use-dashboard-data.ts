@@ -33,7 +33,9 @@ import { KCAL_PER_GRAM } from '@/features/nutrition/atwater'
 import { useDayLog } from '@/features/food-log/hooks/use-food-log'
 import type { MacroTotals } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
-import { useVisualBodyFat, useWeights } from '@/features/weight/hooks/use-weights'
+import { useRecentWeights, useVisualBodyFat, useWeights } from '@/features/weight/hooks/use-weights'
+import { SPARK_ENTRIES } from '../entry-spark'
+import { stepsTodayOf, stepsWeekOf, type StepsTileDay } from '../steps-bars'
 import { addDaysIso } from '@/lib/date'
 import { DAYS_PER_WEEK } from '@/lib/week'
 
@@ -63,6 +65,8 @@ export interface DashboardData {
   readonly bodyFat: { readonly spark: readonly number[]; readonly latest: number | null }
   /** Trung bình bước chân 7 ngày (`GET /steps`); null = chưa có dữ liệu. */
   readonly steps: number | null
+  /** 7 ngày kết thúc hôm nay cho cột của ô Steps; `steps` null = không có bản ghi ngày đó (không phải 0). */
+  readonly stepsWeek: readonly StepsTileDay[]
   readonly period: { readonly cells: readonly boolean[]; readonly daysAgo: number | null }
   /** % quãng đường tới cân mục tiêu (`GET /goals/progress`); null = chưa có goal hoặc Maintenance. */
   readonly goalPercent: number | null
@@ -118,9 +122,13 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
     DAYS_PER_WEEK
   ).map((item) => item.percent)
   const entries = weights.data?.items ?? []
-  const scaleSpark = latestByDate(entries, (entry) => entry.logDate, DAYS_PER_WEEK).map(
-    (entry) => entry.weightKg
-  )
+  // Thẻ Scale Weight: BE trả đúng 7 lần cân gần nhất toàn lịch sử (không phụ thuộc cửa sổ 365 ngày); số lớn là lần cân mới nhất của CÙNG phản hồi
+  const recentWeights = useRecentWeights(today, SPARK_ENTRIES)
+  const scaleSpark = latestByDate(
+    recentWeights.data?.items ?? [],
+    (entry) => entry.logDate,
+    SPARK_ENTRIES
+  ).map((entry) => entry.weightKg)
   const sparkEntries = latestByDate(entries, (entry) => entry.logDate, SPARK_POINTS)
   const weightLatest = weights.data?.latestTrendKg ?? weights.data?.latestWeightKg ?? null
   const daily = dailyQuery.data ?? []
@@ -173,7 +181,9 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
     }
   )
   // Chất xơ lấy đúng số BE: 0 cho ngày trống, null (known: false → "---") khi có món nhưng không món nào có dữ liệu chất xơ, như Overview / Detail
-  const steps = stepsQuery.data?.last7DayAverage ?? null
+  // Chân ô Steps = số bước của hôm nay (user chọn): cùng nguồn `items` với các cột, hôm nay chưa có bản ghi thì null ("---")
+  const stepsWeek = today ? stepsWeekOf(stepsQuery.data?.items, today) : []
+  const steps = stepsTodayOf(stepsWeek)
   const goalData = goal.data
   return {
     isLoading: weights.isLoading || (enabled && (expenditure.isLoading || dailyQuery.isLoading)),
@@ -181,6 +191,7 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
     energyBalance: energyBalanceQuery.data ?? undefined,
     pending: {
       weights: weights.isPending,
+      recentWeights: recentWeights.isPending,
       daily: dailyQuery.isPending,
       energyBalance: energyBalanceQuery.isPending,
       dayLog: dayLog.isPending,
@@ -201,12 +212,13 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
     daily,
     weighIn: { cells: habitCells(weighInDates, todayKey), week: weekCount(weighInDates, todayKey) },
     logging: { cells: habitCells(loggedDates, todayKey), week: weekCount(loggedDates, todayKey) },
-    scale: { spark: scaleSpark, latest: weights.data?.latestWeightKg ?? null },
+    scale: { spark: scaleSpark, latest: recentWeights.data?.latestWeightKg ?? null },
     bodyFat: { spark: bodyFatPercents, latest: visualBodyFat.data?.latestPercent ?? null },
     steps: steps === null ? null : Math.round(steps),
+    stepsWeek,
     period: {
       cells: today ? lastDays(today, HABIT_DAYS).map((day) => periodSet.has(day)) : [],
-      daysAgo: periodsQuery.data?.daysSinceLastStart ?? null,
+      daysAgo: periodsQuery.data?.daysSinceLastPeriodDay ?? null,
     },
     // % do BE tính (null khi chưa có cân mục tiêu, vd. Maintenance): không tự tính thay
     goalPercent: goalData?.progressPercent == null ? null : Math.round(goalData.progressPercent),

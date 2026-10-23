@@ -71,7 +71,11 @@ export function MetricChart({
   const max = useTween(axis.max)
   const y = (value: number) => PAD.top + (1 - (value - min) / (max - min || 1)) * plotH
   const x = (date: string) => xOfAgo(agoOf(today, date), slots, pos)
-  const line = shown.map((point) => `${x(point.date)},${y(point.value)}`).join(' ')
+  // Đường nối thêm một điểm THẬT liền kề ngoài khung mỗi bên (phần ngoài bị clip) để đoạn đi qua mép khung không bị cụt; marker chỉ cho điểm trong khung
+  const firstShown = shown.length ? points.indexOf(shown[0]) : -1
+  const lineSpan =
+    firstShown < 0 ? [] : points.slice(Math.max(0, firstShown - 1), firstShown + shown.length + 1)
+  const line = lineSpan.map((point) => `${x(point.date)},${y(point.value)}`).join(' ')
 
   const pick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (pan.wasDragged() || inFrame.length === 0) return
@@ -125,7 +129,7 @@ export function MetricChart({
               strokeDasharray="3 3"
             />
           )}
-          {shown.length > 1 && (
+          {lineSpan.length > 1 && (
             <polyline
               points={line}
               fill="none"

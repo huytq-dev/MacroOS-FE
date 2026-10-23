@@ -12,7 +12,11 @@ import * as entryEdit from '../src/features/food-log/entry-edit.utils.ts'
 import * as provenance from '../src/features/nutrition/target-provenance.ts'
 import * as overview from '../src/features/food-log/nutrition-overview.utils.ts'
 import * as balance from '../src/features/dashboard/energy-balance.utils.ts'
+import * as stepsBars from '../src/features/dashboard/steps-bars.ts'
+import * as periodUtils from '../src/features/period/period.utils.ts'
 import * as dashboardUtils from '../src/features/dashboard/dashboard.utils.ts'
+import * as entrySpark from '../src/features/dashboard/entry-spark.ts'
+import * as bodyMetric from '../src/features/weight/body-metric.utils.ts'
 import { targetRatio } from '../src/features/nutrition/goal-progress.ts'
 import { nutrientValue } from '../src/features/dashboard/dashboard.utils.ts'
 import { toDayTarget } from '../src/features/program/utils/day-macros.ts'
@@ -1128,5 +1132,526 @@ check(
   }
 )
 
+// Dashboard → General: ô Steps (cột 7 ngày trống dù đã có dữ liệu) và ô Period (lưới 30 ngày). Fail-before: ô Steps không có `visual`, hook chỉ giữ trung bình BE,
+// `steps-bars` chưa tồn tại.
+const TODAY = '2026-10-23'
+const stepItem = (logDate, steps) => ({ id: logDate, logDate, steps, source: 'Manual' })
+
+check('Steps: một ngày 1505 vẫn vẽ một cột cao hết vùng, đúng ngày, hôm nay ở mép phải', () => {
+  const days = stepsBars.stepsWeekOf([stepItem(TODAY, 1505)], TODAY)
+  assert.equal(days.length, 7)
+  assert.equal(days[6].date, TODAY)
+  assert.equal(days[6].steps, 1505)
+  assert.ok(days.slice(0, 6).every((day) => day.steps === null))
+  const rects = stepsBars.stepsBarRects(days, 120, 44)
+  assert.equal(rects.length, 1)
+  assert.equal(rects[0].date, TODAY)
+  assert.equal(rects[0].height, 42, 'một ngày duy nhất = cao hết vùng vẽ (thang 0 → max)')
+  assert.equal(rects[0].y + rects[0].height, 44, 'mọc từ đáy')
+  assert.ok(rects[0].x + rects[0].width <= 120 + 1e-9 && rects[0].x > 120 - 25)
+})
+check('Steps: nhiều ngày khác nhau → bảy ngày theo thứ tự thời gian, cao tỉ lệ số bước', () => {
+  const items = [
+    stepItem('2026-10-19', 1000),
+    stepItem('2026-10-20', 2000),
+    stepItem('2026-10-23', 500),
+  ]
+  const days = stepsBars.stepsWeekOf(items, TODAY)
+  assert.deepEqual(
+    days.map((day) => day.date),
+    [
+      '2026-10-17',
+      '2026-10-18',
+      '2026-10-19',
+      '2026-10-20',
+      '2026-10-21',
+      '2026-10-22',
+      '2026-10-23',
+    ]
+  )
+  const rects = stepsBars.stepsBarRects(days, 120, 44)
+  assert.deepEqual(
+    rects.map((rect) => rect.date),
+    ['2026-10-19', '2026-10-20', '2026-10-23']
+  )
+  const [a, b, c] = rects
+  assert.equal(b.height, 42)
+  assert.ok(Math.abs(a.height / b.height - 0.5) < 1e-9, '1000 / 2000')
+  assert.ok(Math.abs(c.height / b.height - 0.25) < 1e-9, '500 / 2000')
+  assert.ok(a.x < b.x && b.x < c.x, 'thời gian tăng dần từ trái sang phải')
+})
+check('Steps: ngày không có bản ghi và ngày 0 bước đều KHÔNG có cột; chỉ ngày > 0 có cột', () => {
+  const days = stepsBars.stepsWeekOf(
+    [stepItem('2026-10-21', 0), stepItem('2026-10-22', 800)],
+    TODAY
+  )
+  const rects = stepsBars.stepsBarRects(days, 120, 44)
+  assert.deepEqual(
+    rects.map((rect) => rect.date),
+    ['2026-10-22'],
+    'chỉ ngày > 0 bước có hình (0 và thiếu đều không có bar)'
+  )
+})
+check(
+  'Steps: 0 bước = bản ghi thật nhưng KHÔNG vẽ bar (không vạch giả); null không bar; 1 và nhiều giá trị vẽ đúng thang',
+  () => {
+    const week = (values) =>
+      stepsBars.stepsWeekOf(
+        values
+          .map((steps, index) => (steps === null ? null : stepItem(`2026-10-${17 + index}`, steps)))
+          .filter(Boolean),
+        TODAY
+      )
+    const zeroDay = week([null, null, null, null, 0, 800, null])
+    assert.equal(zeroDay[4].steps, 0, 'model vẫn giữ 0 phân biệt với null')
+    assert.equal(zeroDay[3].steps, null)
+    assert.deepEqual(
+      stepsBars.stepsBarRects(zeroDay, 120, 44).map((rect) => rect.date),
+      ['2026-10-22'],
+      '0 và null không có bar'
+    )
+    assert.deepEqual(stepsBars.stepsBarRects(week([0, 0, 0, 0, 0, 0, 0]), 120, 44), [])
+    const one = stepsBars.stepsBarRects(week([null, null, null, null, null, null, 1]), 120, 44)
+    assert.equal(one.length, 1)
+    assert.ok(one[0].height > 0 && one[0].height <= 44)
+    const mixed = stepsBars.stepsBarRects(week([1000, 0, 5000, null, 2500, 10000, 7500]), 120, 44)
+    assert.equal(mixed.length, 5)
+    const h = (date) => mixed.find((rect) => rect.date === date).height
+    assert.ok(Math.abs(h('2026-10-23') / h('2026-10-22') - 0.75) < 1e-9, 'tỉ lệ thật 7500/10000')
+    assert.ok(Math.abs(h('2026-10-21') / h('2026-10-22') - 0.25) < 1e-9)
+    assert.ok(h('2026-10-22') > h('2026-10-19'), 'cao nhất là ngày 10000')
+  }
+)
+check('Steps: chưa có dữ liệu / không có items → không cột nào, không bịa số', () => {
+  assert.deepEqual(stepsBars.stepsBarRects(stepsBars.stepsWeekOf([], TODAY), 120, 44), [])
+  assert.deepEqual(stepsBars.stepsBarRects(stepsBars.stepsWeekOf(undefined, TODAY), 120, 44), [])
+  assert.ok(stepsBars.stepsWeekOf(undefined, TODAY).every((day) => day.steps === null))
+})
+check('Steps: bản ghi ngoài Last 7 Days (cũ hơn hoặc tương lai) không vào ô', () => {
+  const items = [
+    stepItem('2026-10-16', 9999),
+    stepItem('2026-10-24', 7777),
+    stepItem('2026-10-17', 1200),
+  ]
+  const days = stepsBars.stepsWeekOf(items, TODAY)
+  assert.equal(days.filter((day) => day.steps !== null).length, 1)
+  assert.equal(days[0].date, '2026-10-17')
+  assert.equal(days[0].steps, 1200, 'ngày đầu của cửa sổ 7 ngày vẫn vào')
+  const rects = stepsBars.stepsBarRects(days, 120, 44)
+  assert.equal(rects.length, 1)
+  assert.equal(
+    rects[0].height,
+    42,
+    'thang chỉ tính các ngày trong ô (9999 ngoài cửa sổ không làm thấp cột)'
+  )
+})
+check(
+  'Steps: vùng vẽ chưa đo (0 px) không vẽ gì; cột rất thấp vẫn nhìn thấy (không co về 0px)',
+  () => {
+    const days = stepsBars.stepsWeekOf([stepItem(TODAY, 5), stepItem('2026-10-22', 100000)], TODAY)
+    assert.deepEqual(stepsBars.stepsBarRects(days, 0, 44), [])
+    assert.deepEqual(stepsBars.stepsBarRects(days, 120, 0), [])
+    const tiny = stepsBars.stepsBarRects(days, 120, 44).find((rect) => rect.date === TODAY)
+    assert.ok(tiny.height >= 2, 'cột rất thấp được nâng lên sàn nhìn thấy')
+  }
+)
+check(
+  'Steps: múi giờ — cùng một thời điểm UTC, "Last 7 Days" kết thúc ở ngày khác nhau nên cột dịch chỗ',
+  () => {
+    const now = new Date('2026-10-22T20:00:00Z')
+    const tokyo = date.isoInZone(now, 'Asia/Tokyo')
+    const newYork = date.isoInZone(now, 'America/New_York')
+    const items = [stepItem('2026-10-22', 1505)]
+    const inTokyo = stepsBars.stepsWeekOf(items, tokyo)
+    const inNewYork = stepsBars.stepsWeekOf(items, newYork)
+    assert.equal(
+      inTokyo.findIndex((day) => day.steps === 1505),
+      5
+    )
+    assert.equal(
+      inNewYork.findIndex((day) => day.steps === 1505),
+      6
+    )
+  }
+)
+check(
+  'Steps: footer = số bước của HÔM NAY từ cùng nguồn với cột (không trung bình BE); ô có visual; cache dùng chung tiền tố',
+  () => {
+    const data = source('features/dashboard/hooks/use-dashboard-data.ts')
+    assert.doesNotMatch(data, /last7DayAverage/)
+    assert.match(data, /stepsWeekOf\(stepsQuery\.data\?\.items, today\)/)
+    assert.match(data, /stepsTodayOf\(stepsWeek\)/)
+    assert.doesNotMatch(data, /items\.reduce|steps\.reduce/)
+    assert.match(
+      source('features/dashboard/components/DashboardPage/LayoutSection.tsx'),
+      /visual=\{<StepsBars days=\{data\.stepsWeek\} \/>\}/
+    )
+    // Add / Edit / Delete làm mới ô Dashboard ngay: khoá ['steps', from, to] cùng tiền tố 'steps' với mutation
+    assert.match(
+      source('features/dashboard/hooks/use-dashboard.ts'),
+      /queryKey: \['steps', from \?\? '', to \?\? ''\]/
+    )
+    const hook = source('features/steps/hooks/use-steps.ts')
+    assert.match(hook, /all: \['steps'\] as const/)
+    assert.match(hook, /invalidateQueries\(\{ queryKey: stepsKeys\.all \}\)/)
+    assert.match(hook, /useUpsertSteps/)
+    assert.match(hook, /useDeleteSteps/)
+  }
+)
+
+// ── Period ──
+const periodDays = (...dates) => dashboardUtils.habitCells(periodUtils.periodDaySet(dates), TODAY)
+check('Period: chưa từng nhập → đúng 30 ô, không ô nào có dữ liệu (xám), không bịa', () => {
+  const cells = dashboardUtils.habitCells(periodUtils.periodDaySet(undefined), TODAY)
+  assert.equal(cells.length, 30)
+  assert.ok(cells.every((cell) => cell === false))
+})
+check('Period: một ngày → đúng một ô hồng, ở đúng vị trí (ô cuối là hôm nay)', () => {
+  const cells = periodDays('2026-10-23')
+  assert.equal(cells.length, 30)
+  assert.equal(cells.filter(Boolean).length, 1)
+  assert.equal(cells[29], true)
+  const earlier = periodDays('2026-10-20')
+  assert.equal(earlier.findIndex(Boolean), 26)
+})
+check(
+  'Period: nhiều ngày liên tiếp + hai kỳ → mọi ngày BE trả đều có ô, không ngày nào khác',
+  () => {
+    const cells = periodDays('2026-10-02', '2026-10-03', '2026-10-04', '2026-10-21', '2026-10-22')
+    assert.equal(cells.filter(Boolean).length, 5)
+    assert.deepEqual(
+      cells.map((on, index) => (on ? index : -1)).filter((index) => index >= 0),
+      [8, 9, 10, 27, 28]
+    )
+  }
+)
+check(
+  'Period: tắt một ngày (BE bỏ ngày đó khỏi `days`) → ô trở lại xám; không suy / dự đoán chu kỳ',
+  () => {
+    const on = periodDays('2026-10-20', '2026-10-21', '2026-10-22')
+    const off = periodDays('2026-10-20', '2026-10-22')
+    assert.equal(on[27], true)
+    assert.equal(off[27], false, 'ngày vừa tắt về xám')
+    assert.equal(off[28], true)
+    assert.equal(off[26], true)
+    assert.doesNotMatch(
+      source('features/dashboard/hooks/use-dashboard-data.ts'),
+      /cycleLength|predict|forecast/i
+    )
+    assert.doesNotMatch(source('features/period/period.utils.ts'), /cycleLength|predict|forecast/i)
+  }
+)
+check('Period: ngày lịch sử ngoài 30 ngày không vào lưới; ngày tương lai không vào', () => {
+  const cells = periodDays('2026-09-20', '2026-10-24', '2026-10-10')
+  assert.equal(cells.length, 30)
+  assert.equal(cells.filter(Boolean).length, 1)
+  assert.equal(cells[16], true)
+})
+check(
+  'Period: múi giờ — cùng một thời điểm UTC, 30 ô kết thúc ở ngày khác nhau nên ô dịch chỗ',
+  () => {
+    const now = new Date('2026-10-22T20:00:00Z')
+    const tokyo = date.isoInZone(now, 'Asia/Tokyo')
+    const newYork = date.isoInZone(now, 'America/New_York')
+    const days = periodUtils.periodDaySet(['2026-10-22'])
+    assert.equal(dashboardUtils.habitCells(days, tokyo).findIndex(Boolean), 28)
+    assert.equal(dashboardUtils.habitCells(days, newYork).findIndex(Boolean), 29)
+  }
+)
+check(
+  'Period: Dashboard và trang Period cùng đọc `days` của BE; mọi thay đổi làm mới cả hai; ô hồng có màu',
+  () => {
+    const data = source('features/dashboard/hooks/use-dashboard-data.ts')
+    assert.match(data, /periodDaySet\(periodsQuery\.data\?\.days\)/)
+    assert.match(data, /daysAgo: periodsQuery\.data\?\.daysSinceLastPeriodDay \?\? null/)
+    assert.doesNotMatch(
+      data,
+      /daysSinceLastStart/,
+      'không rơi về daysSinceLastStart khi BE cũ thiếu field'
+    )
+    assert.match(
+      source('features/period/types/period.types.ts'),
+      /daysSinceLastPeriodDay\?: number \| null/
+    )
+    assert.match(
+      source('features/period/pages/PeriodPage.tsx'),
+      /periodDaySet\(history\.data\?\.days\)/
+    )
+    assert.match(
+      source('features/dashboard/hooks/use-dashboard.ts'),
+      /queryKey: \['periods', from \?\? '', to \?\? ''\]/
+    )
+    const hook = source('features/period/hooks/use-period.ts')
+    assert.match(hook, /all: \['periods'\] as const/)
+    assert.equal(
+      (hook.match(/invalidateQueries\(\{ queryKey: periodKeys\.all \}\)/g) ?? []).length,
+      2,
+      'Add/Toggle và Delete'
+    )
+    assert.match(
+      source('features/dashboard/components/DashboardPage/LayoutSection.tsx'),
+      /<HabitGrid cells=\{data\.period\.cells\} tone="bg-mf-period" \/>/
+    )
+  }
+)
+// Quyết định của user: chân ô Steps = số bước của HÔM NAY (không trung bình 7 ngày); ô Period điền theo cột như ảnh MF.
+check('Steps footer: hôm nay có bản ghi → đúng số đó, kể cả khi các ngày khác có số khác', () => {
+  const days = stepsBars.stepsWeekOf([stepItem(TODAY, 1505), stepItem('2026-10-22', 9000)], TODAY)
+  assert.equal(stepsBars.stepsTodayOf(days), 1505)
+})
+check(
+  'Steps footer: hôm nay chưa có bản ghi nhưng các ngày trước có (cột vẫn vẽ) → null ("--- steps"), không thành 0, không lấy ngày gần nhất',
+  () => {
+    const items = [stepItem('2026-10-20', 1000), stepItem('2026-10-21', 2000)]
+    const days = stepsBars.stepsWeekOf(items, TODAY)
+    assert.equal(stepsBars.stepsTodayOf(days), null)
+    assert.equal(
+      stepsBars.stepsBarRects(days, 120, 44).length,
+      2,
+      'cột phía trên độc lập với chân ô'
+    )
+  }
+)
+check('Steps footer: hôm nay có bản ghi 0 bước thật → 0 ("0 steps"), khác "---"', () => {
+  const days = stepsBars.stepsWeekOf([stepItem(TODAY, 0)], TODAY)
+  assert.equal(stepsBars.stepsTodayOf(days), 0)
+  assert.notEqual(stepsBars.stepsTodayOf(days), null)
+  assert.equal(stepsBars.stepsTodayOf(stepsBars.stepsWeekOf([], TODAY)), null)
+})
+check(
+  'Steps footer: "hôm nay" theo múi giờ user — cùng một thời điểm UTC, Tokyo thấy hôm nay chưa có bản ghi còn New York thì có',
+  () => {
+    const now = new Date('2026-10-22T20:00:00Z')
+    const items = [stepItem('2026-10-22', 1505)]
+    assert.equal(
+      stepsBars.stepsTodayOf(stepsBars.stepsWeekOf(items, date.isoInZone(now, 'Asia/Tokyo'))),
+      null
+    )
+    assert.equal(
+      stepsBars.stepsTodayOf(stepsBars.stepsWeekOf(items, date.isoInZone(now, 'America/New_York'))),
+      1505
+    )
+  }
+)
+check(
+  'Steps footer: 0 thật hiện "0" (không bị falsy thành "---"), null hiện "---"; trang chi tiết (Average) không đổi',
+  () => {
+    const layout = source('features/dashboard/components/DashboardPage/LayoutSection.tsx')
+    assert.match(layout, /value=\{data\.steps === null \? '---' : String\(data\.steps\)\}/)
+    assert.match(
+      source('features/dashboard/hooks/use-dashboard-data.ts'),
+      /steps: steps === null \? null : Math\.round\(steps\)/
+    )
+    assert.match(source('features/steps/steps.utils.ts'), /summarizeSteps/)
+  }
+)
+check(
+  'Steps chart: khoảng hở = 50% bề rộng cột, 7 cột trải hết bề rộng nội dung (đo từ ảnh MF)',
+  () => {
+    const days = stepsBars.stepsWeekOf(
+      [
+        '2026-10-17',
+        '2026-10-18',
+        '2026-10-19',
+        '2026-10-20',
+        '2026-10-21',
+        '2026-10-22',
+        '2026-10-23',
+      ].map((d) => stepItem(d, 1000)),
+      TODAY
+    )
+    const rects = stepsBars.stepsBarRects(days, 118, 36)
+    assert.equal(rects.length, 7)
+    const bar = rects[0].width
+    assert.ok(Math.abs(bar - 118 / 10) < 1e-9, 'cột = bề rộng / (7 + 6 × 0.5)')
+    assert.ok(Math.abs(rects[1].x - rects[0].x - bar * 1.5) < 1e-9, 'bước cột = 1.5 × cột')
+    assert.ok(Math.abs(rects[6].x + rects[6].width - 118) < 1e-9, 'cột cuối chạm mép phải')
+  }
+)
+check(
+  'Period lưới điền THEO CỘT (3 hàng × 10 cột, hôm nay ở góc dưới phải): ngày thứ 27 của 30 nằm ở đầu cột cuối, khớp "2 days ago" của MF',
+  () => {
+    const pos = (index) => ({ col: Math.floor(index / 3), row: index % 3 }) // grid-flow-col, 3 hàng
+    assert.deepEqual(pos(29), { col: 9, row: 2 }, 'hôm nay: góc dưới phải')
+    assert.deepEqual(
+      pos(27),
+      { col: 9, row: 0 },
+      '2 ngày trước: đầu cột cuối (ô hồng trong ảnh MF)'
+    )
+    const cells = dashboardUtils.habitCells(periodUtils.periodDaySet(['2026-10-21']), TODAY)
+    assert.equal(cells.findIndex(Boolean), 27)
+    const grid = source('features/dashboard/components/DashboardPage/TileVisuals.tsx')
+    assert.match(grid, /grid grid-flow-col grid-rows-3 gap-\[4cqw\]/)
+    assert.doesNotMatch(grid, /grid grid-cols-10 gap-1/)
+  }
+)
+// Body Metrics (Scale Weight / Visual Body Fat / số đo vòng): mỗi lần ghi = đúng một điểm thật, thẻ "Last 7 Entries" = 7 lần ghi gần nhất
+const SPARK_W = 265
+const SPARK_H = 48
+const xsOf = (values) => entrySpark.entrySparkPoints(values, SPARK_W, SPARK_H).map((p) => p.x)
+check('Spark thẻ: 1 / 2 / 3 / 5 / 7 lần ghi = đúng ngần ấy điểm, không thêm điểm giả', () => {
+  for (const n of [1, 2, 3, 5, 7]) {
+    const values = Array.from({ length: n }, (_, i) => 78 + i * 0.3)
+    assert.equal(entrySpark.entrySparkPoints(values, SPARK_W, SPARK_H).length, n, `${n} lần ghi`)
+  }
+  assert.deepEqual(entrySpark.entrySparkPoints([], SPARK_W, SPARK_H), [])
+  assert.deepEqual(entrySpark.entrySparkPoints([79], 0, SPARK_H), [], 'chưa đo xong thì chưa vẽ')
+})
+check('Spark thẻ: nhiều hơn 7 lần ghi chỉ lấy 7 lần MỚI NHẤT (cuối chuỗi cũ → mới)', () => {
+  const values = [70, 71, 72, 73, 74, 75, 76, 77, 78, 79]
+  const points = entrySpark.entrySparkPoints(values, SPARK_W, SPARK_H)
+  assert.equal(points.length, 7)
+  const y = entrySpark.sparkY(values.slice(-7), SPARK_H)
+  assert.deepEqual(
+    points.map((p) => p.y),
+    values.slice(-7).map(y),
+    'thang y chỉ tính trên 7 lần hiện, giá trị cũ hơn không ảnh hưởng'
+  )
+})
+check(
+  'Spark thẻ: ít lần ghi thì đường NGẮN nằm bên phải, 7 lần trải hết bề rộng; điểm cuối luôn ở mép phải',
+  () => {
+    const two = xsOf([79.3, 79.3])
+    const seven = xsOf([1, 2, 3, 4, 5, 6, 7])
+    assert.equal(two[1], SPARK_W - 6)
+    assert.equal(seven[6], SPARK_W - 6)
+    assert.equal(seven[0], 6, '7 lần ghi: điểm đầu ở mép trái')
+    const step = two[1] - two[0]
+    assert.ok(step > 0 && step < SPARK_W / 4, `2 điểm chỉ rộng ${step}px, không dàn hết ô`)
+    assert.deepEqual(xsOf([1]), [SPARK_W - 6], '1 lần ghi: một điểm bên phải')
+    const five = xsOf([1, 2, 3, 4, 5])
+    assert.ok(
+      five.every((x, i) => i === 0 || Math.abs(x - five[i - 1] - step) < 1e-9),
+      'bước đều nhau theo thứ tự ghi'
+    )
+  }
+)
+check(
+  'Spark thẻ: y tự co giãn theo chính dữ liệu (không từ 0), cao hơn = giá trị lớn hơn, chuỗi phẳng nằm giữa, lb và kg cho cùng hình',
+  () => {
+    const kg = [79.3, 79.3, 81.8, 78.3, 78.8]
+    const ys = entrySpark.entrySparkPoints(kg, SPARK_W, SPARK_H).map((p) => p.y)
+    assert.ok(ys[2] < ys[0] && ys[3] > ys[0], '81.8 cao nhất, 78.3 thấp nhất')
+    assert.equal(ys[0], ys[1], 'hai lần 79.3 cùng độ cao')
+    assert.ok(
+      Math.min(...ys) >= 7 - 1e-9 && Math.max(...ys) <= SPARK_H - 7 + 1e-9,
+      'trong khung, có lề'
+    )
+    const flat = entrySpark.entrySparkPoints([80, 80, 80], SPARK_W, SPARK_H).map((p) => p.y)
+    assert.equal(new Set(flat).size, 1)
+    const lb = entrySpark
+      .entrySparkPoints(
+        kg.map((v) => v * 2.2046226),
+        SPARK_W,
+        SPARK_H
+      )
+      .map((p) => p.y)
+    lb.forEach((y, i) => assert.ok(Math.abs(y - ys[i]) < 1e-6, 'đổi đơn vị không đổi hình đường'))
+    const tiny = entrySpark.entrySparkPoints([79.3, 79.31], SPARK_W, SPARK_H).map((p) => p.y)
+    assert.ok(Math.abs(tiny[0] - tiny[1]) < 4, 'dao động 0.01 kg không thành đường dốc')
+  }
+)
+check(
+  'Thẻ Last 7 Entries: BE trả mới → cũ, FE lấy 7 lần MỚI NHẤT rồi xếp cũ → mới theo ngày (không lấy 7 lần cũ nhất)',
+  () => {
+    const be = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((d) => ({
+      date: `2026-10-${String(d).padStart(2, '0')}`,
+      v: d,
+    }))
+    const out = dashboardUtils.latestByDate(be, (e) => e.date, 7)
+    assert.deepEqual(
+      out.map((e) => e.v),
+      [4, 5, 6, 7, 8, 9, 10]
+    )
+    const gaps = ['2026-10-22', '2026-10-17', '2026-09-30'].map((d) => ({ date: d }))
+    assert.deepEqual(
+      dashboardUtils.latestByDate(gaps, (e) => e.date, 7).map((e) => e.date),
+      ['2026-09-30', '2026-10-17', '2026-10-22'],
+      'ngày không liên tiếp: mỗi lần ghi một điểm, không điền ngày thiếu'
+    )
+  }
+)
+check(
+  'Thẻ + chi tiết cùng nguồn: thẻ Scale Weight đọc GET /weights?all&limit=7 (không giới hạn 365 ngày), số lớn là lần cân mới nhất của CÙNG phản hồi',
+  () => {
+    const data = source('features/dashboard/hooks/use-dashboard-data.ts')
+    assert.match(data, /useRecentWeights\(today, SPARK_ENTRIES\)/)
+    assert.match(
+      data,
+      /scale: \{ spark: scaleSpark, latest: recentWeights\.data\?\.latestWeightKg \?\? null \}/
+    )
+    assert.doesNotMatch(data, /latestByDate\(entries, \(entry\) => entry\.logDate, DAYS_PER_WEEK\)/)
+    assert.match(
+      source('features/weight/services/weight.service.ts'),
+      /listRecent: \(to: string, limit: number\)[\s\S]{0,160}all: true, limit/
+    )
+    assert.match(
+      source('features/weight/hooks/use-weights.ts'),
+      /recent: \(to: string, limit: number\) => \['weights', 'recent'/
+    )
+  }
+)
+check(
+  'Thẻ body metric: không đường làm mượt, không nhân đôi điểm một giá trị, mọi thẻ dùng EntrySparkline',
+  () => {
+    const visuals = source('features/dashboard/components/DashboardPage/TileVisuals.tsx')
+    const entry = visuals.slice(
+      visuals.indexOf('export function EntrySparkline'),
+      visuals.indexOf('const STACK_SEGMENTS')
+    )
+    assert.match(entry, /<polyline/)
+    assert.doesNotMatch(entry, / Q |smoothPath/)
+    const tiles = source('features/dashboard/components/DashboardPage/BodyMetricTiles.tsx')
+    assert.doesNotMatch(tiles, /sparkOf|<Sparkline/)
+    assert.equal((tiles.match(/<EntrySparkline/g) ?? []).length, 2)
+    assert.match(
+      tiles,
+      /latestByDate\(metric\?\.entries \?\? \[\], \(entry\) => entry\.date, SPARK_ENTRIES\)/
+    )
+    const layout = source('features/dashboard/components/DashboardPage/LayoutSection.tsx')
+    assert.doesNotMatch(layout, /sparkOf|<Sparkline/)
+    assert.equal((layout.match(/<EntrySparkline/g) ?? []).length, 2)
+  }
+)
+check(
+  'Chi tiết Scale Weight 1W (ảnh MF): Fri 79.3, Mon 79.3, Tue 81.8, Wed 78.3, Thu 78.8 → Average 79.5, Difference −0.5, trục 78–82 vạch số tròn',
+  () => {
+    const points = [
+      { date: '2026-10-16', value: 79.3 },
+      { date: '2026-10-19', value: 79.3 },
+      { date: '2026-10-20', value: 81.8 },
+      { date: '2026-10-21', value: 78.3 },
+      { date: '2026-10-22', value: 78.8 },
+    ]
+    assert.deepEqual(bodyMetric.summarizeMetric(points), { average: 79.5, difference: -0.5 })
+    const axis = bodyMetric.metricScale(
+      points.map((p) => p.value),
+      4,
+      true
+    )
+    assert.deepEqual(axis.ticks, [78, 79, 80, 81, 82])
+    assert.equal(bodyMetric.summarizeMetric([]).average, null)
+    assert.deepEqual(bodyMetric.summarizeMetric([points[0]]), { average: 79.3, difference: null })
+    const daily = bodyMetric.averageMetric(points, 'daily', 'Monday')
+    assert.equal(daily.length, 5, 'ngày thiếu (Sat, Sun) không có điểm')
+    assert.deepEqual(
+      daily.map((p) => p.date),
+      points.map((p) => p.date)
+    )
+  }
+)
+check(
+  'Chi tiết body metric: trục y luôn vừa dữ liệu, đường chỉ nối điểm thật theo thứ tự thời gian (kể cả điểm liền kề ngoài khung)',
+  () => {
+    const view = source('features/weight/components/BodyMetricPage/BodyMetricView.tsx')
+    assert.doesNotMatch(view, /fit=\{expand\.expanded\}/)
+    assert.match(view, /tickCount=\{4\}\s*\n\s*fit\b/)
+    const chart = source('features/weight/components/BodyMetricPage/MetricChart.tsx')
+    assert.match(chart, /<polyline/)
+    assert.doesNotMatch(chart, /<path|smooth|curve/i)
+    assert.match(chart, /lineSpan/)
+    assert.match(chart, /shown\.map\(\(point\) => \(\s*<circle/, 'mỗi điểm thật một vòng tròn')
+  }
+)
 console.log(`${checks} checks passed, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

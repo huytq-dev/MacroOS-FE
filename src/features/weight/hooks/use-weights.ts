@@ -15,6 +15,7 @@ export const weightKeys = {
   all: ['weights'] as const,
   range: (from: string, to: string) => ['weights', from, to] as const,
   history: (to: string) => ['weights', 'all', to] as const,
+  recent: (to: string, limit: number) => ['weights', 'recent', to, limit] as const,
   habit: (year: number) => ['weights', 'habit', year] as const,
 }
 
@@ -54,6 +55,14 @@ export const useWeightHistory = (today: string | null) =>
   useQuery({
     queryKey: weightKeys.history(today ?? ''),
     queryFn: () => weightService.listAll(today ?? ''),
+    enabled: Boolean(today),
+  })
+
+/** `limit` lần cân gần nhất toàn lịch sử cho thẻ Scale Weight; cùng nhóm khoá `weightKeys.all` nên ghi / sửa / xoá cân làm mới nó. */
+export const useRecentWeights = (today: string | null, limit: number) =>
+  useQuery({
+    queryKey: weightKeys.recent(today ?? '', limit),
+    queryFn: () => weightService.listRecent(today ?? '', limit),
     enabled: Boolean(today),
   })
 

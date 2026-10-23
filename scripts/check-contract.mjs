@@ -2388,6 +2388,7 @@ await check(
 
 const ALL_IDLE = {
   weights: false,
+  recentWeights: false,
   daily: false,
   energyBalance: false,
   dayLog: false,
@@ -2408,11 +2409,16 @@ await check(
     const keys = constant(groups, 'NUTRIENT_GROUPS').flatMap((group) =>
       group.nutrients.map((nutrient) => nutrient.key)
     )
-    for (const key of [...keys, 'weighIn', 'foodLogging', 'steps', 'period', 'bodyFat'])
+    for (const key of [...keys, 'weighIn', 'scaleWeight', 'foodLogging', 'steps', 'period', 'bodyFat'])
       assert.equal(tilePending(key, ALL_IDLE), false, `${key} is pending with nothing pending`)
     const only = (source) => ({ ...ALL_IDLE, [source]: true })
     assert.equal(tilePending('weighIn', only('weights')), true)
-    assert.equal(tilePending('scaleWeight', only('weights')), true)
+    assert.equal(tilePending('scaleWeight', only('recentWeights')), true)
+    assert.equal(
+      tilePending('scaleWeight', only('weights')),
+      false,
+      'the Scale Weight card reads GET /weights?limit=7, not the 365-day window'
+    )
     assert.equal(
       tilePending('foodLogging', only('daily')),
       true,

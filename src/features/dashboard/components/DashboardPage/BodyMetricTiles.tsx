@@ -9,10 +9,11 @@ import { useProgressPhotoSessions } from '@/features/progress-photos/hooks/use-p
 import { photoOf } from '@/features/progress-photos/progress-photos.utils'
 import { useProfile } from '@/features/users/hooks/use-profile'
 import { formatDate } from '@/lib/date'
-import { bodyRatios } from '../../dashboard.utils'
+import { bodyRatios, latestByDate } from '../../dashboard.utils'
+import { SPARK_ENTRIES } from '../../entry-spark'
 import { useMeasurementOverview } from '../../hooks/use-measurement-overview'
 import { MetricTile } from './MetricTile'
-import { Sparkline } from './TileVisuals'
+import { EntrySparkline } from './TileVisuals'
 
 /** Khoá ô trên Dashboard → khoá số đo của BE (Bicep = cánh tay). */
 const TILE_KEY: Record<string, string> = {
@@ -36,10 +37,6 @@ const TILE_KEY: Record<string, string> = {
   ankleR: 'rightAnkle',
 }
 
-/** Một giá trị thì vẽ đoạn phẳng hai đầu chấm rỗng như MacroFactor (một điểm chỉ ra một chấm). */
-export const sparkOf = (values: readonly number[]) =>
-  values.length === 1 ? [values[0], values[0]] : values
-
 const trim = (value: number) => String(Number(value.toFixed(1)))
 
 /**
@@ -56,8 +53,10 @@ export function MeasureTile({
   const overview = useMeasurementOverview()
   const key = TILE_KEY[tileKey]
   const metric = key ? overview.data?.metrics.find((item) => item.key === key) : undefined
-  // BE trả mới → cũ; đường xu hướng đi cũ → mới
-  const values = metric?.entries.map((entry) => entry.valueCm).reverse() ?? []
+  // BE đã trả đúng 7 lần ghi gần nhất (mỗi ngày một giá trị); FE chỉ xếp cũ → mới theo NGÀY để vẽ, không dựa vào thứ tự BE
+  const values = latestByDate(metric?.entries ?? [], (entry) => entry.date, SPARK_ENTRIES).map(
+    (entry) => entry.valueCm
+  )
   return (
     <MetricTile
       title={title}
@@ -65,7 +64,7 @@ export function MeasureTile({
       href={key ? routePath.bodyMeasurement(key) : undefined}
       visual={
         values.length > 0 ? (
-          <Sparkline values={sparkOf(values)} className="text-mf-tile-carbs" />
+          <EntrySparkline values={values} className="text-mf-tile-carbs" />
         ) : undefined
       }
       value={metric && values.length > 0 ? trim(metric.latestCm) : '---'}
@@ -100,7 +99,9 @@ export function RatioTile({
     profile.data?.heightCm ?? null
   )
   const latest = ratios[0]?.ratio ?? null
-  const spark = ratios.map((point) => point.ratio).reverse()
+  const spark = latestByDate(ratios, (point) => point.date, SPARK_ENTRIES).map(
+    (point) => point.ratio
+  )
   return (
     <MetricTile
       title={title}
@@ -108,7 +109,7 @@ export function RatioTile({
       href={routePath.bodyMeasurement('waist')}
       visual={
         spark.length > 0 ? (
-          <Sparkline values={sparkOf(spark)} className="text-mf-tile-carbs" />
+          <EntrySparkline values={spark} className="text-mf-tile-carbs" />
         ) : undefined
       }
       value={latest === null ? '---' : latest.toFixed(2)}

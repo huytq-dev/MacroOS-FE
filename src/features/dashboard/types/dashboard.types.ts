@@ -97,6 +97,9 @@ export interface PeriodsResponse {
   }[]
   lastStartDate: string | null
   daysSinceLastStart: number | null
+  lastPeriodDay?: string | null
+  /** Ngày lịch từ ngày hành kinh đã đánh dấu gần nhất tới hôm nay; thiếu (BE cũ) hoặc null → "---". */
+  daysSinceLastPeriodDay?: number | null
   /** Mọi ngày hành kinh trong khoảng (tăng dần, gồm kỳ bắt đầu trước from hoặc đang diễn ra). */
   days: string[]
   lastPeriodLengthDays: number | null

@@ -1,4 +1,6 @@
 import { ChartArea } from './InsightCharts'
+import { entrySparkPoints } from '../../entry-spark'
+import { stepsBarRects, type StepsTileDay } from '../../steps-bars'
 import { cn } from '@/lib/utils'
 import type { MacroStackDay } from '../../types/dashboard.types'
 
@@ -99,6 +101,54 @@ export function Sparkline({ values, raw, className }: SparklineProps) {
   )
 }
 
+/**
+ * Đường nhỏ "Last 7 Entries" của một chỉ số cơ thể (như MacroFactor): MỖI lần ghi một vòng tròn rỗng thật, nối bằng đoạn thẳng theo thứ tự
+ * thời gian (không làm mượt, không điểm giả); ít lần ghi thì đường ngắn nằm bên phải, một lần ghi chỉ có một vòng tròn. Hình học ở `entrySparkPoints`.
+ */
+export function EntrySparkline({
+  values,
+  className,
+}: {
+  readonly values: readonly number[]
+  readonly className?: string
+}) {
+  if (values.length === 0) return <div className="h-12" aria-hidden="true" />
+  return (
+    <ChartArea className={cn('h-12', className)}>
+      {({ width, height }) => {
+        const points = entrySparkPoints(values, width, height)
+        return (
+          <>
+            {points.length > 1 && (
+              <polyline
+                points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+                pathLength={1}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                className="motion-safe:animate-chart-draw"
+              />
+            )}
+            {points.map((point, index) => (
+              <circle
+                key={index}
+                cx={point.x}
+                cy={point.y}
+                r="2.8"
+                fill="var(--card)"
+                stroke="currentColor"
+                strokeWidth="1.6"
+              />
+            ))}
+          </>
+        )
+      }}
+    </ChartArea>
+  )
+}
+
 /** Thứ tự xếp chồng từ đáy lên và màu từng phần (cùng bộ `--mf-tile-*` với các thanh Calories / Protein / Fat / Carbs). */
 const STACK_SEGMENTS = [
   ['carbs', 'fill-mf-tile-carbs'],
@@ -157,6 +207,31 @@ export function MacroStack({ days }: { readonly days: readonly (MacroStackDay | 
   )
 }
 
+/**
+ * Cột 7 ngày của ô Steps (như biểu đồ trang chi tiết: cột cam, thang 0 → ngày cao nhất): mỗi ngày CÓ bản ghi một cột cao tỉ lệ số bước, ngày không có bản ghi
+ * không có cột (không bịa 0), ngày ghi 0 bước là vạch mỏng mờ; chưa có ngày nào thì vùng vẽ để trống. Hình học ở `stepsBarRects`.
+ */
+export function StepsBars({ days }: { readonly days: readonly StepsTileDay[] }) {
+  if (days.every((day) => day.steps === null)) return <div className="h-14" aria-hidden="true" />
+  return (
+    <ChartArea className="-mb-2">
+      {({ width, height }) =>
+        stepsBarRects(days, width, height).map((rect) => (
+          <rect
+            key={rect.date}
+            x={rect.x}
+            y={rect.y}
+            width={rect.width}
+            height={rect.height}
+            rx="1"
+            className="fill-mf-tile-protein motion-safe:animate-chart-rise"
+          />
+        ))
+      }
+    </ChartArea>
+  )
+}
+
 interface HabitGridProps {
   /** 30 ô theo thứ tự cũ → mới (hàng trước, ô cuối là hôm nay); true = có dữ liệu. */
   readonly cells: readonly boolean[]
@@ -166,16 +241,21 @@ interface HabitGridProps {
 /** Lưới 3×10 ô nhỏ của "Habits": ô trống rất tối bo nhỏ, ô có dữ liệu màu nhấn, khoảng cách đều. */
 export function HabitGrid({ cells, tone }: HabitGridProps) {
   return (
-    <div aria-hidden="true" className="grid grid-cols-10 gap-1">
-      {cells.map((done, index) => (
-        <span
-          key={index}
-          className={cn(
-            'aspect-square rounded-[3px] transition-colors duration-300',
-            done ? tone : 'bg-foreground/[0.08]'
-          )}
-        />
-      ))}
+    // Điền THEO CỘT (3 hàng × 10 cột, cũ → mới từ trên xuống rồi sang phải, hôm nay ở góc dưới phải): ảnh MF "2 days ago" có ô hồng ở đầu cột cuối = ngày thứ 27 của 30;
+    // điền theo hàng thì ô đó là 20 ngày trước. Khoảng hở ≈ 38% bước ô (đo từ ảnh MF), tính theo bề rộng lưới nên ô nhỏ trên điện thoại hẹp vẫn đúng tỉ lệ
+    <div aria-hidden="true" className="@container">
+      <div className="grid grid-flow-col grid-rows-3 gap-[4cqw]">
+        {cells.map((done, index) => (
+          <span
+            key={index}
+            className={cn(
+              // Bo góc theo tỉ lệ ô (≈18%, như ô MF: góc ~3px ở ô ~17px) để ô nhỏ trên điện thoại hẹp không thành chấm tròn
+              'aspect-square rounded-[18%] transition-colors duration-300',
+              done ? tone : 'bg-foreground/[0.08]'
+            )}
+          />
+        ))}
+      </div>
     </div>
   )
 }

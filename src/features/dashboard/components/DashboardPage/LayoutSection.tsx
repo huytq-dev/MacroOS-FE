@@ -1,10 +1,4 @@
-import {
-  FullBodyTile,
-  MeasureTile,
-  ProgressPhotosTile,
-  RatioTile,
-  sparkOf,
-} from './BodyMetricTiles'
+import { FullBodyTile, MeasureTile, ProgressPhotosTile, RatioTile } from './BodyMetricTiles'
 import { MetricTile } from './MetricTile'
 import { TileSection } from './TileSection'
 import {
@@ -16,7 +10,7 @@ import {
 } from './DashboardTiles'
 import { NutrientTile } from './NutrientTile'
 import { tilePending } from '../../dashboard-pending'
-import { HabitGrid, MacroStack, Sparkline } from './TileVisuals'
+import { EntrySparkline, HabitGrid, MacroStack, StepsBars } from './TileVisuals'
 import { nutrientValue } from '../../dashboard.utils'
 import { SECTIONS, type NutrientDisplay, type SectionKey } from '../../dashboard-layout'
 import type { DashboardData } from '../../hooks/use-dashboard-data'
@@ -60,7 +54,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay, 
           title="Scale Weight"
           subtitle="Last 7 Entries"
           href={routePath.weight}
-          visual={<Sparkline values={sparkOf(data.scale.spark)} className="text-mf-tile-carbs" />}
+          visual={<EntrySparkline values={data.scale.spark} className="text-mf-tile-carbs" />}
           value={data.scale.latest === null ? '---' : units.weight.format(data.scale.latest)}
           unit={units.weight.unit}
           loading={tilePending(key, data.pending)}
@@ -72,7 +66,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay, 
           title="Visual Body Fat"
           subtitle="Last 7 Entries"
           href={routePath.visualBodyFat}
-          visual={<Sparkline values={sparkOf(data.bodyFat.spark)} className="text-mf-tile-carbs" />}
+          visual={<EntrySparkline values={data.bodyFat.spark} className="text-mf-tile-carbs" />}
           value={fixed(data.bodyFat.latest)}
           unit="%"
           loading={tilePending(key, data.pending)}
@@ -88,6 +82,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay, 
           title="Steps"
           subtitle="Last 7 Days"
           href={routePath.steps}
+          visual={<StepsBars days={data.stepsWeek} />}
           value={data.steps === null ? '---' : String(data.steps)}
           unit="steps"
           loading={tilePending(key, data.pending)}

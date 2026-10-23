@@ -35,12 +35,16 @@ export function averageMetric(
   }))
 }
 
-/** Average và Difference (cuối − đầu) của kỳ, 1 số lẻ; null khi chưa có điểm. */
+/**
+ * Average và Difference (cuối − đầu) của kỳ, 1 số lẻ, cùng định nghĩa với `summary` của BE (trung bình các điểm thật trong kỳ; Difference cần
+ * ≥ 2 điểm): null khi chưa có điểm, Difference null khi chỉ có 1 điểm (không bịa 0).
+ */
 export function summarizeMetric(points: readonly MetricPoint[]) {
   if (points.length === 0) return { average: null, difference: null }
   return {
     average: roundTo(mean(points.map((point) => point.value)), 1),
-    difference: roundTo(points[points.length - 1].value - points[0].value, 1),
+    difference:
+      points.length < 2 ? null : roundTo(points[points.length - 1].value - points[0].value, 1),
   }
 }
 

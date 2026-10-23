@@ -17,6 +17,10 @@ export interface PeriodHistory {
   items: PeriodEntry[]
   lastStartDate: string | null
   daysSinceLastStart: number | null
+  /** Ngày hành kinh đã đánh dấu gần nhất ≤ hôm nay (toàn bộ lịch sử, múi giờ profile); kỳ đang diễn ra tính hôm nay. Thiếu = BE cũ. */
+  lastPeriodDay?: string | null
+  /** Số ngày lịch từ `lastPeriodDay` tới hôm nay (0 = hôm nay); null = chưa đánh dấu ngày nào. Thiếu = BE cũ → hiện "---". */
+  daysSinceLastPeriodDay?: number | null
   /** Mọi ngày hành kinh trong khoảng (tăng dần, gồm kỳ bắt đầu trước `from` hoặc đang diễn ra). */
   days: string[]
   /** Độ dài (ngày) của kỳ gần nhất, cho "Last Period Duration"; null = chưa có kỳ nào. */

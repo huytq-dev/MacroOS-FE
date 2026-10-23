@@ -7,6 +7,8 @@ import { NUTRIENT_GROUPS } from './nutrient-catalog'
  */
 export interface DashboardPending {
   readonly weights: boolean
+  /** `GET /weights?all=true&limit=7` (thẻ Scale Weight). */
+  readonly recentWeights: boolean
   readonly daily: boolean
   /** `GET /energy-balance/series` (thẻ Energy Balance). */
   readonly energyBalance: boolean
@@ -32,8 +34,9 @@ const FROM_DAY_LOG = new Set(['calories', 'protein', 'fat', 'carbs'])
 export const tilePending = (key: string, pending: DashboardPending): boolean => {
   switch (key) {
     case 'weighIn':
-    case 'scaleWeight':
       return pending.weights
+    case 'scaleWeight':
+      return pending.recentWeights
     case 'foodLogging':
       return pending.daily
     case 'bodyFat':

@@ -117,8 +117,9 @@ export function BodyMetricView({
           unit={unit}
           label={title}
           height={expand.height}
-          tickCount={expand.expanded ? 4 : 3}
-          fit={expand.expanded}
+          // Trục y luôn vừa dữ liệu (không bắt đầu từ 0), vạch ở số tròn: user chốt, khớp ảnh MF Scale Weight 1W (78–82 kg) và Neck 1W (17–20 cm)
+          tickCount={4}
+          fit
           pan={pan}
         />
       </ExpandableChart>
