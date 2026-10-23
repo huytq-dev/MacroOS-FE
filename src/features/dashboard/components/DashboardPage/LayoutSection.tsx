@@ -107,7 +107,7 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay, 
             <MetricTile
               title="Macros"
               subtitle="Last 7 Days"
-              href={routePath.dashboardNutrition}
+              href={routePath.dashboardMacros}
               visual={<MacroStack days={data.macrosWeek} />}
               value={units.energy.format(nutrientValue(data.nutrientsToday, 'macros').value)}
               unit={units.energy.unit}

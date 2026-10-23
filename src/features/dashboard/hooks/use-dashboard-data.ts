@@ -6,6 +6,7 @@ import {
   useEnergyBalanceWindow,
   useExpenditureSeries,
   useGoalProgress,
+  useMacrosSeries,
   usePeriods,
   useSteps,
 } from './use-dashboard'
@@ -22,19 +23,14 @@ import type { EnergyBalanceSeriesResponse } from '../types/energy-balance.types'
 import { NO_GOAL } from '@/features/nutrition/goal-progress'
 import { NUTRIENT_CODE } from '../nutrient-codes'
 import { NUTRIENT_GROUPS } from '../nutrient-catalog'
-import type {
-  DailyProgress,
-  MacroStackDay,
-  NutrientModel,
-  NutrientValue,
-} from '../types/dashboard.types'
+import type { DailyProgress, NutrientModel, NutrientValue } from '../types/dashboard.types'
 import { periodDaySet } from '@/features/period/period.utils'
-import { KCAL_PER_GRAM } from '@/features/nutrition/atwater'
 import { useDayLog } from '@/features/food-log/hooks/use-food-log'
 import type { MacroTotals } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { useRecentWeights, useVisualBodyFat, useWeights } from '@/features/weight/hooks/use-weights'
 import { SPARK_ENTRIES } from '../entry-spark'
+import { macroBarOn, type MacroBar } from '../macros-detail'
 import { stepsTodayOf, stepsWeekOf, type StepsTileDay } from '../steps-bars'
 import { addDaysIso } from '@/lib/date'
 import { DAYS_PER_WEEK } from '@/lib/week'
@@ -76,7 +72,7 @@ export interface DashboardData {
   /** Giá trị hôm nay cho mọi ô nutrient: macro từ log thật, còn lại từ `GET /nutrients` (amount null = chưa có dữ liệu). */
   readonly nutrientsToday: Readonly<Record<string, NutrientValue>>
   /** 7 ngày gần nhất cho cột chồng của ô Macros (cũ → mới); ngày chưa log = null (không có cột). */
-  readonly macrosWeek: readonly (MacroStackDay | null)[]
+  readonly macrosWeek: readonly (MacroBar | null)[]
 }
 
 /** Giá trị + mục tiêu của một chất đúng như BE trả (floor / target / ceiling nguyên vẹn; không suy mốc từ loại thanh của FE). */
@@ -113,6 +109,10 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
   const stepsQuery = useSteps(today ? addDaysIso(today, -(HABIT_DAYS - 1)) : null, today)
   const periodsQuery = usePeriods(today ? addDaysIso(today, -PERIOD_LOOKBACK_DAYS) : null, today)
   const nutrients = useDayNutrients(enabled ? today : null)
+  const macrosSeries = useMacrosSeries(
+    today ? { from: addDaysIso(today, -(DAYS_PER_WEEK - 1)), to: today } : {},
+    Boolean(today)
+  )
 
   const visualBodyFat = useVisualBodyFat(today)
   // BE trả mới → cũ: lấy các lần đo MỚI NHẤT rồi xếp cũ → mới cho đường nhỏ (`slice(-n)` thẳng sẽ lấy các lần CŨ NHẤT)
@@ -162,23 +162,10 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
   nutrientsToday.carbs = macro(totals?.carbs, target?.carbsTarget)
   // Ô "Macros": số lớn là kcal hôm nay (như MacroFactor), không có thanh target; cột chồng 7 ngày ở `macrosWeek`
   nutrientsToday.macros = macro(totals?.calories, undefined)
-  // 7 NGÀY LỊCH kết thúc hôm nay, không phải 7 điểm cuối của `daily`: ngày thiếu điểm sẽ kéo cột của ngày cũ hơn vào "Last 7 Days".
-  const dailyByDate = new Map(daily.map((point) => [point.snapshotDate, point]))
-  const macrosWeek = (today ? lastDays(today, DAYS_PER_WEEK) : []).map(
-    (date): MacroStackDay | null => {
-      const point = dailyByDate.get(date)
-      if (!point || !isLogged(point)) return null
-      const carbs = point.carbsConsumed * KCAL_PER_GRAM.carbs
-      const fat = point.fatConsumed * KCAL_PER_GRAM.fat
-      const protein = point.proteinConsumed * KCAL_PER_GRAM.protein
-      return {
-        date,
-        carbs,
-        fat,
-        protein,
-        other: Math.max(0, point.caloriesConsumed - carbs - fat - protein),
-      }
-    }
+  // 7 NGÀY LỊCH kết thúc hôm nay (không phải 7 điểm cuối của một danh sách): ngày chưa log để trống. Cùng nguồn BE (`GET /nutrients/macros/series`) và cùng
+  // `macroBarOn` / `drawnKcal` với màn Macros Detail nên tile và chi tiết không bao giờ tính kcal / Other khác nhau.
+  const macrosWeek = (today ? lastDays(today, DAYS_PER_WEEK) : []).map((date): MacroBar | null =>
+    macrosSeries.data ? macroBarOn(macrosSeries.data, date) : null
   )
   // Chất xơ lấy đúng số BE: 0 cho ngày trống, null (known: false → "---") khi có món nhưng không món nào có dữ liệu chất xơ, như Overview / Detail
   // Chân ô Steps = số bước của hôm nay (user chọn): cùng nguồn `items` với các cột, hôm nay chưa có bản ghi thì null ("---")
@@ -200,6 +187,7 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
       periods: periodsQuery.isPending,
       bodyFat: visualBodyFat.isPending,
       expenditure: expenditure.isPending,
+      macros: macrosSeries.isPending,
     },
     weights,
     tdee: expenditure.data?.current?.estimatedTdeeKcal ?? null,

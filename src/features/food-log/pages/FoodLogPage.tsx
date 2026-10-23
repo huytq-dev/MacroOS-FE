@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { routePath } from '@/config/route-path'
@@ -397,8 +397,22 @@ export function FoodLogPage() {
       },
     ])
 
-  const onSaveEntry = (id: string, payload: UpdateEntryRequest) =>
-    updateEntry.mutate({ id, payload }, { onSuccess: () => editSheet.hide() })
+  // Một lần sửa chỉ gửi MỘT PUT: hai nút Done (hàng trên và thanh đáy) cùng gọi hàm này, bấm nối tiếp trước khi `isPending` kịp render sẽ gửi hai PUT cùng món
+  // và PUT thứ hai có thể bị BE từ chối. Khoá theo ref (đồng bộ), mở lại khi PUT xong (thành công hay lỗi).
+  const savingEntry = useRef(false)
+  const onSaveEntry = (id: string, payload: UpdateEntryRequest) => {
+    if (savingEntry.current) return
+    savingEntry.current = true
+    updateEntry.mutate(
+      { id, payload },
+      {
+        onSuccess: () => editSheet.hide(),
+        onSettled: () => {
+          savingEntry.current = false
+        },
+      }
+    )
+  }
 
   const onCopy = (payload: CopyRequest) =>
     copyLog.mutate(payload, {

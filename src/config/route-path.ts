@@ -12,6 +12,8 @@ export const routePath = {
   dashboardEnergyBalance: '/dashboard/energy-balance',
   dashboardGoalProgress: '/dashboard/goal-progress',
   dashboardNutrition: '/dashboard/nutrition',
+  /** Chi tiết Macros (cột chồng năng lượng mỗi ngày + phần trăm calo P / F / C): bấm ô Macros. */
+  dashboardMacros: '/dashboard/macros',
   /** Chi tiết một nutrient (chart, mục tiêu, hôm nay, lịch sử): khoá theo `nutrient-catalog` (calories, protein, vitaminC…). */
   dashboardNutrient: (key: string) => `/dashboard/nutrition/${key}`,
   /** Tóm tắt một nutrient: Today / Past Week / Past Month, mục tiêu hiện hành, mọi món đóng góp, phân bố theo giờ. */

@@ -765,5 +765,102 @@ check('O28 prior-weight-question endpoint wiring', () => {
   )
 })
 
+// ── BE giữ cân nặng đã lưu của hôm nay (PUT /onboarding/basics: weightKept) ──
+check('weight kept: weightKept true → one short message with the stored number and unit', () => {
+  assert.equal(
+    utils.weightKeptMessage({
+      weightKept: true,
+      storedWeightKg: 82.4,
+      storedWeightDisplay: 82.4,
+      displayUnit: 'kg',
+    }),
+    'Your saved weight for today (82.4 kg) was kept.'
+  )
+  assert.equal(
+    utils.weightKeptMessage({
+      weightKept: true,
+      storedWeightKg: 82.4,
+      storedWeightDisplay: 181.7,
+      displayUnit: 'lb',
+    }),
+    'Your saved weight for today (181.7 lb) was kept.',
+    'shows the number in the user display unit'
+  )
+  assert.equal(
+    utils.weightKeptMessage({ weightKept: true, storedWeightDisplay: 80, displayUnit: 'kg' }),
+    'Your saved weight for today (80.0 kg) was kept.'
+  )
+})
+check(
+  'weight kept: weightKept false (same number, no stored weight, no weight sent) → no message',
+  () => {
+    assert.equal(
+      utils.weightKeptMessage({
+        weightKept: false,
+        storedWeightKg: 82.4,
+        storedWeightDisplay: 82.4,
+        displayUnit: 'kg',
+      }),
+      null
+    )
+    assert.equal(
+      utils.weightKeptMessage({
+        weightKept: false,
+        storedWeightKg: null,
+        storedWeightDisplay: null,
+        displayUnit: 'kg',
+      }),
+      null
+    )
+  }
+)
+check(
+  'weight kept: old BE ({} / null / missing fields) or bad numbers → no message, no crash',
+  () => {
+    assert.equal(utils.weightKeptMessage({}), null)
+    assert.equal(utils.weightKeptMessage(null), null)
+    assert.equal(utils.weightKeptMessage(undefined), null)
+    assert.equal(utils.weightKeptMessage({ weightKept: true }), null)
+    assert.equal(
+      utils.weightKeptMessage({ weightKept: true, storedWeightDisplay: null, displayUnit: 'kg' }),
+      null
+    )
+    assert.equal(utils.weightKeptMessage({ weightKept: true, storedWeightDisplay: 82.4 }), null)
+    assert.equal(
+      utils.weightKeptMessage({
+        weightKept: true,
+        storedWeightDisplay: Number.NaN,
+        displayUnit: 'kg',
+      }),
+      null
+    )
+  }
+)
+check(
+  'weight kept: FE never compares weights — the wizard toasts only what weightKeptMessage returns, with the existing toast',
+  () => {
+    const hook = source('features/onboarding/hooks/use-onboarding-wizard.ts')
+    assert.match(hook, /const saved = await saveBasics\.mutateAsync\(payload\)/)
+    assert.match(hook, /const kept = weightKeptMessage\(saved\)\s*\n\s*if \(kept\) toast\(kept\)/)
+    assert.match(hook, /import \{ toast \} from 'sonner'/)
+    const types = source('features/onboarding/types/onboarding.types.ts')
+    const block = types.slice(
+      types.indexOf('export interface SaveBasicsResponse'),
+      types.indexOf('export interface SaveBasicsRequest')
+    )
+    for (const field of [
+      'weightKept?:',
+      'storedWeightKg?:',
+      'storedWeightDisplay?:',
+      'displayUnit?:',
+    ])
+      assert.ok(block.includes(field), `${field} optional`)
+    assert.match(
+      source('features/onboarding/services/onboarding.service.ts'),
+      /apiCall\.put<SaveBasicsResponse \| null>/
+    )
+  }
+)
+
 console.log(`\n${checks} groups passed${failures ? `, ${failures} FAILED` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

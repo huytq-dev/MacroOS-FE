@@ -69,15 +69,6 @@ export interface NutrientValue {
   known?: boolean
 }
 
-/** Một ngày của ô Macros: kcal của từng phần xếp chồng (carb dưới cùng, rồi fat, protein, phần còn lại của calo trên cùng). */
-export interface MacroStackDay {
-  readonly date: string
-  readonly carbs: number
-  readonly fat: number
-  readonly protein: number
-  readonly other: number
-}
-
 // Khớp BE GET /api/steps, GET /api/periods, GET /api/nutrients?date= (Docs/MacroFactor_UI/UI/Dashboard/README.md mục 5)
 export interface StepsResponse {
   items: { id: string; logDate: string; steps: number; source: string }[]

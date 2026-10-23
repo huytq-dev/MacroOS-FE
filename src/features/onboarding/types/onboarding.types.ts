@@ -92,6 +92,17 @@ export interface GoalPreview {
 }
 
 // Khớp BE SaveOnboardingBasicsCommand (trường nào gửi mới cập nhật)
+/**
+ * Phản hồi `PUT /onboarding/basics` (BE cộng thêm, BE cũ trả `{}` nên mọi trường tuỳ chọn). `weightKept` true CHỈ khi đã gửi cân nặng, hôm nay đã có lần cân
+ * và hai số khác nhau (so ở 1 chữ số trong đơn vị hiển thị — BE quyết định, FE không tự so): BE giữ số đã lưu, FE báo ngắn.
+ */
+export interface SaveBasicsResponse {
+  weightKept?: boolean
+  storedWeightKg?: number | null
+  storedWeightDisplay?: number | null
+  displayUnit?: 'kg' | 'lb'
+}
+
 export interface SaveBasicsRequest {
   step: number
   gender?: Gender

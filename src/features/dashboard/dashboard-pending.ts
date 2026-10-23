@@ -18,6 +18,8 @@ export interface DashboardPending {
   readonly periods: boolean
   readonly bodyFat: boolean
   readonly expenditure: boolean
+  /** `GET /nutrients/macros/series` 7 ngày (cột chồng của ô Macros). */
+  readonly macros: boolean
 }
 
 const NUTRIENT_KEYS = new Set(
@@ -46,7 +48,7 @@ export const tilePending = (key: string, pending: DashboardPending): boolean => 
     case 'period':
       return pending.periods
     case 'macros':
-      return pending.dayLog || pending.daily
+      return pending.dayLog || pending.macros
     case 'fiber':
       return pending.dayLog || pending.nutrients
     default:

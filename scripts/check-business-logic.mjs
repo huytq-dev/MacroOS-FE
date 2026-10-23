@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import * as date from '../src/lib/date.ts'
+import * as enums from '../src/config/enums.ts'
 import { averageBalancePoints } from '../src/features/dashboard/energy-balance.utils.ts'
 import * as foods from '../src/features/foods/types/food.types.ts'
 import * as plate from '../src/features/food-log/components/FoodLogPage/PlatePanel/plate-edit.utils.ts'
@@ -15,6 +16,9 @@ import * as balance from '../src/features/dashboard/energy-balance.utils.ts'
 import * as stepsBars from '../src/features/dashboard/steps-bars.ts'
 import * as periodUtils from '../src/features/period/period.utils.ts'
 import * as dashboardUtils from '../src/features/dashboard/dashboard.utils.ts'
+import * as units from '../src/lib/units.ts'
+import * as macrosDetail from '../src/features/dashboard/macros-detail.ts'
+import * as geometry from '../src/features/dashboard/chart/geometry.ts'
 import * as entrySpark from '../src/features/dashboard/entry-spark.ts'
 import * as bodyMetric from '../src/features/weight/body-metric.utils.ts'
 import { targetRatio } from '../src/features/nutrition/goal-progress.ts'
@@ -1651,6 +1655,786 @@ check(
     assert.doesNotMatch(chart, /<path|smooth|curve/i)
     assert.match(chart, /lineSpan/)
     assert.match(chart, /shown\.map\(\(point\) => \(\s*<circle/, 'mỗi điểm thật một vòng tròn')
+  }
+)
+// Y-axis đo vòng / cân: luôn co theo dữ liệu, một logic dùng chung, Expand/Collapse không đổi domain
+const scaleOf = (values) => bodyMetric.metricScale(values, 4, true)
+check(
+  'Y-axis: domain bao hết mọi điểm, có lề (điểm cao nhất / thấp nhất không bị cắt) và vạch ở số tròn',
+  () => {
+    for (const values of [
+      [79.3, 79.3, 81.8, 78.3, 78.8],
+      [17, 20],
+      [26.5, 26],
+      [60, 62.5, 61, 80],
+      [0.5, 2.5],
+    ]) {
+      const axis = scaleOf(values)
+      assert.ok(axis.min <= Math.min(...values) && axis.max >= Math.max(...values), `${values}`)
+      assert.ok(axis.ticks.length >= 3, 'ít nhất 3 vạch')
+      assert.equal(axis.min, axis.ticks[0])
+      assert.equal(axis.max, axis.ticks[axis.ticks.length - 1])
+    }
+    assert.deepEqual(scaleOf([17, 20]).ticks, [17, 18, 19, 20], 'Neck 1W như ảnh MF')
+  }
+)
+check(
+  'Y-axis: một điểm hoặc mọi giá trị bằng nhau vẫn có domain hợp lệ chứa điểm đó (không chia cho 0, không dẹt)',
+  () => {
+    for (const values of [[79.3], [80, 80, 80], [0], [26]]) {
+      const axis = scaleOf(values)
+      assert.ok(axis.max > axis.min, `${values} domain rộng > 0`)
+      assert.ok(axis.min <= values[0] && axis.max >= values[0])
+      assert.ok(Number.isFinite(axis.min) && Number.isFinite(axis.max))
+    }
+    assert.ok(scaleOf([79.3]).ticks.length >= 3)
+  }
+)
+check('Y-axis: không phóng đại biến động cực nhỏ (79.30 → 79.31 không thành đường dốc)', () => {
+  const axis = scaleOf([79.3, 79.31])
+  assert.ok(axis.max - axis.min >= 1, `domain ${axis.max - axis.min} đủ rộng so với dao động 0.01`)
+  const wide = scaleOf([70, 90])
+  assert.ok(wide.max - wide.min >= 20)
+})
+check(
+  'Y-axis: Expand/Collapse chỉ đổi chiều cao, không đổi domain (tickCount / fit không phụ thuộc expand); chỉ chart đo vòng dùng metricScale',
+  () => {
+    const view = source('features/weight/components/BodyMetricPage/BodyMetricView.tsx')
+    assert.doesNotMatch(view, /tickCount=\{[^}]*expand/)
+    assert.doesNotMatch(view, /fit=\{[^}]*expand/)
+    assert.match(view, /height=\{expand\.height\}/)
+    assert.deepEqual(scaleOf([79.3, 81.8]), scaleOf([79.3, 81.8]))
+    const users = [
+      'features/dashboard/components/DashboardPage/InsightCharts.tsx',
+      'features/steps/components/StepsChart.tsx',
+    ]
+    for (const file of users) {
+      try {
+        assert.doesNotMatch(source(file), /metricScale/, `${file}: thang nghiệp vụ từ 0 giữ nguyên`)
+      } catch (error) {
+        if (error.code === 'ENOENT') continue
+        throw error
+      }
+    }
+  }
+)
+check(
+  'Left / Right độc lập: 6 cặp là 12 số đo riêng, ô Dashboard ánh xạ từng bên vào khoá bên đó, không thay thế / gộp',
+  () => {
+    const catalog = source('features/weight/body-measurements.ts')
+    for (const part of ['Bicep', 'Forearm', 'Wrist', 'Thigh', 'Calf', 'Ankle']) {
+      assert.match(catalog, new RegExp(`key: 'left${part}'`))
+      assert.match(catalog, new RegExp(`key: 'right${part}'`))
+    }
+    const tiles = source('features/dashboard/components/DashboardPage/BodyMetricTiles.tsx')
+    for (const [tile, key] of [
+      ['bicepL', 'leftBicep'],
+      ['bicepR', 'rightBicep'],
+      ['thighL', 'leftThigh'],
+      ['thighR', 'rightThigh'],
+      ['calfL', 'leftCalf'],
+      ['calfR', 'rightCalf'],
+    ])
+      assert.match(tiles, new RegExp(`${tile}: '${key}'`))
+    assert.doesNotMatch(tiles, /left\w*\s*\?\?\s*right|right\w*\s*\?\?\s*left/)
+    assert.match(tiles, /metric\?\.entries \?\? \[\]/)
+    assert.match(tiles, /metric && values\.length > 0 \? trim\(metric\.latestCm\) : '---'/)
+  }
+)
+check(
+  'Ngày chỉ có một bên: bên có dữ liệu có điểm, bên kia "---" và không đường (tìm theo đúng khoá)',
+  () => {
+    const tiles = source('features/dashboard/components/DashboardPage/BodyMetricTiles.tsx')
+    assert.match(tiles, /overview\.data\?\.metrics\.find\(\(item\) => item\.key === key\)/)
+    const left = [
+      { date: '2026-10-20', valueCm: 34 },
+      { date: '2026-10-22', valueCm: 34.5 },
+    ]
+    const byDate = (entries) => dashboardUtils.latestByDate(entries, (entry) => entry.date, 7)
+    assert.deepEqual(
+      byDate(left).map((entry) => entry.valueCm),
+      [34, 34.5]
+    )
+    assert.deepEqual(byDate([]), [], 'bên kia: không điểm nào')
+    assert.deepEqual(
+      { left: byDate(left).length, right: byDate([{ date: '2026-10-21', valueCm: 33 }]).length },
+      { left: 2, right: 1 },
+      'số lần ghi hai bên không đều: mỗi bên đúng số của nó'
+    )
+  }
+)
+check(
+  'Dữ liệu đổi (log / sửa / xoá / nhập lịch sử) thì thẻ Dashboard và trang chi tiết cùng làm mới: mọi mutation invalidate đúng nhóm khoá của cả hai',
+  () => {
+    const hooks = source('features/weight/hooks/use-weights.ts')
+    assert.match(hooks, /WEIGHT_INVALIDATE = \[\s*weightKeys\.all,[\s\S]*?\['body-metrics'\]/)
+    assert.match(hooks, /MEASUREMENT_INVALIDATE = \[measurementKeys\.all, \['body-metrics'\]\]/)
+    assert.match(hooks, /VISUAL_INVALIDATE = \[visualBodyFatKeys\.all, \['body-metrics'\]\]/)
+    const overview = source('features/dashboard/hooks/use-measurement-overview.ts')
+    assert.match(overview, /queryKey: \['body-metrics', 'measurement-overview'/)
+    assert.match(hooks, /recent: \(to: string, limit: number\) => \['weights', 'recent'/)
+    assert.match(hooks, /history: \(to: string\) => \['weights', 'all'/)
+    assert.match(hooks, /visualBodyFatKeys = \{\s*all: \['visual-body-fat'\]/)
+  }
+)
+check(
+  'Last 7 Entries = 7 NGÀY GẦN NHẤT CÓ DỮ LIỆU (không phải 7 ngày liên tiếp), nhập lịch sử cũ vẫn tính; hôm nay theo múi giờ user',
+  () => {
+    const dates = [
+      '2026-01-05',
+      '2026-03-10',
+      '2026-04-01',
+      '2026-06-30',
+      '2026-08-15',
+      '2026-09-09',
+      '2026-10-01',
+      '2026-10-22',
+    ]
+    const newest = dashboardUtils.latestByDate([...dates].reverse(), (d) => d, 7)
+    assert.deepEqual(newest, dates.slice(1), '8 ngày có dữ liệu rải 10 tháng: lấy 7 ngày mới nhất')
+    const imported = dashboardUtils.latestByDate(['2024-02-01', '2024-01-01'], (d) => d, 7)
+    assert.deepEqual(
+      imported,
+      ['2024-01-01', '2024-02-01'],
+      'chỉ có dữ liệu nhập lịch sử vẫn có thẻ'
+    )
+    const now = new Date('2026-10-22T20:00:00Z')
+    assert.equal(date.isoInZone(now, 'Asia/Tokyo'), '2026-10-23')
+    assert.equal(date.isoInZone(now, 'America/New_York'), '2026-10-22')
+  }
+)
+// Macros Detail: MỌI số (kcal từng phần, % calo, trung bình, bucket) do BE tính — GET /nutrients/macros/series; FE chỉ vẽ / định dạng
+const mday = (date, cal, p, f, c, extra = {}) => ({
+  date,
+  isLogged: true,
+  isFasting: false,
+  isIncomplete: false,
+  caloriesKcal: cal,
+  proteinG: p,
+  fatG: f,
+  carbsG: c,
+  proteinKcal: p * 4,
+  fatKcal: f * 9,
+  carbsKcal: c * 4,
+  otherKcal: cal - (p * 4 + f * 9 + c * 4),
+  ...extra,
+})
+const unlogged = (date) => ({
+  date,
+  isLogged: false,
+  isFasting: false,
+  isIncomplete: false,
+  caloriesKcal: null,
+  proteinG: null,
+  fatG: null,
+  carbsG: null,
+  proteinKcal: null,
+  fatKcal: null,
+  carbsKcal: null,
+  otherKcal: null,
+})
+const avg = (over = {}) => ({
+  caloriesKcal: 1000,
+  proteinG: 43.5,
+  fatG: 13,
+  carbsG: 133,
+  proteinKcal: 174,
+  fatKcal: 117,
+  carbsKcal: 532,
+  otherKcal: 177,
+  proteinPercent: 17.4,
+  fatPercent: 11.7,
+  carbsPercent: 53.2,
+  otherPercent: 17.7,
+  ...over,
+})
+const SERIES = {
+  from: '2026-10-18',
+  to: '2026-10-24',
+  days: [
+    mday('2026-10-18', 280, 10, 0, 50),
+    mday('2026-10-19', 95, 0, 0, 0),
+    mday('2026-10-20', 1460, 107.5, 32.2, 185),
+    mday('2026-10-21', 3250, 55, 20, 297),
+    unlogged('2026-10-22'),
+    mday('2026-10-23', 0, 0, 0, 0, { isFasting: true }),
+    mday('2026-10-24', 100, 50, 0, 0),
+  ],
+  summary: {
+    from: '2026-10-18',
+    to: '2026-10-24',
+    loggedDays: 6,
+    calendarDays: 7,
+    averages: avg(),
+  },
+  buckets: [
+    {
+      start: '2026-10-18',
+      end: '2026-10-18',
+      loggedDays: 1,
+      averages: avg({
+        caloriesKcal: 280,
+        carbsKcal: 200,
+        proteinKcal: 40,
+        fatKcal: 0,
+        otherKcal: 40,
+      }),
+    },
+    { start: '2026-10-19', end: '2026-10-25', loggedDays: 5, averages: avg() },
+  ],
+}
+check(
+  'Macros: cột lấy NGUYÊN kcal của BE (không tính lại); ngày chưa log không có cột; ngày nhịn ăn là cột 0',
+  () => {
+    const bars = macrosDetail.macroBarsOf(SERIES, 'daily')
+    assert.deepEqual(
+      bars.map((b) => b.date),
+      ['2026-10-18', '2026-10-19', '2026-10-20', '2026-10-21', '2026-10-23', '2026-10-24'],
+      'ngày 22 chưa log: không cột'
+    )
+    const wed = bars.find((b) => b.date === '2026-10-21')
+    assert.deepEqual(
+      [wed.carbs, wed.fat, wed.protein, wed.other, wed.total],
+      [1188, 180, 220, 1662, 3250],
+      'như BE: C 1188 / F 180 / P 220 / Other 1662 / tổng 3250'
+    )
+    const fast = bars.find((b) => b.date === '2026-10-23')
+    assert.equal(macrosDetail.stackTotal(fast), 0)
+    assert.deepEqual(macrosDetail.MACRO_PARTS, ['carbs', 'fat', 'protein', 'other'])
+  }
+)
+check(
+  'Macros: Other ÂM (macro nhiều hơn kcal): số thật giữ trong bar, chỉ VẼ Other khi > 0, % của P / F / C không bị kẹp',
+  () => {
+    const neg = macrosDetail.macroBarsOf(SERIES, 'daily').find((b) => b.date === '2026-10-24')
+    assert.equal(neg.other, -100, 'số thô có dấu của BE')
+    assert.equal(macrosDetail.drawnKcal(neg, 'other'), 0)
+    assert.equal(macrosDetail.drawnKcal(neg, 'protein'), 200)
+    assert.equal(macrosDetail.stackTotal(neg), 200, 'cột = các phần được vẽ')
+    assert.equal(macrosDetail.percentText(neg, 'protein'), '200%', 'không kẹp xuống 100%')
+    assert.equal(macrosDetail.percentText(neg, 'carbs'), '0%')
+  }
+)
+check(
+  'Macros: % calo mỗi ngày theo đúng công thức BE (kcal phần ÷ kcal tổng × 100, 1 số lẻ ra xa 0) rồi hiện số nguyên: ảnh MF 7% P • 6% F • 37% C',
+  () => {
+    const bars = macrosDetail.macroBarsOf(SERIES, 'daily')
+    const wed = bars.find((b) => b.date === '2026-10-21')
+    assert.equal(macrosDetail.percentOf(wed.protein, wed.total), 6.8) // 220 / 3250 = 6.769…
+    assert.equal(macrosDetail.percentOf(wed.fat, wed.total), 5.5) // 180 / 3250 = 5.538…
+    assert.equal(macrosDetail.percentOf(wed.carbs, wed.total), 36.6) // 1188 / 3250 = 36.55
+    assert.deepEqual(
+      ['protein', 'fat', 'carbs'].map((part) => macrosDetail.percentText(wed, part)),
+      ['7%', '6%', '37%']
+    )
+    const mon = bars.find((b) => b.date === '2026-10-19')
+    assert.deepEqual(
+      ['protein', 'fat', 'carbs'].map((part) => macrosDetail.percentText(mon, part)),
+      ['0%', '0%', '0%'],
+      'ngày chỉ có calo Quick Add'
+    )
+    assert.equal(macrosDetail.drawnKcal(mon, 'other'), 95, 'cột toàn Other')
+  }
+)
+check('Macros: tổng kcal 0 (ngày nhịn ăn) → null / 0%, không chia cho 0, thanh để trống', () => {
+  assert.equal(macrosDetail.percentOf(0, 0), null)
+  assert.equal(macrosDetail.percentOf(5, 0), null)
+  const fast = macrosDetail.macroBarsOf(SERIES, 'daily').find((b) => b.date === '2026-10-23')
+  for (const part of ['protein', 'fat', 'carbs'])
+    assert.equal(macrosDetail.percentText(fast, part), '0%')
+  const list = source('features/dashboard/components/MacrosPage/MacrosBreakdownList.tsx')
+  assert.match(list, /total > 0 &&/)
+})
+check(
+  'Macros: W / M lấy bucket của BE (chỉ bucket có ngày log), đặt ở ngày đầu nhóm; D lấy ngày',
+  () => {
+    const weekly = macrosDetail.macroBarsOf(SERIES, 'weekly')
+    assert.deepEqual(
+      weekly.map((b) => [b.date, b.end, b.days, b.total]),
+      [
+        ['2026-10-18', '2026-10-18', 1, 280],
+        ['2026-10-19', '2026-10-25', 5, 1000],
+      ]
+    )
+    assert.equal(macrosDetail.macroBarsOf(SERIES, 'monthly').length, 2)
+    assert.deepEqual(macrosDetail.macroBarsOf({ ...SERIES, buckets: [] }, 'weekly'), [])
+  }
+)
+check(
+  'Macros: tóm tắt Protein / Fat / Carbs = summary.averages của BE cho đúng khoảng đang xem (không tự tính); không ngày log → "---"',
+  () => {
+    assert.equal(macrosDetail.gramText(43.5), '44', 'làm tròn ra xa 0 khi hiển thị')
+    assert.equal(macrosDetail.gramText(43.4), '43')
+    assert.equal(macrosDetail.gramText(null), null)
+    assert.equal(macrosDetail.gramText(undefined), null)
+    const page = source('features/dashboard/pages/MacrosDetailPage.tsx')
+    assert.match(page, /range === 'All' \? series\.summary : windowSummary\.data\?\.summary/)
+    assert.match(page, /useMacrosSeries\(\s*win \? \{ from: win\.from, to: win\.to \} : \{\}/)
+    assert.match(page, /gramText\(averages\?\.proteinG\)/)
+    for (const gone of [
+      'macroSummary',
+      'averageMacroDays',
+      'compositionOf',
+      'macroDaysOf',
+      'MACROS_ALL_FROM',
+    ])
+      assert.equal(macrosDetail[gone], undefined, `${gone} đã bỏ: FE không tự tính`)
+  }
+)
+check(
+  'Macros: mỗi kỳ 1W / 1M / 3M / 6M / 1Y gửi from / to của cửa sổ kết thúc hôm nay; kéo biểu đồ đổi from / to; All dùng toàn lịch sử',
+  () => {
+    const today = '2026-10-23'
+    const total = 400
+    const wins = ['1W', '1M', '3M', '6M', '1Y'].map((r) => {
+      const w = geometry.viewWindow(today, geometry.slotsOf(r, total), 0)
+      return [r, date.daysBetween(w.from, w.to) + 1, w.to]
+    })
+    assert.deepEqual(wins, [
+      ['1W', 7, today],
+      ['1M', 30, today],
+      ['3M', 91, today],
+      ['6M', 182, today],
+      ['1Y', 365, today],
+    ])
+    const panned = geometry.viewWindow(today, 7, 7)
+    assert.deepEqual([panned.from, panned.to], ['2026-10-10', '2026-10-16'])
+    const hooks = source('features/dashboard/hooks/use-dashboard.ts')
+    assert.match(hooks, /'nutrients',\s*'macros-series'/)
+    assert.match(hooks, /placeholderData: keepPreviousData/)
+  }
+)
+check(
+  'Macros: nguồn duy nhất GET /nutrients/macros/series; log món làm mới (khoá nutrients); Dashboard tile giữ nguồn riêng',
+  () => {
+    assert.match(source('config/api-routes.ts'), /macrosSeries: '\/nutrients\/macros\/series'/)
+    assert.match(
+      source('features/dashboard/services/dashboard.service.ts'),
+      /macrosSeries: \(params: MacrosSeriesParams\)[\s\S]{0,160}apiRoutes\.nutrients\.macrosSeries, \{ params \}/
+    )
+    const foodLog = source('features/food-log/hooks/use-food-log.ts')
+    assert.match(foodLog, /LOG_DERIVED_KEYS = \[\s*\['nutrients'\]/)
+    const page = source('features/dashboard/pages/MacrosDetailPage.tsx')
+    assert.doesNotMatch(page, /useDailyProgress|macroDayOf|KCAL_PER_GRAM/)
+    const detail = source('features/dashboard/macros-detail.ts')
+    const bars = detail.slice(
+      detail.indexOf('const barOf'),
+      detail.indexOf('export const drawnKcal')
+    )
+    assert.doesNotMatch(bars, /KCAL_PER_GRAM|\* 4|\* 9/, 'không quy gram → kcal ở FE')
+    assert.match(
+      source('features/dashboard/hooks/use-dashboard-data.ts'),
+      /macroBarOn\(macrosSeries\.data, date\)/
+    )
+    assert.match(
+      source('features/dashboard/components/DashboardPage/LayoutSection.tsx'),
+      /href=\{routePath\.dashboardMacros\}/
+    )
+  }
+)
+check(
+  'Macros: ô Dashboard và màn chi tiết cùng một nguồn / helper — cùng fixture cho đúng cùng các phần kcal, Other âm không vẽ ở cả hai',
+  () => {
+    const detail = macrosDetail.macroBarsOf(SERIES, 'daily')
+    for (const bar of detail) {
+      const tile = macrosDetail.macroBarOn(SERIES, bar.date)
+      assert.deepEqual(tile, bar, bar.date + ': ô và chi tiết cùng một bar')
+      for (const part of macrosDetail.MACRO_PARTS)
+        assert.equal(macrosDetail.drawnKcal(tile, part), macrosDetail.drawnKcal(bar, part))
+      assert.equal(macrosDetail.stackTotal(tile), macrosDetail.stackTotal(bar))
+    }
+    assert.equal(
+      macrosDetail.macroBarOn(SERIES, '2026-10-22'),
+      null,
+      'ngày chưa log: ô không có cột, như chi tiết'
+    )
+    assert.equal(macrosDetail.macroBarOn(SERIES, '2030-01-01'), null, 'ngoài phản hồi: không cột')
+    const neg = macrosDetail.macroBarOn(SERIES, '2026-10-24')
+    assert.equal(neg.other, -100, 'số thật của BE không bị sửa')
+    assert.equal(macrosDetail.drawnKcal(neg, 'other'), 0, 'Other âm không vẽ ở ô')
+    assert.equal(macrosDetail.stackTotal(neg), 200)
+    const tiles = source('features/dashboard/components/DashboardPage/TileVisuals.tsx')
+    const stack = tiles.slice(
+      tiles.indexOf('export function MacroStack'),
+      tiles.indexOf('export function StepsBars')
+    )
+    assert.match(stack, /stackTotal\(day\)/)
+    assert.match(stack, /drawnKcal\(day, part\)/)
+    assert.doesNotMatch(
+      stack,
+      /day\.carbs \+ day\.fat|day\[part\]/,
+      'không tự cộng / đọc Other thô ở ô'
+    )
+    assert.doesNotMatch(
+      source('features/dashboard/hooks/use-dashboard-data.ts'),
+      /macroDayOf|KCAL_PER_GRAM|dailyByDate/
+    )
+  }
+)
+
+// ── Sửa món đã log: lượng / khẩu phần / bữa, một PUT cho mỗi lần lưu (không mạng) ──
+check(
+  'Edit entry: bữa suy từ giờ theo đúng ngưỡng BE (<10:00, <11:30, <14:00, <17:00, <21:00); đổi giờ đổi bữa, không đổi giờ giữ bữa cũ',
+  () => {
+    const cases = [
+      ['06:59', 'Breakfast'],
+      ['09:59', 'Breakfast'],
+      ['10:00', 'MorningSnack'],
+      ['11:29', 'MorningSnack'],
+      ['11:30', 'Lunch'],
+      ['13:59', 'Lunch'],
+      ['14:00', 'AfternoonSnack'],
+      ['16:59', 'AfternoonSnack'],
+      ['17:00', 'Dinner'],
+      ['20:59', 'Dinner'],
+      ['21:00', 'EveningSnack'],
+      ['23:59', 'EveningSnack'],
+      ['00:00', 'Breakfast'],
+    ]
+    for (const [time, meal] of cases) assert.equal(enums.mealForTime(time), meal, time)
+    const dialog = source('features/food-log/components/FoodLogPage/EntryEditDialog.tsx')
+    assert.match(
+      dialog,
+      /mealType: time === entryTime\(entry\) \? entry\.mealType : mealForTime\(time\)/
+    )
+  }
+)
+check(
+  'Edit entry: payload = { mealType, eatenAt HH:mm:00, foodServingId (khẩu phần ảo → khẩu phần gốc của dòng), quantity } và cả hai nút Done lưu CÙNG một thay đổi',
+  () => {
+    const dialog = source('features/food-log/components/FoodLogPage/EntryEditDialog.tsx')
+    assert.match(dialog, /eatenAt: \x60\$\{time\}:00\x60/)
+    assert.match(
+      dialog,
+      /foodServingId: servingId === LOGGED_UNIT \? entry\.foodServingId : servingId/
+    )
+    assert.match(dialog, /quantity,\n\s*\}\)/)
+    assert.match(dialog, /onDone: save/)
+    assert.match(
+      dialog,
+      /if \(change\.current\.valid\) save\(change\.current\)/,
+      'Done trên cùng chỉ lưu khi số nhập hợp lệ'
+    )
+    assert.match(dialog, /disabled=\{isPending \|\| !detail\}/, 'Done trên bị khoá khi đang lưu')
+  }
+)
+check(
+  'Edit entry: MỘT lần lưu = MỘT PUT — khoá đồng bộ theo ref chống bấm Done hai lần (PUT thứ hai cùng món bị BE từ chối), mở lại khi PUT xong',
+  () => {
+    const page = source('features/food-log/pages/FoodLogPage.tsx')
+    assert.match(page, /import \{ useEffect, useRef, useState \} from 'react'/)
+    assert.match(page, /const savingEntry = useRef\(false\)/)
+    assert.match(page, /if \(savingEntry\.current\) return\s*\n\s*savingEntry\.current = true/)
+    assert.match(page, /onSettled: \(\) => \{\s*\n\s*savingEntry\.current = false/)
+    assert.match(page, /onSuccess: \(\) => editSheet\.hide\(\)/)
+    // mô phỏng: hai lần gọi liên tiếp trước khi PUT xong chỉ gửi một lần
+    let inflight = false,
+      sent = 0
+    const save = (done) => {
+      if (inflight) return
+      inflight = true
+      sent += 1
+      done.settle = () => {
+        inflight = false
+      }
+    }
+    const call = {}
+    save(call)
+    save(call)
+    assert.equal(sent, 1)
+    call.settle()
+    save(call)
+    assert.equal(sent, 2, 'lần sửa sau khi PUT xong vẫn gửi bình thường')
+  }
+)
+check(
+  'Edit entry: sửa / xoá món làm mới nhật ký, tổng ngày, tuần, Macros và Dashboard (khoá food-log + nutrients + expenditure + energy-balance)',
+  () => {
+    const hooks = source('features/food-log/hooks/use-food-log.ts')
+    assert.match(
+      hooks,
+      /LOG_DERIVED_KEYS = \[\s*\['nutrients'\],\s*\['nutrition-overview'\],\s*\['expenditure'\],\s*\['energy-balance'\],\s*\]/
+    )
+    assert.match(hooks, /void queryClient\.invalidateQueries\(\{ queryKey: foodLogKeys\.all \}\)/)
+    assert.match(hooks, /export const useUpdateEntry = \(\) =>\s*useLogMutation\(/)
+    assert.match(
+      hooks,
+      /onMutate: async \(id\) => \{/,
+      'xoá món: bỏ khỏi cache ngay, lỗi thì trả lại'
+    )
+  }
+)
+
+check(
+  'Macros: biểu đồ và danh sách chỉ đọc bar BE: xếp chồng theo MACRO_PARTS, trục y theo năng lượng user từ 0, chú giải / thanh ngang cùng bảng màu',
+  () => {
+    const chart = source('features/dashboard/components/MacrosPage/MacrosChart.tsx')
+    assert.match(chart, /MACRO_PARTS\.map\(\(part\) =>/)
+    assert.match(chart, /energy\.convert\(drawnKcal\(day, part\)\)/)
+    assert.match(chart, /energy\.convert\(stackTotal\(day\)\)/)
+    assert.match(chart, /niceAxis\(top\)/)
+    assert.match(chart, /min=\{0\}/)
+    const list = source('features/dashboard/components/MacrosPage/MacrosBreakdownList.tsx')
+    assert.match(list, /percentText\(day, part\)/)
+    assert.match(list, /MACRO_PART_STYLE\[part\]\.bg/)
+    const styles = macrosDetail.MACRO_PART_STYLE
+    assert.deepEqual(
+      macrosDetail.MACRO_PARTS.map((p) => styles[p].fill),
+      ['fill-mf-tile-carbs', 'fill-mf-tile-fat', 'fill-mf-tile-protein', 'fill-mf-tile-calories']
+    )
+  }
+)
+// Parity FE ↔ BE cho Average / Difference của Body Metrics. Kết quả BE tính TAY từ BE/src/Application/Features/Metrics/MetricSeries.cs:
+//   dòng 12  inRange = điểm có from ≤ ngày ≤ to, tăng dần theo ngày
+//   dòng 13  rỗng → Count 0, Average / Difference null
+//   dòng 20  Average = Round(mean)  — dòng 46: Math.Round(value, 2, MidpointRounding.AwayFromZero)
+//   dòng 21  Difference = Count ≥ 2 ? Round(last − first) : null   (giữ dấu, không abs)
+//   dòng 27  bucket Average = Round(mean các điểm ngày của nhóm); Summary luôn tính trên điểm NGÀY thô, không phải bucket
+const pts = (rows) => rows.map(([d, v]) => ({ date: d, value: v }))
+const BE_VECTORS = [
+  { name: '0 entry', rows: [], average: null, difference: null },
+  { name: '1 entry', rows: [['2026-10-20', 79.3]], average: 79.3, difference: null },
+  {
+    name: '2 entries, Difference ÂM',
+    rows: [
+      ['2026-10-17', 79.3],
+      ['2026-10-22', 78.8],
+    ],
+    average: 79.05, // 158.1 / 2
+    difference: -0.5, // 78.8 − 79.3
+  },
+  {
+    name: '2 entries, Difference DƯƠNG',
+    rows: [
+      ['2026-10-17', 78.8],
+      ['2026-10-22', 79.3],
+    ],
+    average: 79.05,
+    difference: 0.5,
+  },
+  {
+    name: '7 entries',
+    rows: [
+      ['2026-10-17', 80.1],
+      ['2026-10-18', 79.9],
+      ['2026-10-19', 80.4],
+      ['2026-10-20', 80.0],
+      ['2026-10-21', 79.5],
+      ['2026-10-22', 79.8],
+      ['2026-10-23', 79.2],
+    ],
+    average: 79.84, // 558.9 / 7 = 79.842857… → 79.84
+    difference: -0.9, // 79.2 − 80.1
+  },
+  {
+    name: 'nhiều entries (10)',
+    rows: Array.from({ length: 10 }, (_, i) => [
+      `2026-10-${String(10 + i).padStart(2, '0')}`,
+      60 + i,
+    ]),
+    average: 64.5, // 645 / 10
+    difference: 9,
+  },
+  {
+    name: 'ngày thiếu KHÔNG tính 0 (hai điểm cách nhau 19 ngày)',
+    rows: [
+      ['2026-10-01', 79],
+      ['2026-10-20', 81],
+    ],
+    average: 80, // không phải (79 + 81) / 20
+    difference: 2,
+  },
+  {
+    name: 'nửa làm tròn RA XA 0 (dương): 79.305 → 79.31',
+    rows: [
+      ['2026-10-20', 79.3],
+      ['2026-10-21', 79.31],
+    ],
+    average: 79.31, // Round(79.305, 2, AwayFromZero)
+    difference: 0.01,
+  },
+  {
+    name: 'nửa làm tròn RA XA 0 (âm): Difference −0.005 → −0.01',
+    rows: [
+      ['2026-10-20', 10.005],
+      ['2026-10-21', 10.0],
+    ],
+    average: 10.0, // Round(10.0025, 2)
+    difference: -0.01, // Math.Round(-0.005, 2, AwayFromZero)
+  },
+]
+check(
+  'Parity BE: Average / Difference của mọi vector (0, 1, 2, 7, nhiều điểm, ngày thiếu, nửa làm tròn, dương / âm) khớp kết quả BE tính tay',
+  () => {
+    for (const v of BE_VECTORS) {
+      const got = bodyMetric.summarizeMetric(pts(v.rows))
+      assert.equal(got.average, v.average, `${v.name}: Average`)
+      assert.equal(got.difference, v.difference, `${v.name}: Difference`)
+    }
+  }
+)
+check(
+  'roundAway = Math.Round(decimal, d, AwayFromZero): nửa luôn ra xa 0 kể cả âm, không ra -0',
+  () => {
+    assert.equal(bodyMetric.roundAway(0.005, 2), 0.01)
+    assert.equal(bodyMetric.roundAway(-0.005, 2), -0.01)
+    assert.equal(bodyMetric.roundAway(1.005, 2), 1.01)
+    assert.equal(bodyMetric.roundAway(2.675, 2), 2.68)
+    assert.equal(bodyMetric.roundAway(-2.675, 2), -2.68)
+    assert.equal(bodyMetric.roundAway(79.305, 2), 79.31)
+    assert.equal(bodyMetric.roundAway(0.25, 1), 0.3)
+    assert.equal(bodyMetric.roundAway(-0.25, 1), -0.3)
+    assert.ok(Object.is(bodyMetric.roundAway(-0.001, 2), 0), 'không ra -0')
+  }
+)
+check(
+  'Parity BE: bucket W / M = trung bình các điểm ngày của nhóm làm tròn 2 chữ số (MetricSeries.cs dòng 27); Summary không dùng bucket',
+  () => {
+    const week = bodyMetric.averageMetric(
+      pts([
+        ['2026-10-20', 79.3],
+        ['2026-10-21', 79.31],
+        ['2026-10-27', 80],
+      ]),
+      'weekly',
+      'Monday'
+    )
+    assert.deepEqual(
+      week.map((b) => [b.date, b.days, b.value]),
+      [
+        ['2026-10-19', 2, 79.31],
+        ['2026-10-26', 1, 80],
+      ]
+    )
+    const month = bodyMetric.averageMetric(
+      pts([
+        ['2026-10-20', 79.3],
+        ['2026-10-21', 79.31],
+      ]),
+      'monthly',
+      'Monday'
+    )
+    assert.deepEqual(
+      month.map((b) => [b.date, b.value]),
+      [['2026-10-01', 79.31]]
+    )
+    const view = source('features/weight/components/BodyMetricPage/BodyMetricView.tsx')
+    assert.match(view, /summarizeMetric\(inWindow\)/, 'Summary từ điểm ngày thô trong khoảng')
+    assert.match(view, /const inWindow = points\.filter/)
+    assert.doesNotMatch(view, /summarizeMetric\(averageMetric/)
+  }
+)
+check(
+  'Khoảng đang xem: 1W / 1M / 3M / 6M / 1Y / All lấy đúng điểm trong cửa sổ kết thúc hôm nay (khớp from / to BE); kéo biểu đồ đổi cửa sổ; kỳ trống → null',
+  () => {
+    const today = '2026-10-23'
+    const points = pts([
+      ['2026-01-01', 90],
+      ['2026-09-25', 78],
+      ['2026-10-17', 79],
+      ['2026-10-20', 81],
+      ['2026-10-23', 80],
+    ])
+    const total = date.daysBetween(points[0].date, today) + 1
+    const summaryOf = (range, snapped = 0) => {
+      const win = geometry.viewWindow(today, geometry.slotsOf(range, total), snapped)
+      return bodyMetric.summarizeMetric(
+        points.filter((p) => p.date >= win.from && p.date <= win.to)
+      )
+    }
+    assert.deepEqual(summaryOf('1W'), { average: 80, difference: 1 }) // 79, 81, 80
+    assert.deepEqual(summaryOf('1M'), { average: 79.5, difference: 2 }) // 78, 79, 81, 80
+    assert.deepEqual(summaryOf('3M'), { average: 79.5, difference: 2 })
+    assert.deepEqual(summaryOf('All'), { average: 81.6, difference: -10 }) // 408 / 5 ; 80 − 90 (ÂM)
+    assert.deepEqual(
+      summaryOf('1W', 7),
+      { average: null, difference: null },
+      'kéo lùi một tuần: không có điểm → không số giả'
+    )
+    assert.deepEqual(
+      summaryOf('1W', 4),
+      { average: 79, difference: null },
+      'một điểm → Average của nó, Difference null'
+    )
+  }
+)
+check(
+  'Kéo biểu đồ / đổi kỳ / D-W-M không gọi lại API: một query toàn lịch sử khoá theo hôm nay, khoảng chỉ lọc ở FE',
+  () => {
+    const hooks = source('features/weight/hooks/use-weights.ts')
+    assert.match(hooks, /history: \(to: string\) => \['weights', 'all', to\]/)
+    const view = source('features/weight/components/BodyMetricPage/BodyMetricView.tsx')
+    assert.doesNotMatch(view, /useQuery|refetch|invalidateQueries|useWeights|useMeasurement/)
+  }
+)
+check(
+  'kg ↔ lb và % mỡ: Average / Difference tính trên đơn vị CHUẨN (kg) như BE rồi mới đổi + làm tròn 1 chữ số; Difference giữ dấu',
+  () => {
+    const view = source('features/weight/components/BodyMetricPage/BodyMetricView.tsx')
+    assert.match(view, /roundAway\(convert\(average\), 1\)/)
+    assert.match(view, /roundAway\(convert\(difference\), 1\)/)
+    assert.doesNotMatch(view, /Math\.abs/)
+    const page = source('features/weight/pages/ScaleWeightPage.tsx')
+    assert.match(
+      page,
+      /value: item\.weightKg \}/,
+      'điểm gửi vào view là kg chuẩn, không làm tròn lb trước'
+    )
+    assert.match(page, /convert=\{weight\.convert\}/)
+    const kg = bodyMetric.summarizeMetric(
+      pts([
+        ['2026-10-17', 79.3],
+        ['2026-10-22', 78.8],
+      ])
+    )
+    const lb = (v) => bodyMetric.roundAway(units.weightMeasure('lb').convert(v), 1)
+    assert.equal(lb(kg.difference), -1.1, '−0.5 kg = −1.1 lb, giữ dấu âm')
+    assert.equal(lb(kg.average), 174.3, '79.05 kg → 174.3 lb')
+    const fat = bodyMetric.summarizeMetric(
+      pts([
+        ['2026-10-17', 26],
+        ['2026-10-20', 26.5],
+      ])
+    )
+    assert.deepEqual(fat, { average: 26.25, difference: 0.5 })
+  }
+)
+check(
+  'Left / Right và các số đo khác nhau không gộp: mỗi trang / thẻ một khoá, tóm tắt chỉ từ điểm của khoá đó',
+  () => {
+    const page = source('features/weight/pages/MeasurementPage.tsx')
+    assert.match(page, /useMeasurement\(metric\.key, today\)/)
+    const left = bodyMetric.summarizeMetric(
+      pts([
+        ['2026-10-20', 34],
+        ['2026-10-22', 34.5],
+      ])
+    )
+    const right = bodyMetric.summarizeMetric(pts([['2026-10-21', 33]]))
+    assert.deepEqual(left, { average: 34.25, difference: 0.5 })
+    assert.deepEqual(
+      right,
+      { average: 33, difference: null },
+      'bên phải một điểm: không mượn điểm bên trái'
+    )
+  }
+)
+check(
+  'Nhập lại cùng ngày (Neck 10 → 19): BE giữ một giá trị, FE hiện 19 ở chi tiết và thẻ Dashboard, không còn điểm 10',
+  () => {
+    const afterReentry = [{ date: '2026-10-20', valueCm: 19 }] // BE: một giá trị / số đo / ngày
+    const detail = bodyMetric.summarizeMetric(
+      afterReentry.map((e) => ({ date: e.date, value: e.valueCm }))
+    )
+    assert.deepEqual(detail, { average: 19, difference: null })
+    const spark = dashboardUtils.latestByDate(afterReentry, (e) => e.date, 7).map((e) => e.valueCm)
+    assert.deepEqual(spark, [19], 'thẻ chỉ có điểm 19')
+    assert.ok(!spark.includes(10))
+    assert.equal(entrySpark.entrySparkPoints(spark, 265, 48).length, 1)
+    const tiles = source('features/dashboard/components/DashboardPage/BodyMetricTiles.tsx')
+    assert.match(tiles, /trim\(metric\.latestCm\)/, 'số lớn của thẻ = latestCm của BE (19)')
+    const hooks = source('features/weight/hooks/use-weights.ts')
+    assert.match(hooks, /MEASUREMENT_INVALIDATE = \[measurementKeys\.all, \['body-metrics'\]\]/)
   }
 )
 console.log(`${checks} checks passed, ${failures} failed`)

@@ -4,7 +4,12 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { MetricChart } from './MetricChart'
 import { MetricHistoryList } from './MetricHistoryList'
-import { averageMetric, summarizeMetric, type MetricPoint } from '../../body-metric.utils'
+import {
+  averageMetric,
+  roundAway,
+  summarizeMetric,
+  type MetricPoint,
+} from '../../body-metric.utils'
 import { slotsOf, viewWindow } from '@/features/dashboard/chart/geometry'
 import { useChartPan } from '@/features/dashboard/chart/use-chart-pan'
 import {
@@ -30,8 +35,10 @@ import { daysBetween } from '@/lib/date'
 interface BodyMetricViewProps {
   readonly title: string
   readonly unit: string
-  /** Mọi điểm đã ghi, tăng dần theo ngày (đã đổi sang đơn vị hiển thị). */
+  /** Mọi điểm đã ghi, tăng dần theo ngày, ở đơn vị CHUẨN của BE (kg, cm, %): Average / Difference tính trên đây rồi mới đổi sang đơn vị hiển thị. */
   readonly points: readonly MetricPoint[]
+  /** Đổi giá trị chuẩn sang đơn vị hiển thị (kg → lb); mặc định giữ nguyên. Chỉ dùng để HIỂN THỊ, không đổi phép tính. */
+  readonly convert?: (value: number) => number
   /** null khi chưa mount (hôm nay tính ở client). */
   readonly today: string | null
   readonly isLoading: boolean
@@ -50,6 +57,7 @@ export function BodyMetricView({
   title,
   unit,
   points,
+  convert = (value) => value,
   today,
   isLoading,
   tutorial,
@@ -85,18 +93,27 @@ export function BodyMetricView({
 
   const win = viewWindow(today, target, pan.view.snapped)
   const inWindow = points.filter((point) => point.date >= win.from && point.date <= win.to)
+  // Điểm theo đơn vị hiển thị (1 chữ số) cho biểu đồ và lịch sử; Average / Difference tính từ điểm CHUẨN của BE trong khoảng đang xem rồi mới đổi + làm tròn 1 chữ số
+  const shownPoints = points.map((point) => ({
+    ...point,
+    value: roundAway(convert(point.value), 1),
+  }))
   const { average, difference } = summarizeMetric(inWindow)
+  const shownAverage = average === null ? null : roundAway(convert(average), 1)
+  const shownDifference = difference === null ? null : roundAway(convert(difference), 1)
 
   return (
     <div className="flex max-w-2xl flex-col gap-5">
       {header}
       <div className="flex items-start justify-between gap-3">
         <div className="flex gap-10">
-          <StatBlock label="Average" value={average?.toFixed(1) ?? null} unit={unit} />
+          <StatBlock label="Average" value={shownAverage?.toFixed(1) ?? null} unit={unit} />
           <StatBlock
             label="Difference"
             value={
-              difference === null ? null : `${difference > 0 ? '+' : ''}${difference.toFixed(1)}`
+              shownDifference === null
+                ? null
+                : `${shownDifference > 0 ? '+' : ''}${shownDifference.toFixed(1)}`
             }
             unit={unit}
           />
@@ -110,7 +127,10 @@ export function BodyMetricView({
           // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
           key={averaging}
           className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
-          points={averageMetric(points, averaging, weekStartDay)}
+          points={averageMetric(points, averaging, weekStartDay).map((point) => ({
+            ...point,
+            value: roundAway(convert(point.value), 1),
+          }))}
           today={today}
           slots={slots}
           pos={pan.view.pos}
@@ -141,7 +161,7 @@ export function BodyMetricView({
           {title}
         </div>
         {tutorial && <TutorialCard steps={tutorial} tone="green" onDismiss={onDismissTutorial} />}
-        <MetricHistoryList points={points} unit={unit} icon={historyIcon} onEdit={onEdit} />
+        <MetricHistoryList points={shownPoints} unit={unit} icon={historyIcon} onEdit={onEdit} />
       </div>
     </div>
   )

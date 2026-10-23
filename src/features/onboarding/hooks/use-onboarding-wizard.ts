@@ -10,7 +10,13 @@ import {
   useSaveBasics,
   useTdeeEstimate,
 } from './use-onboarding'
-import { applyAnswers, basicsPayload, chooseGoalType, previewRequestOf } from '../onboarding.utils'
+import {
+  applyAnswers,
+  basicsPayload,
+  chooseGoalType,
+  previewRequestOf,
+  weightKeptMessage,
+} from '../onboarding.utils'
 import {
   bootOf,
   clearDraft,
@@ -228,7 +234,12 @@ export function useOnboardingWizard(initial: OnboardingState): OnboardingWizard 
         if (userId !== null) clearDraft(userId)
       } else {
         const payload = basicsPayload(stepId, answers)
-        if (payload) await saveBasics.mutateAsync(payload)
+        if (payload) {
+          const saved = await saveBasics.mutateAsync(payload)
+          // BE giữ cân nặng đã lưu của hôm nay khi số nhập khác: báo ngắn bằng toast có sẵn (số trùng thì BE không báo)
+          const kept = weightKeptMessage(saved)
+          if (kept) toast(kept)
+        }
       }
       const target = visibleSteps[index + 1]
       if (target) go(target, 'forward')

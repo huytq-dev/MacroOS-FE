@@ -2,7 +2,7 @@ import { ChartArea } from './InsightCharts'
 import { entrySparkPoints } from '../../entry-spark'
 import { stepsBarRects, type StepsTileDay } from '../../steps-bars'
 import { cn } from '@/lib/utils'
-import type { MacroStackDay } from '../../types/dashboard.types'
+import { drawnKcal, stackTotal, type MacroBar } from '../../macros-detail'
 
 const WIDTH = 120
 const HEIGHT = 44
@@ -168,8 +168,9 @@ const MIN_STACK_PX = 2
  * (cam) và phần calo không quy ra macro (xanh dương, trên cùng) — kcal = C×4 + F×9 + P×4 + phần còn lại; ngày chưa log không có cột;
  * CÙNG một thang 0 → ngày cao nhất; bảy cột trải hết bề rộng, hôm nay ở mép phải, cao hết vùng vẽ; cột mọc lên từ đáy.
  */
-export function MacroStack({ days }: { readonly days: readonly (MacroStackDay | null)[] }) {
-  const totals = days.map((day) => (day ? day.carbs + day.fat + day.protein + day.other : 0))
+export function MacroStack({ days }: { readonly days: readonly (MacroBar | null)[] }) {
+  // Cùng `stackTotal` / `drawnKcal` với màn Macros Detail: Other ÂM không vẽ, số của BE không bị sửa
+  const totals = days.map((day) => (day ? stackTotal(day) : 0))
   const top = Math.max(0, ...totals)
   if (top === 0) return <div className="h-14" aria-hidden="true" />
   // Thiếu ngày thì dồn về bên phải (hôm nay luôn ở cột cuối)
@@ -186,7 +187,7 @@ export function MacroStack({ days }: { readonly days: readonly (MacroStackDay | 
           const lift = Math.max(1, MIN_STACK_PX / Math.max(totals[index] * scale, 0.0001))
           let filled = 0
           return STACK_SEGMENTS.map(([part, fill]) => {
-            const segment = day[part] * scale * lift
+            const segment = drawnKcal(day, part) * scale * lift
             filled += segment
             return segment <= 0 ? null : (
               <rect

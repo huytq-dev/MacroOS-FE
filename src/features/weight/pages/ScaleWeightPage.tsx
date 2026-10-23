@@ -51,7 +51,8 @@ export function ScaleWeightPage() {
   const items = history.data?.items ?? []
   const points = [...items]
     .sort((a, b) => a.logDate.localeCompare(b.logDate))
-    .map((item) => ({ date: item.logDate, value: toDisplay(item.weightKg) }))
+    // Điểm ở kg CHUẨN của BE: Average / Difference tính trên kg như BE, `convert` chỉ đổi sang lb khi hiển thị
+    .map((item) => ({ date: item.logDate, value: item.weightKg }))
   const entry = items.find((item) => item.logDate === sheetDate)
 
   const openSheet = (date: string) => {
@@ -92,6 +93,7 @@ export function ScaleWeightPage() {
         title="Scale Weight"
         unit={unit}
         points={points}
+        convert={weight.convert}
         today={today}
         isLoading={history.isLoading}
         tutorial={tutorial === 'show' ? SCALE_WEIGHT_TUTORIAL : null}

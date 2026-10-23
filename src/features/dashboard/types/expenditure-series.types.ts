@@ -7,8 +7,9 @@ export interface ExpenditureSeriesDay {
   /** yyyy-MM-dd; LIÊN TỤC từ ngày có dữ liệu đầu tới hôm nay (BE đã fill-forward). */
   date: string
   expenditureKcal: number
-  fluxLowKcal: number
-  fluxHighKcal: number
+  /** Dải Flux của BE: null / thiếu cho tới khi BE bật công thức đã duyệt. FE KHÔNG vẽ và KHÔNG tự sinh dải từ đường Expenditure (docs/Expenditure_Flux_UI_Plan.md). */
+  fluxLowKcal?: number | null
+  fluxHighKcal?: number | null
   status: ExpenditureDayStatus
   /** TDEE hôm nay − hôm qua (làm tròn); null ở ngày đầu. */
   changeKcal: number | null

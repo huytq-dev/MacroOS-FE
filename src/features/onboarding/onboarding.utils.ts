@@ -3,6 +3,7 @@ import type {
   OnboardingState,
   PreviewRequest,
   SaveBasicsRequest,
+  SaveBasicsResponse,
   StepId,
   TrainingType,
   WizardAnswers,
@@ -156,6 +157,18 @@ export const chooseGoalType = (
       }
 
 /** Dữ liệu lưu BE sau mỗi bước Basics; null = bước đó không lưu (giới thiệu, trò chuyện, giá trị). */
+/**
+ * Câu báo ngắn khi BE giữ cân nặng đã lưu của hôm nay thay cho số vừa nhập (`weightKept` từ `PUT /onboarding/basics`; FE không so số). null = không báo: không
+ * kept, thiếu trường (BE cũ trả `{}`), hoặc số / đơn vị không hợp lệ.
+ */
+export const weightKeptMessage = (response: SaveBasicsResponse | null | undefined) => {
+  if (!response || response.weightKept !== true) return null
+  const { storedWeightDisplay, displayUnit } = response
+  if (typeof storedWeightDisplay !== 'number' || !Number.isFinite(storedWeightDisplay)) return null
+  if (displayUnit !== 'kg' && displayUnit !== 'lb') return null
+  return `Your saved weight for today (${storedWeightDisplay.toFixed(1)} ${displayUnit}) was kept.`
+}
+
 export const basicsPayload = (stepId: StepId, answers: WizardAnswers): SaveBasicsRequest | null => {
   const step = STEP_ORDER.indexOf(stepId)
   switch (stepId) {

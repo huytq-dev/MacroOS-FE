@@ -1,9 +1,28 @@
 'use client'
 
 import { useCallback, useSyncExternalStore } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
-import { dashboardService } from '../services/dashboard.service'
+import { dashboardService, type MacrosSeriesParams } from '../services/dashboard.service'
+
+/**
+ * Chuỗi Macros của BE. Khoá bắt đầu bằng 'nutrients' nên thêm / sửa / xoá món (invalidateLogData) làm mới nó cùng Dashboard. `keepPreviousData` để số tóm tắt
+ * không nhấp nháy khi kéo biểu đồ sang khoảng mới.
+ */
+export const useMacrosSeries = (params: MacrosSeriesParams, enabled: boolean) =>
+  useQuery({
+    queryKey: [
+      'nutrients',
+      'macros-series',
+      params.from ?? '',
+      params.to ?? '',
+      params.all ?? false,
+      params.granularity ?? '',
+    ],
+    queryFn: () => dashboardService.macrosSeries(params),
+    enabled,
+    placeholderData: keepPreviousData,
+  })
 
 export const useDailyProgress = (from: string | null, to: string | null) =>
   useQuery({

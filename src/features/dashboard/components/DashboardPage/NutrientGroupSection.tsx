@@ -3,7 +3,8 @@ import { NutrientTile } from './NutrientTile'
 import { MacroStack } from './TileVisuals'
 import { nutrientValue } from '../../dashboard.utils'
 import { tilePending, type DashboardPending } from '../../dashboard-pending'
-import type { MacroStackDay, NutrientGroup, NutrientValue } from '../../types/dashboard.types'
+import type { MacroBar } from '../../macros-detail'
+import type { NutrientGroup, NutrientValue } from '../../types/dashboard.types'
 import { displayAmount, formatAmount } from '@/features/nutrition/nutrient-display'
 import { useUnits } from '@/features/users/hooks/use-units'
 
@@ -11,7 +12,7 @@ interface NutrientGroupSectionProps {
   readonly group: NutrientGroup
   readonly values: Readonly<Record<string, NutrientValue>>
   /** Cột chồng 7 ngày của ô "Macros". */
-  readonly macrosWeek: readonly (MacroStackDay | null)[]
+  readonly macrosWeek: readonly (MacroBar | null)[]
   /** Nguồn nào còn chờ BE: ô của nguồn đó hiện khung xám thay vì "---" / 0. */
   readonly pending: DashboardPending
   readonly index: number

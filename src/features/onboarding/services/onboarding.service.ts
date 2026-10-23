@@ -7,12 +7,14 @@ import type {
   PriorWeightQuestion,
   ProgramPreview,
   SaveBasicsRequest,
+  SaveBasicsResponse,
   TdeeEstimate,
 } from '../types/onboarding.types'
 
 export const onboardingService = {
   getState: () => apiCall.get<OnboardingState>(apiRoutes.onboarding.root),
-  saveBasics: (payload: SaveBasicsRequest) => apiCall.put(apiRoutes.onboarding.basics, payload),
+  saveBasics: (payload: SaveBasicsRequest) =>
+    apiCall.put<SaveBasicsResponse | null>(apiRoutes.onboarding.basics, payload),
   estimate: () => apiCall.get<TdeeEstimate>(apiRoutes.onboarding.estimate),
   priorWeightQuestion: (params: { weightKg?: number; unit: 'kg' | 'lb' }) =>
     apiCall.get<PriorWeightQuestion>(apiRoutes.onboarding.priorWeightQuestion, { params }),

@@ -15,6 +15,17 @@ export interface MetricPoint {
 const mean = (values: readonly number[]) =>
   values.reduce((sum, value) => sum + value, 0) / values.length
 
+/**
+ * Làm tròn `digits` chữ số THẬP PHÂN như BE (`Math.Round(decimal, digits, MidpointRounding.AwayFromZero)`, MetricSeries.cs dòng 46): nửa chẵn lẻ làm tròn RA XA
+ * số 0 kể cả số âm (Math.round của JS làm tròn -0.5 về 0). Làm sạch nhiễu dấu phẩy động trước (79.305 thường là 79.30499…) để khớp phép tính decimal của BE.
+ */
+export function roundAway(value: number, digits: number) {
+  const factor = 10 ** digits
+  const scaled = Math.round(Math.abs(value) * factor * 1e6) / 1e6
+  const rounded = (Math.sign(value) * Math.round(scaled)) / factor
+  return rounded === 0 ? 0 : rounded
+}
+
 /** Gộp theo tuần (bắt đầu từ `weekStartDay` của user) / tháng bằng trung bình; điểm đặt ở ngày đầu nhóm. Đầu vào tăng dần theo ngày. */
 export function averageMetric(
   points: readonly MetricPoint[],
@@ -31,20 +42,23 @@ export function averageMetric(
     date,
     end: bucketEnd(date, averaging),
     days: values.length,
-    value: mean(values),
+    // BE `MetricBucket.Average` = trung bình các điểm ngày của nhóm, làm tròn 2 chữ số (MetricSeries.cs dòng 27)
+    value: roundAway(mean(values), 2),
   }))
 }
 
 /**
- * Average và Difference (cuối − đầu) của kỳ, 1 số lẻ, cùng định nghĩa với `summary` của BE (trung bình các điểm thật trong kỳ; Difference cần
- * ≥ 2 điểm): null khi chưa có điểm, Difference null khi chỉ có 1 điểm (không bịa 0).
+ * Average và Difference của kỳ — PHẢI cho đúng kết quả của `MetricSeries.Build` ở BE (MetricSeries.cs dòng 12–23) trên cùng dữ liệu: nhận các điểm NGÀY thô
+ * (mỗi ngày một điểm, đã nằm trong kỳ, tăng dần; KHÔNG phải điểm đã gộp W / M), Average = trung bình làm tròn 2 chữ số ra xa số 0, Difference = cuối − đầu
+ * (giữ dấu, không Math.abs) làm tròn 2 chữ số, chỉ khi có ≥ 2 điểm. Không có điểm → null (không bịa 0); một điểm → Average của nó, Difference null. Giá trị ở
+ * đơn vị CHUẨN của BE (kg, cm, %); đổi sang lb chỉ để hiển thị, sau khi đã tính.
  */
 export function summarizeMetric(points: readonly MetricPoint[]) {
   if (points.length === 0) return { average: null, difference: null }
   return {
-    average: roundTo(mean(points.map((point) => point.value)), 1),
+    average: roundAway(mean(points.map((point) => point.value)), 2),
     difference:
-      points.length < 2 ? null : roundTo(points[points.length - 1].value - points[0].value, 1),
+      points.length < 2 ? null : roundAway(points[points.length - 1].value - points[0].value, 2),
   }
 }
 

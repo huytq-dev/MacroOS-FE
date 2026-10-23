@@ -753,7 +753,7 @@ await check(
     const hook = source('features/dashboard/hooks/use-dashboard-data.ts')
     assert.match(
       hook,
-      /lastDays\(today, DAYS_PER_WEEK\) : \[\]\)\.map\(\s*\(date\): MacroStackDay \| null/
+      /lastDays\(today, DAYS_PER_WEEK\) : \[\]\)\.map\(\s*\(date\): MacroBar \| null/
     )
     assert.ok(
       !/daily\.slice\(-(DAYS_PER_WEEK|WEEK_DAYS)\)/.test(hook),
@@ -1792,9 +1792,46 @@ await check(
     assert.ok(flat.max - flat.min < 2429 * 0.5, 'a flat line gets a huge axis')
     assert.ok(expAxis(at(2429)).ticks.length >= 3, 'a single point has no axis')
     assert.ok(
-      /fluxLowKcal: number/.test(source('features/dashboard/types/expenditure-series.types.ts')),
+      /fluxLowKcal\?: number \| null/.test(
+        source('features/dashboard/types/expenditure-series.types.ts')
+      ),
       'the BE type was changed (it must keep the fields)'
     )
+  }
+)
+await check(
+  'V5b Flux fields are optional / nullable; null Flux changes nothing: no band, no legend entry, nothing generated from the line',
+  async () => {
+    const types = source('features/dashboard/types/expenditure-series.types.ts')
+    assert.match(types, /fluxLowKcal\?: number \| null/)
+    assert.match(types, /fluxHighKcal\?: number \| null/)
+    const exp = await load('../src/features/dashboard/expenditure-series.ts')
+    const toExpDay = need(exp, 'toExpDay')
+    const expLegend = need(exp, 'expLegend')
+    const base = { date: '2026-10-20', expenditureKcal: 2400, status: 'Updating', changeKcal: null }
+    const withNull = toExpDay({ ...base, fluxLowKcal: null, fluxHighKcal: null })
+    const without = toExpDay(base)
+    const withValues = toExpDay({ ...base, fluxLowKcal: 2300, fluxHighKcal: 2500 })
+    assert.deepEqual(withNull, without, 'null / missing Flux gives the same chart day')
+    assert.deepEqual(
+      withValues,
+      without,
+      'Flux values are not read yet (hidden until the formula is approved)'
+    )
+    assert.deepEqual(
+      Object.keys(expLegend([withNull])).sort(),
+      ['holding', 'line', 'updating'],
+      'no Flux legend entry'
+    )
+    for (const file of [
+      'features/dashboard/expenditure-series.ts',
+      'features/dashboard/components/ExpenditurePage/ExpenditureChart.tsx',
+      'features/dashboard/pages/ExpenditurePage.tsx',
+    ])
+      assert.ok(
+        !/fluxLow|fluxHigh|Flux Range/.test(codeOf(source(file))),
+        file + ' reads or labels Flux'
+      )
   }
 )
 await check(
@@ -2387,6 +2424,7 @@ await check(
 // ── P: truy vấn chưa về thì thẻ / ô hiện khung xám, KHÔNG hiện "—" / "N/A" / "0/7" (BE lạnh trả mỗi truy vấn sau 1 – 3s) ──────────────────
 
 const ALL_IDLE = {
+  macros: false,
   weights: false,
   recentWeights: false,
   daily: false,
@@ -2409,7 +2447,15 @@ await check(
     const keys = constant(groups, 'NUTRIENT_GROUPS').flatMap((group) =>
       group.nutrients.map((nutrient) => nutrient.key)
     )
-    for (const key of [...keys, 'weighIn', 'scaleWeight', 'foodLogging', 'steps', 'period', 'bodyFat'])
+    for (const key of [
+      ...keys,
+      'weighIn',
+      'scaleWeight',
+      'foodLogging',
+      'steps',
+      'period',
+      'bodyFat',
+    ])
       assert.equal(tilePending(key, ALL_IDLE), false, `${key} is pending with nothing pending`)
     const only = (source) => ({ ...ALL_IDLE, [source]: true })
     assert.equal(tilePending('weighIn', only('weights')), true)
@@ -2429,7 +2475,7 @@ await check(
     assert.equal(tilePending('bodyFat', only('bodyFat')), true)
     for (const key of ['calories', 'protein', 'fat', 'carbs', 'macros'])
       assert.equal(tilePending(key, only('dayLog')), true, `${key} ignores the day log`)
-    assert.equal(tilePending('macros', only('daily')), true)
+    assert.equal(tilePending('macros', only('macros')), true)
     assert.equal(
       tilePending('calories', only('nutrients')),
       false,
