@@ -32,7 +32,10 @@ import { ErrorState } from '@/components/shared/ErrorState'
 import { formatAmount } from '@/features/nutrition/nutrient-display'
 import { useUnits } from '@/features/users/hooks/use-units'
 import { Skeleton } from '@/components/ui/skeleton'
-import { UNVERIFIED_TARGET_NOTE, isUnverifiedTarget } from '@/features/nutrition/target-provenance'
+import {
+  UNVERIFIED_TARGET_NOTE,
+  isHistoricalUnverified,
+} from '@/features/nutrition/target-provenance'
 import { useIsClient } from '@/hooks/use-is-client'
 import { todayIso } from '@/lib/date'
 
@@ -61,14 +64,14 @@ export function NutrientDetailPage({ info: catalogInfo }: { readonly info: Nutri
   const days: NutrientSeriesPoint[] = data
     ? data.days.map((item) => {
         const day = scaleSeriesDay(item, factor)
-        return isUnverifiedTarget(item.targetProvenance)
+        return isHistoricalUnverified(item.targetProvenance, item.date, today)
           ? { ...day, floor: null, target: null, ceiling: null, goalKind: 'None' as const }
           : { ...day, goalKind: data.goalKind }
       })
     : []
   const targetUnverified =
     !!data &&
-    (data.days.some((item) => isUnverifiedTarget(item.targetProvenance)) ||
+    (data.days.some((item) => isHistoricalUnverified(item.targetProvenance, item.date, today)) ||
       (data.summary.unverifiedTargetDays ?? 0) > 0)
   const total = days.length
   const target = slotsOf(range, total)

@@ -12,6 +12,7 @@ import * as entryEdit from '../src/features/food-log/entry-edit.utils.ts'
 import * as provenance from '../src/features/nutrition/target-provenance.ts'
 import * as overview from '../src/features/food-log/nutrition-overview.utils.ts'
 import * as balance from '../src/features/dashboard/energy-balance.utils.ts'
+import * as dashboardUtils from '../src/features/dashboard/dashboard.utils.ts'
 import { targetRatio } from '../src/features/nutrition/goal-progress.ts'
 import { nutrientValue } from '../src/features/dashboard/dashboard.utils.ts'
 import { toDayTarget } from '../src/features/program/utils/day-macros.ts'
@@ -345,21 +346,241 @@ check(
       assert.equal(provenance.isUnverifiedTarget(value), false)
   }
 )
+// Production bug (Weekly Nutrition "0 of —"): tuần chạy từ trước S26 bị BE gắn LEGACY_UNVERIFIED cho CẢ hôm nay / tương lai. Chỉ ngày LỊCH SỬ (< hôm nay theo múi giờ user)
+// mới bị coi là chưa xác minh; hôm nay + tương lai hiện bình thường; giá trị lạ (CURRENT_ACTIVE, PLANNED, ...) không bao giờ là unverified.
+const LEGACY = 'LEGACY_UNVERIFIED'
+const WEEK_DATES = [
+  '2026-10-19',
+  '2026-10-20',
+  '2026-10-21',
+  '2026-10-22',
+  '2026-10-23',
+  '2026-10-24',
+  '2026-10-25',
+]
+const wk = (logDate, calories, prov, target = 2000) => ({
+  logDate,
+  isLogged: calories > 0,
+  totals: { calories, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+  target:
+    prov === undefined
+      ? null
+      : {
+          caloriesTarget: target,
+          proteinTarget: 0,
+          carbsTarget: 0,
+          fatTarget: 0,
+          targetProvenance: prov,
+        },
+})
+const noRound = (value) => value
+const weekSum = (days, mode = 'consumed') =>
+  dashboardUtils.weekSummary(days, 'calories', (t) => t.caloriesTarget, mode, noRound)
+const applyBoundary = (days, today) =>
+  days.map((day) => provenance.withoutUnverifiedTarget(day, today))
+
 check(
-  'provenance Food Log: ngày / tuần LEGACY_UNVERIFIED bỏ target + đặt targetUnverified; VERIFIED / không target giữ nguyên',
+  'provenance: isUnverifiedTarget chỉ đúng với LEGACY_UNVERIFIED; giá trị lạ / mới / null không bao giờ là unverified',
   () => {
-    const target = { caloriesTarget: 2000, targetProvenance: 'LEGACY_UNVERIFIED' }
-    const unverified = provenance.withoutUnverifiedTarget({ totals: 1, target })
-    assert.equal(unverified.target, null)
-    assert.equal(unverified.targetUnverified, true)
-    const verified = { totals: 1, target: { caloriesTarget: 2000, targetProvenance: 'VERIFIED' } }
-    assert.equal(provenance.withoutUnverifiedTarget(verified), verified)
-    const none = { totals: 1, target: null }
-    assert.equal(provenance.withoutUnverifiedTarget(none), none)
+    assert.equal(provenance.isUnverifiedTarget(LEGACY), true)
+    for (const value of [
+      'VERIFIED',
+      'CURRENT_ACTIVE',
+      'PLANNED',
+      'SOMETHING_NEW',
+      null,
+      undefined,
+      '',
+      'legacy_unverified',
+    ])
+      assert.equal(provenance.isUnverifiedTarget(value), false, String(value))
+    assert.equal(provenance.isHistoricalUnverified(LEGACY, '2026-10-21', '2026-10-22'), true)
+    assert.equal(
+      provenance.isHistoricalUnverified(LEGACY, '2026-10-22', '2026-10-22'),
+      false,
+      'hôm nay'
+    )
+    assert.equal(
+      provenance.isHistoricalUnverified(LEGACY, '2026-10-23', '2026-10-22'),
+      false,
+      'tương lai'
+    )
+    assert.equal(
+      provenance.isHistoricalUnverified(LEGACY, '2026-10-21', null),
+      false,
+      'chưa biết hôm nay thì không ẩn'
+    )
+    for (const value of ['CURRENT_ACTIVE', 'PLANNED', 'NEW_VALUE'])
+      assert.equal(
+        provenance.isHistoricalUnverified(value, '2020-01-01', '2026-10-22'),
+        false,
+        value
+      )
   }
 )
 check(
-  'provenance Nutrition Overview: hôm nay unverified = không mốc; kỳ dài giữ trung bình VERIFIED và hiện cờ khi có ngày bị loại',
+  '(1) tuần chạy từ trước S26, mọi ngày LEGACY: hôm nay + tương lai vẫn có target ("0 of <target>", không "—")',
+  () => {
+    const today = '2026-10-22'
+    const days = applyBoundary(
+      WEEK_DATES.map((d) => wk(d, 0, LEGACY)),
+      today
+    )
+    const todayDay = days.find((day) => day.logDate === today)
+    assert.equal(todayDay.target?.caloriesTarget, 2000)
+    assert.equal(todayDay.targetUnverified, undefined)
+    const { goal } = weekSum(days)
+    assert.notEqual(goal, null)
+    assert.equal(goal, 4 * 2000, 'Thu–Sun (4 ngày) còn target, ba ngày lịch sử bị bỏ')
+  }
+)
+check(
+  '(2) tuần hiện tại trộn ngày legacy lịch sử + hôm nay: Consumed / goal / tiến độ cùng một tập ngày',
+  () => {
+    const today = '2026-10-22'
+    const days = applyBoundary(
+      [
+        wk('2026-10-19', 1900, LEGACY),
+        wk('2026-10-20', 2100, LEGACY),
+        wk('2026-10-21', 1800, LEGACY),
+        wk('2026-10-22', 500, LEGACY),
+        ...['2026-10-23', '2026-10-24', '2026-10-25'].map((d) => wk(d, 0, LEGACY)),
+      ],
+      today
+    )
+    const consumed = weekSum(days, 'consumed')
+    const remaining = weekSum(days, 'remaining')
+    assert.equal(consumed.goal, 8000)
+    assert.equal(
+      consumed.value,
+      500,
+      'chỉ ăn của các ngày CÓ target (không trộn 5800 kcal ngày lịch sử vào target 4 ngày)'
+    )
+    assert.equal(remaining.value, 8000 - 500)
+  }
+)
+check(
+  '(3) tuần lịch sử không có snapshot (mọi ngày LEGACY, < hôm nay): không target, cờ targetUnverified; "—" đúng chỗ',
+  () => {
+    const days = applyBoundary(
+      WEEK_DATES.map((d) => wk(d, 1800, LEGACY)),
+      '2026-11-10'
+    )
+    for (const day of days) {
+      assert.equal(day.target, null)
+      assert.equal(day.targetUnverified, true)
+    }
+    const { goal, value } = weekSum(days)
+    assert.equal(goal, null)
+    assert.equal(value, 7 * 1800, 'chưa có target thì vẫn hiện số đã ăn của cả tuần')
+  }
+)
+check('(4) tuần lịch sử có snapshot (VERIFIED): giữ nguyên, tổng target đủ bảy ngày', () => {
+  const days = applyBoundary(
+    WEEK_DATES.map((d) => wk(d, 1800, 'VERIFIED')),
+    '2026-11-10'
+  )
+  for (const day of days) assert.equal(day.target.caloriesTarget, 2000)
+  assert.equal(weekSum(days).goal, 7 * 2000)
+})
+check('(6) shift với bảy target khác nhau: tổng đúng từng ngày, không nhân bảy một ngày', () => {
+  const targets = [2200, 1800, 2200, 1800, 2200, 1800, 2000]
+  const days = applyBoundary(
+    WEEK_DATES.map((d, i) => wk(d, 0, 'VERIFIED', targets[i])),
+    '2026-10-19'
+  )
+  assert.equal(
+    weekSum(days).goal,
+    targets.reduce((a, b) => a + b, 0)
+  )
+})
+check('(7) không có program: không target, không cờ unverified, goal null', () => {
+  const days = applyBoundary(
+    WEEK_DATES.map((d) => wk(d, 1500)),
+    '2026-10-22'
+  )
+  for (const day of days) {
+    assert.equal(day.target, null)
+    assert.equal(day.targetUnverified, undefined)
+  }
+  assert.equal(weekSum(days).goal, null)
+})
+check(
+  '(8) ranh giới ngày theo múi giờ user: cùng một thời điểm UTC, ngày 10-22 là lịch sử ở Tokyo nhưng là hôm nay ở New York',
+  () => {
+    const now = new Date('2026-10-22T20:00:00Z')
+    const tokyo = date.isoInZone(now, 'Asia/Tokyo')
+    const newYork = date.isoInZone(now, 'America/New_York')
+    assert.equal(tokyo, '2026-10-23')
+    assert.equal(newYork, '2026-10-22')
+    const row = wk('2026-10-22', 0, LEGACY)
+    assert.equal(
+      provenance.withoutUnverifiedTarget(row, tokyo).target,
+      null,
+      'Tokyo: 10-22 đã là quá khứ'
+    )
+    assert.equal(
+      provenance.withoutUnverifiedTarget(row, newYork).target.caloriesTarget,
+      2000,
+      'New York: 10-22 là hôm nay'
+    )
+  }
+)
+check(
+  '(9) Dashboard / Food Log / Strategy cùng một target: tuần và ngày qua cùng một ranh giới; Strategy không lọc theo provenance',
+  () => {
+    const today = '2026-10-22'
+    const week = applyBoundary(
+      WEEK_DATES.map((d) => wk(d, 0, LEGACY, 2150)),
+      today
+    )
+    const fromWeek = week.find((day) => day.logDate === today).target
+    const fromDay = provenance.withoutUnverifiedTarget(wk(today, 0, LEGACY, 2150), today).target
+    assert.deepEqual(fromWeek, fromDay)
+    assert.equal(fromDay.caloriesTarget, 2150)
+    const service = source('features/food-log/services/food-log.service.ts')
+    assert.match(service, /withoutUnverifiedTarget\(day, todayIso\(\)\)/)
+    assert.match(service, /withoutUnverifiedTarget\(day, today\)/)
+    assert.doesNotMatch(
+      source('features/program/components/ProgramPage/ProgramCard.tsx'),
+      /Unverified|provenance/i
+    )
+    assert.match(source('features/dashboard/hooks/use-dashboard-data.ts'), /dayLog\.data\?\.target/)
+  }
+)
+check(
+  '(10) ngày unverified (lịch sử) bị loại khỏi thống kê FE: Energy Balance tab Target không mốc / chênh lệch; hôm nay và tab Expenditure giữ nguyên',
+  () => {
+    const day = (d, prov) => ({
+      date: d,
+      caloriesKcal: 2000,
+      expenditureKcal: 2500,
+      targetKcal: 1800,
+      vsExpenditureKcal: -500,
+      vsTargetKcal: 200,
+      targetProvenance: prov,
+      isFasting: false,
+      isIncomplete: false,
+    })
+    const past = balance.fromSeriesDay(day('2026-10-20', LEGACY), 'targets', '2026-10-22')
+    assert.equal(past.baseline, null)
+    assert.equal(past.diff, null)
+    const current = balance.fromSeriesDay(day('2026-10-22', LEGACY), 'targets', '2026-10-22')
+    assert.equal(current.baseline, 1800, 'hôm nay hiện bình thường')
+    assert.equal(current.diff, 200)
+    const spend = balance.fromSeriesDay(day('2026-10-20', LEGACY), 'expenditure', '2026-10-22')
+    assert.equal(spend.baseline, 2500)
+    assert.equal(spend.diff, -500)
+    for (const value of ['CURRENT_ACTIVE', 'PLANNED', 'VERIFIED'])
+      assert.equal(
+        balance.fromSeriesDay(day('2026-10-20', value), 'targets', '2026-10-22').baseline,
+        1800,
+        value
+      )
+  }
+)
+check(
+  'provenance Nutrition Overview: hôm nay LEGACY vẫn có mốc; kỳ dài giữ trung bình BE và hiện cờ khi có ngày bị loại',
   () => {
     const item = (over) => ({
       key: 'calories',
@@ -374,15 +595,14 @@ check(
       ...over,
     })
     const values = overview.overviewFromItems([
-      item({ key: 'calories', targetProvenance: 'LEGACY_UNVERIFIED' }),
+      item({ key: 'calories', targetProvenance: LEGACY }),
       item({ key: 'protein', unverifiedTargetDays: 3 }),
       item({ key: 'fat' }),
       item({ key: 'carbs', target: null, targetProvenance: null, unverifiedTargetDays: 5 }),
     ])
-    assert.equal(values.calories.goal.target, null)
-    assert.equal(values.calories.goal.goalKind, 'None')
-    assert.equal(values.calories.targetUnverified, true)
-    assert.equal(values.protein.goal.target, 2000, 'trung bình ngày VERIFIED của BE giữ nguyên')
+    assert.equal(values.calories.goal.target, 2000, 'hôm nay không bao giờ là lịch sử')
+    assert.equal(values.calories.targetUnverified, false)
+    assert.equal(values.protein.goal.target, 2000)
     assert.equal(values.protein.targetUnverified, true)
     assert.equal(values.fat.targetUnverified, false)
     assert.equal(values.carbs.goal.target, null)
@@ -390,32 +610,7 @@ check(
   }
 )
 check(
-  'provenance Energy Balance: tab Target bỏ mốc + chênh lệch của ngày unverified; tab Expenditure không đổi',
-  () => {
-    const day = {
-      date: '2026-10-01',
-      caloriesKcal: 2000,
-      expenditureKcal: 2500,
-      targetKcal: 1800,
-      vsExpenditureKcal: -500,
-      vsTargetKcal: 200,
-      targetProvenance: 'LEGACY_UNVERIFIED',
-      isFasting: false,
-      isIncomplete: false,
-    }
-    const target = balance.fromSeriesDay(day, 'targets')
-    assert.equal(target.baseline, null)
-    assert.equal(target.diff, null)
-    const spend = balance.fromSeriesDay(day, 'expenditure')
-    assert.equal(spend.baseline, 2500)
-    assert.equal(spend.diff, -500)
-    const ok = balance.fromSeriesDay({ ...day, targetProvenance: 'VERIFIED' }, 'targets')
-    assert.equal(ok.baseline, 1800)
-    assert.equal(ok.diff, 200)
-  }
-)
-check(
-  'provenance: câu "Historical target not verified" có ở Food Log, Nutrition History, Strategy, Analytics; tên trường là targetProvenance',
+  'provenance: câu "Historical target not verified" ở Food Log, Nutrition History, Analytics, check-in; Strategy không cần (kế hoạch đang chạy); tên trường là targetProvenance',
   () => {
     assert.equal(provenance.UNVERIFIED_TARGET_NOTE, 'Historical target not verified')
     for (const file of [
@@ -423,17 +618,12 @@ check(
       'features/food-log/pages/NutritionOverviewPage.tsx',
       'features/nutrient-detail/pages/NutrientDetailPage.tsx',
       'features/nutrient-detail/pages/NutrientSummaryPage.tsx',
-      'features/program/components/ProgramPage/ProgramCard.tsx',
       'features/program/components/CheckInPage/IncompleteDaysChart.tsx',
       'features/dashboard/pages/EnergyBalancePage.tsx',
       'features/dashboard/components/DashboardPage/EnergyBalanceCard.tsx',
     ])
       assert.match(source(file), /UNVERIFIED_TARGET_NOTE/, file)
     assert.doesNotMatch(source('features/food-log/services/food-log.service.ts'), /dayTargetSource/)
-    assert.match(
-      source('features/food-log/services/food-log.service.ts'),
-      /withoutUnverifiedTarget/
-    )
   }
 )
 // N-06: không có target thì không vượt.

@@ -1,7 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { UNVERIFIED_TARGET_NOTE, isUnverifiedTarget } from '@/features/nutrition/target-provenance'
+import {
+  UNVERIFIED_TARGET_NOTE,
+  isHistoricalUnverified,
+} from '@/features/nutrition/target-provenance'
+import { todayIso } from '@/lib/date'
 import { useUnits } from '@/features/users/hooks/use-units'
 import { cn } from '@/lib/utils'
 import type { CheckInDay } from '../../types/check-in.types'
@@ -27,10 +31,12 @@ export function IncompleteDaysChart({ days, selected, onToggle }: IncompleteDays
     const frame = requestAnimationFrame(() => setReady(true))
     return () => cancelAnimationFrame(frame)
   }, [])
-  // Target LEGACY_UNVERIFIED (cờ BE) chỉ để tham khảo: không vẽ vạch target của ngày đó
-  const targetOf = (day: (typeof days)[number]) =>
-    isUnverifiedTarget(day.targetProvenance) ? null : day.targetKcal
-  const unverified = days.some((day) => isUnverifiedTarget(day.targetProvenance))
+  // Chỉ ngày LỊCH SỬ (< hôm nay) có target LEGACY_UNVERIFIED (cờ BE) mới chỉ để tham khảo: không vẽ vạch target; hôm nay vẫn vẽ
+  const today = todayIso()
+  const historical = (day: (typeof days)[number]) =>
+    isHistoricalUnverified(day.targetProvenance, day.date, today)
+  const targetOf = (day: (typeof days)[number]) => (historical(day) ? null : day.targetKcal)
+  const unverified = days.some(historical)
   const scale = Math.max(...days.map((day) => Math.max(day.kcal ?? 0, targetOf(day) ?? 0)), 1)
   const percent = (value: number) => `${Math.min((value / scale) * 100, 100)}%`
 
@@ -72,7 +78,7 @@ export function IncompleteDaysChart({ days, selected, onToggle }: IncompleteDays
                     />
                   </span>
                 )}
-                {day.targetKcal !== null && !isUnverifiedTarget(day.targetProvenance) && (
+                {day.targetKcal !== null && !historical(day) && (
                   <span
                     aria-hidden="true"
                     style={{ bottom: percent(day.targetKcal) }}

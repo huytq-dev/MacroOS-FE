@@ -12,7 +12,10 @@ import { UNKNOWN_AMOUNT, formatAmount } from '@/features/nutrition/nutrient-disp
 import { useUnits } from '@/features/users/hooks/use-units'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
-import { UNVERIFIED_TARGET_NOTE, isUnverifiedTarget } from '@/features/nutrition/target-provenance'
+import {
+  UNVERIFIED_TARGET_NOTE,
+  isHistoricalUnverified,
+} from '@/features/nutrition/target-provenance'
 import { useIsClient } from '@/hooks/use-is-client'
 import { todayIso } from '@/lib/date'
 
@@ -77,8 +80,8 @@ function ActiveGoal({
         No goal is set for {name}.
       </p>
     )
-  // Target của ngày LEGACY_UNVERIFIED (cờ BE): chỉ để tham khảo, không hiện như mục tiêu đang áp
-  if (isUnverifiedTarget(day.targetProvenance))
+  // Chỉ target LỊCH SỬ LEGACY_UNVERIFIED (cờ BE, ngày < hôm nay) mới không hiện như mục tiêu đang áp; hôm nay luôn hiện bình thường
+  if (isHistoricalUnverified(day.targetProvenance, day.date, todayIso()))
     return (
       <p className="bg-card text-muted-foreground rounded-xl p-4 text-base">
         {UNVERIFIED_TARGET_NOTE}

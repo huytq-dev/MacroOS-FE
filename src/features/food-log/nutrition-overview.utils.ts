@@ -1,7 +1,6 @@
 import { NUTRIENT_GROUPS } from '@/features/dashboard/nutrient-catalog'
 import type { NutrientDef } from '@/features/dashboard/types/dashboard.types'
 import { NO_GOAL, goalOfModel, type NutrientGoal } from '@/features/nutrition/goal-progress'
-import { isUnverifiedTarget } from '@/features/nutrition/target-provenance'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import type { NutritionOverviewItem } from './types/food-log.types'
 
@@ -79,12 +78,12 @@ export function overviewFromItems(
 ): Record<string, OverviewValue> {
   const values: Record<string, OverviewValue> = {}
   for (const item of items) {
-    // Target hôm nay LEGACY_UNVERIFIED chỉ để tham khảo: không vẽ mốc / đạt – không đạt (goal trống); kỳ dài đã được BE loại ngày chưa xác minh khỏi trung bình target
-    const unverifiedToday = isUnverifiedTarget(item.targetProvenance)
+    // Hôm nay là target đang áp dụng (không bao giờ là "lịch sử") nên hiện bình thường dù BE còn gắn LEGACY_UNVERIFIED; kỳ dài thì BE đã loại ngày lịch sử chưa xác minh
+    // khỏi trung bình target và báo số ngày bị loại (`unverifiedTargetDays`) để hiện câu "Historical target not verified"
     values[item.key] = {
       value: item.value,
-      goal: unverifiedToday ? NO_GOAL : goalOfModel(item),
-      targetUnverified: unverifiedToday || (item.unverifiedTargetDays ?? 0) > 0,
+      goal: goalOfModel(item),
+      targetUnverified: (item.unverifiedTargetDays ?? 0) > 0,
     }
   }
   return values

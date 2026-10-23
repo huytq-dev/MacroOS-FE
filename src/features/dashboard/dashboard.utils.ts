@@ -73,8 +73,12 @@ export function weekSummary(
   mode: 'consumed' | 'remaining',
   shown: (value: number) => number
 ) {
-  const consumed = scope.reduce((sum, day) => sum + day.totals[key], 0)
-  const goals = scope.flatMap((day) => (day.target ? [goalOf(day.target)] : []))
+  // Đã ăn và target cùng MỘT tập ngày: chỉ các ngày CÓ target (ngày lịch sử chưa xác minh đã bị bỏ target) nên Consumed / Remaining / tiến độ khớp nhau;
+  // chưa ngày nào có target thì goal null và vẫn hiện số đã ăn của cả khung
+  const withTarget = scope.filter((day) => day.target)
+  const basis = withTarget.length > 0 ? withTarget : scope
+  const consumed = basis.reduce((sum, day) => sum + day.totals[key], 0)
+  const goals = withTarget.map((day) => goalOf(day.target as ProgramWeek))
   const goal = goals.length > 0 ? goals.reduce((sum, item) => sum + item, 0) : null
   const progress = shownProgress(consumed, goal, shown)
   return {

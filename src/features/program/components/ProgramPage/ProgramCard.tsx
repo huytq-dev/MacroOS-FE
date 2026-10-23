@@ -1,6 +1,5 @@
 import { Pencil, RefreshCw } from 'lucide-react'
 import { routePath } from '@/config/route-path'
-import { UNVERIFIED_TARGET_NOTE, isUnverifiedTarget } from '@/features/nutrition/target-provenance'
 import { formatMonthDay } from '@/lib/date'
 import type { Program } from '../../types/program.types'
 import { ActionChip } from './ActionChip'
@@ -32,8 +31,7 @@ const chartDaysOf = (program: Program): ChartDay[] | null =>
  */
 export function ProgramCard({ program, onEdit }: ProgramCardProps) {
   const days = chartDaysOf(program)
-  // Cờ của BE (tuần hoặc ngày): target cũ chưa xác minh chỉ để tham khảo; thẻ này không có đạt / không đạt nên chỉ thêm câu giải thích
-  const unverified = (program.days ?? []).some((day) => isUnverifiedTarget(day.targetProvenance))
+  // Bảy mục tiêu của kế hoạch đang chạy luôn hiện bình thường: không có ngày cụ thể để gọi là "lịch sử", không đạt / không đạt nào ở thẻ này
   return (
     <section className="bg-card rounded-2xl p-4 pt-5">
       <h3 className="text-xl font-medium">{program.programType} Program</h3>
@@ -48,7 +46,6 @@ export function ProgramCard({ program, onEdit }: ProgramCardProps) {
           There are no daily targets to show for this week yet.
         </p>
       )}
-      {unverified && <p className="text-muted-foreground mt-3 text-sm">{UNVERIFIED_TARGET_NOTE}</p>}
 
       <div className="border-border mt-5 flex flex-wrap gap-2 border-t pt-4">
         <ActionChip icon={RefreshCw} label="New Program" href={routePath.programNew} />

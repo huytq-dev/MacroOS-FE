@@ -6,7 +6,10 @@ import { ModeToggle } from './DailyNutritionCard'
 import type { BalanceMode } from '../../dashboard.utils'
 import type { EnergyBalanceSeriesResponse } from '../../types/energy-balance.types'
 import { routePath } from '@/config/route-path'
-import { UNVERIFIED_TARGET_NOTE, isUnverifiedTarget } from '@/features/nutrition/target-provenance'
+import {
+  UNVERIFIED_TARGET_NOTE,
+  isHistoricalUnverified,
+} from '@/features/nutrition/target-provenance'
 import { useUnits } from '@/features/users/hooks/use-units'
 import { cn } from '@/lib/utils'
 
@@ -52,13 +55,13 @@ export function EnergyBalanceCard({
   // Ngày có target LEGACY_UNVERIFIED (cờ của BE) chỉ để tham khảo: không vẽ mốc target của ngày đó
   const baselineOf = (day: (typeof days)[number]) =>
     targets
-      ? isUnverifiedTarget(day.targetProvenance)
+      ? isHistoricalUnverified(day.targetProvenance, day.date, data?.to ?? null)
         ? null
         : day.targetKcal
       : day.expenditureKcal
   const unverifiedTargets =
     targets &&
-    (days.some((day) => isUnverifiedTarget(day.targetProvenance)) ||
+    (days.some((day) => isHistoricalUnverified(day.targetProvenance, day.date, data?.to ?? null)) ||
       (summary?.unverifiedTargetDays ?? 0) > 0)
   const drawn = days.flatMap((day, index) => {
     const value = baselineOf(day)

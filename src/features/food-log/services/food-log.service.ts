@@ -4,6 +4,7 @@ import type { QueryResult } from '@/types/api'
 import type { FoodLogSettings } from '../food-log-settings'
 import { downscalePhoto } from '../ai-plate.utils'
 import { withoutUnverifiedTarget } from '@/features/nutrition/target-provenance'
+import { todayIso } from '@/lib/date'
 import type {
   AiAnalyzeResponse,
   AiConfirmRequest,
@@ -36,7 +37,7 @@ const AI_ANALYZE_TIMEOUT_MS = 60_000
 export const foodLogService = {
   getDay: async (date: string) => {
     const day = await apiCall.get<DayLog>(apiRoutes.foodLogs.root, { params: { date } })
-    return day && withoutUnverifiedTarget(day)
+    return day && withoutUnverifiedTarget(day, todayIso())
   },
   nutritionOverview: (range: string, date: string) =>
     apiCall.get<NutritionOverviewResponse>(apiRoutes.nutrition.overview, {
@@ -44,7 +45,8 @@ export const foodLogService = {
     }),
   getWeek: async (date: string) => {
     const week = await apiCall.get<WeekLog>(apiRoutes.foodLogs.week, { params: { date } })
-    return week && { ...week, days: week.days.map(withoutUnverifiedTarget) }
+    const today = todayIso()
+    return week && { ...week, days: week.days.map((day) => withoutUnverifiedTarget(day, today)) }
   },
   addEntry: (payload: AddEntryRequest) => apiCall.post<string>(apiRoutes.foodLogs.entries, payload),
   updateEntry: (id: string, payload: UpdateEntryRequest) =>

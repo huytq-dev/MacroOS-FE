@@ -1,5 +1,5 @@
 import type { DayOfWeek } from '@/config/enums'
-import { isUnverifiedTarget } from '@/features/nutrition/target-provenance'
+import { isHistoricalUnverified } from '@/features/nutrition/target-provenance'
 import { weekStartOf } from '@/lib/week'
 import type { BalanceMode } from './dashboard.utils'
 import { bucketEnd, type Averaging } from './expenditure.utils'
@@ -40,9 +40,15 @@ const mean = (values: readonly number[]) =>
   values.reduce((sum, value) => sum + value, 0) / values.length
 
 /** Ngày của `GET /energy-balance/series` → điểm vẽ: đường mốc là expenditure (tab 1) hoặc target của ngày đó (tab 2). */
-export const fromSeriesDay = (day: EnergyBalanceSeriesDay, mode: BalanceMode): BalancePoint => {
-  // Tab Target: ngày có target LEGACY_UNVERIFIED (cờ của BE) chỉ để tham khảo nên không có mốc và không có chênh lệch (không đạt / không đạt); BE cũng loại ngày đó khỏi thống kê
-  const unverified = mode === 'targets' && isUnverifiedTarget(day.targetProvenance)
+export const fromSeriesDay = (
+  day: EnergyBalanceSeriesDay,
+  mode: BalanceMode,
+  today: string | null = null
+): BalancePoint => {
+  // Tab Target: ngày LỊCH SỬ (< hôm nay) có target LEGACY_UNVERIFIED (cờ của BE) chỉ để tham khảo nên không có mốc và không có chênh lệch (không đạt / không đạt);
+  // hôm nay hiện bình thường. BE cũng loại ngày chưa xác minh khỏi thống kê
+  const unverified =
+    mode === 'targets' && isHistoricalUnverified(day.targetProvenance, day.date, today)
   return {
     date: day.date,
     consumed: day.caloriesKcal,
