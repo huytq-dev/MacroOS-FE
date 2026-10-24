@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   Apple,
   ChevronLeft,
+  CircleEllipsis,
   LayoutDashboard,
   Scale,
   Target,
@@ -31,6 +32,8 @@ const NAV_ITEMS: readonly NavItem[] = [
   { icon: Target, label: 'Strategy', href: routePath.program },
   { icon: Scale, label: 'Weight', href: routePath.weight },
   { icon: UserRound, label: 'Profile', href: routePath.profile },
+  // Thanh tab (có More) ẩn từ md trở lên: thiếu mục này thì /more không vào được trên desktop
+  { icon: CircleEllipsis, label: 'More', href: routePath.more },
 ]
 
 interface AppSidebarProps {

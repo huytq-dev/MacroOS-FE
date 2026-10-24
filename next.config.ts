@@ -4,6 +4,8 @@ import type { NextConfig } from 'next'
 const backendUrl = process.env.BACKEND_URL ?? 'https://localhost:7000'
 
 const nextConfig: NextConfig = {
+  // Nút "N" nổi góc dưới của Next (dev) đè lên bảng trượt / thanh tab; lỗi build / runtime vẫn hiện overlay.
+  devIndicators: false,
   // Icon món ăn là file tĩnh đặt tên theo phiên bản (public/food-icons/v1): cache trình duyệt/CDN một năm, đổi bộ icon thì đổi thư mục.
   async headers() {
     return [

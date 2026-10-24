@@ -20,6 +20,10 @@ import { todayIso } from '@/lib/date'
 export const fixed = (value: number | null, digits = 1) =>
   value === null ? '---' : value.toFixed(digits)
 
+/** Đang dựng lại số dẫn xuất: giữ số cũ nhưng mờ đi (không phải số cuối), không thay bằng khung xám. */
+const dimWhile = (gate: string) =>
+  gate === 'updating' ? 'opacity-60 transition-opacity' : undefined
+
 const BALANCE_MODES = ['expenditure', 'targets'] as const
 
 /** Ô Expenditure: cùng `GET /expenditure/series` + insights với trang chi tiết (đường từng ngày, trạng thái từng ngày, số hiện tại). */
@@ -29,14 +33,26 @@ export function ExpenditureTile() {
   const derived = useDerivedGate()
   if (derived.gate === 'failed')
     return <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
-  if (derived.gate === 'updating' || !exp.ready || exp.isLoading)
+  if (!exp.ready || exp.isLoading)
     return <MetricTile title="Expenditure" subtitle="Last 7 Days" value="" loading />
+  // Lần tải lại lỗi: số TanStack còn giữ có thể là số trước khi BE dựng lại → không hiện như số cuối; trang chi tiết có "Try again"
+  if (exp.isError)
+    return (
+      <MetricTile
+        title="Expenditure"
+        subtitle="Last 7 Days"
+        href={routePath.dashboardExpenditure}
+        value="---"
+      />
+    )
   const last = exp.daily[exp.daily.length - 1]
   const current = exp.current ?? last?.kcal ?? null
   return (
     <MetricTile
       title="Expenditure"
       subtitle="Last 7 Days"
+      className={dimWhile(derived.gate)}
+      busy={derived.gate === 'updating'}
       href={routePath.dashboardExpenditure}
       visual={<ExpenditureMini window={lastDays(exp.today, INSIGHT_DAYS)} days={exp.daily} />}
       value={current === null ? '---' : energy.format(current)}
@@ -52,14 +68,25 @@ export function WeightTrendTile() {
   const derived = useDerivedGate()
   if (derived.gate === 'failed')
     return <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
-  if (derived.gate === 'updating' || !trend.ready || trend.isLoading)
+  if (!trend.ready || trend.isLoading)
     return <MetricTile title="Weight Trend" subtitle="Last 7 Days" value="" loading />
+  if (trend.isError)
+    return (
+      <MetricTile
+        title="Weight Trend"
+        subtitle="Last 7 Days"
+        href={routePath.dashboardWeightTrend}
+        value="---"
+      />
+    )
   const last = trend.daily[trend.daily.length - 1]
   const current = trend.current ?? last?.trend ?? null
   return (
     <MetricTile
       title="Weight Trend"
       subtitle="Last 7 Days"
+      className={dimWhile(derived.gate)}
+      busy={derived.gate === 'updating'}
       href={routePath.dashboardWeightTrend}
       visual={<TrendMini window={lastDays(trend.today, INSIGHT_DAYS)} days={trend.daily} />}
       value={current === null ? '---' : weight.format(current)}
@@ -81,8 +108,17 @@ export function EnergyBalanceTile() {
   const derived = useDerivedGate()
   if (derived.gate === 'failed')
     return <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
-  if (derived.gate === 'updating' || !balance.ready || balance.isLoading)
+  if (!balance.ready || balance.isLoading)
     return <MetricTile title="Energy Balance" subtitle="Last 7 Days" value="" loading />
+  if (balance.isError)
+    return (
+      <MetricTile
+        title="Energy Balance"
+        subtitle="Last 7 Days"
+        href={routePath.dashboardEnergyBalance}
+        value="---"
+      />
+    )
   const window = lastDays(balance.today, INSIGHT_DAYS)
   const week = balance.all.filter((point) => window.includes(point.date))
   // Số lớn = hàng 7 ngày của `GET /energy-balance/insights` (BE tính: ngày hợp lệ, trung bình, trạng thái), không tự tính từ các ngày
@@ -93,6 +129,8 @@ export function EnergyBalanceTile() {
     <MetricTile
       title="Energy Balance"
       subtitle="Last 7 Days"
+      className={dimWhile(derived.gate)}
+      busy={derived.gate === 'updating'}
       href={routePath.dashboardEnergyBalance}
       visual={
         <BalanceMini
@@ -121,8 +159,17 @@ export function GoalProgressTile() {
   const derived = useDerivedGate()
   if (derived.gate === 'failed')
     return <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
-  if (derived.gate === 'updating' || !today || goal.isLoading)
+  if (!today || goal.isLoading)
     return <MetricTile title="Goal Progress" subtitle="Since Start" value="" loading />
+  if (goal.isError)
+    return (
+      <MetricTile
+        title="Goal Progress"
+        subtitle="Since Start"
+        href={routePath.dashboardGoalProgress}
+        value="---"
+      />
+    )
   const data = goal.data
   // % do BE tính (null khi chưa có cân mục tiêu, vd. Maintenance): hiện "---", FE không tự tính thay
   const percent = data?.progressPercent == null ? null : Math.round(data.progressPercent)
@@ -132,6 +179,8 @@ export function GoalProgressTile() {
     <MetricTile
       title="Goal Progress"
       subtitle={days === null ? 'Since Start' : `Last ${days} ${days === 1 ? 'Day' : 'Days'}`}
+      className={dimWhile(derived.gate)}
+      busy={derived.gate === 'updating'}
       href={routePath.dashboardGoalProgress}
       visual={<GoalMini percent={percent} />}
       value={percent === null ? '---' : String(percent)}

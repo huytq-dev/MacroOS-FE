@@ -79,7 +79,9 @@ export const firstUnansweredBefore = (
 ): WizardStep | null => {
   const steps = stepsFor(answers.programType)
   const index = steps.indexOf(step)
-  if (index <= 0) return null
+  // Bước không thuộc luồng hiện tại (mở thẳng URL / tải lại khi store trống, vd. /program/new/editor) → bước chưa trả lời đầu tiên của luồng
+  if (index < 0) return steps.find((s) => !ANSWERED[s](answers)) ?? steps[0] ?? null
+  if (index === 0) return null
   return steps.slice(0, index).find((earlier) => !ANSWERED[earlier](answers)) ?? null
 }
 

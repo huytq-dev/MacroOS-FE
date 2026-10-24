@@ -76,6 +76,23 @@ const tileDataOfRecipe = (recipe: LibraryItem): FoodTileData => ({
 /** Khoá dòng plate phải khác nhau mỗi lần thêm; chỉ gọi trong sự kiện bấm. */
 const newPlateKey = (id: string) => `${id}-${Date.now()}`
 
+/** Một món với khẩu phần mặc định cho plate (nút + của Library và của kết quả tìm kiếm / History). */
+export const plateItemOfFood = (food: FoodSummary): PlateItem => ({
+  key: newPlateKey(food.id),
+  foodItemId: food.id,
+  name: food.name,
+  foodServingId: food.defaultServingId,
+  servingLabel: food.defaultServingId ? food.defaultServingName : `${food.defaultServingGrams} g`,
+  quantity: food.defaultServingId ? 1 : food.defaultServingGrams,
+  calories: scaleExact(food.caloriesPer100g, food.defaultServingGrams),
+  protein: scaleExact(food.proteinPer100g, food.defaultServingGrams),
+  carbs: scaleExact(food.carbsPer100g, food.defaultServingGrams),
+  fat: scaleExact(food.fatPer100g, food.defaultServingGrams),
+  emoji: food.emoji ?? null,
+  iconKey: food.iconKey ?? null,
+  grams: food.defaultServingGrams,
+})
+
 function EmptyCard({ title, hint }: { readonly title: string; readonly hint: string }) {
   return (
     <div className="bg-card mx-4 mt-4 rounded-xl px-4 py-4">
@@ -149,24 +166,7 @@ export function LibraryPanel({
     ? favorites.filter((favorite) => favorite.foodName.toLowerCase().includes(query))
     : favorites
 
-  const addFood = (food: FoodSummary) =>
-    onAddToPlate({
-      key: newPlateKey(food.id),
-      foodItemId: food.id,
-      name: food.name,
-      foodServingId: food.defaultServingId,
-      servingLabel: food.defaultServingId
-        ? food.defaultServingName
-        : `${food.defaultServingGrams} g`,
-      quantity: food.defaultServingId ? 1 : food.defaultServingGrams,
-      calories: scaleExact(food.caloriesPer100g, food.defaultServingGrams),
-      protein: scaleExact(food.proteinPer100g, food.defaultServingGrams),
-      carbs: scaleExact(food.carbsPer100g, food.defaultServingGrams),
-      fat: scaleExact(food.fatPer100g, food.defaultServingGrams),
-      emoji: food.emoji ?? null,
-      iconKey: food.iconKey ?? null,
-      grams: food.defaultServingGrams,
-    })
+  const addFood = (food: FoodSummary) => onAddToPlate(plateItemOfFood(food))
 
   // Recipe log theo số khẩu phần: không có foodItemId / serving, quantity 1 = 1 khẩu phần.
   const addRecipe = (recipe: LibraryItem) =>

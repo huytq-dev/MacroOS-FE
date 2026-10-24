@@ -7,6 +7,7 @@ import type { MacroBar } from '../../macros-detail'
 import type { NutrientGroup, NutrientValue } from '../../types/dashboard.types'
 import { displayAmount, formatAmount } from '@/features/nutrition/nutrient-display'
 import { useUnits } from '@/features/users/hooks/use-units'
+import { routePath } from '@/config/route-path'
 
 interface NutrientGroupSectionProps {
   readonly group: NutrientGroup
@@ -61,6 +62,7 @@ export function NutrientGroupSection({
               key={nutrient.key}
               title={nutrient.name}
               subtitle={nutrient.period ?? 'Last 7 Days'}
+              href={routePath.dashboardMacros}
               visual={<MacroStack days={macrosWeek} />}
               value={formatAmount(shown.value, shown.unit)}
               unit={shown.unit}

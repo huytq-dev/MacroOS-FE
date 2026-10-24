@@ -8,7 +8,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, Lock, Mail } from 'lucide-react'
 import { useAuth } from '@/features/auth/hooks/use-auth'
-import { applyServerFieldErrors, getFormErrorMessage } from '@/features/auth/auth.utils'
+import {
+  applyServerFieldErrors,
+  getFormErrorMessage,
+  safeRedirect,
+} from '@/features/auth/auth.utils'
 import { loginSchema, type LoginFormValues } from '@/features/auth/schemas/login.schema'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { FormField } from '@/components/shared/FormField'
@@ -50,7 +54,7 @@ export function LoginForm() {
     try {
       await login(values)
       setIsRedirecting(true)
-      router.replace(searchParams.get('redirect') ?? routePath.dashboard)
+      router.replace(safeRedirect(searchParams.get('redirect'), routePath.dashboard))
     } catch (error) {
       logger.error(error)
       const hasFieldErrors = applyServerFieldErrors(error, { setError, setFocus }, [

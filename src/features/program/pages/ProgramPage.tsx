@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { EllipsisVertical, Target } from 'lucide-react'
 import {
@@ -22,6 +22,8 @@ import {
 } from '../components/ProgramPage'
 import { useGoalProgress } from '@/features/dashboard/hooks/use-dashboard'
 import { useExpenditureInsights } from '@/features/dashboard/hooks/use-expenditure-detail'
+import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
+import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
 import { tdeeEstimateOf } from '../utils/tdee.utils'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { feasibilityOfError } from '../utils/feasibility'
@@ -32,6 +34,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { routePath } from '@/config/route-path'
+import { useGoalEditStore } from '@/stores/goal-edit.store'
 
 const ENTER =
   'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-300'
@@ -52,6 +55,11 @@ export function ProgramPage() {
   const [open, setOpen] = useState<ActionKind | null>(null)
   // Ước tính TDEE hiện tại chỉ cần cho bảng Set TDEE: chỉ gọi khi bảng đó mở (cùng truy vấn / bộ nhớ đệm với trang Expenditure)
   const expenditure = useExpenditureInsights(open === 'tdee')
+  const derived = useDerivedGate()
+
+  // Strategy là điểm vào của cả Edit Goal lẫn New Program, không bao giờ nằm giữa hai luồng đó: vào đây (kể cả bằng Back / Forward của trình duyệt)
+  // nghĩa là phiên Edit Goal trước đã kết thúc, nên bỏ goal đã chốt + đích / tốc độ đã sửa. Không xoá ở unmount của Edit Goal vì đó chính là bước chuyển sang New Program.
+  useEffect(() => useGoalEditStore.getState().reset(), [])
 
   if (program.isError)
     return <ErrorState error={program.error} onRetry={() => void program.refetch()} />
@@ -74,7 +82,7 @@ export function ProgramPage() {
   }
 
   const current = program.data
-  const tdeeEstimate = tdeeEstimateOf(expenditure)
+  const tdeeEstimate = tdeeEstimateOf(expenditure, derived.gate)
   const createButton = (
     <Button asChild size="sm">
       <Link href={routePath.programNew}>Create program</Link>
@@ -119,16 +127,25 @@ export function ProgramPage() {
 
       {current && (
         <>
+          {derived.gate === 'failed' && (
+            <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+          )}
           {current.checkInDue ? (
             <div className={ENTER}>
               <CheckInButton />
             </div>
           ) : (
             current.checkInDueInDays !== null && (
-              <div className={ENTER}>
+              // % goal là số dẫn xuất: BE đang dựng lại / dựng lỗi thì mờ đi (không phải số cuối); tải lại lỗi thì không hiện số TanStack còn giữ
+              <div
+                aria-busy={derived.gate === 'updating'}
+                className={`${ENTER} ${derived.gate !== 'ready' ? 'opacity-60 transition-opacity' : ''}`}
+              >
                 <CheckInDial
                   days={current.checkInDueInDays}
-                  goalPercent={goalProgress.data?.progressPercent ?? null}
+                  goalPercent={
+                    goalProgress.isError ? null : (goalProgress.data?.progressPercent ?? null)
+                  }
                 />
               </div>
             )

@@ -74,7 +74,8 @@ export function MobileTabBar() {
 
   return (
     <nav
-      className="bg-card fixed inset-x-0 bottom-0 z-50 flex h-[calc(3.75rem+env(safe-area-inset-bottom))] items-start border-t pb-[env(safe-area-inset-bottom)] in-data-[keyboard=open]:hidden md:hidden"
+      // z-40: luôn dưới Dialog/Sheet/Drawer (z-50); trước đây cùng z-50 nên chỉ thắng nhờ thứ tự DOM của portal.
+      className="bg-card fixed inset-x-0 bottom-0 z-40 flex h-[calc(3.75rem+env(safe-area-inset-bottom))] items-start border-t pb-[env(safe-area-inset-bottom)] in-data-[keyboard=open]:hidden md:hidden"
       aria-label="Main navigation"
       data-bottom-nav=""
     >

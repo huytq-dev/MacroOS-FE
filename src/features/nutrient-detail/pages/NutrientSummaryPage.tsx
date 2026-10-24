@@ -16,8 +16,11 @@ import {
   UNVERIFIED_TARGET_NOTE,
   isHistoricalUnverified,
 } from '@/features/nutrition/target-provenance'
+import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
+import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
 import { useIsClient } from '@/hooks/use-is-client'
 import { todayIso } from '@/lib/date'
+import { cn } from '@/lib/utils'
 
 /** Một hàng Today / Past Week / Past Month: tên, "lượng / mục tiêu đơn vị", %, thanh mảnh có vạch target. */
 function SummaryRow({
@@ -130,6 +133,8 @@ export function NutrientSummaryPage({ info: catalogInfo }: { readonly info: Nutr
   const isClient = useIsClient()
   const today = isClient ? todayIso() : null
   const query = useNutrientDay(info.code, today)
+  // Past Week / Past Month đọc tổng hợp dẫn xuất của BE: đang dựng lại thì mờ (không phải số cuối), Ready thì DERIVED_KEYS (['nutrients']) làm mới một lần
+  const derived = useDerivedGate()
   const header = <SubPageHeader title={nutrient.name} />
 
   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />
@@ -147,74 +152,87 @@ export function NutrientSummaryPage({ info: catalogInfo }: { readonly info: Nutr
   const goal: NutrientGoal = day
 
   return (
-    <div className="flex w-full max-w-2xl min-w-0 flex-col gap-8 md:pb-0">
+    <div
+      aria-busy={derived.gate === 'updating'}
+      className="flex w-full max-w-2xl min-w-0 flex-col gap-8 md:pb-0"
+    >
       {header}
-
-      <ul className="bg-card divide-foreground/10 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-400 divide-y overflow-hidden rounded-xl">
-        <SummaryRow info={info} label="Today" amount={day.amount} goal={goal} />
-        <SummaryRow info={info} label="Past Week" amount={day.pastWeekAverage} goal={goal} />
-        <SummaryRow info={info} label="Past Month" amount={day.pastMonthAverage} goal={goal} />
-      </ul>
-
-      <section
-        aria-labelledby="goal-heading"
-        className={SECTION}
-        style={{ animationDelay: '70ms' }}
-      >
-        <h2 id="goal-heading" className="text-xl font-bold">
-          Active Goal
-        </h2>
-        <ActiveGoal info={info} day={day} />
-      </section>
-
-      <section
-        aria-labelledby="contributors-heading"
-        className={SECTION}
-        style={{ animationDelay: '140ms' }}
-      >
-        <div>
-          <h2 id="contributors-heading" className="text-xl font-bold">
-            All Contributors
-          </h2>
-          <p className="text-muted-foreground text-base">Contributors for Today</p>
-        </div>
-        {day.contributors.length === 0 ? (
-          <p className="bg-card text-muted-foreground rounded-xl p-4 text-base">
-            No contributors present
-          </p>
-        ) : (
-          <ul className="bg-card divide-foreground/10 divide-y overflow-hidden rounded-xl">
-            {day.contributors.map((item, index) => (
-              <li
-                key={item.entryId ?? `${item.name}-${index}`}
-                className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-3 motion-safe:animation-duration-300 flex items-center justify-between gap-3 px-4 py-3 text-base [animation-fill-mode:backwards]"
-                style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
-              >
-                <span className="min-w-0 truncate">{item.name}</span>
-                <span className="text-muted-foreground tabular-nums">
-                  {formatAmount(item.amount, nutrient.unit)} {nutrient.unit}
-                </span>
-              </li>
-            ))}
-          </ul>
+      {derived.gate === 'failed' && (
+        <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+      )}
+      {/* Số dẫn xuất chưa phải số cuối (Updating / Failed): mờ phần số liệu; header và thẻ "Try again" nằm ngoài nên không trông như bị khoá */}
+      <div
+        className={cn(
+          'flex min-w-0 flex-col gap-8 transition-opacity',
+          derived.gate !== 'ready' && 'opacity-60'
         )}
-      </section>
-
-      <section
-        aria-labelledby="timing-heading"
-        className={SECTION}
-        style={{ animationDelay: '210ms' }}
       >
-        <div>
-          <h2 id="timing-heading" className="text-xl font-bold">
-            Nutrient Timing
+        <ul className="bg-card divide-foreground/10 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-400 divide-y overflow-hidden rounded-xl">
+          <SummaryRow info={info} label="Today" amount={day.amount} goal={goal} />
+          <SummaryRow info={info} label="Past Week" amount={day.pastWeekAverage} goal={goal} />
+          <SummaryRow info={info} label="Past Month" amount={day.pastMonthAverage} goal={goal} />
+        </ul>
+
+        <section
+          aria-labelledby="goal-heading"
+          className={SECTION}
+          style={{ animationDelay: '70ms' }}
+        >
+          <h2 id="goal-heading" className="text-xl font-bold">
+            Active Goal
           </h2>
-          <p className="text-muted-foreground text-base">
-            Distribution of {nutrient.name} throughout Today
-          </p>
-        </div>
-        <NutrientTiming info={info} timing={day.timing} />
-      </section>
+          <ActiveGoal info={info} day={day} />
+        </section>
+
+        <section
+          aria-labelledby="contributors-heading"
+          className={SECTION}
+          style={{ animationDelay: '140ms' }}
+        >
+          <div>
+            <h2 id="contributors-heading" className="text-xl font-bold">
+              All Contributors
+            </h2>
+            <p className="text-muted-foreground text-base">Contributors for Today</p>
+          </div>
+          {day.contributors.length === 0 ? (
+            <p className="bg-card text-muted-foreground rounded-xl p-4 text-base">
+              No contributors present
+            </p>
+          ) : (
+            <ul className="bg-card divide-foreground/10 divide-y overflow-hidden rounded-xl">
+              {day.contributors.map((item, index) => (
+                <li
+                  key={item.entryId ?? `${item.name}-${index}`}
+                  className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-3 motion-safe:animation-duration-300 flex items-center justify-between gap-3 px-4 py-3 text-base [animation-fill-mode:backwards]"
+                  style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
+                >
+                  <span className="min-w-0 truncate">{item.name}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {formatAmount(item.amount, nutrient.unit)} {nutrient.unit}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section
+          aria-labelledby="timing-heading"
+          className={SECTION}
+          style={{ animationDelay: '210ms' }}
+        >
+          <div>
+            <h2 id="timing-heading" className="text-xl font-bold">
+              Nutrient Timing
+            </h2>
+            <p className="text-muted-foreground text-base">
+              Distribution of {nutrient.name} throughout Today
+            </p>
+          </div>
+          <NutrientTiming info={info} timing={day.timing} />
+        </section>
+      </div>
     </div>
   )
 }

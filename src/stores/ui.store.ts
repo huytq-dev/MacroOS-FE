@@ -7,6 +7,8 @@ import type { ShortcutSheetKind } from '@/features/shortcuts/types/shortcuts.typ
 export interface AddFoodRequest {
   readonly tab: AddTab
   readonly libraryView?: LibraryView
+  /** Mở từ thanh Search của Dashboard: focus ô tìm (mở bằng "+" thì không, tránh bật bàn phím ngoài ý muốn). */
+  readonly focusSearch?: boolean
 }
 
 /** Một nguyên liệu điền sẵn: lượng theo đúng entry đã log (khẩu phần + số lượng, hoặc gram khi `foodServingId` null). */

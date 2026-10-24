@@ -15,6 +15,9 @@ import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
+import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
+import { cn } from '@/lib/utils'
 
 const CONTRIBUTOR_GROUPS = new Set(['calories', 'macros'])
 
@@ -28,12 +31,14 @@ export function NutritionOverviewPage() {
   const [range, setRange] = useState<OverviewRange>('today')
   const [contributorsOn, setContributorsOn] = useState(false)
   const data = useNutritionOverview(range)
+  // Kỳ Month / Quarter / Year đọc tổng hợp dẫn xuất của BE: đang dựng lại thì mờ (không phải số cuối), Ready thì DERIVED_KEYS làm mới một lần
+  const derived = useDerivedGate()
   const isToday = range === 'today'
 
   if (data.isError) return <ErrorState error={data.error} onRetry={() => void data.refetch()} />
 
   return (
-    <div className="flex max-w-2xl flex-col gap-8 pb-8">
+    <div aria-busy={derived.gate === 'updating'} className="flex max-w-2xl flex-col gap-8 pb-8">
       <div className="bg-card sticky top-0 z-30 [contain:inline-size] max-md:-mx-4 max-md:-mt-[calc(env(safe-area-inset-top)+1.25rem)] max-md:pt-[calc(env(safe-area-inset-top)+0.5rem)] md:rounded-2xl md:pt-2">
         <div className="px-4">
           <SubPageHeader title="Nutrition Overview" />
@@ -41,6 +46,9 @@ export function NutritionOverviewPage() {
         <RangeTabs value={range} onChange={setRange} />
       </div>
 
+      {derived.gate === 'failed' && (
+        <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+      )}
       {data.isLoading ? (
         <div className="space-y-3" aria-busy="true">
           {[0, 1, 2, 3].map((item) => (
@@ -50,7 +58,10 @@ export function NutritionOverviewPage() {
       ) : (
         <div
           key={range}
-          className="motion-safe:animate-in motion-safe:fade-in-0 flex flex-col gap-8 motion-safe:duration-300"
+          className={cn(
+            'motion-safe:animate-in motion-safe:fade-in-0 flex flex-col gap-8 transition-opacity motion-safe:duration-300',
+            derived.gate !== 'ready' && 'opacity-60'
+          )}
         >
           {OVERVIEW_GROUPS.map((group) => {
             const hasContributors = isToday && CONTRIBUTOR_GROUPS.has(group.key)

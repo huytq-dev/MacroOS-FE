@@ -1,3 +1,5 @@
+import type { DerivedGate } from '@/features/derived-data/derived-data.utils'
+
 /**
  * Giới hạn TDEE nhập tay: khớp BE (validator của `SetManualTdee`: số NGUYÊN 1000–6000 kcal/ngày). Đổi ở BE thì đổi ĐỒNG THỜI ở đây (một
  * nhóm hằng số duy nhất cho FE; xem docs/UI.md).
@@ -25,9 +27,14 @@ export interface InsightsQueryState {
  * Trạng thái ước tính cho ô Set TDEE. Chỉ tin số khi truy vấn ĐÃ tải xong và không lỗi: đang (tải lại) hoặc lỗi thì không đưa số cũ trong
  * bộ nhớ đệm vào ô — Lưu sẽ đặt thuật toán về đúng số đó, nên số có thể đã cũ (vd. vừa đặt TDEE xong) không được điền sẵn.
  */
-export const tdeeEstimateOf = (query: InsightsQueryState): TdeeEstimate => {
-  if (query.isError) return { status: 'error', kcal: null }
-  if (!query.data || query.isFetching) return { status: 'loading', kcal: null }
+export const tdeeEstimateOf = (
+  query: InsightsQueryState,
+  // BE đang dựng lại / dựng lại lỗi (`useDerivedGate`): số trong bộ nhớ đệm là số trước khi dựng lại, không điền sẵn
+  gate: DerivedGate = 'ready'
+): TdeeEstimate => {
+  if (query.isError || gate === 'failed') return { status: 'error', kcal: null }
+  if (!query.data || query.isFetching || gate === 'updating')
+    return { status: 'loading', kcal: null }
   return { status: 'ready', kcal: query.data.currentKcal ?? null }
 }
 

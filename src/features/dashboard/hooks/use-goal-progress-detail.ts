@@ -22,7 +22,17 @@ export function useGoalProgressDetail(tab: GoalTab) {
 
   if (!today || goal.isLoading || (goal.data && weights.isLoading))
     return { status: 'loading' as const }
-  if (goal.isError || weights.isError) return { status: 'error' as const }
+  if (goal.isError || weights.isError)
+    return {
+      status: 'error' as const,
+      /** Đang tải lại: ErrorState khoá nút và báo đang thử (không huỷ request đang chạy để gửi request khác). */
+      isRetrying: goal.isFetching || weights.isFetching,
+      /** Thử lại truy vấn nào đang lỗi (nút Retry của ErrorState). */
+      refetch: () => {
+        if (goal.isError) void goal.refetch()
+        if (weights.isError) void weights.refetch()
+      },
+    }
 
   const data = goal.data
   const startKg = data?.startWeightKg ?? null

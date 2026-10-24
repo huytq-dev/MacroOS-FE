@@ -34,7 +34,7 @@ interface FoodTileProps {
   readonly variant?: 'card' | 'row'
   /** Bấm cả ô để chọn/sửa món; không truyền thì ô chỉ để xem (preview ở cài đặt). */
   readonly onSelect?: () => void
-  /** Nút + (Multi-Add) mở chi tiết món (như bấm cả dòng) để chọn khẩu phần rồi Add vào plate; chỉ dùng khi highlight = MultiAdd. */
+  /** Nút + (Multi-Add): thêm ngay khẩu phần mặc định vào plate, không rời tìm kiếm (bấm cả dòng mới mở chi tiết); không truyền (Preview của Settings) thì nút chỉ để xem. */
   readonly onAdd?: () => void
   /** Đang chọn nhiều món: nút bút chì mờ đi (không còn là hành động chính). */
   readonly dimEdit?: boolean
@@ -128,7 +128,7 @@ function AnimatedHeight({
 /**
  * Ô món (Timeline Food Tiles và Logger Food Tiles): emoji, tên, dòng "kcal · P · F · C" và khẩu phần/khối lượng. Comfort để tên
  * xuống dòng và khẩu phần ở dòng riêng; Standard cho tên tối đa hai dòng và gộp khẩu phần vào dòng macro; Compact một dòng tên.
- * Điểm nhấn bên phải: Edit (nút bút chì tròn), MultiAdd (nút + riêng, mở chi tiết món để chọn khẩu phần rồi Add vào plate), Energy (số kcal ở góc phải trên, bỏ kcal khỏi dòng macro), None (tên dài hơn).
+ * Điểm nhấn bên phải: Edit (nút bút chì tròn), MultiAdd (nút + riêng, thêm ngay khẩu phần mặc định vào plate), Energy (số kcal ở góc phải trên, bỏ kcal khỏi dòng macro), None (tên dài hơn).
  * Đổi cài đặt thì ô co giãn có hoạt ảnh.
  */
 export function FoodTile({

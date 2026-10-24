@@ -13,7 +13,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace(`${routePath.login}?redirect=${encodeURIComponent(pathname)}`)
+      // Giữ cả query (vd. /progress-photos/gallery?date=…) để đăng nhập xong quay lại đúng trạng thái
+      const target = `${pathname}${window.location.search}`
+      router.replace(`${routePath.login}?redirect=${encodeURIComponent(target)}`)
     }
   }, [isAuthenticated, isLoading, pathname, router])
 

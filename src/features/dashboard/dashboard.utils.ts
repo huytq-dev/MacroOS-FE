@@ -8,6 +8,20 @@ import type { DailyProgress, NutrientValue } from './types/dashboard.types'
 export const HABIT_DAYS = 30
 
 /**
+ * Trạng thái của một trang / ô chi tiết đọc HAI truy vấn (chuỗi + insights): đang tải tới khi cả hai về; một trong hai lỗi là lỗi — TanStack giữ số cũ khi
+ * tải lại lỗi, số đó có thể là số trước khi BE dựng lại nên không được hiện như số cuối.
+ */
+export const pairStatus = (
+  series: { readonly isPending: boolean; readonly isError: boolean; readonly isFetching: boolean },
+  insights: { readonly isPending: boolean; readonly isError: boolean; readonly isFetching: boolean }
+) => ({
+  isLoading: series.isPending || insights.isPending,
+  isError: series.isError || insights.isError,
+  // Đang tải lại (vd. sau "Try again"): ErrorState khoá nút và báo đang thử, không huỷ request đang chạy để gửi request khác
+  isFetching: series.isFetching || insights.isFetching,
+})
+
+/**
  * `count` mục MỚI NHẤT theo ngày, xếp cũ → mới (thứ tự vẽ đường nhỏ). Không dựa vào thứ tự BE trả: `GET /weights` và Visual Body Fat
  * trả mới → cũ, nên `slice(-count)` thẳng trên danh sách đó lấy nhầm các mục CŨ NHẤT.
  */

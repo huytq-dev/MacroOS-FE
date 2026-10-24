@@ -1,11 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { routePath } from '@/config/route-path'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import {
   CalorieShiftAlert,
@@ -76,13 +74,10 @@ interface View {
  * program); Editor và Review lấy số từ `POST /programs/preview`, kéo slider ở editor chỉ tính tại chỗ.
  */
 export function NewProgramStepPage({ step }: { readonly step: WizardStep }) {
-  const router = useRouter()
   const nav = useWizardNav(step)
   const wizard = useProgramWizardStore()
   const direction = useFlowStore((state) => state.direction)
-  const setDirection = useFlowStore((state) => state.setDirection)
   const pendingGoal = useGoalEditStore((state) => state.pendingGoal)
-  const setPendingGoal = useGoalEditStore((state) => state.setPendingGoal)
   const program = useCurrentProgram()
   const setup = useProgramSetup()
   const preview = usePreviewProgram()
@@ -444,12 +439,8 @@ export function NewProgramStepPage({ step }: { readonly step: WizardStep }) {
           onNext: () => {
             if (!setupData) return
             createProgram.mutate(buildProgramRequest(wizard, goal, setupData, true), {
-              onSuccess: () => {
-                setDirection('back')
-                wizard.reset()
-                setPendingGoal(null)
-                router.push(routePath.program)
-              },
+              // Cùng đường thoát với Close: đánh dấu "đang rời" để reset() không bị effect về bước 'style' đè lên điều hướng
+              onSuccess: nav.close,
             })
           },
           nextLabel: 'Done',

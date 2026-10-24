@@ -25,7 +25,8 @@ export function SessionRow({ session, onEdit }: SessionRowProps) {
   return (
     <div className="bg-card flex items-center gap-2 rounded-xl py-1.5 pr-2 pl-3 transition-colors">
       <Link
-        href={`${routePath.progressPhotosGallery}?date=${session.date}`}
+        // Màn xem mặc định Front và chỉ liệt kê ngày có góc đang chọn: ngày chỉ có Side / Back phải mở đúng góc đó
+        href={`${routePath.progressPhotosGallery}?date=${session.date}&angle=${thumbs[0]?.angle ?? 'Front'}`}
         className="focus-visible:ring-ring/50 active:bg-muted flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg focus-visible:ring-1 focus-visible:outline-none"
       >
         <span className="flex shrink-0 items-center" aria-hidden="true">

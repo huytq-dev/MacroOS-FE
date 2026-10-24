@@ -55,7 +55,8 @@ export function DashboardCarousel({ slides }: DashboardCarouselProps) {
             aria-selected={index === page}
             aria-label={slide.label}
             onClick={() => goTo(index)}
-            className="focus-visible:ring-ring/50 flex h-11 w-7 items-center justify-center rounded-full focus-visible:ring-1 focus-visible:outline-none"
+            // Chấm cách nhau 28px như MacroFactor; vùng bấm 32px (UI.md: tối thiểu 32px) nhờ before, không đổi khoảng cách
+            className="focus-visible:ring-ring/50 relative flex h-11 w-7 items-center justify-center rounded-full before:absolute before:-inset-x-0.5 before:inset-y-0 before:content-[''] focus-visible:ring-1 focus-visible:outline-none"
           >
             <span
               className={cn(

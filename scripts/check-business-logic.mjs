@@ -947,7 +947,8 @@ check(
     assert.match(edit, /feasibilityOfError\(save\.error\)/)
     const checkIn = source('features/program/components/CheckInPage/ProgramUpdateModule.tsx')
     assert.match(checkIn, /infeasibleOf\(preview\.feasibility\)/)
-    assert.match(checkIn, /disabled=\{isDeciding \|\| acceptBlocked\}/)
+    // Đề xuất không khả thi vẫn khoá Accept; G6 thêm khoá khi dữ liệu dẫn xuất chưa Ready (`notReady`, xem check-contract G5)
+    assert.match(checkIn, /disabled=\{isDeciding \|\| acceptBlocked( \|\| notReady)?\}/)
     const actions = source('features/program/components/ProgramPage/ProgramActions.tsx')
     // Chỉ gửi khi user bấm nút; Even không bao giờ tự áp
     assert.match(actions, /onClick: \(\) => submit\(\{ calorieShiftMode: 'Even' \}\)/)
@@ -2153,7 +2154,7 @@ check(
     const hooks = source('features/food-log/hooks/use-food-log.ts')
     assert.match(
       hooks,
-      /LOG_DERIVED_KEYS = \[\s*\['nutrients'\],\s*\['nutrition-overview'\],\s*\['expenditure'\],\s*\['energy-balance'\],\s*\]/
+      /LOG_DERIVED_KEYS = \[\s*\['nutrients'\],\s*\['nutrition-overview'\],\s*\['expenditure'\],\s*\['energy-balance'\],\s*\['weights', 'trend'\],\s*\['nutrition-data'\],\s*\]/
     )
     assert.match(hooks, /void queryClient\.invalidateQueries\(\{ queryKey: foodLogKeys\.all \}\)/)
     assert.match(hooks, /export const useUpdateEntry = \(\) =>\s*useLogMutation\(/)
@@ -2437,5 +2438,55 @@ check(
     assert.match(hooks, /MEASUREMENT_INVALIDATE = \[measurementKeys\.all, \['body-metrics'\]\]/)
   }
 )
+check(
+  'Macros Detail: BE trả days rỗng (chưa log ngày nào) không làm sập trang, chỉ hiện hôm nay trống',
+  () => {
+    const empty = { ...SERIES, days: [], buckets: [] }
+    assert.equal(macrosDetail.historyDayCount(empty, '2026-10-23'), 1)
+    assert.deepEqual(macrosDetail.macroBarsOf(empty, 'daily'), [])
+    const first = SERIES.days[0].date
+    assert.equal(macrosDetail.historyDayCount(SERIES, first), 1, 'ngày đầu = hôm nay → 1 ngày')
+    const page = source('features/dashboard/pages/MacrosDetailPage.tsx')
+    assert.doesNotMatch(page, /days\[0\]\.date/, 'không đọc days[0] khi chưa chắc có phần tử')
+  }
+)
+check(
+  'wizard guard: mở thẳng bước không thuộc luồng (store trống / sai kiểu program) → về luồng, không render bước lạc',
+  () => {
+    const none = { ...wizardAnswers, programType: null }
+    assert.equal(steps.firstUnansweredBefore('editor', none), 'style')
+    assert.equal(steps.firstUnansweredBefore('manual-targets', none), 'style')
+    // Coached không có editor / manual-targets: về bước chưa trả lời đầu tiên của luồng Coached
+    assert.equal(steps.firstUnansweredBefore('editor', wizardAnswers), 'distribute')
+    assert.equal(
+      steps.firstUnansweredBefore('manual-targets', { ...wizardAnswers, distribution: 'Even' }),
+      'style'
+    )
+    assert.equal(steps.firstUnansweredBefore('style', none), null)
+  }
+)
+check(
+  '[wiring] thanh Search của Dashboard mở Add food ở tab Search VÀ focus ô tìm; mở bằng "+" thì không focus',
+  () => {
+    const dashboard = source('features/dashboard/pages/DashboardPage.tsx')
+    assert.match(dashboard, /requestAddFood\(\{ tab: 'search', focusSearch: true \}\)/)
+    const page = source('features/food-log/pages/FoodLogPage.tsx')
+    assert.match(page, /setFocusSearch\(Boolean\(addRequest\.focusSearch\)\)/)
+    assert.match(
+      page,
+      /if \(focusSearch && !addOpen\) setFocusSearch\(false\)/,
+      'đóng bảng thì bỏ focus cho lần mở sau'
+    )
+    assert.match(page, /autoFocusSearch=\{focusSearch\}/)
+    const dialog = source('features/food-log/components/FoodLogPage/AddFoodDialog.tsx')
+    assert.match(dialog, /aria-label="Search for a food"\s+autoFocus=\{autoFocusSearch\}/)
+    assert.match(dialog, /autoFocusSearch = false/)
+  }
+)
+check('[wiring] chấm carousel Dashboard: vùng bấm ≥ 32px (UI.md) mà vẫn cách nhau 28px', () => {
+  const carousel = source('features/dashboard/components/DashboardPage/DashboardCarousel.tsx')
+  assert.match(carousel, /h-11 w-7/)
+  assert.match(carousel, /before:-inset-x-0\.5/)
+})
 console.log(`${checks} checks passed, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,6 +1,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { routePath } from '@/config/route-path'
+import { goBack } from '@/lib/back-target'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ShortcutsCustomize } from '../components'
@@ -25,8 +27,8 @@ export function ShortcutsPage() {
       initial={config}
       isSaving={save.isPending}
       error={save.error ? getFormErrorMessage(save.error) : null}
-      onSave={(draft) => save.mutate(draft, { onSuccess: () => router.back() })}
-      onExit={() => router.back()}
+      onSave={(draft) => save.mutate(draft, { onSuccess: () => goBack(router, routePath.shortcuts) })}
+      onExit={() => goBack(router, routePath.shortcuts)}
     />
   )
 }

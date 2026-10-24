@@ -66,8 +66,31 @@ const refreshAccessToken = (): Promise<string> => {
 
 type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean }
 
+// BE gắn `X-Derived-Data-State` (Ready / Updating / Failed) vào phản hồi của mọi lần ghi; nơi giữ QueryClient đăng ký người nghe (lib/query-client.ts)
+const DERIVED_STATE_HEADER = 'x-derived-data-state'
+const WRITE_METHODS = ['post', 'put', 'patch', 'delete']
+// POST chỉ để TÍNH (xem trước / tính dinh dưỡng đĩa): không ghi gì nên không có trạng thái dựng lại để đọc
+const READ_ONLY_POSTS = /(?:\/preview|\/edit-preview|\/plate\/nutrients|\/ai\/resolve-ingredient)$/
+type DerivedHeaderListener = (headerValue: unknown) => void
+let derivedHeaderListener: DerivedHeaderListener | null = null
+
+export const setDerivedHeaderListener = (listener: DerivedHeaderListener | null): void => {
+  derivedHeaderListener = listener
+}
+
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const url = response.config.url ?? ''
+    // `/derived-data/*` tự trả trạng thái trong thân; nghe header ở đó sẽ vòng lặp với chính nó
+    if (
+      WRITE_METHODS.includes(response.config.method?.toLowerCase() ?? '') &&
+      !url.startsWith('/derived-data/') &&
+      !url.startsWith('/auth/') &&
+      !READ_ONLY_POSTS.test(url.split('?')[0])
+    )
+      derivedHeaderListener?.(response.headers?.[DERIVED_STATE_HEADER])
+    return response
+  },
   async (error: AxiosError) => {
     if (axios.isCancel(error)) return Promise.reject(error)
 

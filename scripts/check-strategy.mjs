@@ -67,6 +67,10 @@ const recorder = () => {
         keys.push(JSON.stringify(queryKey))
         return Promise.resolve()
       },
+      // refreshDerivedStatus huỷ lần đọc status đang bay trước khi đọc lại
+      cancelQueries: () => Promise.resolve(),
+      // …và đánh dấu Ready cũ là chưa xác nhận
+      setQueryData: () => undefined,
     },
   }
 }

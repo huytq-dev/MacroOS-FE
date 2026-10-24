@@ -34,7 +34,11 @@ export function useFoodLogSettings() {
       logger.error(error)
       queryClient.setQueryData(settingsKey, context?.previous)
     },
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['foods'] }),
+    // Cờ Branded / Open Food Facts đổi phạm vi tìm món VÀ danh sách Library của thanh thêm món
+    onSuccess: () => {
+      for (const queryKey of [['foods'], ['food-log', 'library']] as const)
+        void queryClient.invalidateQueries({ queryKey })
+    },
   })
 
   const update = (patch: Partial<FoodLogSettings>) => save.mutate({ ...settings, ...patch })

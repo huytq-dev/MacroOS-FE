@@ -14,6 +14,7 @@ import type { CustomFoodRequest, FoodDetail, FoodSearchParams } from '../types/f
 import { favoriteKeys } from './use-favorites'
 import { foodLogKeys } from '@/features/food-log/hooks/use-food-log'
 import { logger } from '@/lib/api'
+import { reportMutationError } from '@/lib/mutation-feedback'
 
 export const foodKeys = {
   all: ['foods'] as const,
@@ -81,13 +82,22 @@ export const useFoodNutrients = (id: string | null, date: string | null) =>
  * Favorites giữ món cũ (đã xoá, tên cũ) tới hết staleTime.
  */
 export function invalidateFoodData(queryClient: QueryClient) {
-  for (const queryKey of [foodKeys.all, foodLogKeys.library, favoriteKeys.all])
+  // Dinh dưỡng của đĩa / recipe đang soạn tính từ món hiện tại nên cũng tải lại khi món đổi
+  for (const queryKey of [
+    foodKeys.all,
+    foodLogKeys.library,
+    favoriteKeys.all,
+    [...foodLogKeys.all, 'plate-nutrients'],
+    [...foodLogKeys.all, 'recipe-nutrients'],
+  ])
     void queryClient.invalidateQueries({ queryKey })
 }
 
 const useFoodMutation = <TVariables>(
   mutationFn: (variables: TVariables) => Promise<unknown>,
-  successMessage: string
+  successMessage: string,
+  /** Có = thao tác không có chỗ hiện lỗi inline (xoá): báo user bằng toast thay vì chỉ ghi log. */
+  failureTitle?: string
 ) => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -97,6 +107,7 @@ const useFoodMutation = <TVariables>(
       invalidateFoodData(queryClient)
     },
     onError: (error) => {
+      if (failureTitle) return reportMutationError(error, failureTitle)
       logger.error(error)
       // lỗi nghiệp vụ hiện inline ở dialog/trang (UI.md mục 10), không toast
     },
@@ -112,7 +123,7 @@ export const useUpdateFood = () =>
     'Food saved'
   )
 export const useDeleteFood = () =>
-  useFoodMutation((id: string) => foodService.remove(id), 'Food deleted')
+  useFoodMutation((id: string) => foodService.remove(id), 'Food deleted', "Couldn't delete food")
 
 /** Tra mã vạch (DB trước, chưa có thì BE lấy từ Open Food Facts); lỗi hiện inline ở nơi gọi. */
 export const useBarcodeLookup = () =>

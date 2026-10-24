@@ -8,6 +8,7 @@ import {
   recentExp,
   toExpDay,
 } from '../expenditure-series'
+import { pairStatus } from '../dashboard.utils'
 import { CHANGE_DAYS, type Averaging } from '../expenditure.utils'
 import type {
   ExpenditureInsightsResponse,
@@ -59,10 +60,18 @@ export function useExpenditureDetail(averaging: Averaging) {
   const daily = (series.data?.days ?? []).map(toExpDay)
   const info = insights.data
 
+  const status = pairStatus(series, insights)
   return {
     ready: true as const,
-    isLoading: series.isPending,
-    isError: series.isError,
+    // Số hiện tại / thay đổi lấy từ insights: insights lỗi (còn giữ số cũ) cũng là lỗi, không hiện số đó như số cuối
+    isLoading: status.isLoading,
+    isError: status.isError,
+    isFetching: status.isFetching,
+    /** Thử lại cả chuỗi và insights (nút Retry của ErrorState). */
+    refetch: () => {
+      void series.refetch()
+      void insights.refetch()
+    },
     today,
     /** Từng ngày (cũ → mới); Average / Difference tính trên chuỗi này. */
     daily,

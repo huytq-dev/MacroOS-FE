@@ -2,6 +2,8 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { routePath } from '@/config/route-path'
+import { goBack } from '@/lib/back-target'
 import { Camera, ChevronLeft, ChevronRight, Pencil, Rows2, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -191,7 +193,7 @@ function Gallery() {
         <button
           type="button"
           aria-label="Back"
-          onClick={() => router.back()}
+          onClick={() => goBack(router, routePath.progressPhotosGallery)}
           className={cn(ROUND, 'size-11 shrink-0')}
         >
           <ChevronLeft aria-hidden="true" className="size-6" />

@@ -16,13 +16,13 @@ import {
 import { useTween } from '../chart/use-tween'
 import { rangeLabel, type Averaging, type RangeKey } from '../expenditure.utils'
 import { useMacrosSeries } from '../hooks/use-dashboard'
-import { gramText, macroBarsOf } from '../macros-detail'
+import { gramText, historyDayCount, macroBarsOf } from '../macros-detail'
 import type { MacroGranularity } from '../types/macros-series.types'
 import { useUnits } from '@/features/users/hooks/use-units'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsClient } from '@/hooks/use-is-client'
-import { daysBetween, todayIso } from '@/lib/date'
+import { todayIso } from '@/lib/date'
 
 const GRANULARITY: Readonly<Record<Averaging, MacroGranularity | undefined>> = {
   daily: undefined,
@@ -50,7 +50,7 @@ export function MacrosDetailPage() {
     Boolean(today) && averaging !== 'daily'
   )
   const series = history.data
-  const total = today && series ? daysBetween(series.days[0].date, today) + 1 : 0
+  const total = today && series ? historyDayCount(series, today) : 0
   const target = slotsOf(range, total)
   const slots = useTween(target)
   const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })

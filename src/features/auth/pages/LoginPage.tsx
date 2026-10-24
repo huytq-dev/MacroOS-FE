@@ -3,6 +3,7 @@
 import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/use-auth'
+import { safeRedirect } from '@/features/auth/auth.utils'
 import { LoginForm } from '@/features/auth/components/login/LoginForm'
 import { AuthAltAction } from '@/features/auth/components/AuthAltAction'
 import { AuthShell } from '@/features/auth/components/AuthShell'
@@ -16,7 +17,7 @@ function LoginPageInner() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace(searchParams.get('redirect') ?? routePath.dashboard)
+      router.replace(safeRedirect(searchParams.get('redirect'), routePath.dashboard))
     }
   }, [isAuthenticated, isLoading, router, searchParams])
 

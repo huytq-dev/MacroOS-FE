@@ -17,6 +17,7 @@ import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
 import type { GoalTab } from '../goal-progress.utils'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import { useUnits } from '@/features/users/hooks/use-units'
 import { formatDate } from '@/lib/date'
 
@@ -66,26 +67,39 @@ export function GoalProgressPage() {
   const { weight } = useUnits()
 
   if (data.status === 'error')
-    return <ErrorState error={new Error('Could not load Goal Progress')} />
+    return (
+      <ErrorState
+        error={new Error('Could not load Goal Progress')}
+        onRetry={data.refetch}
+        isRetrying={data.isRetrying}
+      />
+    )
 
   return (
-    <div style={THEME[tab]} className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0">
+    <div
+      style={THEME[tab]}
+      aria-busy={derived.gate === 'updating'}
+      className={cn(
+        'flex w-full max-w-2xl min-w-0 flex-col gap-5 transition-opacity md:pb-0',
+        // BE đang dựng lại: giữ nguyên biểu đồ và số cũ (làm mờ, không thay bằng khung xám làm trang co lại); số mới tự thay khi xong
+        derived.gate === 'updating' && 'opacity-60'
+      )}
+    >
       <SubPageHeader title="Goal Progress" />
       <UnderlineTabs tabs={TABS} value={tab} onChange={setTab} ariaLabel="Weight basis" />
 
       {derived.gate === 'failed' && (
         <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
       )}
-      {derived.gate === 'ready' && data.status === 'loading' && (
+      {derived.gate !== 'failed' && data.status === 'loading' && (
         <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       )}
-      {derived.gate === 'updating' && <Skeleton className="h-96 rounded-xl" aria-busy="true" />}
-      {derived.gate === 'ready' && data.status === 'empty' && (
+      {derived.gate !== 'failed' && data.status === 'empty' && (
         <p className="bg-card text-muted-foreground rounded-xl p-4 text-base">
           Set a target weight in your goal to see your progress here.
         </p>
       )}
-      {derived.gate === 'ready' && data.status === 'ready' && (
+      {derived.gate !== 'failed' && data.status === 'ready' && (
         <>
           <div className="flex items-start justify-between gap-3">
             <StatBlock label="Distance" value={weight.format(data.distance)} unit={weight.unit} />

@@ -25,5 +25,6 @@ export const useGoalEditStore = create<GoalEditStore>()((set) => ({
   setTarget: (targetWeightKg) => set({ targetWeightKg }),
   setRate: (weeklyRatePercent) => set({ weeklyRatePercent }),
   setPendingGoal: (pendingGoal) => set({ pendingGoal }),
-  reset: () => set({ targetWeightKg: null, weeklyRatePercent: null }),
+  // Rời Edit Goal (hoặc bỏ dở): xoá cả goal đã chốt chờ wizard, không để New Program lần sau dùng lại
+  reset: () => set({ targetWeightKg: null, weeklyRatePercent: null, pendingGoal: null }),
 }))

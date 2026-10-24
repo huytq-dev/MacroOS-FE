@@ -78,6 +78,10 @@ export interface CheckInPreview {
   reasonParams: CheckInReasonParams
   /** Kiểm khả thi của đề xuất (HTTP 200): `isFeasible = false` thì Accept bị 400 cùng object này và không ghi gì. */
   feasibility?: Feasibility | null
+  /** Ready | Updating | Failed lúc BE dựng preview (cùng giá trị `GET /derived-data/status`); BE cũ không gửi = coi như Ready. */
+  derivedDataState?: string
+  /** G6: null = Accept được phép; DERIVED_DATA_UPDATING | DERIVED_DATA_FAILED = `POST /check-ins/accept` sẽ bị 409 (không ghi gì). Decline luôn được. */
+  acceptBlockedReason?: string | null
 }
 
 export interface CheckInSession {

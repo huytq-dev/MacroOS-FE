@@ -1,4 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
+import { setDerivedHeaderListener } from './axios'
+import { applyDerivedHeader } from '@/features/derived-data/derived-data.utils'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -12,3 +14,6 @@ export const queryClient = new QueryClient({
     },
   },
 })
+
+// Header trạng thái dựng lại số dẫn xuất của mọi lần ghi → cache status dùng chung (Phase 3)
+setDerivedHeaderListener((value) => applyDerivedHeader(queryClient, value))

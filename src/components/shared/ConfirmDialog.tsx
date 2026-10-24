@@ -23,6 +23,8 @@ interface ConfirmDialogProps {
   readonly pendingLabel: string
   readonly isPending: boolean
   readonly onConfirm: () => void
+  /** Lỗi của lần xác nhận vừa thất bại (BE từ chối): hiện inline dưới mô tả, hộp thoại giữ mở để thử lại. */
+  readonly error?: string | null
 }
 
 /** Xác nhận hành động khó hoàn tác: focus mặc định vào "Huỷ", đang xử lý thì khoá cả hai nút và không đóng được. */
@@ -35,6 +37,7 @@ export function ConfirmDialog({
   pendingLabel,
   isPending,
   onConfirm,
+  error = null,
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={(next) => !isPending && onOpenChange(next)}>
@@ -42,6 +45,11 @@ export function ConfirmDialog({
         <AlertDialogHeader>
           <AlertDialogTitle className="font-sans text-sm font-semibold">{title}</AlertDialogTitle>
           <AlertDialogDescription className="text-sm">{description}</AlertDialogDescription>
+          {error && (
+            <p role="alert" className="text-destructive text-sm">
+              {error}
+            </p>
+          )}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel autoFocus disabled={isPending}>

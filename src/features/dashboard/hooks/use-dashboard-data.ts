@@ -45,6 +45,11 @@ export interface DashboardData {
   readonly pending: DashboardPending
   /** Energy Balance 30 ngày từ BE (thẻ Energy Balance): ngày + `summary`; undefined khi chưa tải. */
   readonly energyBalance: EnergyBalanceSeriesResponse | undefined
+  /** Lỗi tải lại của nguồn dẫn xuất của thẻ Energy Balance (chuỗi 30 ngày hoặc TDEE); null = không lỗi. Số TanStack còn giữ có thể là số trước khi BE dựng lại. */
+  readonly energyError: unknown
+  readonly retryEnergy: () => void
+  /** Đang tải lại nguồn của thẻ (sau "Try again"): ErrorState khoá nút và báo đang thử. */
+  readonly energyRetrying: boolean
   /** Truy vấn cân nặng thô, để màn thiết lập ban đầu biết đã có cân nặng chưa. */
   readonly weights: ReturnType<typeof useWeights>
   readonly tdee: number | null
@@ -57,6 +62,8 @@ export interface DashboardData {
   readonly daily: readonly DailyProgress[]
   readonly weighIn: { readonly cells: readonly boolean[]; readonly week: number }
   readonly logging: { readonly cells: readonly boolean[]; readonly week: number }
+  /** Tải lại `GET /expenditure/daily` (snapshot BE dựng lại) lỗi: `logging` là số TanStack còn giữ, không hiện như số cuối. */
+  readonly loggingError: boolean
   readonly scale: { readonly spark: readonly number[]; readonly latest: number | null }
   readonly bodyFat: { readonly spark: readonly number[]; readonly latest: number | null }
   /** Trung bình bước chân 7 ngày (`GET /steps`); null = chưa có dữ liệu. */
@@ -176,17 +183,24 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
     isLoading: weights.isLoading || (enabled && (expenditure.isLoading || dailyQuery.isLoading)),
     /** `GET /energy-balance/series` của 30 ngày gần nhất (từng ngày + `summary` của BE) cho thẻ Energy Balance. */
     energyBalance: energyBalanceQuery.data ?? undefined,
+    energyError: energyBalanceQuery.error ?? expenditure.error ?? null,
+    retryEnergy: () => {
+      void energyBalanceQuery.refetch()
+      void expenditure.refetch()
+    },
+    energyRetrying: energyBalanceQuery.isFetching || expenditure.isFetching,
     pending: {
       weights: weights.isPending,
       recentWeights: recentWeights.isPending,
-      daily: dailyQuery.isPending,
-      energyBalance: energyBalanceQuery.isPending,
-      dayLog: dayLog.isPending,
-      nutrients: nutrients.isPending,
+      // Query chỉ chạy khi có program (`enabled`): khi tắt TanStack báo `isPending` mãi, nên chỉ coi là "đang chờ" khi nó được phép chạy
+      daily: enabled && dailyQuery.isPending,
+      energyBalance: enabled && energyBalanceQuery.isPending,
+      dayLog: enabled && dayLog.isPending,
+      nutrients: enabled && nutrients.isPending,
       steps: stepsQuery.isPending,
       periods: periodsQuery.isPending,
       bodyFat: visualBodyFat.isPending,
-      expenditure: expenditure.isPending,
+      expenditure: enabled && expenditure.isPending,
       macros: macrosSeries.isPending,
     },
     weights,
@@ -200,6 +214,7 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
     daily,
     weighIn: { cells: habitCells(weighInDates, todayKey), week: weekCount(weighInDates, todayKey) },
     logging: { cells: habitCells(loggedDates, todayKey), week: weekCount(loggedDates, todayKey) },
+    loggingError: enabled && dailyQuery.isError,
     scale: { spark: scaleSpark, latest: recentWeights.data?.latestWeightKg ?? null },
     bodyFat: { spark: bodyFatPercents, latest: visualBodyFat.data?.latestPercent ?? null },
     steps: steps === null ? null : Math.round(steps),

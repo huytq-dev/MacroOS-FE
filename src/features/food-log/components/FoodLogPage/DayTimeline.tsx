@@ -67,9 +67,25 @@ function HourPill({
   readonly filled?: boolean
 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Đã nhấn giữ đủ lâu: bỏ qua cú click ngay sau đó (giờ có món vừa có onPress vừa có onLongPress)
+  const held = useRef(false)
   const cancel = () => {
     if (timer.current) clearTimeout(timer.current)
     timer.current = null
+  }
+  const longPress = onLongPress && {
+    onPointerDown: () => {
+      cancel()
+      held.current = false
+      timer.current = setTimeout(() => {
+        held.current = true
+        onLongPress()
+      }, LONG_PRESS_MS)
+    },
+    onPointerUp: cancel,
+    onPointerLeave: cancel,
+    onPointerCancel: cancel,
+    onContextMenu: (event: React.MouseEvent) => event.preventDefault(),
   }
   const content = (
     <>
@@ -90,11 +106,20 @@ function HourPill({
       <button
         type="button"
         aria-pressed={filled}
-        aria-label={`Select foods at ${label}`}
-        onClick={onPress}
+        aria-label={
+          onLongPress
+            ? `Select foods at ${label}, hold to add food`
+            : `Select foods at ${label}`
+        }
+        {...longPress}
+        onClick={() => {
+          if (held.current) held.current = false
+          else onPress()
+        }}
         className={cn(
           PILL,
           'focus-visible:ring-ring/50 transition-[background-color,color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100',
+          onLongPress && 'touch-none select-none',
           filled ? 'bg-foreground text-background' : 'active:bg-muted'
         )}
       >
@@ -105,14 +130,7 @@ function HourPill({
     <button
       type="button"
       aria-label={`Hold to add food at ${label}`}
-      onPointerDown={() => {
-        cancel()
-        timer.current = setTimeout(onLongPress, LONG_PRESS_MS)
-      }}
-      onPointerUp={cancel}
-      onPointerLeave={cancel}
-      onPointerCancel={cancel}
-      onContextMenu={(event) => event.preventDefault()}
+      {...longPress}
       className={cn(
         PILL,
         'active:bg-muted focus-visible:ring-ring/50 touch-none select-none focus-visible:ring-1 focus-visible:outline-none'

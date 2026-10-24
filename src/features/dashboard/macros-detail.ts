@@ -1,4 +1,5 @@
 import { roundAway } from '@/features/weight/body-metric.utils'
+import { daysBetween } from '@/lib/date'
 import type { Averaging } from './expenditure.utils'
 import type { MacroAverages, MacroSeriesResponse } from './types/macros-series.types'
 
@@ -71,6 +72,12 @@ export function macroBarsOf(series: MacroSeriesResponse, averaging: Averaging): 
   return series.days.flatMap((day) =>
     day.isLogged ? barOf(day.date, day, { isIncomplete: day.isIncomplete }) : []
   )
+}
+
+/** Số ngày của toàn lịch sử (ngày đầu trong phản hồi → hôm nay, tính cả hai đầu); BE trả `days` rỗng (chưa log ngày nào) → 1: chỉ hôm nay, biểu đồ / danh sách trống. */
+export const historyDayCount = (series: MacroSeriesResponse, today: string) => {
+  const first = series.days[0]?.date
+  return first ? daysBetween(first, today) + 1 : 1
 }
 
 /** Phần kcal được VẼ của một cột: Other chỉ khi > 0 (Other âm chờ quyết định của user: chưa vẽ, số thật vẫn nằm trong `bar.other`). */

@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { pairStatus } from '../dashboard.utils'
 import type { Averaging } from '../expenditure.utils'
 import type { WeightTrendInsightsResponse, WeightTrendResponse } from '../types/weight-trend.types'
 import {
@@ -52,10 +53,18 @@ export function useWeightTrendDetail(averaging: Averaging) {
   const info = insights.data
   const rates = weightRates(info)
 
+  const status = pairStatus(series, insights)
   return {
     ready: true as const,
-    isLoading: series.isPending,
-    isError: series.isError,
+    // Số hiện tại / thay đổi lấy từ insights: insights lỗi (còn giữ số cũ) cũng là lỗi, không hiện số đó như số cuối
+    isLoading: status.isLoading,
+    isError: status.isError,
+    isFetching: status.isFetching,
+    /** Thử lại cả chuỗi và insights (nút Retry của ErrorState). */
+    refetch: () => {
+      void series.refetch()
+      void insights.refetch()
+    },
     today,
     /** Xu hướng từng ngày (cũ → mới); số liệu Average / Difference tính trên chuỗi này. */
     daily,

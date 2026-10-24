@@ -21,6 +21,7 @@ import type { PlateItem } from '../../types/food-log.types'
 import { FoodTile, type FoodTileData } from './FoodTile'
 import { FoodDetailView, type FoodDetailExtras } from './FoodDetail'
 import { FavoritesBar } from './FavoritesBar'
+import { plateItemOfFood } from './LibraryPanel'
 
 /** Dữ liệu ô món từ kết quả tìm kiếm: số theo khẩu phần mặc định (khẩu phần "1 cup" hoặc gram) và khối lượng của nó. */
 const tileDataOfFood = (food: FoodSummary, highlight?: string): FoodTileData => ({
@@ -330,7 +331,7 @@ export function FoodSearchPanel({
         query={query}
         showAdd={tileOptions.highlight === 'MultiAdd'}
         onSelect={() => onPick(food)}
-        onAdd={() => onPick(food)}
+        onAdd={() => onAddToPlate(plateItemOfFood(food))}
       />
     ) : (
       <FoodTile
@@ -338,7 +339,7 @@ export function FoodSearchPanel({
         food={tileDataOfFood(food)}
         settings={tileOptions}
         onSelect={() => onPick(food)}
-        onAdd={() => onPick(food)}
+        onAdd={() => onAddToPlate(plateItemOfFood(food))}
       />
     )
 

@@ -36,6 +36,26 @@ export const isTokenValid = (token: string): boolean => {
   }
 }
 
+/**
+ * `?redirect=` sau đăng nhập: chỉ nhận đường dẫn nội bộ ("/x"). Không xét theo tiền tố chuỗi (trình duyệt bỏ tab / CR / LF và đổi "\" thành "/",
+ * nên "/\t/evil.com" thành "//evil.com"): bỏ mọi ký tự điều khiển / "\", rồi phân giải theo origin hiện tại và chỉ nhận khi cùng origin.
+ */
+export const safeRedirect = (
+  target: string | null,
+  fallback: string,
+  origin: string = window.location.origin
+): string => {
+  if (!target?.startsWith('/')) return fallback
+  if ([...target].some((char) => char.charCodeAt(0) < 0x20 || char === '\x7f' || char === '\\'))
+    return fallback
+  try {
+    const url = new URL(target, origin)
+    return url.origin === origin ? `${url.pathname}${url.search}${url.hash}` : fallback
+  } catch {
+    return fallback
+  }
+}
+
 /** Lỗi hiện trong form (UI.md mục 13): lỗi mạng/máy chủ nói chung, lỗi nghiệp vụ lấy nguyên văn từ BE. */
 export const getFormErrorMessage = (error: unknown): string =>
   isSystemError(error)

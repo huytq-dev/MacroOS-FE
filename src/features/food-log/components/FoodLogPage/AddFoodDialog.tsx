@@ -88,6 +88,8 @@ interface AddFoodDialogProps {
   /** Ghi plate; `items` có khi vừa sửa lượng một dòng trong Your Plate. */
   readonly onLogPlate: (items?: PlateItem[]) => void
   readonly children: React.ReactNode
+  /** Mở từ thanh Search của Dashboard: focus ô tìm ngay (mặc định không focus gì khi mở). */
+  readonly autoFocusSearch?: boolean
 }
 
 /** Sheet thêm món: giờ ăn, 5 tab (Scan mã vạch, Search, AI, Quick Add, Library), "plate" gom nhiều món rồi log một lượt ở thanh đáy. */
@@ -115,6 +117,7 @@ export function AddFoodDialog({
   onUpdatePlateItem,
   onLogPlate,
   children,
+  autoFocusSearch = false,
 }: AddFoodDialogProps) {
   const [plateOpen, setPlateOpen] = useState(false)
   const dragStartY = useRef<number | null>(null)
@@ -342,6 +345,7 @@ export function AddFoodDialog({
                             onValueChange={onSearchChange}
                             placeholder="Search for a food"
                             aria-label="Search for a food"
+                            autoFocus={autoFocusSearch}
                           />
                         </div>
                       )}

@@ -1,8 +1,9 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { IconButton } from '@/components/shared/IconButton'
+import { goBack } from '@/lib/back-target'
 
 /**
  * Thanh tiêu đề trang con: nút quay lại bên trái, tên trang ở giữa (h1 duy nhất của trang). GHIM ở đầu màn hình khi cuộn (như MacroFactor):
@@ -18,10 +19,11 @@ export function SubPageHeader({
   readonly title: string
   /** Nút bên phải (vd. nút hướng dẫn); không có thì chừa trống để tiêu đề nằm giữa. */
   readonly action?: React.ReactNode
-  /** Thay hành vi quay lại mặc định (`router.back()`), vd. hỏi xác nhận khi có thay đổi chưa lưu. */
+  /** Thay hành vi quay lại mặc định (`goBack`: lùi lịch sử, mở thẳng thì về trang cha), vd. hỏi xác nhận khi có thay đổi chưa lưu. */
   readonly onBack?: () => void
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   return (
     <header
       data-page-header=""
@@ -31,7 +33,7 @@ export function SubPageHeader({
         icon={ChevronLeft}
         label="Back"
         className="size-11"
-        onClick={onBack ?? (() => router.back())}
+        onClick={onBack ?? (() => goBack(router, pathname))}
       />
       <h1 className="text-center text-lg font-medium">{title}</h1>
       <div className="flex justify-end">{action}</div>

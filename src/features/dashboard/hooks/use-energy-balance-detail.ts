@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import type { BalanceMode } from '../dashboard.utils'
+import { pairStatus, type BalanceMode } from '../dashboard.utils'
 import {
   BALANCE_CHANGE_DAYS,
   averageBalancePoints,
@@ -86,10 +86,18 @@ export function useEnergyBalanceDetail(averaging: Averaging, mode: BalanceMode) 
     }
   })
 
+  const status = pairStatus(series, insights)
   return {
     ready: true as const,
-    isLoading: series.isPending,
-    isError: series.isError,
+    // Số lớn / các hàng "Relative to …" lấy từ insights: insights lỗi (còn giữ số cũ) cũng là lỗi, không hiện số đó như số cuối
+    isLoading: status.isLoading,
+    isError: status.isError,
+    isFetching: status.isFetching,
+    /** Thử lại cả chuỗi và insights (nút Retry của ErrorState). */
+    refetch: () => {
+      void series.refetch()
+      void insights.refetch()
+    },
     today,
     /** Từng ngày (cũ → mới); số lớn đầu trang tính trên khung đang xem. */
     all,

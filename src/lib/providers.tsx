@@ -19,7 +19,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <TooltipProvider>
           {children}
           <Toaster position="top-center" />
-          {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
+          {/* Nút nổi của devtools (z ~99999, góc dưới) đè lên bảng trượt / thanh tab trên điện thoại: chỉ bật khi cần, NEXT_PUBLIC_RQ_DEVTOOLS=1 */}
+          {process.env.NODE_ENV === 'development' &&
+            process.env.NEXT_PUBLIC_RQ_DEVTOOLS === '1' && (
+              <ReactQueryDevtools initialIsOpen={false} />
+            )}
         </TooltipProvider>
       </NextThemesProvider>
     </QueryClientProvider>

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { periodService } from '../services/period.service'
 import { logger } from '@/lib/api'
+import { reportMutationError } from '@/lib/mutation-feedback'
 
 // Cùng tiền tố 'periods' với ô Period của Dashboard (`usePeriods`) nên mọi thay đổi làm mới cả hai
 export const periodKeys = {
@@ -45,6 +46,6 @@ export const useDeletePeriodDay = () => {
       toast.success('Period day removed')
       void queryClient.invalidateQueries({ queryKey: periodKeys.all })
     },
-    onError: (error) => logger.error(error),
+    onError: (error) => reportMutationError(error, "Couldn't remove this day"),
   })
 }

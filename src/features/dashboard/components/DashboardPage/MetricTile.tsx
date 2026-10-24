@@ -17,6 +17,8 @@ interface MetricTileProps {
   readonly href?: string
   /** Đang tải: khung xám thay hình và số (không hiện 0). */
   readonly loading?: boolean
+  /** Số đang được BE dựng lại (ô mờ): báo cho trình đọc màn hình (`aria-busy`), không chỉ dựa vào độ mờ. */
+  readonly busy?: boolean
   readonly className?: string
 }
 
@@ -30,6 +32,7 @@ export function MetricTile({
   warning = false,
   href,
   loading,
+  busy,
   className,
 }: MetricTileProps) {
   const body = (
@@ -79,10 +82,12 @@ export function MetricTile({
     className
   )
   return href ? (
-    <Link href={href} className={classes}>
+    <Link href={href} className={classes} aria-busy={busy || undefined}>
       {body}
     </Link>
   ) : (
-    <div className={classes}>{body}</div>
+    <div className={classes} aria-busy={busy || undefined}>
+      {body}
+    </div>
   )
 }

@@ -8,6 +8,7 @@ import { NumericKeypad } from '@/components/shared/NumericKeypad'
 import { SheetFrame } from '@/components/shared/SheetFrame'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useProfile } from '@/features/users/hooks/use-profile'
 import { SelectDateSheet } from '@/features/weight/components/BodyMetricPage/SelectDateSheet'
 import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
 import { formatDate } from '@/lib/date'
@@ -72,6 +73,8 @@ function FullBodyForm({ date, data: initial, isSaving, error, onSave }: FormProp
     )
   )
   const [referenceOpen, setReferenceOpen] = useState(false)
+  // Hình tham chiếu theo giới tính hồ sơ, như trang Visual Body Fat
+  const profile = useProfile()
   // Cảm ứng: bàn phím số riêng (như Food Detail) thay cho bàn phím iOS có dấu ","; `active` là ô đang nhập
   const coarse = useCoarsePointer()
   const [active, setActive] = useState<string | null>(null)
@@ -210,6 +213,7 @@ function FullBodyForm({ date, data: initial, isSaving, error, onSave }: FormProp
       <BodyFatReferenceSheet
         open={referenceOpen}
         onOpenChange={setReferenceOpen}
+        body={profile.data?.gender === 'Female' ? 'female' : 'male'}
         onSelect={(percent) => setBodyFat(String(percent))}
       />
     </>

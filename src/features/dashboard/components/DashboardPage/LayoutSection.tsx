@@ -16,6 +16,8 @@ import { SECTIONS, type NutrientDisplay, type SectionKey } from '../../dashboard
 import type { DashboardData } from '../../hooks/use-dashboard-data'
 import { NUTRIENT_GROUPS } from '../../nutrient-catalog'
 import { routePath } from '@/config/route-path'
+import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
+import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
 import { useUnits, type UnitsView } from '@/features/users/hooks/use-units'
 
 const NUTRIENT_KEYS = new Set(
@@ -23,7 +25,13 @@ const NUTRIENT_KEYS = new Set(
 )
 
 /** Một ô theo khoá trong bố cục; ô số đo cơ thể chỉ hiện khi đã có dữ liệu. */
-function renderTile(key: string, data: DashboardData, display: NutrientDisplay, units: UnitsView) {
+function renderTile(
+  key: string,
+  data: DashboardData,
+  display: NutrientDisplay,
+  units: UnitsView,
+  derived: ReturnType<typeof useDerivedGate>
+) {
   switch (key) {
     case 'expenditure':
       return <ExpenditureTile />
@@ -34,20 +42,39 @@ function renderTile(key: string, data: DashboardData, display: NutrientDisplay, 
     case 'goalProgress':
       return <GoalProgressTile />
     case 'weighIn':
-    case 'foodLogging': {
-      const habit = key === 'weighIn' ? data.weighIn : data.logging
       return (
         <MetricTile
-          title={key === 'weighIn' ? 'Weigh-In' : 'Food Logging'}
+          title="Weigh-In"
           subtitle="Last 30 Days"
-          href={key === 'weighIn' ? routePath.habitsWeighIn : routePath.habitsFoodLogging}
-          visual={<HabitGrid cells={habit.cells} tone="bg-mf-tile-carbs" />}
-          value={`${habit.week}/7`}
+          href={routePath.habitsWeighIn}
+          visual={<HabitGrid cells={data.weighIn.cells} tone="bg-mf-tile-carbs" />}
+          value={`${data.weighIn.week}/7`}
           unit="this week"
           loading={tilePending(key, data.pending)}
         />
       )
-    }
+    case 'foodLogging':
+      // Đếm từ snapshot từng ngày (`GET /expenditure/daily`, BE dựng lại) nên như các ô dẫn xuất: Failed = thẻ "Try again", Updating = mờ, tải lại lỗi = "---"
+      // (không hiện số TanStack còn giữ, có thể là số trước khi BE dựng lại)
+      if (derived.gate === 'failed')
+        return <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+      return (
+        <MetricTile
+          title="Food Logging"
+          subtitle="Last 30 Days"
+          href={routePath.habitsFoodLogging}
+          visual={
+            data.loggingError ? undefined : (
+              <HabitGrid cells={data.logging.cells} tone="bg-mf-tile-carbs" />
+            )
+          }
+          value={data.loggingError ? '---' : `${data.logging.week}/7`}
+          unit="this week"
+          loading={tilePending(key, data.pending)}
+          className={derived.gate === 'updating' ? 'opacity-60 transition-opacity' : undefined}
+          busy={derived.gate === 'updating'}
+        />
+      )
     case 'scaleWeight':
       return (
         <MetricTile
@@ -149,12 +176,13 @@ interface LayoutSectionProps {
 /** Một nhóm ô của Dashboard theo bố cục người dùng: ẩn cả nhóm khi không còn ô nào. */
 export function LayoutSection({ section, tiles, display, data, index }: LayoutSectionProps) {
   const units = useUnits()
+  const derived = useDerivedGate()
   if (tiles.length === 0) return null
   return (
     <TileSection title={SECTIONS[section].title} seeAllHref={SEE_ALL[section]} index={index}>
       {tiles.map((key) => (
         <div key={key} className="contents">
-          {renderTile(key, data, display[key] ?? 'consumed', units)}
+          {renderTile(key, data, display[key] ?? 'consumed', units, derived)}
         </div>
       ))}
     </TileSection>

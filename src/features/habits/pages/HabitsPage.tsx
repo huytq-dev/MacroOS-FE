@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
+import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
+import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
 import { useUnits } from '@/features/users/hooks/use-units'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,6 +12,7 @@ import { routePath } from '@/config/route-path'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useSheet } from '@/hooks/use-sheet'
 import { todayIso } from '@/lib/date'
+import { cn } from '@/lib/utils'
 import { useUiStore } from '@/stores/ui.store'
 import { HabitCalendar } from '../components/HabitsPage/HabitCalendar'
 import { HabitControls } from '../components/HabitsPage/HabitControls'
@@ -46,6 +49,9 @@ function HabitsContent({ kind, today }: { readonly kind: HabitKind; readonly tod
   // Số hôm nay: cân nặng theo kg / lb, năng lượng theo kcal / kJ của user (BE luôn trả kg, kcal)
   const { weight, energy, weekStartDay } = useUnits()
   const measure = kind === 'weigh-in' ? weight : energy
+  // Food Logging đọc snapshot từng ngày (`GET /expenditure/daily`, BE dựng lại): chưa Ready thì mờ, không phải số cuối. Weigh-In đọc cân thô
+  const derived = useDerivedGate()
+  const derivedGate = kind === 'food-logging' ? derived.gate : 'ready'
 
   if (summary.isError) return <ErrorState error={summary.error} onRetry={summary.refetch} />
 
@@ -59,40 +65,53 @@ function HabitsContent({ kind, today }: { readonly kind: HabitKind; readonly tod
   }
 
   return (
-    <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 pb-24 md:pb-0">
+    <div
+      aria-busy={derivedGate === 'updating'}
+      className="flex w-full max-w-2xl min-w-0 flex-col gap-5 pb-24 md:pb-0"
+    >
       <SubPageHeader title={copy.title} />
-      <HabitSummary
-        todayValue={summary.todayValue === null ? null : measure.convert(summary.todayValue)}
-        unit={measure.unit}
-        streak={summary.streak}
-      />
-      {shown.isLoading ? (
-        <Skeleton className="h-96 rounded-xl" aria-busy="true" />
-      ) : (
-        <HabitCalendar
-          grid={monthGrid(view.year, view.month, weekStartDay)}
-          monthKey={`${view.year}-${view.month}`}
-          direction={view.direction}
-          tracked={shown.tracked}
-          today={today}
-          onSelect={onSelect}
-        />
+      {derivedGate === 'failed' && (
+        <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
       )}
-      <HabitControls
-        year={view.year}
-        month={view.month}
-        currentYear={currentYear}
-        currentMonth={currentMonth}
-        onChange={(year, month) =>
-          setPicked({
-            year,
-            month,
-            direction: year * 12 + month > view.year * 12 + view.month ? 'next' : 'prev',
-          })
-        }
-      />
-      <HabitLegend />
-      <HabitHeatmap year={view.year} tracked={shown.tracked} today={today} />
+      <div
+        className={cn(
+          'flex min-w-0 flex-col gap-5 transition-opacity',
+          derivedGate !== 'ready' && 'opacity-60'
+        )}
+      >
+        <HabitSummary
+          todayValue={summary.todayValue === null ? null : measure.convert(summary.todayValue)}
+          unit={measure.unit}
+          streak={summary.streak}
+        />
+        {shown.isLoading ? (
+          <Skeleton className="h-96 rounded-xl" aria-busy="true" />
+        ) : (
+          <HabitCalendar
+            grid={monthGrid(view.year, view.month, weekStartDay)}
+            monthKey={`${view.year}-${view.month}`}
+            direction={view.direction}
+            tracked={shown.tracked}
+            today={today}
+            onSelect={onSelect}
+          />
+        )}
+        <HabitControls
+          year={view.year}
+          month={view.month}
+          currentYear={currentYear}
+          currentMonth={currentMonth}
+          onChange={(year, month) =>
+            setPicked({
+              year,
+              month,
+              direction: year * 12 + month > view.year * 12 + view.month ? 'next' : 'prev',
+            })
+          }
+        />
+        <HabitLegend />
+        <HabitHeatmap year={view.year} tracked={shown.tracked} today={today} />
+      </div>
 
       {sheet.value !== undefined && (
         <ScaleWeightSheet

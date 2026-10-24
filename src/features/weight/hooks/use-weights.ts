@@ -10,6 +10,7 @@ import type {
 } from '../types/weight.types'
 import { refreshDerivedStatus } from '@/features/derived-data/derived-data.utils'
 import { logger } from '@/lib/api'
+import { reportMutationError } from '@/lib/mutation-feedback'
 
 export const weightKeys = {
   all: ['weights'] as const,
@@ -31,6 +32,8 @@ export const WEIGHT_INVALIDATE = [
   ['energy-balance'],
   ['check-in'],
   ['body-metrics'],
+  // Mỗi buổi ảnh Progress Photos mang kèm cân thật / xu hướng của ngày đó (`GET /progress-photos/sessions`)
+  ['progress-photos'],
 ] as const
 
 export const visualBodyFatKeys = {
@@ -85,7 +88,9 @@ export const useVisualBodyFat = (today: string | null) =>
 const useMetricMutation = <TVariables>(
   mutationFn: (variables: TVariables) => Promise<unknown>,
   successMessage: string,
-  invalidate: readonly QueryKey[]
+  invalidate: readonly QueryKey[],
+  /** Có = thao tác không có chỗ hiện lỗi inline (xoá): báo user bằng toast thay vì chỉ ghi log. */
+  failureTitle?: string
 ) => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -98,6 +103,7 @@ const useMetricMutation = <TVariables>(
         refreshDerivedStatus(queryClient)
     },
     onError: (error) => {
+      if (failureTitle) return reportMutationError(error, failureTitle)
       logger.error(error)
       // lỗi nghiệp vụ hiện inline ở dialog/trang (UI.md mục 10), không toast
     },
@@ -117,7 +123,8 @@ export const useDeleteWeight = () =>
   useMetricMutation(
     (logDate: string) => weightService.remove(logDate),
     'Deleted',
-    WEIGHT_INVALIDATE
+    WEIGHT_INVALIDATE,
+    "Couldn't delete weight"
   )
 
 export const useUpsertVisualBodyFat = () =>
@@ -130,7 +137,8 @@ export const useDeleteVisualBodyFat = () =>
   useMetricMutation(
     (date: string) => weightService.removeVisualBodyFat(date),
     'Deleted',
-    VISUAL_INVALIDATE
+    VISUAL_INVALIDATE,
+    "Couldn't delete body fat"
   )
 
 /** Toàn bộ lịch sử một số đo vòng (cm) tới hôm nay. */
@@ -154,5 +162,6 @@ export const useDeleteMeasurement = (key: string) =>
   useMetricMutation(
     (date: string) => weightService.removeMeasurement(key, date),
     'Deleted',
-    MEASUREMENT_INVALIDATE
+    MEASUREMENT_INVALIDATE,
+    "Couldn't delete measurement"
   )

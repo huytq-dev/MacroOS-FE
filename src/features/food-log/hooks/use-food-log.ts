@@ -37,6 +37,7 @@ import type {
   WeekLog,
 } from '../types/food-log.types'
 import { refreshDerivedStatus } from '@/features/derived-data/derived-data.utils'
+import { reportMutationError } from '@/lib/mutation-feedback'
 import { logger } from '@/lib/api'
 import { weekBlocksOf, weekDates } from '@/lib/week'
 
@@ -47,12 +48,19 @@ export const foodLogKeys = {
   library: ['food-log', 'library'] as const,
 }
 
-/** Dữ liệu BE tính từ log ăn uống: ô Nutrition / Macros / Energy Balance / Expenditure / Overview và trang chi tiết đọc cùng log nên phải làm mới cùng lúc. */
+/**
+ * Dữ liệu BE tính từ log ăn uống phải làm mới cùng lúc với log: Nutrition / Macros (cả `['nutrients','macros-series',…]`), Overview, Expenditure và Energy
+ * Balance, Weight Trend insights (thâm hụt / dự báo dùng lượng ăn) và danh sách ngày của Nutrition Data Manager. MỖI phần tử là một họ khoá CỤ THỂ (không bao
+ * giờ invalidate toàn cache); chỉ truy vấn đang mở mới tải lại. KHÔNG gồm `['goals']` (BE `GoalProgressCalculator` không đọc lượng ăn / Expenditure) và
+ * `['check-in']` (staleTime 0, tải lại mỗi lần mở) — hai họ đó vẫn được làm mới khi job nền xong (`DERIVED_KEYS`, test N1).
+ */
 const LOG_DERIVED_KEYS = [
   ['nutrients'],
   ['nutrition-overview'],
   ['expenditure'],
   ['energy-balance'],
+  ['weights', 'trend'],
+  ['nutrition-data'],
 ] as const
 
 /** Thêm / sửa / xoá món: làm mới log và mọi số suy ra từ log để Dashboard cập nhật ngay (không chờ hết staleTime). */
@@ -108,7 +116,13 @@ export const useCreateRecipe = () => {
     mutationFn: (payload: CreateRecipeRequest) => foodLogService.createRecipe(payload),
     onSuccess: () => {
       toast.success('Recipe saved')
-      void queryClient.invalidateQueries({ queryKey: foodLogKeys.library })
+      // Recipe mới hiện ở Library, tìm kiếm món và Favorites của thanh thêm món
+      for (const queryKey of [
+        foodLogKeys.library,
+        ['foods', 'search'],
+        ['food-favorites'],
+      ] as const)
+        void queryClient.invalidateQueries({ queryKey })
     },
     onError: (error) => logger.error(error),
   })
@@ -204,7 +218,9 @@ export const useWeekDays = (weekStarts: readonly string[]) => useWeekBlocks(week
 /** Mọi thay đổi log ảnh hưởng tổng ngày của nhiều ngày (copy) → invalidate cả nhóm. */
 const useLogMutation = <TVariables, TResult = unknown>(
   mutationFn: (variables: TVariables) => Promise<TResult>,
-  successMessage?: string
+  successMessage?: string,
+  /** Có = thao tác không có chỗ hiện lỗi inline (xoá): báo user bằng toast thay vì chỉ ghi log. */
+  failureTitle?: string
 ) => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -214,6 +230,7 @@ const useLogMutation = <TVariables, TResult = unknown>(
       invalidateLogData(queryClient)
     },
     onError: (error) => {
+      if (failureTitle) return reportMutationError(error, failureTitle)
       logger.error(error)
       // lỗi nghiệp vụ hiện inline ở dialog/trang (UI.md mục 10), không toast
     },
@@ -225,7 +242,12 @@ export const useBulkCopy = () =>
   useLogMutation((payload: BulkCopyRequest) => foodLogService.bulkCopy(payload))
 export const useBulkMove = () =>
   useLogMutation((payload: BulkMoveRequest) => foodLogService.bulkMove(payload))
-export const useBulkDelete = () => useLogMutation((ids: string[]) => foodLogService.bulkDelete(ids))
+export const useBulkDelete = () =>
+  useLogMutation(
+    (ids: string[]) => foodLogService.bulkDelete(ids),
+    undefined,
+    "Couldn't delete the selected foods"
+  )
 
 export const useAddEntry = () =>
   useLogMutation((payload: AddEntryRequest) => foodLogService.addEntry(payload))
@@ -267,7 +289,7 @@ export const useDeleteEntry = () => {
     },
     onSuccess: () => toast.success('Food deleted'),
     onError: (error, _id, context) => {
-      logger.error(error)
+      reportMutationError(error, "Couldn't delete this food")
       context?.snapshot.forEach(([key, data]) => queryClient.setQueryData(key, data))
     },
     onSettled: () => invalidateLogData(queryClient),
@@ -278,18 +300,43 @@ export const useQuickAdd = () =>
 export const useCopyLog = () =>
   useLogMutation((payload: CopyRequest) => foodLogService.copy(payload))
 export const useClearDay = () =>
-  useLogMutation((date: string) => foodLogService.clearDay(date), "Day's log deleted")
-
-export const useAddNote = () =>
-  useLogMutation((payload: AddNoteRequest) => foodLogService.addNote(payload), 'Note added')
-export const useUpdateNote = () =>
   useLogMutation(
+    (date: string) => foodLogService.clearDay(date),
+    "Day's log deleted",
+    "Couldn't delete the day's log"
+  )
+
+/** Ghi chú không đổi con số nào: chỉ nhật ký (ngày + tuần) làm mới, không đụng Nutrition / Expenditure / Goals (tránh tải lại thừa). */
+const useNoteMutation = <TVariables>(
+  mutationFn: (variables: TVariables) => Promise<unknown>,
+  successMessage: string,
+  failureTitle?: string
+) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      toast.success(successMessage)
+      void queryClient.invalidateQueries({ queryKey: foodLogKeys.all })
+    },
+    onError: (error) =>
+      failureTitle ? reportMutationError(error, failureTitle) : logger.error(error),
+  })
+}
+export const useAddNote = () =>
+  useNoteMutation((payload: AddNoteRequest) => foodLogService.addNote(payload), 'Note added')
+export const useUpdateNote = () =>
+  useNoteMutation(
     ({ id, payload }: { id: string; payload: UpdateNoteRequest }) =>
       foodLogService.updateNote(id, payload),
     'Note saved'
   )
 export const useDeleteNote = () =>
-  useLogMutation((id: string) => foodLogService.deleteNote(id), 'Note deleted')
+  useNoteMutation(
+    (id: string) => foodLogService.deleteNote(id),
+    'Note deleted',
+    "Couldn't delete the note"
+  )
 
 /** Pha 1 của AI Plate: ảnh + mô tả → món và nguyên liệu (chưa có dinh dưỡng). Không ghi log nên không invalidate. */
 export const useAiAnalyze = () =>

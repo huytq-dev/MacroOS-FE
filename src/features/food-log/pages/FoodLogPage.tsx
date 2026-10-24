@@ -237,8 +237,12 @@ export function FoodLogPage() {
   const clearAddRequest = useUiStore((state) => state.clearAddFoodRequest)
   const setRecipeDraft = useUiStore((state) => state.setRecipeDraft)
   const [appliedRequest, setAppliedRequest] = useState<AddFoodRequest | null>(null)
+  // Focus ô tìm chỉ cho lần mở từ thanh Search của Dashboard; đóng bảng thì bỏ (mở lại bằng "+" không bật bàn phím)
+  const [focusSearch, setFocusSearch] = useState(false)
+  if (focusSearch && !addOpen) setFocusSearch(false)
   if (addRequest && addRequest !== appliedRequest) {
     setAppliedRequest(addRequest)
+    setFocusSearch(Boolean(addRequest.focusSearch))
     const time = nowHourMinute()
     setEatenAt(time)
     setLogDate(null)
@@ -800,6 +804,7 @@ export function FoodLogPage() {
       <AddFoodDialog
         open={addOpen}
         onOpenChange={setAddOpen}
+        autoFocusSearch={focusSearch}
         tab={tab}
         onTabChange={setTab}
         meal={meal}
@@ -829,8 +834,9 @@ export function FoodLogPage() {
         error={
           addEntry.error
             ? getFormErrorMessage(addEntry.error)
-            : quickAdd.error && tab !== 'quick'
-              ? getFormErrorMessage(quickAdd.error)
+            : quickAdd.error
+              ? // QuickAddPanel không có chỗ hiện lỗi riêng nên lỗi ghi Quick Add hiện ở mọi tab (kể cả tab Quick Add)
+                getFormErrorMessage(quickAdd.error)
               : null
         }
         onRemoveFromPlate={(key) =>

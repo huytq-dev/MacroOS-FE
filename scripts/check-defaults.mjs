@@ -312,6 +312,11 @@ await check(
         kcal: null,
       }
     )
+    // BE đang dựng lại (Updating / chờ làm mới) hoặc dựng lại lỗi: số đã tải xong vẫn là số TRƯỚC khi dựng lại → không điền sẵn
+    const settled = { data, isError: false, isFetching: false }
+    assert.deepEqual(estimateOf(settled, 'updating'), { status: 'loading', kcal: null })
+    assert.deepEqual(estimateOf(settled, 'failed'), { status: 'error', kcal: null })
+    assert.deepEqual(estimateOf(settled, 'ready'), { status: 'ready', kcal: 2431 })
   }
 )
 await check('H14 loading / error / no-estimate / ready read differently to the user', () => {
@@ -456,7 +461,9 @@ await check(
     assert.match(actions, /key=\{session\}/, 'the form must not remount when the estimate arrives')
     const page = source('features/program/pages/ProgramPage.tsx')
     assert.match(page, /useExpenditureInsights\(open === 'tdee'\)/)
-    assert.match(page, /tdeeEstimateOf\(expenditure\)/)
+    // Cổng dẫn xuất của trang: BE đang dựng lại thì số trong bộ nhớ đệm không được điền sẵn
+    assert.match(page, /const derived = useDerivedGate\(\)/)
+    assert.match(page, /tdeeEstimateOf\(expenditure, derived\.gate\)/)
   }
 )
 await check(

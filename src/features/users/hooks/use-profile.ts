@@ -28,6 +28,23 @@ const CALCULATION_FIELDS = [
 export const profileChangeAffectsData = (payload: UpdateProfileRequest): boolean =>
   CALCULATION_FIELDS.some((field) => payload[field] !== undefined && payload[field] !== null)
 
+/** Trường làm đổi lịch (cách gộp tuần, ngày "hôm nay") chứ không chỉ công thức tính. */
+const CALENDAR_FIELDS = ['weekStartDay', 'timeZone'] as const
+
+/** Họ khoá theo ngày / tuần ngoài danh sách `invalidateTargetData`: làm mới khi lịch đổi (từng họ, không invalidate toàn cache). */
+export const CALENDAR_KEYS = [
+  ['steps'],
+  ['periods'],
+  ['progress-photos'],
+  ['body-metrics'],
+  ['visual-body-fat'],
+  ['measurements'],
+  ['nutrition-data'],
+] as const
+
+export const profileChangeShiftsCalendar = (payload: UpdateProfileRequest): boolean =>
+  CALENDAR_FIELDS.some((field) => payload[field] !== undefined && payload[field] !== null)
+
 /** Đọc hồ sơ rồi đặt ngay múi giờ nghiệp vụ cho `todayIso()` (trước khi bất kỳ chỗ nào nhận dữ liệu) để "hôm nay" của FE khớp BE. */
 const fetchProfile = async () => {
   const profile = await userService.getProfile()
@@ -49,6 +66,9 @@ export const useUpdateProfile = () => {
         invalidateTargetData(queryClient)
         void queryClient.invalidateQueries({ queryKey: weightKeys.all })
       }
+      // Đổi ngày đầu tuần / múi giờ làm đổi cách gộp tuần và ngày "hôm nay" của MỌI danh sách theo ngày
+      if (profileChangeShiftsCalendar(payload))
+        for (const queryKey of CALENDAR_KEYS) void queryClient.invalidateQueries({ queryKey })
     },
     onError: (error) => {
       logger.error(error)

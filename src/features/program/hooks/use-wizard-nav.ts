@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { routePath } from '@/config/route-path'
 import { useFlowStore } from '@/stores/flow.store'
+import { useGoalEditStore } from '@/stores/goal-edit.store'
 import { useProgramWizardStore } from '@/stores/program-wizard.store'
 import {
   firstUnansweredBefore,
@@ -28,9 +29,13 @@ export function useWizardNav(step: WizardStep) {
   const days = useProgramWizardStore((state) => state.days)
   const manualDays = useProgramWizardStore((state) => state.manualDays)
   const reset = useProgramWizardStore((state) => state.reset)
+  // Bỏ dở wizard (về hub / đóng) thì goal đã chốt ở Edit Goal cũng bị bỏ, để New Program lần sau không dùng lại goal cũ
+  const clearPendingGoal = () => useGoalEditStore.getState().setPendingGoal(null)
   const setDirection = useFlowStore((state) => state.setDirection)
   const steps = stepsFor(programType)
   const index = Math.max(steps.indexOf(step), 0)
+  // Đang rời wizard (đóng / xong): `reset()` làm mọi câu hỏi thành chưa trả lời, effect bên dưới sẽ đẩy về bước 'style' và đè lên điều hướng ra Strategy
+  const leaving = useRef(false)
 
   // Vào thẳng một bước sau (hoặc Review) khi bước trước chưa trả lời: về bước chưa trả lời ĐẦU TIÊN để mặc định của `buildProgramRequest` (Even, Balanced…)
   // không bao giờ được gửi khi user chưa xác nhận. Chưa chọn kiểu program thì đó là bước 'style'.
@@ -46,7 +51,7 @@ export function useWizardNav(step: WizardStep) {
       days,
       manualDays,
     })
-    if (unanswered) router.replace(stepHref(unanswered))
+    if (unanswered && !leaving.current) router.replace(stepHref(unanswered))
   }, [
     step,
     programType,
@@ -73,13 +78,17 @@ export function useWizardNav(step: WizardStep) {
       setDirection('back')
       if (index > 0) router.push(stepHref(steps[index - 1]))
       else {
+        leaving.current = true
         reset()
+        clearPendingGoal()
         router.push(routePath.program)
       }
     },
     close: () => {
+      leaving.current = true
       setDirection('back')
       reset()
+      clearPendingGoal()
       router.push(routePath.program)
     },
   }

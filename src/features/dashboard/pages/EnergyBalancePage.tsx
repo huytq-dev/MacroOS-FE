@@ -57,7 +57,14 @@ export function EnergyBalancePage() {
   const pan = useChartPan({ maxPos: Math.max(0, total - target), slots })
   const { energy } = useUnits()
 
-  if (data.isError) return <ErrorState error={new Error('Could not load Energy Balance')} />
+  if (data.isError)
+    return (
+      <ErrorState
+        error={new Error('Could not load Energy Balance')}
+        onRetry={data.refetch}
+        isRetrying={data.isFetching}
+      />
+    )
 
   const targets = mode === 'targets'
   const win = data.ready ? viewWindow(data.today, target, pan.view.snapped) : null
@@ -67,13 +74,20 @@ export function EnergyBalancePage() {
   )
 
   return (
-    <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0">
+    <div
+      aria-busy={derived.gate === 'updating'}
+      className={cn(
+        'flex w-full max-w-2xl min-w-0 flex-col gap-5 transition-opacity md:pb-0',
+        // BE đang dựng lại: giữ nguyên biểu đồ và số cũ (làm mờ, không thay bằng khung xám làm trang co lại); số mới tự thay khi xong
+        derived.gate === 'updating' && 'opacity-60'
+      )}
+    >
       <SubPageHeader title="Energy Balance" />
       <ModeTabs value={mode} onChange={setMode} />
 
       {derived.gate === 'failed' ? (
         <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
-      ) : derived.gate === 'updating' || !data.ready || data.isLoading || !win ? (
+      ) : !data.ready || data.isLoading || !win ? (
         <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       ) : (
         <>

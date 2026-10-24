@@ -107,7 +107,12 @@ export function IngredientSearchSheet({
                   emoji: food.emoji ?? null,
                   iconKey: food.iconKey ?? null,
                 }}
-                settings={tileOptions}
+                // Chọn đúng một món: không có Multi-Add, không vẽ nút + tắt
+                settings={
+                  tileOptions.highlight === 'MultiAdd'
+                    ? { ...tileOptions, highlight: 'None' }
+                    : tileOptions
+                }
                 onSelect={() => {
                   onSelect(resolvedFrom(food, ingredient.grams))
                   onOpenChange(false)

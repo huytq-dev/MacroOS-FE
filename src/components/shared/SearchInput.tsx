@@ -15,6 +15,8 @@ interface SearchInputProps {
   readonly 'aria-label': string
   /** Biểu tượng bên trái; mặc định kính lúp (ô lọc dùng biểu tượng bộ lọc). */
   readonly icon?: LucideIcon
+  /** Focus ngay khi hiện (người dùng vừa bấm một ô "Search" ở chỗ khác). */
+  readonly autoFocus?: boolean
 }
 
 /** Ô tìm kiếm có biểu tượng (UI.md mục 7: `InputGroup`); nút x xoá nhanh, bàn phím iOS hiện phím "Tìm". */

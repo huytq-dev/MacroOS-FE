@@ -2247,15 +2247,37 @@ await check(
 const fakeClient = (initial) => {
   const data = new Map(initial ? [[JSON.stringify(['derived-data', 'status']), initial]] : [])
   const invalidated = []
+  const cancelled = []
+  const filters = []
+  const refetched = []
+  const removed = []
   return {
     invalidated,
+    cancelled,
+    filters,
+    refetched,
+    removed,
     data,
-    invalidateQueries: ({ queryKey }) => {
-      invalidated.push(JSON.stringify(queryKey))
+    invalidateQueries: (filter, options) => {
+      invalidated.push(JSON.stringify(filter.queryKey))
+      filters.push({ ...filter, options })
       return Promise.resolve()
     },
+    cancelQueries: ({ queryKey }) => {
+      cancelled.push(JSON.stringify(queryKey))
+      return Promise.resolve()
+    },
+    refetchQueries: (filter) => {
+      refetched.push(filter)
+      return Promise.resolve()
+    },
+    removeQueries: (filter) => removed.push(filter),
     getQueryData: (queryKey) => data.get(JSON.stringify(queryKey)),
-    setQueryData: (queryKey, value) => data.set(JSON.stringify(queryKey), value),
+    setQueryData: (queryKey, value) =>
+      data.set(
+        JSON.stringify(queryKey),
+        typeof value === 'function' ? value(data.get(JSON.stringify(queryKey))) : value
+      ),
   }
 }
 const status = (state, extra = {}) => ({
@@ -2370,7 +2392,7 @@ await check(
   }
 )
 await check(
-  'Y2 [wiring] the shared status query reads on mount / focus, pauses in the background; writes ask for it; derived screens show skeleton or ErrorState, never stale numbers',
+  'Y2 [wiring] the shared status query reads on mount / focus, pauses in the background; writes ask for it; derived screens dim (Updating) or show ErrorState (Failed), never present stale numbers as final',
   async () => {
     const hook = source('features/derived-data/hooks/use-derived-data.ts')
     for (const option of [
@@ -2405,7 +2427,15 @@ await check(
       const text = source(file)
       assert.match(text, /useDerivedGate\(\)/, `${file} ignores the derived-data status`)
       assert.match(text, /derived\.gate === 'failed'/, `${file}: Failed state`)
-      assert.match(text, /derived\.gate === 'updating'/, `${file}: Updating state`)
+      assert.match(
+        text,
+        /derived\.gate === 'updating'|dimWhile\(derived\.gate\)/,
+        `${file}: Updating state`
+      )
+      assert.ok(
+        !/derived\.gate === 'updating' \|\|/.test(text),
+        `${file}: swaps old data for a skeleton while Updating`
+      )
       assert.match(text, /DerivedFailed/, `${file}: ErrorState with Try again`)
     }
     const tiles = source('features/dashboard/components/DashboardPage/DashboardTiles.tsx')
@@ -2544,6 +2574,9 @@ const invalidated = (run) => {
       keys.push(JSON.stringify(queryKey))
       return Promise.resolve()
     },
+    cancelQueries: () => Promise.resolve(),
+    refetchQueries: () => Promise.resolve(),
+    setQueryData: () => undefined,
   })
   return keys
 }
@@ -2627,6 +2660,9 @@ await check(
         keys.push(JSON.stringify(queryKey))
         return Promise.resolve()
       },
+      cancelQueries: () => Promise.resolve(),
+      refetchQueries: () => Promise.resolve(),
+      setQueryData: () => undefined,
     }
     const done = need(onboardingHooks, 'invalidateOnboardingData')(client)
     assert.ok(done && typeof done.then === 'function', 'returns the state refresh promise')
@@ -2696,6 +2732,1576 @@ await check(
           offenders.push(`${file}: ${hook ?? 'useMutation'}`)
       }
     assert.deepEqual(offenders, [], 'a mutation leaves every query cache stale')
+  }
+)
+
+// ── N: đồng bộ dữ liệu — mỗi mutation làm mới đúng các họ khoá phụ thuộc (xem docs/audits/Mutation_Query_Matrix.md) ──────────────────────────────
+const nDerived = await load('../src/features/derived-data/derived-data.utils.ts')
+const nWeight = await load('../src/features/weight/hooks/use-weights.ts')
+const nProfile = await load('../src/features/users/hooks/use-profile.ts')
+const nKeysOf = (run) => {
+  const keys = []
+  run({
+    invalidateQueries: ({ queryKey }) => {
+      keys.push(JSON.stringify(queryKey))
+      return Promise.resolve()
+    },
+    cancelQueries: () => Promise.resolve(),
+    refetchQueries: () => Promise.resolve(),
+    setQueryData: () => undefined,
+  })
+  return keys
+}
+const nHas = (keys, ...expected) => {
+  for (const key of expected)
+    assert.ok(
+      keys.includes(JSON.stringify(key)),
+      JSON.stringify(key) + ' is not invalidated (' + keys.join(' ') + ')'
+    )
+}
+
+await check(
+  'N1 a food-log write refreshes the log, nutrients (incl. macros series), overview, expenditure, energy balance, weight trend, Nutrition Data and the derived status; goals / check-in only via the derived job',
+  () => {
+    const keys = nKeysOf(need(foodLogHooks, 'invalidateLogData'))
+    nHas(
+      keys,
+      ['food-log'],
+      ['nutrients'],
+      ['nutrition-overview'],
+      ['expenditure'],
+      ['energy-balance'],
+      ['weights', 'trend'],
+      ['nutrition-data'],
+      ['derived-data', 'status']
+    )
+    // MỘT nguồn: mọi khoá dẫn xuất của job nền cũng được làm mới ngay sau khi ghi, trừ hai họ không đọc lượng ăn (có lý do)
+    const INDEPENDENT_OF_INTAKE = new Set([JSON.stringify(['goals']), JSON.stringify(['check-in'])])
+    for (const key of nDerived.DERIVED_KEYS.map((k) => JSON.stringify(k)))
+      if (!INDEPENDENT_OF_INTAKE.has(key))
+        assert.ok(keys.includes(key), key + ' is derived but not refreshed by a log write')
+    assert.ok(!keys.includes('[]'), 'never a blanket invalidate')
+    assert.equal(
+      new Set(keys).size,
+      keys.length,
+      'no key invalidated twice (no duplicate requests)'
+    )
+  }
+)
+await check(
+  'N2 a program / goal / check-in / expenditure-settings change refreshes everything a log change does plus the targets',
+  () => {
+    const log = nKeysOf(need(foodLogHooks, 'invalidateLogData'))
+    const target = nKeysOf(need(foodLogHooks, 'invalidateTargetData'))
+    for (const key of log) assert.ok(target.includes(key), key + ' missing from the target list')
+    nHas(target, ['program'], ['goals'], ['check-in'], ['foods', 'detail'], ['weights', 'trend'])
+  }
+)
+await check(
+  'N3 a weight write refreshes the scale list, trend, goals, expenditure, energy balance, check-in, body metrics and the Progress Photos sessions (they carry the weight)',
+  () => {
+    const list = nWeight.WEIGHT_INVALIDATE.map((key) => JSON.stringify(key))
+    nHas(
+      list,
+      ['weights'],
+      ['goals'],
+      ['expenditure'],
+      ['energy-balance'],
+      ['check-in'],
+      ['body-metrics'],
+      ['progress-photos']
+    )
+  }
+)
+await check(
+  'N4 editing / deleting a custom food refreshes search, Library, Favorites and the plate / recipe nutrition built from it',
+  () => {
+    const keys = nKeysOf(need(foodHooks, 'invalidateFoodData'))
+    nHas(
+      keys,
+      ['foods'],
+      ['food-log', 'library'],
+      ['food-favorites'],
+      ['food-log', 'plate-nutrients'],
+      ['food-log', 'recipe-nutrients']
+    )
+  }
+)
+await check(
+  'N5 recipe create refreshes Library + search + Favorites; log settings refresh search + Library; a note only refreshes the log (it changes no number)',
+  () => {
+    const logText = source('features/food-log/hooks/use-food-log.ts')
+    const recipe = bodyOf(logText, 'export const useCreateRecipe = ', '\n}')
+    for (const key of ['foodLogKeys.library', "['foods', 'search']", "['food-favorites']"])
+      assert.ok(recipe.includes(key), 'useCreateRecipe misses ' + key)
+    const settings = source('features/food-log/hooks/use-food-log-settings.ts')
+    assert.match(settings, /\[\['foods'\], \['food-log', 'library'\]\]/)
+    const notes = bodyOf(logText, 'const useNoteMutation', '\n}')
+    assert.ok(
+      /foodLogKeys\.all/.test(notes) && !/invalidateLogData/.test(notes),
+      'notes must not refresh the derived numbers'
+    )
+    assert.ok(
+      !/useLogMutation\(\(payload: AddNoteRequest\)/.test(logText),
+      'notes still use the heavy log mutation'
+    )
+  }
+)
+await check(
+  'N6 only a week-start / time-zone change refreshes the calendar-keyed lists; name / units / bio do not',
+  () => {
+    const shifts = need(nProfile, 'profileChangeShiftsCalendar')
+    assert.equal(shifts({ weekStartDay: 'Sunday' }), true)
+    assert.equal(shifts({ timeZone: 'Asia/Tokyo' }), true)
+    assert.equal(shifts({ weekStartDay: null }), false, 'null keeps the value')
+    assert.equal(shifts({ firstName: 'A', unitPreference: 'Imperial', bio: 'x' }), false)
+    const keys = nProfile.CALENDAR_KEYS.map((k) => JSON.stringify(k))
+    nHas(
+      keys,
+      ['steps'],
+      ['periods'],
+      ['progress-photos'],
+      ['body-metrics'],
+      ['visual-body-fat'],
+      ['measurements'],
+      ['nutrition-data']
+    )
+  }
+)
+await check(
+  'N7 no blanket invalidate / clear in any hook; only the derived status polls (and only while Updating); nobody waits a fixed time for the BE',
+  () => {
+    for (const [file, text] of allSources().filter(([name]) => /\/hooks\/[^/]+\.ts$/.test(name))) {
+      assert.ok(!/invalidateQueries\(\s*\)/.test(text), file + ' invalidates everything')
+      assert.ok(!/queryKey:\s*\[\s*\]/.test(text), file + ' has an empty key')
+      assert.ok(!/refetchQueries\(\s*\)/.test(text), file + ' refetches everything')
+      // G6: the check-in session may poll only through previewPollInterval (preview blocked AND the live state can't recover it on its own)
+      const pollsOk =
+        /derived-data/.test(file) ||
+        (/use-check-in\.ts$/.test(file) &&
+          (text.match(/refetchInterval/g) ?? []).length === 1 &&
+          /refetchInterval: pollBlockedPreview\s*\?\s*\(query\) => \{[\s\S]*?return previewPollInterval\([\s\S]*?\}\s*:\s*false/.test(
+            text
+          ))
+      if (!pollsOk) assert.ok(!/refetchInterval/.test(text), file + ' polls')
+      assert.ok(
+        !(/setTimeout/.test(text) && /invalidateQueries/.test(text)),
+        file + ' invalidates on a timer'
+      )
+    }
+    assert.equal(nDerived.pollInterval({ state: 'Ready' }), false)
+    assert.ok(nDerived.pollInterval({ state: 'Updating' }) > 0)
+  }
+)
+await check(
+  'N8 a refetch after a mutation never swaps data for a skeleton: no component ties a Skeleton / spinner to isFetching of a data query',
+  () => {
+    for (const [file, text] of allSources().filter(([name]) => /\.tsx$/.test(name)))
+      assert.ok(
+        !/isFetching[^\n]*Skeleton|Skeleton[^\n]*isFetching/.test(text),
+        file + ' shows a skeleton while refetching'
+      )
+  }
+)
+await check(
+  'N9 Expenditure / Weight Trend / Energy Balance / Goal Progress error screens expose a Retry (refetch) wired to ErrorState',
+  () => {
+    for (const hook of ['expenditure', 'weight-trend', 'energy-balance', 'goal-progress'])
+      assert.match(source(`features/dashboard/hooks/use-${hook}-detail.ts`), /refetch/, hook)
+    for (const page of ['Expenditure', 'WeightTrend', 'EnergyBalance', 'GoalProgress'])
+      assert.match(
+        source(`features/dashboard/pages/${page}Page.tsx`),
+        /ErrorState[\s\S]*onRetry=\{data\.refetch\}/,
+        page
+      )
+  }
+)
+await check(
+  'N10 failed deletes tell the user (toast) and End program shows the error inside its dialog',
+  () => {
+    for (const file of [
+      'features/steps/hooks/use-steps.ts',
+      'features/foods/hooks/use-foods.ts',
+      'features/weight/hooks/use-weights.ts',
+      'features/food-log/hooks/use-food-log.ts',
+      'features/period/hooks/use-period.ts',
+    ])
+      assert.match(source(file), /reportMutationError\(/, file)
+    assert.match(source('lib/mutation-feedback.ts'), /toast\.error/)
+    assert.match(source('components/shared/ConfirmDialog.tsx'), /error\?: string \| null/)
+    assert.match(
+      source('features/program/components/ProgramPage/ProgramActions.tsx'),
+      /error=\{end\.error\}/
+    )
+  }
+)
+await check(
+  'N11 leaving Edit Goal / the wizard drops the pending goal so New Program never reuses it',
+  () => {
+    assert.match(source('stores/goal-edit.store.ts'), /reset:[^\n]*pendingGoal: null/)
+    const nav = source('features/program/hooks/use-wizard-nav.ts')
+    assert.match(nav, /setPendingGoal\(null\)/)
+    assert.ok((nav.match(/clearPendingGoal\(\)/g) ?? []).length >= 2, 'back + close both clear it')
+  }
+)
+await check('N12 a Quick Add logging error is visible on every food-log tab', () => {
+  const text = source('features/food-log/pages/FoodLogPage.tsx')
+  assert.ok(!/tab !== 'quick'[^\n]*quickAdd\.error|quickAdd\.error[^\n]*tab !== 'quick'/.test(text))
+  assert.match(text, /quickAdd\.error/)
+})
+await check(
+  'N13 gated queries are only "pending" when enabled, so a user without a program never sees skeletons forever',
+  () => {
+    const text = source('features/dashboard/hooks/use-dashboard-data.ts')
+    for (const key of ['daily', 'energyBalance', 'dayLog', 'nutrients', 'expenditure'])
+      assert.match(text, new RegExp(`${key}: enabled && `), key)
+  }
+)
+await check(
+  'N14 while the BE recalculates, detail pages dim the content instead of swapping it for a skeleton',
+  () => {
+    for (const page of ['Expenditure', 'WeightTrend', 'EnergyBalance', 'GoalProgress']) {
+      const text = source(`features/dashboard/pages/${page}Page.tsx`)
+      assert.match(text, /aria-busy=\{derived\.gate === 'updating'\}/, page)
+      assert.ok(!/gate === 'updating'[^\n]*(Skeleton|loading)/.test(text), page + ' skeletons')
+    }
+  }
+)
+
+// ── P: header X-Derived-Data-State của mọi lần ghi (Phase 3) ───────────────────────────────────────────────────────────────────────────────
+await check(
+  'P1 the write header drives the shared status: Ready / Updating / Failed applied at once, Ready after Updating refetches the derived keys once, a missing header is never assumed Ready',
+  async () => {
+    const apply = need(nDerived, 'applyDerivedHeader')
+    const parse = need(nDerived, 'parseDerivedState')
+    const refresh = need(nDerived, 'refreshDerivedStatus')
+    const KEYS = constant(nDerived, 'DERIVED_KEYS').map((k) => JSON.stringify(k))
+    const STATUS = JSON.stringify(['derived-data', 'status'])
+    // the derived refetch is deferred one macrotask (after the write's own onSuccess invalidations)
+    const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
+    assert.equal(parse('updating'), 'Updating')
+    assert.equal(parse(' Ready '), 'Ready')
+    assert.equal(parse(undefined), null)
+    assert.equal(parse('weird'), null)
+    // Ready while already Ready: status says Ready, nothing extra refetched (the hook's own keys do that)
+    const ready = fakeClient(status('Ready'))
+    apply(ready, 'Ready')
+    assert.equal(ready.getQueryData(['derived-data', 'status']).state, 'Ready')
+    assert.deepEqual(ready.invalidated, [])
+    // Updating: kept as Updating at once (gate = updating, polling starts), no derived refetch yet
+    apply(ready, 'Updating')
+    assert.equal(nDerived.gateOf(ready.getQueryData(['derived-data', 'status'])), 'updating')
+    assert.deepEqual(ready.invalidated, [])
+    // Ready after Updating: status flips at once; in-flight derived GETs (started while the BE was rebuilding) are cancelled at once;
+    // every derived key is refreshed exactly once one tick later, reusing fresh in-flight requests and skipping families already newer than the header
+    apply(ready, 'Ready')
+    assert.equal(ready.getQueryData(['derived-data', 'status']).state, 'Ready')
+    assert.deepEqual([...ready.cancelled].sort(), [...KEYS].sort(), 'pre-Ready fetches dropped')
+    assert.deepEqual(ready.invalidated, [], 'deferred behind the write hook')
+    const before = Date.now()
+    await tick()
+    assert.deepEqual([...ready.invalidated].sort(), [...KEYS].sort())
+    for (const filter of ready.filters) {
+      assert.equal(
+        filter.options?.cancelRefetch,
+        false,
+        'reuses the hook request started after the header'
+      )
+      assert.equal(
+        filter.predicate({ state: { dataUpdatedAt: before - 1000 } }),
+        true,
+        'older data → refresh'
+      )
+      assert.equal(
+        filter.predicate({ state: { dataUpdatedAt: Date.now() + 1000 } }),
+        false,
+        'already newer → skip'
+      )
+    }
+    // Failed
+    apply(ready, 'Failed')
+    assert.equal(nDerived.gateOf(ready.getQueryData(['derived-data', 'status'])), 'failed')
+    // Missing header: cache untouched (not Ready), status re-read from the endpoint — ONCE (the hook's refresh does not read it again)
+    const missing = fakeClient(status('Updating'))
+    apply(missing, undefined)
+    assert.equal(missing.getQueryData(['derived-data', 'status']).state, 'Updating')
+    assert.deepEqual(missing.invalidated, [STATUS])
+    refresh(missing)
+    assert.deepEqual(missing.invalidated, [STATUS], 'one status read per write')
+    // A header already covered the write: the hook's refresh does not ask for status again
+    const covered = fakeClient(status('Ready'))
+    apply(covered, 'Ready')
+    refresh(covered)
+    assert.deepEqual(covered.invalidated, [])
+    // …but only for that write: a later refresh with no header of its own (e.g. a write that timed out) still reads the status
+    const later = fakeClient(status('Ready'))
+    apply(later, 'Ready')
+    await tick()
+    refresh(later)
+    assert.deepEqual(later.invalidated, [STATUS], 'covered flag does not outlive its write')
+    // the poll / Retry path keeps the default cancelRefetch: an in-flight GET from before the commit is cancelled and read again
+    const polled = fakeClient()
+    nDerived.onStatusChange(polled, status('Updating'), status('Ready'))
+    assert.ok(polled.filters.every((filter) => filter.options === undefined))
+  }
+)
+await check(
+  'P2 a status read that started before a newer write header never overwrites it',
+  async () => {
+    const apply = need(nDerived, 'applyDerivedHeader')
+    const read = need(nDerived, 'readDerivedStatus')
+    const client = fakeClient(status('Ready'))
+    const stale = await read(client, {
+      status: async () => {
+        apply(client, 'Updating') // a newer write answers while this GET is in flight
+        return status('Ready')
+      },
+      retry: async () => null,
+    })
+    assert.equal(stale.state, 'Updating')
+    assert.equal(client.getQueryData(['derived-data', 'status']).state, 'Updating')
+  }
+)
+await check(
+  'P3 the shared HTTP client reads the header on every write and wires it to the QueryClient',
+  () => {
+    const http = source('lib/axios.ts')
+    assert.match(http, /x-derived-data-state/)
+    assert.match(http, /\['post', 'put', 'patch', 'delete'\]/)
+    assert.match(http, /\/derived-data\//)
+    assert.match(
+      http,
+      /READ_ONLY_POSTS[^\n]*plate[^\n]*nutrients/,
+      'preview-style POSTs are not writes'
+    )
+    assert.match(
+      source('lib/query-client.ts'),
+      /setDerivedHeaderListener\(\(value\) => applyDerivedHeader\(queryClient, value\)\)/
+    )
+  }
+)
+await check(
+  'P4 Failed on every derived screen offers Try again that POSTs /derived-data/retry and then follows the status',
+  () => {
+    for (const page of ['Expenditure', 'WeightTrend', 'EnergyBalance', 'GoalProgress'])
+      assert.match(
+        source(`features/dashboard/pages/${page}Page.tsx`),
+        /DerivedFailed[\s\S]*onRetry=\{derived\.retry\}/,
+        page
+      )
+    assert.match(
+      source('features/derived-data/services/derived-data.service.ts'),
+      /apiRoutes\.derivedData\.retry/
+    )
+    // Retry ghi trạng thái BE trả kèm id của lượt làm mới (Failed → Ready mở lượt mới), so với cache đọc SAU khi POST trả về (hành vi: F3, F7)
+    const retry = bodyOf(
+      source('features/derived-data/derived-data.utils.ts'),
+      'export async function retryDerived',
+      '\n}\n'
+    )
+    assert.match(
+      retry,
+      /client\.setQueryData\(derivedStatusKey, settlingOf\(previous, next, cycle\)\)/
+    )
+    assert.ok(
+      retry.indexOf('await api.retry()') < retry.indexOf('const previous'),
+      'previous is read before the POST returns'
+    )
+  }
+)
+await check(
+  'P5 Edit Goal session: Strategy entry ends it, leaving Edit Goal does not clear a goal being handed to New Program, Back/Close of the wizard do',
+  async () => {
+    const store = await load('../src/stores/goal-edit.store.ts')
+    const s = need(store, 'useGoalEditStore')
+    s.getState().setTarget(70)
+    s.getState().setPendingGoal({
+      goalType: 'WeightLoss',
+      weeklyWeightChangeTargetPercent: 0.5,
+      targetWeightKg: 70,
+    })
+    s.getState().reset() // what mounting the Strategy page does
+    assert.equal(s.getState().pendingGoal, null)
+    assert.equal(s.getState().targetWeightKg, null)
+    assert.match(
+      source('features/program/pages/ProgramPage.tsx'),
+      /useEffect\(\(\) => useGoalEditStore\.getState\(\)\.reset\(\), \[\]\)/
+    )
+    const edit = source('features/program/pages/GoalEditStepPage.tsx')
+    assert.ok(
+      !/useEffect/.test(edit),
+      'Edit Goal must not reset on unmount: that is the hand-off to New Program'
+    )
+    // New Program started on its own has no pending goal; one handed over by Edit Goal is only set by Done on a new-program preview
+    assert.match(edit, /if \(data\.requiresNewProgram\) \{\s*edit\.setPendingGoal/)
+  }
+)
+await check(
+  'P6 finishing / closing the New Program wizard cannot be overridden by its own "first unanswered step" redirect',
+  () => {
+    const nav = source('features/program/hooks/use-wizard-nav.ts')
+    assert.match(nav, /const leaving = useRef\(false\)/)
+    assert.match(nav, /if \(unanswered && !leaving\.current\)/)
+    assert.ok((nav.match(/leaving\.current = true/g) ?? []).length >= 2, 'back-out + close mark it')
+    // Done after POST /programs leaves through the same path (reset() would otherwise send the user back to "style")
+    assert.match(source('features/program/pages/NewProgramStepPage.tsx'), /onSuccess: nav\.close/)
+  }
+)
+
+// ── G: G6 — Accept check-in khoá khi dữ liệu dẫn xuất chưa Ready (BE 409 DERIVED_DATA_UPDATING / DERIVED_DATA_FAILED là nguồn sự thật) ──────────
+const gGate = await load('../src/features/program/utils/check-in-gate.ts')
+const g409 = (code, key = 'reasonCode') => ({
+  response: { status: 409, data: { errors: { [key]: [code] } } },
+})
+await check(
+  'G1 BE reason codes and the 409 body map to the Accept gate; other errors keep normal handling',
+  () => {
+    const gateOfReason = need(gGate, 'gateOfReason')
+    const blockOf = need(gGate, 'acceptBlockOfError')
+    assert.equal(gateOfReason(null), 'open')
+    assert.equal(gateOfReason(undefined), 'open', 'an older BE without the field = open')
+    assert.equal(gateOfReason('DERIVED_DATA_UPDATING'), 'updating')
+    assert.equal(gateOfReason('DERIVED_DATA_FAILED'), 'failed')
+    assert.equal(
+      gateOfReason('SOMETHING_NEW'),
+      'updating',
+      'unknown code stays closed, like the BE CheckInGate'
+    )
+    assert.equal(blockOf(g409('DERIVED_DATA_UPDATING')), 'updating')
+    assert.equal(blockOf(g409('DERIVED_DATA_FAILED')), 'failed')
+    assert.equal(blockOf(g409('DERIVED_DATA_FAILED', 'ReasonCode')), 'failed', 'key casing')
+    assert.equal(
+      blockOf({ response: { status: 409, data: { errors: null } } }),
+      null,
+      '409 decision conflict'
+    )
+    assert.equal(
+      blockOf({
+        response: { status: 400, data: { errors: { reasonCode: ['DERIVED_DATA_UPDATING'] } } },
+      }),
+      null
+    )
+    assert.equal(blockOf(new Error('network')), null)
+    assert.equal(blockOf(null), null)
+  }
+)
+await check(
+  'G2 the gate combines the preview reason with the live derived state: never open while either is blocked, re-reads the stale source',
+  () => {
+    const gate = need(gGate, 'checkInAcceptGate')
+    const live = (g, at = 200, known = true) => ({ gate: g, known, updatedAt: at })
+    const pv = (reason) => ({ acceptBlockedReason: reason })
+    // no live read yet → preview decides
+    assert.deepEqual(gate(pv('DERIVED_DATA_UPDATING'), 100, live('ready', 0, false)), {
+      gate: 'updating',
+      sync: 'none',
+    })
+    assert.deepEqual(gate(pv(null), 100, live('ready', 0, false)), { gate: 'open', sync: 'none' })
+    // agree
+    assert.deepEqual(gate(pv(null), 100, live('ready')), { gate: 'open', sync: 'none' })
+    assert.deepEqual(gate(pv('DERIVED_DATA_FAILED'), 100, live('failed')), {
+      gate: 'failed',
+      sync: 'none',
+    })
+    // status just became Ready (newer) but the preview was built while Updating → stay closed and refetch the preview (no auto Accept)
+    assert.deepEqual(gate(pv('DERIVED_DATA_UPDATING'), 100, live('ready', 200)), {
+      gate: 'updating',
+      sync: 'refetch-preview',
+    })
+    // a newer write is Updating, preview said open → closed; the Ready transition refetches the preview later
+    assert.deepEqual(gate(pv(null), 100, live('updating', 200)), { gate: 'updating', sync: 'none' })
+    // preview newer than the status → status re-read
+    assert.deepEqual(gate(pv('DERIVED_DATA_UPDATING'), 300, live('ready', 200)), {
+      gate: 'updating',
+      sync: 'read-status',
+    })
+    assert.deepEqual(gate(pv(null), 300, live('failed', 200)), {
+      gate: 'failed',
+      sync: 'read-status',
+    })
+    // both closed → the NEWER source is shown (Accept closed either way)
+    assert.equal(gate(pv('DERIVED_DATA_UPDATING'), 100, live('failed', 200)).gate, 'failed')
+    // just after "Try again": live Updating is newer than the Failed preview → show Updating (no second Try again), refetch the preview
+    assert.deepEqual(gate(pv('DERIVED_DATA_FAILED'), 100, live('updating', 200)), {
+      gate: 'updating',
+      sync: 'refetch-preview',
+    })
+    assert.deepEqual(gate(pv('DERIVED_DATA_FAILED'), 300, live('updating', 200)), {
+      gate: 'failed',
+      sync: 'read-status',
+    })
+    // never open while either source is closed (every combination)
+    for (const p of [null, 'DERIVED_DATA_UPDATING', 'DERIVED_DATA_FAILED'])
+      for (const l of ['ready', 'updating', 'failed'])
+        for (const [pa, la] of [
+          [100, 200],
+          [300, 200],
+        ]) {
+          const r = gate(pv(p), pa, live(l, la))
+          assert.equal(r.gate === 'open', p === null && l === 'ready', `${p}/${l}/${pa}>${la}`)
+        }
+    // no session yet → live state
+    assert.deepEqual(gate(undefined, 0, live('updating')), { gate: 'updating', sync: 'none' })
+    assert.ok(constant(gGate, 'MAX_GATE_SYNCS') >= 1 && constant(gGate, 'MAX_GATE_SYNCS') <= 3)
+  }
+)
+await check(
+  'G3 a 409 gate puts the BE state into the shared status cache; Ready afterwards refetches the check-in preview once',
+  async () => {
+    const applyState = need(nDerived, 'applyDerivedState')
+    const KEYS = constant(nDerived, 'DERIVED_KEYS').map((k) => JSON.stringify(k))
+    assert.ok(KEYS.includes(JSON.stringify(['check-in'])), 'the check-in session is a derived key')
+    const client = fakeClient(status('Ready'))
+    applyState(client, 'Updating')
+    assert.equal(nDerived.gateOf(client.getQueryData(['derived-data', 'status'])), 'updating')
+    assert.equal(
+      nDerived.pollInterval(client.getQueryData(['derived-data', 'status'])) > 0,
+      true,
+      'polls while Updating'
+    )
+    assert.deepEqual(client.invalidated, [], 'no refetch while Updating')
+    applyState(client, 'Ready')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    assert.ok(
+      client.invalidated.includes(JSON.stringify(['check-in'])),
+      'preview refetched on Ready'
+    )
+    assert.equal(client.invalidated.filter((k) => k === JSON.stringify(['check-in'])).length, 1)
+    applyState(client, 'Failed')
+    assert.equal(
+      nDerived.pollInterval(client.getQueryData(['derived-data', 'status'])),
+      false,
+      'no polling on Failed'
+    )
+  }
+)
+await check(
+  'G3b a status read that started before the 409 gate state never overwrites it',
+  async () => {
+    const applyState = need(nDerived, 'applyDerivedState')
+    const client = fakeClient(status('Ready'))
+    const read = await nDerived.readDerivedStatus(client, {
+      status: async () => {
+        applyState(client, 'Updating') // Accept answered 409 DERIVED_DATA_UPDATING while this GET was in flight
+        return status('Ready')
+      },
+      retry: async () => null,
+    })
+    assert.equal(read.state, 'Updating')
+    assert.equal(client.getQueryData(['derived-data', 'status']).state, 'Updating')
+  }
+)
+await check(
+  'G4 the Accept mutation treats the BE 409 gate as state, not a generic error toast',
+  () => {
+    const hooks = source('features/program/hooks/use-check-in.ts')
+    const onError = bodyOf(hooks, 'onError: (error) => {\n      // G6', '\n    },')
+    assert.match(onError, /acceptBlockOfError\(error\)/)
+    assert.match(
+      onError,
+      /applyDerivedState\(queryClient, blocked === 'failed' \? 'Failed' : 'Updating'\)/
+    )
+    assert.match(onError, /invalidateQueries\(\{ queryKey: checkInKeys\.session \}\)/)
+    assert.match(
+      onError,
+      /if \(blocked\) \{[\s\S]*?\n\s*return\n\s*\}[\s\S]*toast\.error/,
+      'gate errors return before the generic toast'
+    )
+    const gateHook = bodyOf(hooks, 'export function useCheckInAcceptGate', '\n}\n')
+    assert.match(gateHook, /const derived = useDerivedGate\(\)/, 'observes the live state')
+    assert.match(
+      gateHook,
+      /checkInAcceptGate\(\s*session\.data\?\.preview,\s*session\.dataUpdatedAt,\s*derived,\s*session\.isFetching\s*\)/
+    )
+    assert.match(
+      gateHook,
+      /if \(!active \|\| sync === 'none'\) \{\s*syncs\.current = 0/,
+      'budget resets when sources agree (and modules without Accept never sync)'
+    )
+    assert.match(gateHook, /syncs\.current \+= 1/)
+    // the live-state inputs are the client-side cache times, not the BE clock
+    const derivedHook = source('features/derived-data/hooks/use-derived-data.ts')
+    assert.match(derivedHook, /known: status\.data !== undefined/)
+    assert.match(derivedHook, /updatedAt: status\.dataUpdatedAt/)
+    assert.match(derivedHook, /isFetching: status\.isFetching/)
+    // the Ready transition already refetches the preview (DERIVED_KEYS): the gate waits for it instead of cancelling it with a second request
+    assert.match(
+      hooks,
+      /const target = sync === 'refetch-preview' \? session\.isFetching : derived\.isFetching/
+    )
+    assert.match(hooks, /if \(target \|\| syncs\.current >= MAX_GATE_SYNCS\) return/)
+  }
+)
+await check(
+  'G5 Program Update: Accept and Done disabled unless Ready, Decline stays enabled, content kept but marked not ready, Failed offers Retry',
+  () => {
+    const mod = source('features/program/components/CheckInPage/ProgramUpdateModule.tsx')
+    assert.match(mod, /const notReady = acceptGate !== 'open'/)
+    assert.match(
+      mod,
+      /nextDisabled=\{acceptBlocked \|\| notReady\}/,
+      '"Done" (no proposal) is an Accept too'
+    )
+    const acceptButton = bodyOf(mod, '<Button\n', 'Accept Program Changes\n')
+    assert.match(acceptButton, /disabled=\{isDeciding \|\| acceptBlocked \|\| notReady\}/)
+    assert.match(acceptButton, /aria-describedby=\{notReadyText \? notReadyId : undefined\}/)
+    const decline = bodyOf(mod, 'variant="secondary"', 'Decline and Silence\n')
+    assert.match(decline, /disabled=\{isDeciding\}/, 'Decline is never gated')
+    assert.ok(!/notReady|acceptGate/.test(decline), 'Decline is never gated')
+    assert.match(
+      mod,
+      /acceptGate === 'failed' && onRetryDerived && \(\s*<DerivedFailed onRetry=\{onRetryDerived\} isRetrying=\{isRetryingDerived\}/,
+      'Failed → existing ErrorState with Try again'
+    )
+    // live region always mounted (empty while open) so a 409 that closes the gate is announced
+    assert.match(mod, /<p\s+id=\{notReadyId\}\s+role="status"/)
+    assert.match(
+      mod,
+      /acceptGate === 'updating'\s*\?\s*`[^`]*\$\{decidable \? 'accept' : 'finish'\}/
+    )
+    assert.match(mod, /aria-busy=\{acceptGate === 'updating'\}/)
+    assert.match(mod, /notReady && 'opacity-60'/)
+  }
+)
+await check(
+  'G6 the page wires the gate, hides the gate 409 text, and never accepts on its own',
+  () => {
+    const page = source('features/program/pages/CheckInModulePage.tsx')
+    assert.match(page, /const acceptModule = module === 'program-update'/)
+    assert.match(page, /useCheckInAcceptGate\(session, acceptModule\)/)
+    assert.match(page, /acceptGate=\{acceptGate\.gate\}/)
+    assert.match(page, /onRetryDerived=\{acceptGate\.retry\}/)
+    assert.match(page, /isRetryingDerived=\{acceptGate\.isRetrying\}/)
+    assert.match(page, /const blockedByServer = acceptBlockOfError\(accept\.error\) !== null/)
+    assert.match(page, /const acceptError = blockedByServer \? null : accept\.error/)
+    // accept only from the user's tap (onAccept), never from an effect — page effects AND the gate hook's effect
+    const hooks = source('features/program/hooks/use-check-in.ts')
+    const effects = [
+      ...page.split('useEffect(').slice(1),
+      ...bodyOf(hooks, 'export function useCheckInAcceptGate', '\n}\n')
+        .split('useEffect(')
+        .slice(1),
+    ]
+    assert.ok(effects.length >= 3)
+    for (const effect of effects)
+      assert.ok(
+        !/accept\.mutate|\.accept\(|mutate\(/.test(effect.slice(0, effect.indexOf('}, ['))),
+        'an effect sends Accept'
+      )
+    assert.equal((page.match(/accept\.mutate\(/g) ?? []).length, 1)
+    assert.match(page, /onAccept=\{\(\) => accept\.mutate\(/)
+    // …and the components that receive it only pass it to a tap handler: no effect / timer of the module or the shell calls onAccept / onNext
+    const updateModule = source('features/program/components/CheckInPage/ProgramUpdateModule.tsx')
+    const shell = source('features/onboarding/components/OnboardingPage/WizardShell.tsx')
+    for (const [file, text] of [
+      ['ProgramUpdateModule', updateModule],
+      ['WizardShell', shell],
+    ]) {
+      const timed = [...text.split('useEffect(').slice(1), ...text.split('setTimeout(').slice(1)]
+      assert.ok(timed.length >= 1, `${file}: nothing scanned`)
+      for (const body of timed)
+        assert.ok(
+          !/onAccept|onNext/.test(body.slice(0, body.search(/\}, \[|\)\n/))),
+          `${file}: an effect / timer sends Accept`
+        )
+    }
+    for (const use of updateModule.match(/.*onAccept.*/g) ?? [])
+      assert.match(
+        use.trim(),
+        /^(readonly onAccept: \(\) => void|onAccept,|onNext=\{onAccept\}|onClick=\{onAccept\})$/,
+        `ProgramUpdateModule uses onAccept outside a tap handler: ${use.trim()}`
+      )
+    assert.equal((shell.match(/onNext\(\)/g) ?? []).length, 1)
+    assert.match(shell, /onClick=\{\(\) => \{\s*if \(!isPending\) onNext\(\)/)
+  }
+)
+
+// Fixtures in the shape the final BE contract sends (MOS-BE, G6): `preview` of GET /check-ins/session (and GET /check-ins/preview), and the 409 of
+// POST /check-ins/accept as axios rejects it (`response.data` = the BE `ApiResponse`, message in Vietnamese → FE keys on reasonCode only)
+const gPreview = (derivedDataState, acceptBlockedReason) => ({
+  nextCheckInDate: '2026-10-30',
+  isDue: true,
+  alreadyCheckedInToday: false,
+  proposal: { previousCalories: 2014, newCalories: 1950, delta: -64 },
+  changed: true,
+  reasonCodes: ['ON_TARGET'],
+  ...(derivedDataState === undefined ? {} : { derivedDataState, acceptBlockedReason }),
+})
+const gAccept409 = (reasonCode) => ({
+  isAxiosError: true,
+  response: {
+    status: 409,
+    data: {
+      isSuccess: false,
+      statusCode: 409,
+      message:
+        'Expenditure đang được tính lại từ dữ liệu mới nhất, chưa thể chấp nhận check-in. Vui lòng thử lại khi hoàn tất.',
+      errors: { reasonCode: [reasonCode] },
+      data: null,
+    },
+  },
+})
+await check(
+  'G7 contract fixtures: Ready / Updating / Failed previews and the 409 of Accept drive the gate; a BE without the fields keeps Accept open',
+  async () => {
+    const gate = need(gGate, 'checkInAcceptGate')
+    const blockOf = need(gGate, 'acceptBlockOfError')
+    const retryDerived = need(nDerived, 'retryDerived')
+    const unknownLive = { gate: 'ready', known: false, updatedAt: 0 }
+    const liveOf = (g) => ({ gate: g, known: true, updatedAt: 100 })
+    // three states, preview alone (status not read yet) and with the matching live state
+    assert.equal(gate(gPreview('Ready', null), 100, unknownLive).gate, 'open')
+    assert.equal(
+      gate(gPreview('Updating', 'DERIVED_DATA_UPDATING'), 100, unknownLive).gate,
+      'updating'
+    )
+    assert.equal(gate(gPreview('Failed', 'DERIVED_DATA_FAILED'), 100, unknownLive).gate, 'failed')
+    assert.deepEqual(gate(gPreview('Ready', null), 100, liveOf('ready')), {
+      gate: 'open',
+      sync: 'none',
+    })
+    assert.deepEqual(gate(gPreview('Updating', 'DERIVED_DATA_UPDATING'), 100, liveOf('updating')), {
+      gate: 'updating',
+      sync: 'none',
+    })
+    assert.deepEqual(gate(gPreview('Failed', 'DERIVED_DATA_FAILED'), 100, liveOf('failed')), {
+      gate: 'failed',
+      sync: 'none',
+    })
+    // a preview says Ready but the live state is not → still blocked ("Disable Accept when acceptBlockedReason ≠ null OR live state isn't Ready")
+    assert.equal(gate(gPreview('Ready', null), 100, liveOf('updating')).gate, 'updating')
+    assert.equal(gate(gPreview('Ready', null), 100, liveOf('failed')).gate, 'failed')
+    // deployed prod BE without the fields: Accept stays as before (open when the live state is Ready)
+    assert.equal(gate(gPreview(undefined), 100, unknownLive).gate, 'open')
+    assert.equal(gate(gPreview(undefined), 100, liveOf('ready')).gate, 'open')
+    // the 409 path: reasonCode decides, the Vietnamese message is ignored
+    assert.equal(blockOf(gAccept409('DERIVED_DATA_UPDATING')), 'updating')
+    assert.equal(blockOf(gAccept409('DERIVED_DATA_FAILED')), 'failed')
+    // Failed → Retry: BE answers Updating, so Accept stays blocked (and the status keeps polling) until Ready
+    const client = fakeClient(status('Failed'))
+    const after = await retryDerived(client, {
+      status: async () => status('Updating'),
+      retry: async () => status('Updating'),
+    })
+    assert.equal(after.state, 'Updating')
+    const liveAfterRetry = {
+      gate: nDerived.gateOf(client.getQueryData(['derived-data', 'status'])),
+      known: true,
+      updatedAt: 200,
+    }
+    // the older Failed preview no longer shows "Try again" once Retry made the live state Updating; Accept stays blocked and the preview is refetched
+    assert.deepEqual(
+      gate(gPreview('Failed', 'DERIVED_DATA_FAILED'), 100, liveAfterRetry),
+      { gate: 'updating', sync: 'refetch-preview' },
+      'blocked, shows Updating after Retry'
+    )
+    assert.equal(
+      gate(gPreview('Updating', 'DERIVED_DATA_UPDATING'), 300, liveAfterRetry).gate,
+      'updating'
+    )
+    assert.ok(
+      nDerived.pollInterval(client.getQueryData(['derived-data', 'status'])) > 0,
+      'polls after Retry'
+    )
+    assert.ok(
+      !client.invalidated.includes(JSON.stringify(['check-in'])),
+      'no preview refetch until Ready'
+    )
+  }
+)
+await check(
+  'G8 a blocked preview keeps being re-checked when the live state cannot recover it (status unreadable, or Ready with a failed preview refetch)',
+  () => {
+    const pollOf = need(gGate, 'previewPollInterval')
+    const POLL = constant(nDerived, 'POLL_MS')
+    const pv = (reason) => ({ acceptBlockedReason: reason })
+    // status never loaded (5xx / timeout) and the preview is Updating → poll the preview
+    assert.equal(pollOf(pv('DERIVED_DATA_UPDATING'), { gate: 'ready', known: false }), POLL)
+    // status Ready but the preview is still blocked (its refetch failed) → poll the preview
+    assert.equal(pollOf(pv('DERIVED_DATA_UPDATING'), { gate: 'ready', known: true }), POLL)
+    // the status poll handles Updating (Ready refetches the preview)
+    assert.equal(pollOf(pv('DERIVED_DATA_UPDATING'), { gate: 'updating', known: true }), false)
+    // a stale live Failed (e.g. retried on another device) never changes by itself → keep re-checking the Updating preview
+    assert.equal(pollOf(pv('DERIVED_DATA_UPDATING'), { gate: 'failed', known: true }), POLL)
+    // Failed does not clear by itself (BE keeps Failed until POST /derived-data/retry): no polling while the live state is unknown / Updating / Failed
+    for (const live of [
+      { gate: 'ready', known: false },
+      { gate: 'updating', known: true },
+      { gate: 'failed', known: true },
+    ])
+      assert.equal(pollOf(pv('DERIVED_DATA_FAILED'), live), false, JSON.stringify(live))
+    // …but once the live state IS Ready (Try again worked) a stale Failed preview is re-checked, so a failed preview refetch cannot leave Accept stuck
+    assert.equal(pollOf(pv('DERIVED_DATA_FAILED'), { gate: 'ready', known: true }), POLL)
+    // never while Accept is open, or before the session exists, or on an older BE without the field
+    assert.equal(pollOf(pv(null), { gate: 'ready', known: true }), false)
+    assert.equal(pollOf(pv(null), { gate: 'ready', known: false }), false)
+    assert.equal(pollOf(undefined, { gate: 'ready', known: false }), false)
+    assert.equal(pollOf({}, { gate: 'ready', known: true }), false)
+    // wired into the session query, reading the shared status cache
+    const hooks = source('features/program/hooks/use-check-in.ts')
+    const sessionHook = bodyOf(hooks, 'export const useCheckInSession', '\n}\n')
+    assert.match(sessionHook, /queryClient\.getQueryData<DerivedStatus>\(derivedStatusKey\)/)
+    assert.match(sessionHook, /previewPollInterval\(query\.state\.data\?\.preview/)
+    // opt-in only: off by default, so the hub (which never reads the live status) never polls
+    assert.match(sessionHook, /useCheckInSession = \(\{ pollBlockedPreview = false \} = \{\}\)/)
+    assert.match(sessionHook, /refetchInterval: pollBlockedPreview\s*\?/)
+    assert.match(sessionHook, /:\s*false,\s*\n\s*\}\)/, 'no interval when not opted in')
+    const hub = source('features/program/pages/CheckInHubPage.tsx')
+    assert.match(hub, /useCheckInSession\(\)/, 'the hub does not opt in')
+    assert.ok(!/pollBlockedPreview/.test(hub), 'the hub does not opt in')
+    const modulePage = source('features/program/pages/CheckInModulePage.tsx')
+    assert.match(
+      modulePage,
+      /useCheckInSession\(\{ pollBlockedPreview: acceptModule \}\)/,
+      'only the Accept module (Program Update) opts in'
+    )
+  }
+)
+
+// ── D: one request per derived family (no cancelled-then-resent duplicates) — real TanStack QueryClient, counting queryFn calls ─────────────────
+const { QueryClient: DQueryClient, QueryObserver: DQueryObserver } =
+  await import('@tanstack/react-query')
+const dSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const dClient = () =>
+  new DQueryClient({ defaultOptions: { queries: { retry: 0, staleTime: 60_000 } } })
+const dWatch = async (client, queryKey, queryFn) => {
+  let calls = 0
+  const observer = new DQueryObserver(client, {
+    queryKey,
+    queryFn: (context) => {
+      calls += 1
+      return queryFn(context)
+    },
+  })
+  const stop = observer.subscribe(() => {})
+  await dSleep(60)
+  return { stop, count: () => calls, reset: () => (calls = 0) }
+}
+await check(
+  "D1 a Ready header after Updating plus the write hook's own invalidation fetch each derived query ONCE",
+  async () => {
+    const applyState = need(nDerived, 'applyDerivedState')
+    const client = dClient()
+    client.setQueryData(['derived-data', 'status'], status('Updating'))
+    const nutrients = await dWatch(client, ['nutrients', 'day', '2026-10-23'], () =>
+      dSleep(40).then(() => ({}))
+    )
+    const goals = await dWatch(client, ['goals', 'progress'], () => dSleep(40).then(() => ({})))
+    nutrients.reset()
+    goals.reset()
+    // what a write does: the interceptor applies the Ready header, then the hook's onSuccess invalidates its families (default cancelRefetch)
+    applyState(client, 'Ready')
+    await Promise.resolve()
+    void client.invalidateQueries({ queryKey: ['nutrients'] })
+    await dSleep(150)
+    assert.equal(nutrients.count(), 1, 'overlapping family fetched once')
+    assert.equal(goals.count(), 1, 'family only in DERIVED_KEYS fetched once')
+    nutrients.stop()
+    goals.stop()
+  }
+)
+await check(
+  'D2 a write without the header reads the status ONCE, and a superseded status read cannot fire a second derived refetch',
+  async () => {
+    const applyHeader = need(nDerived, 'applyDerivedHeader')
+    const refresh = need(nDerived, 'refreshDerivedStatus')
+    const read = need(nDerived, 'readDerivedStatus')
+    const client = dClient()
+    const status$ = await dWatch(client, ['derived-data', 'status'], () =>
+      dSleep(30).then(() => status('Ready'))
+    )
+    status$.reset()
+    applyHeader(client, undefined) // interceptor: header missing → status marked stale
+    refresh(client) // the write hook's onSuccess
+    await dSleep(120)
+    assert.equal(status$.count(), 1, 'one status read per write')
+    status$.stop()
+    // a status read overtaken by a newer read (or by a deliberate re-read after a write) neither updates nor triggers the Ready refetch
+    const fake = fakeClient(status('Updating'))
+    let releaseOld
+    const old = read(fake, {
+      status: () => new Promise((resolve) => (releaseOld = () => resolve(status('Ready')))),
+      retry: async () => null,
+    })
+    await read(fake, { status: async () => status('Updating'), retry: async () => null }) // newer read
+    releaseOld()
+    await assert.rejects(old, /Superseded/)
+    assert.deepEqual(fake.invalidated, [], 'no DERIVED_KEYS refetch from a superseded read')
+    const fake2 = fakeClient(status('Updating'))
+    let release2
+    const old2 = read(fake2, {
+      status: () => new Promise((resolve) => (release2 = () => resolve(status('Ready')))),
+      retry: async () => null,
+    })
+    applyHeader(fake2, undefined) // a header-less write: cancel + re-read the status
+    release2()
+    await assert.rejects(old2, /Superseded/)
+    assert.ok(!fake2.invalidated.some((key) => key !== JSON.stringify(['derived-data', 'status'])))
+    assert.ok(
+      fake2.cancelled.includes(JSON.stringify(['derived-data', 'status'])),
+      'in-flight read cancelled'
+    )
+    // TanStack's `signal` is never touched (its getter flips a query-wide flag that cancels the next read on unmount)
+    assert.ok(
+      !/signal/.test(
+        source('features/derived-data/hooks/use-derived-data.ts').split('queryFn')[1].split('\n')[0]
+      )
+    )
+    assert.ok(
+      !/context\??\.signal|signal\.aborted/.test(
+        source('features/derived-data/derived-data.utils.ts')
+      )
+    )
+    assert.ok(
+      !/signal/.test(source('features/derived-data/services/derived-data.service.ts')),
+      'axios never gets the signal'
+    )
+  }
+)
+await check(
+  'D5 poll / Retry path: a FIRST-LOAD derived GET (no data yet) in flight across the commit is not kept as the final number',
+  async () => {
+    const read = need(nDerived, 'readDerivedStatus')
+    for (const via of ['poll', 'retry']) {
+      const client = dClient()
+      client.setQueryData(['derived-data', 'status'], status('Updating'))
+      let committed = false
+      const series = await (async () => {
+        let calls = 0
+        const observer = new DQueryObserver(client, {
+          queryKey: ['expenditure', 'series', via],
+          queryFn: () => {
+            calls += 1
+            const value = committed ? 'NEW' : 'OLD'
+            return dSleep(80).then(() => value)
+          },
+        })
+        const stop = observer.subscribe(() => {})
+        return { stop, count: () => calls }
+      })()
+      await dSleep(10) // first load in flight, no data yet
+      committed = true
+      if (via === 'poll')
+        await read(client, { status: async () => status('Ready'), retry: async () => null })
+      else
+        await nDerived.retryDerived(client, {
+          status: async () => null,
+          retry: async () => status('Ready'),
+        })
+      await dSleep(250)
+      assert.equal(client.getQueryData(['expenditure', 'series', via]), 'NEW', via)
+      series.stop()
+    }
+  }
+)
+await check(
+  'D6 after Updating → Ready the gate stays "updating" (dimmed) until the derived refetch has landed, then opens',
+  async () => {
+    const applyState = need(nDerived, 'applyDerivedState')
+    const client = dClient()
+    client.setQueryData(['derived-data', 'status'], status('Updating'))
+    const goals = await dWatch(client, ['goals', 'progress'], () => dSleep(80).then(() => ({})))
+    applyState(client, 'Ready')
+    const gate = () => nDerived.gateOf(client.getQueryData(['derived-data', 'status']))
+    assert.equal(gate(), 'updating', 'reverted / old numbers are not presented as final')
+    assert.equal(
+      nDerived.pollInterval(client.getQueryData(['derived-data', 'status'])),
+      false,
+      'settling does not poll'
+    )
+    await dSleep(40)
+    assert.equal(gate(), 'updating', 'still refetching')
+    await dSleep(150)
+    assert.equal(gate(), 'ready', 'opens once the refetch landed')
+    goals.stop()
+    // poll path too: the read returns Ready + settling, cleared after the refetch
+    const client2 = dClient()
+    client2.setQueryData(['derived-data', 'status'], status('Updating'))
+    const status$ = new DQueryObserver(client2, {
+      queryKey: ['derived-data', 'status'],
+      queryFn: () =>
+        nDerived.readDerivedStatus(client2, {
+          status: async () => status('Ready'),
+          retry: async () => null,
+        }),
+    })
+    const stopStatus = status$.subscribe(() => {})
+    const nutrients = await dWatch(client2, ['nutrients', 'day'], () => dSleep(80).then(() => ({})))
+    void client2.invalidateQueries({ queryKey: ['derived-data', 'status'] })
+    await dSleep(30)
+    assert.equal(nDerived.gateOf(client2.getQueryData(['derived-data', 'status'])), 'updating')
+    await dSleep(250)
+    assert.equal(nDerived.gateOf(client2.getQueryData(['derived-data', 'status'])), 'ready')
+    stopStatus()
+    nutrients.stop()
+  }
+)
+await check(
+  'D7 a derived result that landed in the same millisecond as the Ready header is still refreshed',
+  async () => {
+    const applyState = need(nDerived, 'applyDerivedState')
+    const client = fakeClient(status('Updating'))
+    const realNow = Date.now
+    Date.now = () => 5_000
+    try {
+      applyState(client, 'Ready')
+    } finally {
+      Date.now = realNow
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    assert.ok(client.filters.length > 0)
+    for (const filter of client.filters)
+      assert.equal(filter.predicate({ state: { dataUpdatedAt: 5_000 } }), true)
+  }
+)
+await check(
+  'D4 a derived GET that started while the BE was still rebuilding is never accepted as the post-Ready number',
+  async () => {
+    const applyState = need(nDerived, 'applyDerivedState')
+    const client = dClient()
+    let committed = false
+    const goals = await dWatch(client, ['goals', 'progress'], () => {
+      const value = committed ? 'NEW' : 'OLD' // the BE answers from the snapshot as it is when the GET is served
+      return dSleep(60).then(() => value)
+    })
+    client.setQueryData(['derived-data', 'status'], status('Updating'))
+    void client.invalidateQueries({ queryKey: ['goals'] }) // a refetch while Updating → will return OLD
+    await dSleep(10)
+    committed = true // the rebuild job commits while that GET is in flight
+    applyState(client, 'Ready') // the next write's header says Ready
+    await dSleep(200)
+    assert.equal(
+      client.getQueryData(['goals', 'progress']),
+      'NEW',
+      'pre-commit result not kept under the Ready gate'
+    )
+    goals.stop()
+  }
+)
+await check(
+  'D3 aggregate-backed nutrition screens follow the derived gate (dim while Updating, Retry on Failed, observer mounted)',
+  () => {
+    for (const file of [
+      'features/food-log/pages/NutritionOverviewPage.tsx',
+      'features/nutrient-detail/pages/NutrientDetailPage.tsx',
+      'features/nutrient-detail/pages/NutrientSummaryPage.tsx',
+    ]) {
+      const text = source(file)
+      assert.match(text, /const derived = useDerivedGate\(\)/, file)
+      assert.match(text, /aria-busy=\{derived\.gate === 'updating'\}/, file)
+      assert.match(
+        text,
+        /derived\.gate === 'failed' && \(\s*<DerivedFailed onRetry=\{derived\.retry\}/,
+        file
+      )
+    }
+    // All three dim only the content block while not Ready (Updating AND Failed: the numbers are not final either way); the header and
+    // the "Try again" card sit OUTSIDE it, so on Failed they are never shown at 60% (looking disabled)
+    for (const file of [
+      'features/food-log/pages/NutritionOverviewPage.tsx',
+      'features/nutrient-detail/pages/NutrientDetailPage.tsx',
+      'features/nutrient-detail/pages/NutrientSummaryPage.tsx',
+    ]) {
+      const text = source(file)
+      const dim = text.search(/derived\.gate !== 'ready' && 'opacity-60'/)
+      assert.ok(dim > 0, `${file}: content not dimmed on Failed`)
+      assert.ok(
+        text.indexOf('<DerivedFailed') < dim,
+        `${file}: the Retry card is inside the dimmed block`
+      )
+      assert.ok(!/derived\.gate === 'updating' && 'opacity-60'/.test(text), `${file}: root dimmed`)
+    }
+  }
+)
+await check(
+  'D8 cancelling an in-flight FIRST load on Ready restarts it at once (no idle "empty" state), still one request per family',
+  async () => {
+    const applyState = need(nDerived, 'applyDerivedState')
+    const client = dClient()
+    client.setQueryData(['derived-data', 'status'], status('Updating'))
+    let calls = 0
+    const observer = new DQueryObserver(client, {
+      queryKey: ['goals', 'first'],
+      queryFn: () => {
+        calls += 1
+        return dSleep(60).then(() => 'v' + calls)
+      },
+    })
+    const stop = observer.subscribe(() => {})
+    await dSleep(10) // first load in flight
+    applyState(client, 'Ready')
+    const query = client.getQueryCache().find({ queryKey: ['goals', 'first'] })
+    assert.equal(
+      query.state.fetchStatus,
+      'fetching',
+      'restarted synchronously — never pending + idle'
+    )
+    void client.invalidateQueries({ queryKey: ['goals'] }) // the write hook
+    await dSleep(200)
+    assert.equal(calls, 2, 'the cancelled first load + one fresh request, nothing more')
+    assert.equal(client.getQueryData(['goals', 'first']), 'v2')
+    stop()
+  }
+)
+// ── E: settling cycles — the gate opens only when THIS transition's refresh has landed ────────────────────────────────────────────────────
+const eGate = (client) => nDerived.gateOf(client.getQueryData(['derived-data', 'status']))
+await check(
+  'E1 a second Ready (status read / header / Retry) during settling keeps the gate "updating" until the refresh lands',
+  async () => {
+    const applyState = need(nDerived, 'applyDerivedState')
+    const client = dClient()
+    client.setQueryData(['derived-data', 'status'], status('Updating'))
+    const goals = await dWatch(client, ['goals', 'progress'], () => dSleep(120).then(() => ({})))
+    applyState(client, 'Ready') // transition: settling cycle starts
+    await dSleep(20)
+    // a second Ready lands while the refresh is in flight — via a status read (what refetchOnMount / focus / Retry onSettled do)…
+    client.setQueryData(
+      ['derived-data', 'status'],
+      await nDerived.readDerivedStatus(client, {
+        status: async () => status('Ready'),
+        retry: async () => null,
+      })
+    )
+    assert.equal(eGate(client), 'updating', 'status read kept the pending cycle')
+    // …and via another write's Ready header
+    applyState(client, 'Ready')
+    assert.equal(eGate(client), 'updating', 'header kept the pending cycle')
+    await dSleep(250)
+    assert.equal(eGate(client), 'ready', 'opens once the refresh landed (never stuck)')
+    goals.stop()
+  }
+)
+await check(
+  'E2 a refresh left over from an earlier Ready cycle cannot open the gate of a later cycle',
+  async () => {
+    const applyState = need(nDerived, 'applyDerivedState')
+    const client = dClient()
+    client.setQueryData(['derived-data', 'status'], status('Updating'))
+    let slow = 60
+    const goals = await dWatch(client, ['goals', 'progress'], () => dSleep(slow).then(() => ({})))
+    applyState(client, 'Ready') // cycle 1 starts its refresh (60 ms)
+    await dSleep(10)
+    applyState(client, 'Updating') // a new write: rebuilding again
+    slow = 200
+    applyState(client, 'Ready') // cycle 2: cancels cycle 1's refresh (its settle fires at once) and starts a 200 ms refresh
+    await dSleep(60)
+    assert.equal(eGate(client), 'updating', "cycle 1's settle did not clear cycle 2")
+    await dSleep(300)
+    assert.equal(eGate(client), 'ready')
+    goals.stop()
+  }
+)
+await check(
+  'E3 on Ready, derived caches nobody is watching are dropped, so the next visit loads fresh numbers instead of pre-rebuild ones',
+  () => {
+    const applyState = need(nDerived, 'applyDerivedState')
+    const client = dClient()
+    client.setQueryData(['derived-data', 'status'], status('Updating'))
+    client.setQueryData(['expenditure', 'series', 'history'], { old: true }) // cached while rebuilding, page since left (inactive)
+    client.setQueryData(['food-log', 'day'], { raw: true }) // not derived: untouched
+    applyState(client, 'Ready')
+    assert.equal(client.getQueryData(['expenditure', 'series', 'history']), undefined)
+    assert.deepEqual(client.getQueryData(['food-log', 'day']), { raw: true })
+  }
+)
+await check(
+  'E4 a derived tile / page whose series OR insights refetch failed is in error ("---" / ErrorState), never the retained pre-rebuild number',
+  async () => {
+    const pairStatus = need(dashboardUtils, 'pairStatus')
+    const client = dClient()
+    let fail = false
+    const series = new DQueryObserver(client, {
+      queryKey: ['expenditure', 'series', 'history'],
+      queryFn: async () => ({ days: [] }),
+    })
+    const insights = new DQueryObserver(client, {
+      queryKey: ['expenditure', 'insights'],
+      queryFn: async () => {
+        if (fail) throw new Error('500')
+        return { currentKcal: 2400 }
+      },
+    })
+    const stops = [series.subscribe(() => {}), insights.subscribe(() => {})]
+    await dSleep(30)
+    assert.deepEqual(pairStatus(series.getCurrentResult(), insights.getCurrentResult()), {
+      isLoading: false,
+      isError: false,
+      isFetching: false,
+    })
+    // a Ready cycle refetches both: the series succeeds, the insights GET fails — TanStack keeps the old number with status 'error'
+    fail = true
+    await client.invalidateQueries({ queryKey: ['expenditure'] })
+    await dSleep(30)
+    assert.equal(
+      insights.getCurrentResult().data.currentKcal,
+      2400,
+      'the retained number (the trap)'
+    )
+    assert.equal(
+      pairStatus(series.getCurrentResult(), insights.getCurrentResult()).isError,
+      true,
+      'an insights error is invisible'
+    )
+    stops.forEach((stop) => stop())
+    // only insights still pending → loading (skeleton), not a "---" flash
+    assert.equal(
+      pairStatus(
+        { isPending: false, isError: false, isFetching: false },
+        { isPending: true, isError: false, isFetching: true }
+      ).isLoading,
+      true
+    )
+    // a refetch of either in flight (after Try again) → isFetching, so ErrorState locks its button instead of cancelling the request
+    assert.equal(
+      pairStatus(
+        { isPending: false, isError: true, isFetching: false },
+        { isPending: false, isError: false, isFetching: true }
+      ).isFetching,
+      true
+    )
+    for (const hook of [
+      'use-expenditure-detail',
+      'use-weight-trend-detail',
+      'use-energy-balance-detail',
+    ])
+      assert.match(
+        source(`features/dashboard/hooks/${hook}.ts`),
+        /const status = pairStatus\(series, insights\)[\s\S]*isLoading: status\.isLoading,\s*isError: status\.isError,\s*isFetching: status\.isFetching,/,
+        hook
+      )
+    const tiles = source('features/dashboard/components/DashboardPage/DashboardTiles.tsx')
+    // each tile's OWN source only (a lazy match must not run on into the next tile's "---")
+    for (const [guard, title, name] of [
+      ['exp.isError', 'Expenditure', 'ExpenditureTile'],
+      ['trend.isError', 'Weight Trend', 'WeightTrendTile'],
+      ['balance.isError', 'Energy Balance', 'EnergyBalanceTile'],
+      ['goal.isError', 'Goal Progress', 'GoalProgressTile'],
+    ])
+      assert.match(
+        bodyOf(tiles, `export function ${name}()`, '\nexport function'),
+        new RegExp(
+          `if \\(${guard.replace('.', '\\.')}\\)\\s*return \\(\\s*<MetricTile\\s+title="${title}"[\\s\\S]*?value="---"`
+        ),
+        title
+      )
+  }
+)
+
+// ── F: round 5 — insights / carousel errors, polling wiring, unconfirmed Ready, Retry snapshot, check-in settling, UI wiring ─────────────
+const F_KEY = ['derived-data', 'status']
+// A header-less write leaves a confirmation owed (module state, one client per app): a confirming status read pays it, so one check cannot leak into the next
+const fConfirm = () =>
+  nDerived.readDerivedStatus(fakeClient(), {
+    status: async () => status('Ready'),
+    retry: async () => null,
+  })
+await check(
+  'F1 [wiring] the real status query options poll only while Updating (or an unconfirmed Ready), never while Ready / settling / Failed',
+  async () => {
+    const hook = await load('../src/features/derived-data/hooks/use-derived-data.ts')
+    const options = need(hook, 'derivedStatusOptions')(dClient())
+    const POLL = constant(nDerived, 'POLL_MS')
+    const at = (data) => options.refetchInterval({ state: { data } })
+    assert.equal(at(status('Updating')), POLL)
+    assert.equal(at(status('Ready')), false)
+    assert.equal(at(status('Ready', { settling: 3 })), false, 'polls while its own refresh settles')
+    assert.equal(at(status('Failed')), false, 'polls forever after Failed')
+    assert.equal(at(undefined), false)
+    assert.equal(at(status('Ready', { settling: constant(nDerived, 'UNCONFIRMED') })), POLL)
+    assert.equal(options.staleTime, 0)
+    assert.equal(options.refetchOnMount, 'always')
+    assert.equal(options.refetchOnWindowFocus, true)
+    assert.equal(options.refetchIntervalInBackground, false)
+  }
+)
+await check(
+  'F2 a write without the X-Derived-Data-State header does not leave the cached Ready trusted: dimmed until the re-read answers',
+  async () => {
+    const apply = need(nDerived, 'applyDerivedHeader')
+    const read = (client, state) =>
+      nDerived.readDerivedStatus(client, {
+        status: async () => status(state),
+        retry: async () => null,
+      })
+    const gate = (client) => nDerived.gateOf(client.getQueryData(F_KEY))
+    const client = fakeClient(status('Ready'))
+    apply(client, undefined)
+    assert.equal(gate(client), 'updating', 'a missing header is treated as Ready')
+    assert.equal(nDerived.pollInterval(client.getQueryData(F_KEY)), constant(nDerived, 'POLL_MS'))
+    assert.ok(client.invalidated.includes(JSON.stringify(F_KEY)), 'status not re-read')
+    // the re-read answers Ready → confirmed: gate opens, polling stops, nothing derived refetched (no transition)
+    client.invalidated.length = 0
+    client.setQueryData(F_KEY, await read(client, 'Ready'))
+    assert.equal(gate(client), 'ready', 'stuck dimmed after the re-read confirmed Ready')
+    assert.equal(nDerived.pollInterval(client.getQueryData(F_KEY)), false)
+    assert.deepEqual(client.invalidated, [])
+    // …or Updating → stays dimmed and polls
+    apply(client, '')
+    client.setQueryData(F_KEY, await read(client, 'Updating'))
+    assert.equal(gate(client), 'updating')
+    // a later write's Ready header confirms it too
+    const headed = fakeClient(status('Ready'))
+    apply(headed, undefined)
+    nDerived.applyDerivedState(headed, 'Ready')
+    assert.equal(gate(headed), 'ready')
+    // the shape every finished cycle leaves behind (`settling: 0`) is a plain Ready too
+    const settled = fakeClient(status('Ready', { settling: 0 }))
+    apply(settled, undefined)
+    assert.equal(settled.getQueryData(F_KEY).settling, constant(nDerived, 'UNCONFIRMED'))
+    assert.equal(gate(settled), 'updating')
+    // a header-less write while a real Ready cycle settles keeps that cycle's id (its refresh clears it — into UNCONFIRMED, F7)
+    const settling = fakeClient(status('Ready', { settling: 7 }))
+    apply(settling, undefined)
+    assert.equal(settling.getQueryData(F_KEY).settling, 7)
+    // Updating / Failed are left as they are
+    for (const state of ['Updating', 'Failed']) {
+      const other = fakeClient(status(state))
+      apply(other, undefined)
+      assert.equal(other.getQueryData(F_KEY).state, state)
+      assert.ok(!other.getQueryData(F_KEY).settling, state)
+    }
+    // the hook-side path (no header seen this tick) does the same
+    await dSleep(5)
+    const write = fakeClient(status('Ready'))
+    need(nDerived, 'refreshDerivedStatus')(write)
+    assert.equal(gate(write), 'updating')
+    await fConfirm()
+  }
+)
+await check(
+  'F3 Try again compares with the status cache AFTER the POST returns: a Ready read during the wait is not refreshed a second time',
+  async () => {
+    const client = fakeClient(status('Failed'))
+    let answer
+    const posted = nDerived.retryDerived(client, {
+      status: async () => null,
+      retry: () => new Promise((resolve) => (answer = resolve)),
+    })
+    // while the POST waits on the user lock, a focus / mount status read sees Ready → one refresh cycle starts
+    client.setQueryData(
+      F_KEY,
+      await nDerived.readDerivedStatus(client, {
+        status: async () => status('Ready'),
+        retry: async () => null,
+      })
+    )
+    const cycle = client.getQueryData(F_KEY).settling
+    assert.ok(cycle > 0)
+    const firstRound = client.invalidated.length
+    answer(status('Ready'))
+    await posted
+    assert.equal(
+      client.invalidated.length,
+      firstRound,
+      'the Retry answer refreshed every family again'
+    )
+    assert.equal(client.getQueryData(F_KEY).settling, cycle, 'the running cycle was replaced')
+    // …and an OLDER answer (POST said Updating, a later read already saw Ready) does not regress the cache or orphan that cycle
+    const late = fakeClient(status('Failed'))
+    let lateAnswer
+    const latePost = nDerived.retryDerived(late, {
+      status: async () => null,
+      retry: () => new Promise((resolve) => (lateAnswer = resolve)),
+    })
+    late.setQueryData(
+      F_KEY,
+      await nDerived.readDerivedStatus(late, {
+        status: async () => status('Ready'),
+        retry: async () => null,
+      })
+    )
+    const kept = late.getQueryData(F_KEY)
+    lateAnswer(status('Updating'))
+    await latePost
+    assert.equal(late.getQueryData(F_KEY), kept, 'an older POST answer overwrote a newer read')
+  }
+)
+await check(
+  'F4 check-in gate: a Ready still settling (its own refresh in flight) is not re-read — no extra status GET per Ready cycle',
+  () => {
+    const acceptGate = need(gGate, 'checkInAcceptGate')
+    const open = { acceptBlockedReason: null }
+    // the preview refetched by the Ready cycle lands before the cycle clears `settling`
+    assert.deepEqual(
+      acceptGate(open, 2000, { gate: 'updating', known: true, updatedAt: 1000, settling: true }),
+      { gate: 'updating', sync: 'none' }
+    )
+    // a genuinely older Updating status is still re-read once
+    assert.deepEqual(acceptGate(open, 2000, { gate: 'updating', known: true, updatedAt: 1000 }), {
+      gate: 'updating',
+      sync: 'read-status',
+    })
+    // a cached preview being revalidated (module reopened after a write elsewhere) is not final: Accept stays closed until it lands
+    const ready = { gate: 'ready', known: true, updatedAt: 1000 }
+    assert.deepEqual(acceptGate(open, 2000, ready, true), { gate: 'updating', sync: 'none' })
+    assert.deepEqual(acceptGate(open, 2000, ready, false), { gate: 'open', sync: 'none' })
+    assert.equal(
+      acceptGate({ acceptBlockedReason: 'DERIVED_DATA_FAILED' }, 2000, ready, true).gate,
+      'failed'
+    )
+    assert.match(
+      source('features/derived-data/hooks/use-derived-data.ts'),
+      /settling: Boolean\(status\.data\?\.settling\)/
+    )
+    assert.match(
+      source('features/program/hooks/use-check-in.ts'),
+      /checkInAcceptGate\(\s*session\.data\?\.preview,\s*session\.dataUpdatedAt,\s*derived,\s*session\.isFetching\s*\)/
+    )
+  }
+)
+await check(
+  'F5 Try again answered Ready keeps the gate "updating" until the derived refresh lands (also inside a running settling cycle)',
+  async () => {
+    const ready = { status: async () => null, retry: async () => status('Ready') }
+    const client = dClient()
+    client.setQueryData(F_KEY, status('Failed'))
+    const goals = await dWatch(client, ['goals', 'progress'], () => dSleep(120).then(() => ({})))
+    await nDerived.retryDerived(client, ready)
+    assert.equal(eGate(client), 'updating', 'opened before the refresh landed')
+    await dSleep(250)
+    assert.equal(eGate(client), 'ready', 'never stuck')
+    client.setQueryData(F_KEY, status('Updating'))
+    nDerived.applyDerivedState(client, 'Ready')
+    await dSleep(10)
+    await nDerived.retryDerived(client, ready)
+    assert.equal(eGate(client), 'updating', 'Retry opened a cycle that is still refreshing')
+    await dSleep(300)
+    assert.equal(eGate(client), 'ready')
+    goals.stop()
+  }
+)
+await check(
+  'F6 [wiring] carousel Energy Balance card, tiles, Food Logging, Habits, Strategy dial and check-in never show retained / rebuilding numbers as final',
+  () => {
+    const data = source('features/dashboard/hooks/use-dashboard-data.ts')
+    assert.match(data, /energyError: energyBalanceQuery\.error \?\? expenditure\.error \?\? null/)
+    assert.match(
+      bodyOf(data, 'retryEnergy: () => {', '},'),
+      /energyBalanceQuery\.refetch\(\)[\s\S]*expenditure\.refetch\(\)/
+    )
+    const page = source('features/dashboard/pages/DashboardPage.tsx')
+    const pending = page.indexOf("focusPending('energy', data.pending)")
+    const failed = page.indexOf('data.energyError ?')
+    assert.ok(pending > 0 && failed > pending && failed < page.indexOf('<EnergyBalanceCard'))
+    assert.match(page, /onRetry=\{data\.retryEnergy\}/)
+    const tile = source('features/dashboard/components/DashboardPage/MetricTile.tsx')
+    assert.equal((tile.match(/aria-busy=\{busy \|\| undefined\}/g) ?? []).length, 2)
+    const tiles = source('features/dashboard/components/DashboardPage/DashboardTiles.tsx')
+    assert.equal((tiles.match(/busy=\{derived\.gate === 'updating'\}/g) ?? []).length, 4)
+    // Food Logging (snapshot-backed): Failed card, dim + busy while Updating, "---" (no retained grid) after a failed refetch
+    const food = bodyOf(
+      source('features/dashboard/components/DashboardPage/LayoutSection.tsx'),
+      "case 'foodLogging':",
+      'case '
+    )
+    assert.match(
+      food,
+      /if \(derived\.gate === 'failed'\)\s*return <DerivedFailed onRetry=\{derived\.retry\}/
+    )
+    assert.match(food, /value=\{data\.loggingError \? '---'/)
+    assert.match(food, /data\.loggingError \? undefined/)
+    assert.match(food, /className=\{derived\.gate === 'updating' \? 'opacity-60/)
+    assert.match(food, /busy=\{derived\.gate === 'updating'\}/)
+    assert.match(data, /loggingError: enabled && dailyQuery\.isError/)
+    // Habits (food logging only): Failed card OUTSIDE the dimmed block
+    const habits = source('features/habits/pages/HabitsPage.tsx')
+    assert.match(habits, /const derivedGate = kind === 'food-logging' \? derived\.gate : 'ready'/)
+    assert.match(habits, /aria-busy=\{derivedGate === 'updating'\}/)
+    const habitDim = habits.search(/derivedGate !== 'ready' && 'opacity-60'/)
+    const habitFailed = habits.search(
+      /derivedGate === 'failed' && \(\s*<DerivedFailed onRetry=\{derived\.retry\}/
+    )
+    assert.ok(habitFailed > 0, 'Habits shows no "Try again" on Failed')
+    assert.ok(habitDim > habitFailed, 'the Retry card sits inside the dimmed block')
+    // Strategy: Failed card, dial dims while not Ready, no retained goal % after a failed refetch
+    const strategy = source('features/program/pages/ProgramPage.tsx')
+    assert.match(
+      strategy,
+      /derived\.gate === 'failed' && \(\s*<DerivedFailed onRetry=\{derived\.retry\}/
+    )
+    assert.match(
+      strategy,
+      /aria-busy=\{derived\.gate === 'updating'\}\s*className=\{`\$\{ENTER\} \$\{derived\.gate !== 'ready' \? 'opacity-60/
+    )
+    assert.match(strategy, /goalPercent=\{\s*goalProgress\.isError \? null : /)
+    // check-in Program Update: a failed session refetch keeps the module mounted, locks Accept and offers Try again in place
+    const checkIn = source('features/program/pages/CheckInModulePage.tsx')
+    assert.match(checkIn, /if \(!data \|\| notDue\)\n/)
+    assert.ok(!/session\.isError\)\)/.test(checkIn), 'the module is unmounted on a refetch error')
+    assert.match(
+      checkIn,
+      /loadError=\{\s*session\.isError\s*\?\s*\{[\s\S]*?onRetry: \(\) => void session\.refetch\(\),\s*isRetrying: session\.isFetching,/
+    )
+    assert.match(checkIn, /disabled=\{session\.isFetching\}/)
+    const updateModule = source('features/program/components/CheckInPage/ProgramUpdateModule.tsx')
+    assert.match(updateModule, /const notReady = acceptGate !== 'open' \|\| loadError !== null/)
+    assert.match(updateModule, /disabled=\{loadError\.isRetrying\}/)
+    // ErrorStates of the derived detail pages and the carousel card lock "Try again" while the refetch runs
+    for (const page of ['Expenditure', 'WeightTrend', 'EnergyBalance'])
+      assert.match(
+        source(`features/dashboard/pages/${page}Page.tsx`),
+        /onRetry=\{data\.refetch\}\s*isRetrying=\{data\.isFetching\}/,
+        page
+      )
+    assert.match(
+      source('features/dashboard/pages/GoalProgressPage.tsx'),
+      /onRetry=\{data\.refetch\}\s*isRetrying=\{data\.isRetrying\}/
+    )
+    assert.match(
+      source('features/dashboard/hooks/use-goal-progress-detail.ts'),
+      /isRetrying: goal\.isFetching \|\| weights\.isFetching/
+    )
+    assert.match(
+      data,
+      /energyRetrying: energyBalanceQuery\.isFetching \|\| expenditure\.isFetching/
+    )
+    assert.match(page, /isRetrying=\{data\.energyRetrying\}/)
+    // one derived Retry at a time across every "Try again" on the screen
+    const gateHook = source('features/derived-data/hooks/use-derived-data.ts')
+    assert.match(gateHook, /mutationKey: derivedRetryKey/)
+    assert.match(gateHook, /useIsMutating\(\{ mutationKey: derivedRetryKey \}\) > 0/)
+    assert.match(
+      gateHook,
+      /if \(client\.isMutating\(\{ mutationKey: derivedRetryKey \}\) === 0\) retry\.mutate\(\)/
+    )
+    assert.match(gateHook, /isRetrying: retrying/)
+  }
+)
+await check(
+  'F7 a header-less write during a running Ready refresh keeps the gate dimmed after that refresh until a status read confirms',
+  async () => {
+    const confirmReady = (client) =>
+      nDerived.readDerivedStatus(client, {
+        status: async () => status('Ready'),
+        retry: async () => null,
+      })
+    // the re-read never answers (no status observer: like a slow or failed GET)
+    const client = dClient()
+    client.setQueryData(F_KEY, status('Updating'))
+    const goals = await dWatch(client, ['goals', 'progress'], () => dSleep(80).then(() => ({})))
+    nDerived.applyDerivedState(client, 'Ready')
+    await dSleep(10)
+    nDerived.applyDerivedHeader(client, undefined)
+    assert.equal(eGate(client), 'updating')
+    await dSleep(250)
+    assert.equal(eGate(client), 'updating', 'the cycle opened the gate over an unconfirmed write')
+    assert.equal(
+      nDerived.pollInterval(client.getQueryData(F_KEY)),
+      constant(nDerived, 'POLL_MS'),
+      'polling must take over'
+    )
+    client.setQueryData(F_KEY, await confirmReady(client))
+    assert.equal(eGate(client), 'ready', 'stuck after the confirming read')
+    // the confirming read lands BEFORE the refresh: the cycle then opens the gate as usual
+    client.setQueryData(F_KEY, status('Updating'))
+    nDerived.applyDerivedState(client, 'Ready')
+    await dSleep(10)
+    nDerived.applyDerivedHeader(client, undefined)
+    client.setQueryData(F_KEY, await confirmReady(client))
+    assert.equal(eGate(client), 'updating', 'opened before the refresh landed')
+    await dSleep(250)
+    assert.equal(eGate(client), 'ready', 'never stuck')
+    goals.stop()
   }
 )
 

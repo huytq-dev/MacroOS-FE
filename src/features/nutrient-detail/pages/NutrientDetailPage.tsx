@@ -36,8 +36,11 @@ import {
   UNVERIFIED_TARGET_NOTE,
   isHistoricalUnverified,
 } from '@/features/nutrition/target-provenance'
+import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
+import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
 import { useIsClient } from '@/hooks/use-is-client'
 import { todayIso } from '@/lib/date'
+import { cn } from '@/lib/utils'
 
 /**
  * Trang chi tiết một nutrient (bấm ô Calories / Protein / … ở Dashboard hoặc trang Nutrition): Average của các ngày ĐÃ LOG trong khoảng
@@ -56,6 +59,8 @@ export function NutrientDetailPage({ info: catalogInfo }: { readonly info: Nutri
   const [range, setRange] = useState<RangeKey>('1W')
   const [averaging, setAveraging] = useState<Averaging>('daily')
   const expand = useChartExpand()
+  // Chuỗi vi chất đọc tổng hợp dẫn xuất của BE: đang dựng lại thì mờ (không phải số cuối), Ready thì DERIVED_KEYS (['nutrients']) làm mới một lần
+  const derived = useDerivedGate()
 
   const data = series.data
   const kind = data?.goalKind
@@ -98,73 +103,86 @@ export function NutrientDetailPage({ info: catalogInfo }: { readonly info: Nutri
   const average = averageLogged(days.filter((item) => item.date >= win.from && item.date <= win.to))
 
   return (
-    <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0">
+    <div
+      aria-busy={derived.gate === 'updating'}
+      className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0"
+    >
       {header}
-
-      <div className="flex items-start justify-between gap-3">
-        <StatBlock
-          label="Average"
-          value={average === null ? null : formatAmount(average, nutrient.unit)}
-          unit={nutrient.unit}
-        />
-        <ExpandButton expand={expand} />
-      </div>
-      <p className="text-muted-foreground -mt-4 text-lg">{rangeLabel(win.from, win.to)}</p>
-      {targetUnverified && (
-        <p className="text-muted-foreground -mt-3 text-sm">{UNVERIFIED_TARGET_NOTE}</p>
+      {derived.gate === 'failed' && (
+        <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
       )}
-
-      <ExpandableChart expand={expand}>
-        <NutrientChart
-          // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
-          key={averaging}
-          className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
-          info={info}
-          days={averageNutrientDays(days, averaging, weekStartDay)}
-          today={today}
-          slots={slots}
-          pos={pan.view.pos}
-          height={expand.height}
-          pan={pan}
-        />
-      </ExpandableChart>
-      <ExpandFooter expand={expand}>
-        <RangeBar
-          range={range}
-          onRangeChange={setRange}
-          averaging={averaging}
-          onAveragingChange={setAveraging}
-        />
-      </ExpandFooter>
-
-      <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-6">
-        <NutrientLegend info={info} />
-
-        <section aria-labelledby="about-heading" className="space-y-3">
-          <h2 id="about-heading" className="text-xl font-bold">
-            About {nutrient.name}
-          </h2>
-          <div className={`${DETAIL_CARD} text-foreground space-y-3 p-4 text-lg leading-snug`}>
-            <p>{aboutText(catalogInfo)}</p>
-            {goalLine && <p className="text-muted-foreground">{goalLine}</p>}
-          </div>
-        </section>
-
-        <section aria-labelledby="today-heading" className="space-y-3">
-          <h2 id="today-heading" className="text-xl font-bold">
-            {nutrient.name} Today
-          </h2>
-          <NutrientTodayCard
-            info={info}
-            day={day.data ? scaleDayResponse(day.data, factor) : undefined}
-            loading={day.isPending}
+      {/* Số dẫn xuất chưa phải số cuối (Updating / Failed): mờ phần số liệu; header và thẻ "Try again" nằm ngoài nên không trông như bị khoá */}
+      <div
+        className={cn(
+          'flex min-w-0 flex-col gap-5 transition-opacity',
+          derived.gate !== 'ready' && 'opacity-60'
+        )}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <StatBlock
+            label="Average"
+            value={average === null ? null : formatAmount(average, nutrient.unit)}
+            unit={nutrient.unit}
           />
-        </section>
+          <ExpandButton expand={expand} />
+        </div>
+        <p className="text-muted-foreground -mt-4 text-lg">{rangeLabel(win.from, win.to)}</p>
+        {targetUnverified && (
+          <p className="text-muted-foreground -mt-3 text-sm">{UNVERIFIED_TARGET_NOTE}</p>
+        )}
 
-        <NutrientHistory
-          info={info}
-          days={[...days].sort((a, b) => b.date.localeCompare(a.date))}
-        />
+        <ExpandableChart expand={expand}>
+          <NutrientChart
+            // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
+            key={averaging}
+            className="motion-safe:animate-in motion-safe:fade-in-50 motion-safe:animation-duration-300"
+            info={info}
+            days={averageNutrientDays(days, averaging, weekStartDay)}
+            today={today}
+            slots={slots}
+            pos={pan.view.pos}
+            height={expand.height}
+            pan={pan}
+          />
+        </ExpandableChart>
+        <ExpandFooter expand={expand}>
+          <RangeBar
+            range={range}
+            onRangeChange={setRange}
+            averaging={averaging}
+            onAveragingChange={setAveraging}
+          />
+        </ExpandFooter>
+
+        <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-6">
+          <NutrientLegend info={info} />
+
+          <section aria-labelledby="about-heading" className="space-y-3">
+            <h2 id="about-heading" className="text-xl font-bold">
+              About {nutrient.name}
+            </h2>
+            <div className={`${DETAIL_CARD} text-foreground space-y-3 p-4 text-lg leading-snug`}>
+              <p>{aboutText(catalogInfo)}</p>
+              {goalLine && <p className="text-muted-foreground">{goalLine}</p>}
+            </div>
+          </section>
+
+          <section aria-labelledby="today-heading" className="space-y-3">
+            <h2 id="today-heading" className="text-xl font-bold">
+              {nutrient.name} Today
+            </h2>
+            <NutrientTodayCard
+              info={info}
+              day={day.data ? scaleDayResponse(day.data, factor) : undefined}
+              loading={day.isPending}
+            />
+          </section>
+
+          <NutrientHistory
+            info={info}
+            days={[...days].sort((a, b) => b.date.localeCompare(a.date))}
+          />
+        </div>
       </div>
     </div>
   )

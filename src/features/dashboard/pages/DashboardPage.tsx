@@ -69,10 +69,10 @@ export function DashboardPage() {
   // Lazy: dữ liệu theo dõi chỉ tải khi đã có program (chưa có target thì không có gì để so sánh). Tuần bắt đầu từ ngày đầu tuần của user.
   const derived = useDerivedGate()
   const week = useWeekLog(hasProgram && today ? weekStartOf(today, weekStartDay) : null)
-  const setAddFoodOpen = useUiStore((state) => state.setAddFoodOpen)
+  const requestAddFood = useUiStore((state) => state.requestAddFood)
 
   const searchFood = () => {
-    setAddFoodOpen(true)
+    requestAddFood({ tab: 'search', focusSearch: true })
     router.push(routePath.foodLog)
   }
 
@@ -175,16 +175,32 @@ export function DashboardPage() {
       node:
         derived.gate === 'failed' ? (
           <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
-        ) : derived.gate === 'updating' || focusPending('energy', data.pending) ? (
+        ) : focusPending('energy', data.pending) ? (
           <Skeleton className="h-72 rounded-2xl" aria-busy="true" />
+        ) : data.energyError ? (
+          // Tải lại lỗi: số còn giữ có thể là số trước khi BE dựng lại → không hiện như số cuối
+          <div className="bg-card rounded-2xl">
+            <ErrorState
+              error={data.energyError}
+              variant="inline"
+              onRetry={data.retryEnergy}
+              isRetrying={data.energyRetrying}
+            />
+          </div>
         ) : (
-          <EnergyBalanceCard
-            data={data.energyBalance}
-            currentTdee={data.tdee}
-            currentTarget={data.todayTarget?.caloriesTarget ?? null}
-            mode={balanceMode}
-            onModeChange={setBalanceMode}
-          />
+          // Đang dựng lại số dẫn xuất: giữ biểu đồ cũ nhưng mờ đi (không phải số cuối), không thay bằng khung xám
+          <div
+            aria-busy={derived.gate === 'updating'}
+            className={derived.gate === 'updating' ? 'opacity-60 transition-opacity' : undefined}
+          >
+            <EnergyBalanceCard
+              data={data.energyBalance}
+              currentTdee={data.tdee}
+              currentTarget={data.todayTarget?.caloriesTarget ?? null}
+              mode={balanceMode}
+              onModeChange={setBalanceMode}
+            />
+          </div>
         ),
     },
     daily: {

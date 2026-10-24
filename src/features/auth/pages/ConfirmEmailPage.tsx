@@ -185,7 +185,8 @@ function ConfirmEmailInner() {
       footer={
         <Link
           href={routePath.login}
-          className="text-foreground font-medium underline underline-offset-4"
+          // Chữ cao 18px: vùng chạm 44px nhờ before, không đổi bố cục
+          className="text-foreground relative font-medium underline underline-offset-4 before:absolute before:-inset-x-2 before:-inset-y-[13px] before:content-['']"
         >
           Back to log in
         </Link>

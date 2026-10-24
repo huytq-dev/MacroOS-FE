@@ -433,6 +433,7 @@ export function ProgramActions({
         confirmLabel="End program"
         pendingLabel="Ending..."
         isPending={end.isPending}
+        error={end.error}
         onConfirm={() => onEnd(close)}
       />
     </>

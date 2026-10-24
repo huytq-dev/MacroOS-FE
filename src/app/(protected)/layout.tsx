@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { AppHeader } from '@/components/shared/AppHeader'
 import { AppSidebar } from '@/components/shared/AppSidebar'
@@ -10,6 +11,7 @@ import { AuthGuard } from '@/features/auth/components/AuthGuard'
 import { OnboardingGuard } from '@/features/onboarding/components/OnboardingGuard'
 import { TimeZoneGate } from '@/features/users/components/TimeZoneGate'
 import { useLocalStorage } from '@/hooks/use-local-storage'
+import { trackPath } from '@/lib/back-target'
 import { cn } from '@/lib/utils'
 
 /** Luồng nhiều bước toàn màn hình (New Program, Check-in, Edit Goal): không header, sidebar, thanh tab; chỉ cần đã đăng nhập, như wizard thiết lập. */
@@ -25,6 +27,8 @@ const FULL_SCREEN_PREFIXES = [
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useLocalStorage('sidebar-collapsed', false)
   const pathname = usePathname()
+  // Ghi đường đi trong app để nút Back biết có trang trước trong app hay không (mở link thẳng → về trang cha)
+  useEffect(() => trackPath(pathname), [pathname])
 
   if (FULL_SCREEN_PREFIXES.some((prefix) => pathname.startsWith(prefix)))
     return (

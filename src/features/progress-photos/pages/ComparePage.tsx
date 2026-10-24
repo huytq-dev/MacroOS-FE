@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { routePath } from '@/config/route-path'
+import { goBack } from '@/lib/back-target'
 import { ChevronDown, ChevronLeft } from 'lucide-react'
 import { ChoiceSheet } from '@/components/shared/ChoiceSheet'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -157,7 +159,7 @@ export function ComparePage() {
         <button
           type="button"
           aria-label="Back"
-          onClick={() => router.back()}
+          onClick={() => goBack(router, routePath.progressPhotosCompare)}
           className="focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full transition-transform duration-100 focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
         >
           <ChevronLeft aria-hidden="true" className="size-6" />
