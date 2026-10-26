@@ -87,13 +87,11 @@ export function CheckInModulePage({ module }: { readonly module: string }) {
             />
             <button
               type="button"
-              // Đang tải lại: khoá nút (bấm lại sẽ huỷ request đang chạy và gửi request khác) và nói rõ đang thử lại
-              disabled={session.isFetching}
-              aria-busy={session.isFetching}
+              // Chưa có dữ liệu: bấm là query về 'pending' nên nhánh này chuyển sang khung xám (không cần khoá nút); khi đã có dữ liệu, `loadError` của module lo
               onClick={() => void session.refetch()}
-              className="bg-secondary active:bg-muted h-11 rounded-full px-4 text-base transition-transform active:scale-95 disabled:opacity-60"
+              className="bg-secondary active:bg-muted h-11 rounded-full px-4 text-base transition-transform active:scale-95"
             >
-              {session.isFetching ? 'Retrying…' : 'Try again'}
+              Try again
             </button>
           </div>
         ) : (

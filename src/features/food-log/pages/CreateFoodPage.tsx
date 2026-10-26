@@ -1,12 +1,16 @@
 'use client'
 
+import { useEffect } from 'react'
 import { ChooseIconSheet } from '@/components/shared/ChooseIconSheet'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { SubPageHeader } from '@/features/dashboard/components/DashboardPage'
 import { useFoodDetail } from '@/features/foods/hooks/use-foods'
 import type { FoodDetail } from '@/features/foods/types/food.types'
 import { useSheet } from '@/hooks/use-sheet'
+import { useUiStore } from '@/stores/ui.store'
 import {
   FormFooter,
   GeneralSection,
@@ -83,6 +87,9 @@ export function CreateFoodPage({
   readonly seed?: MacroSeed
 }) {
   const source = useFoodDetail(fromFoodId ?? null)
+  const stampDetailReturn = useUiStore((state) => state.stampDetailReturn)
+  // Rời trang (Back) thì đóng dấu lúc rời: Nhật ký mở lại Food Detail của món nguồn nếu tới ngay sau đó
+  useEffect(() => stampDetailReturn, [stampDetailReturn])
   const loading = Boolean(fromFoodId) && source.isPending
   return (
     <div className="flex max-w-2xl flex-col gap-8 pb-4">
@@ -91,6 +98,24 @@ export function CreateFoodPage({
         <SubPageHeader title="Create Food" />
         <span aria-hidden="true" className="bg-foreground block h-0.5 rounded-full" />
       </div>
+      {/* "To Custom" mà không tải được món nguồn: trước đây form trống im lặng (user tưởng "To Custom" hỏng); giờ nói rõ + Try again, form trống vẫn dùng được để tự nhập */}
+      {fromFoodId && source.isError && (
+        <div className="space-y-2">
+          <FormErrorAlert
+            title="Couldn't load this food"
+            message={`${getFormErrorMessage(source.error).replace(/\.?$/, '.')} You can still fill in the form by hand.`}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-11 rounded-full"
+            disabled={source.isFetching}
+            onClick={() => void source.refetch()}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
       {loading ? (
         <div className="space-y-4" aria-busy="true">
           <Skeleton className="h-8 w-56" />

@@ -237,12 +237,13 @@ export function goalPercent(
  * (chưa ăn = đầy, ăn ≥ target = 0 → ô rỗng như MacroFactor). Không có target dương thì ô rỗng ở cả hai chế độ.
  */
 export function weekBarProgress(
-  consumed: number,
+  /** null = chưa biết (macro / calories chưa nhập): không vẽ thanh ở cả hai chế độ (không coi là 0 = "chưa ăn" = đầy). */
+  consumed: number | null,
   target: number | null | undefined,
   mode: 'consumed' | 'remaining'
 ) {
   const goal = positive(target)
-  if (goal === null) return { progress: 0, over: false }
+  if (goal === null || consumed === null) return { progress: 0, over: false }
   const eaten = Math.max(0, consumed)
   if (mode === 'remaining')
     return { progress: Math.min(1, Math.max(0, (goal - eaten) / goal)), over: false }

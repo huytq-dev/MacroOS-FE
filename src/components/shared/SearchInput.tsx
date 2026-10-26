@@ -50,6 +50,8 @@ export function SearchInput({
             size="icon-xs"
             aria-label="Clear search"
             onClick={() => onValueChange('')}
+            // Nút x nhìn nhỏ (24px) nhưng vùng chạm 44px (pseudo-element) cho ngón tay
+            className="relative before:absolute before:-inset-2.5 before:content-['']"
           >
             <X aria-hidden="true" className="text-foreground" />
           </InputGroupButton>

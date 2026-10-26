@@ -1,6 +1,6 @@
 # Expenditure Flux Range — audit + UI plan (MacroFactor V3 style)
 
-Trạng thái: **AUDIT + KẾ HOẠCH UI, chưa implement.** Công thức Flux của BE chưa được duyệt; mọi phần phụ thuộc trường Flux mới chờ contract đã duyệt. Văn bản này thay thế (khi được duyệt) dòng "Flux Range: KHÔNG VẼ" trong `docs/UI.md` mục Dashboard.
+Trạng thái (2026-10-26): **CHỜ USER DUYỆT FLUX MỚI.** Mã vẽ dải (G1–G5, G9, G11, G12) đã viết nhưng TẮT (`FLUX_BAND_ENABLED = false`); bản shipped không vẽ gì. Bản gốc của văn bản này: **AUDIT + KẾ HOẠCH UI, chưa implement.** Công thức Flux của BE chưa được duyệt; mọi phần phụ thuộc trường Flux mới chờ contract đã duyệt. Văn bản này thay thế (khi được duyệt) dòng "Flux Range: KHÔNG VẼ" trong `docs/UI.md` mục Dashboard.
 
 ## 1. Hiện trạng (audit)
 

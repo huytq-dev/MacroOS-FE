@@ -7,7 +7,10 @@ export interface ExpenditureSeriesDay {
   /** yyyy-MM-dd; LIÊN TỤC từ ngày có dữ liệu đầu tới hôm nay (BE đã fill-forward). */
   date: string
   expenditureKcal: number
-  /** Dải Flux của BE: null / thiếu cho tới khi BE bật công thức đã duyệt. FE KHÔNG vẽ và KHÔNG tự sinh dải từ đường Expenditure (docs/Expenditure_Flux_UI_Plan.md). */
+  /**
+   * Dải Flux Range của BE (MACROOS_FLUX_V1): luôn `low ≤ expenditureKcal ≤ high` khi có; null khi Calibrating hoặc chưa có quan sát hợp lệ (không bao giờ
+   * dải giả); ngày Holding lặp lại dải cuối. FE chỉ VẼ dải này, KHÔNG tự sinh dải từ đường Expenditure (docs/Expenditure_Flux_UI_Plan.md).
+   */
   fluxLowKcal?: number | null
   fluxHighKcal?: number | null
   status: ExpenditureDayStatus
@@ -34,6 +37,8 @@ export interface ExpenditureSeriesResponse {
   days: ExpenditureSeriesDay[]
   summary: ExpenditureSeriesSummary
   buckets?: { start: string; end: string; count: number; average: number }[] | null
+  /** Phiên bản chính sách Flux (`MACROOS_FLUX_V1`); null khi không ngày nào có dải. Dải là "ước lượng bất đồng giữa các độ nhạy", không phải khoảng tin cậy. */
+  fluxModel?: string | null
 }
 
 export type ExpenditureChangeStatus = 'Decrease' | 'Increase' | 'NoChange' | 'Waiting'
@@ -45,7 +50,15 @@ export interface ExpenditureInsightsResponse {
   strategy: 'Calibrating' | 'Updating' | 'Holding' | null
   /** Câu giải thích khi Holding. */
   holdingReason: string | null
-  holdingReasonCodes: ('MissingLogs' | 'NoRecentWeighIn' | 'RecoveringLogs')[]
+  /** BE điền cho cả Holding và Calibrating; rỗng khi Updating. Mã lạ (BE thêm sau) được FE bỏ qua. */
+  holdingReasonCodes: (
+    | 'MissingLogs'
+    | 'NoRecentWeighIn'
+    | 'RecoveringLogs'
+    | 'NeedsTwoWeighIns'
+    | 'NoLogsBetweenWeighIns'
+    | 'InitialCalibration'
+  )[]
   calibratingDaysLeft: number | null
   /**
    * BE vòng 6 (chưa bật tới khi S25 áp dụng, nên tuỳ chọn): số ngày DỰ KIẾN để Updating chạy lại NẾU người dùng tiếp tục ghi dữ liệu hợp lệ (không phải cam kết);
@@ -58,6 +71,9 @@ export interface ExpenditureInsightsResponse {
   algorithmName?: string | null
   loggedDaysLast7: number
   weighInDaysLast7: number
+  /** Ngưỡng của BE để Updating chạy (ngày có log / ngày có cân trong 7 ngày); thiếu ở BE cũ. */
+  minLoggedDaysPer7?: number
+  minWeighInDaysPer7?: number
   changes: {
     days: 3 | 7 | 14 | 30 | 90
     changeKcal: number | null

@@ -32,3 +32,19 @@ export function shownProgress(
   const left = Math.round((target - eaten) * 1e6) / 1e6
   return { consumed: eaten, goal: target, remaining: overages ? left : Math.max(0, left) }
 }
+
+/** Như `shownProgress` nhưng "đã ăn" có thể CHƯA BIẾT (null = macro / calories chưa nhập, không phải 0): đã ăn và còn lại là null (hiện "—"), mục tiêu vẫn hiện. */
+export function shownProgressOrUnknown(
+  consumed: number | null,
+  goal: number | null | undefined,
+  shown: (value: number) => number,
+  overages = false
+): {
+  readonly consumed: number | null
+  readonly goal: number | null
+  readonly remaining: number | null
+} {
+  if (consumed !== null) return shownProgress(consumed, goal, shown, overages)
+  const target = goal === null || goal === undefined || goal <= 0 ? null : shown(goal)
+  return { consumed: null, goal: target, remaining: null }
+}

@@ -13,9 +13,10 @@ export const UNVERIFIED_TARGET_NOTE = 'Historical target not verified'
  */
 export function withoutUnverifiedTarget<
   T extends { logDate: string; target: { targetProvenance?: string | null } | null },
->(row: T, today: string | null): T & { targetUnverified?: boolean } {
+>(row: T, today: string | null): T & { targetUnverified?: boolean; referenceTarget?: T['target'] } {
+  // `referenceTarget` giữ lại target bị bỏ CHỈ làm thước đo chiều cao thanh ở Weekly Nutrition (ngày đã ăn nhưng target cũ chưa xác minh vẫn phải có thanh); không dùng để kết luận đạt / không đạt
   return isHistoricalUnverified(row.target?.targetProvenance, row.logDate, today)
-    ? { ...row, target: null, targetUnverified: true }
+    ? { ...row, target: null, targetUnverified: true, referenceTarget: row.target }
     : row
 }
 

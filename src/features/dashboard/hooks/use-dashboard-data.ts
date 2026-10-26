@@ -26,7 +26,8 @@ import { NUTRIENT_GROUPS } from '../nutrient-catalog'
 import type { DailyProgress, NutrientModel, NutrientValue } from '../types/dashboard.types'
 import { periodDaySet } from '@/features/period/period.utils'
 import { useDayLog } from '@/features/food-log/hooks/use-food-log'
-import type { MacroTotals } from '@/features/food-log/types/food-log.types'
+import { shownTotals } from '@/features/food-log/effective'
+import type { ShownTotals } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { useRecentWeights, useVisualBodyFat, useWeights } from '@/features/weight/hooks/use-weights'
 import { SPARK_ENTRIES } from '../entry-spark'
@@ -74,7 +75,7 @@ export interface DashboardData {
   /** % quãng đường tới cân mục tiêu (`GET /goals/progress`); null = chưa có goal hoặc Maintenance. */
   readonly goalPercent: number | null
   /** Tổng và target của hôm nay (vòng kcal "Dinh dưỡng hôm nay"); null khi chưa tải xong. */
-  readonly todayTotals: MacroTotals | null
+  readonly todayTotals: ShownTotals | null
   readonly todayTarget: ProgramWeek | null
   /** Giá trị hôm nay cho mọi ô nutrient: macro từ log thật, còn lại từ `GET /nutrients` (amount null = chưa có dữ liệu). */
   readonly nutrientsToday: Readonly<Record<string, NutrientValue>>
@@ -145,7 +146,8 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
   const loggedDates = new Set(daily.filter(isLogged).map((point) => point.snapshotDate))
   const periodSet = periodDaySet(periodsQuery.data?.days)
 
-  const totals = dayLog.data?.totals
+  // Số HIỆU LỰC của BE (override thắng Food Log; null = chưa biết, không phải 0): một nguồn cho vòng Daily Nutrition, ô calo / macro và Food Log
+  const totals = dayLog.data ? shownTotals(dayLog.data) : undefined
   const target = dayLog.data?.target
   const byCode = new Map((nutrients.data?.items ?? []).map((item) => [item.code, item]))
   const nutrientsToday: Record<string, NutrientValue> = {}
@@ -156,8 +158,10 @@ export function useDashboardData(today: string | null, enabled: boolean): Dashbo
     }
   // Calo và macro lấy từ log + target của program (cùng nguồn với vòng "Daily Nutrition"); chỉ có target, không floor / ceiling.
   // Loại mục tiêu như BE: Target khi program có target, None khi chưa có.
-  const macro = (value: number | undefined, goal: number | undefined): NutrientValue => ({
+  const macro = (value: number | null | undefined, goal: number | undefined): NutrientValue => ({
     value: value ?? 0,
+    // null (macro / calories chưa nhập) khác chưa tải (undefined): ô hiện "---", không phải 0
+    known: value !== null,
     floor: null,
     target: goal ?? null,
     ceiling: null,

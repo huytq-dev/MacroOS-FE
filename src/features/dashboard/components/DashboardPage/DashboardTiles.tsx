@@ -54,6 +54,13 @@ export function ExpenditureTile() {
       className={dimWhile(derived.gate)}
       busy={derived.gate === 'updating'}
       href={routePath.dashboardExpenditure}
+      note={
+        exp.holdingNotice
+          ? exp.holdingNotice.kind === 'Holding'
+            ? `On hold: ${exp.holdingNotice.summary}`
+            : exp.holdingNotice.summary
+          : undefined
+      }
       visual={<ExpenditureMini window={lastDays(exp.today, INSIGHT_DAYS)} days={exp.daily} />}
       value={current === null ? '---' : energy.format(current)}
       unit={energy.unit}

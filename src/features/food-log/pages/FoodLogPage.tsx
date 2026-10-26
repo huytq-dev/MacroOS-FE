@@ -75,11 +75,17 @@ import {
   useFavorites,
   useRemoveFavorite,
 } from '@/features/foods/hooks/use-favorites'
+import { overrideCaption, shownTotals } from '../effective'
 import { loggerTileOptions, timelineTileOptions, type TileOptions } from '../food-log-settings'
 import { usePersistedChoice } from '@/features/dashboard/hooks/use-dashboard'
 import { useFoodLogSettings } from '../hooks/use-food-log-settings'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import {
+  CLEAR_FOOD_LOG_TITLE,
+  clearFoodLogDescription,
+  ndmErrorMessage,
+} from '@/features/nutrition-data/nutrition-data.utils'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { FormErrorAlert } from '@/components/shared/FormErrorAlert'
 import { DashboardSearchBar } from '@/features/dashboard/components/DashboardPage'
@@ -90,12 +96,18 @@ import { useIsClient } from '@/hooks/use-is-client'
 import { useSheet } from '@/hooks/use-sheet'
 import { aiErrorMessage, liveIngredients, toPlateItem } from '../ai-plate.utils'
 import { entryEditErrorOf } from '../entry-edit.utils'
-import { addDaysIso, formatDate, todayIso } from '@/lib/date'
+import { addDaysIso, formatDate, nowClockIso, todayIso } from '@/lib/date'
 import { weekStartOf } from '@/lib/week'
 import { useUnits } from '@/features/users/hooks/use-units'
 import { useUiStore, type AddFoodRequest } from '@/stores/ui.store'
+import { PendingPlateBar } from '../components/FoodLogPage/PendingPlateBar'
 
 const SEARCH_PAGE = 25
+/** Chờ user ngừng gõ ngần này ms mới gọi BE (request của từ khoá cũ còn đang chạy thì bị huỷ). */
+const SEARCH_DEBOUNCE_MS = 250
+
+/** Rời Create Food ("To Custom") trong khoảng này thì Nhật ký mở lại Food Detail của món nguồn. */
+const DETAIL_RETURN_WINDOW_MS = 3000
 const VISIBILITY = ['show', 'hide'] as const
 /** Hide Food Details: ô món chỉ còn tên và kcal (tắt macro, khẩu phần, khối lượng). */
 const HIDDEN_DETAILS = (options: TileOptions): TileOptions => ({
@@ -107,10 +119,7 @@ const HIDDEN_DETAILS = (options: TileOptions): TileOptions => ({
 const EMPTY_TOTALS: MacroTotals = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
 
 /** Giờ hiện tại dạng HH:mm (chỉ gọi trong event handler/khởi tạo state, không trong render). */
-const nowHourMinute = (): string => {
-  const now = new Date()
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-}
+const nowHourMinute = (): string => nowClockIso().slice(0, 5)
 
 export function FoodLogPage() {
   const isClient = useIsClient()
@@ -132,9 +141,25 @@ export function FoodLogPage() {
   const [libraryView, setLibraryView] = useState<LibraryView>('foods')
   const [libraryFilter, setLibraryFilter] = useState('')
   const [libraryTop, setLibraryTop] = useState(SEARCH_PAGE)
-  const [pickedId, setPickedId] = useState<string | null>(null)
-  const [plate, setPlate] = useState<PlateItem[]>([])
+  // Back từ Create Food ("To Custom") vừa rời trong vài giây: mở lại ĐÚNG Food Detail của món nguồn (đọc một lần lúc mount); cờ cũ hơn thì bỏ, không bật bảng bất ngờ
+  const [detailBackId] = useState<string | null>(() => {
+    const back = useUiStore.getState().detailReturn
+    return back && Date.now() - back.at <= DETAIL_RETURN_WINDOW_MS ? back.foodId : null
+  })
+  const [pickedId, setPickedId] = useState<string | null>(detailBackId)
+  // Plate nằm trong store (giữ qua rời trang / tải lại): món bấm "+" mà chưa Log Foods không còn bị mất âm thầm khi user bấm Back
+  const plate = useUiStore((state) => state.plate)
+  const setPlate = useUiStore((state) => state.setPlate)
+  const hydratePlate = useUiStore((state) => state.hydratePlate)
+  const setDetailReturn = useUiStore((state) => state.setDetailReturn)
+  const clearDetailReturn = useUiStore((state) => state.clearDetailReturn)
+  useEffect(() => hydratePlate(), [hydratePlate])
+  useEffect(() => {
+    clearDetailReturn()
+    if (detailBackId) setAddOpen(true)
+  }, [clearDetailReturn, detailBackId, setAddOpen])
   const [isLoggingPlate, setIsLoggingPlate] = useState(false)
+  const loggingPlate = useRef(false)
   // Bảng này còn mount sau khi đóng để hoạt ảnh trượt xuống kịp chạy (useSheet).
   const editSheet = useSheet<FoodLogEntry>()
   const editing = editSheet.value ?? null
@@ -162,12 +187,12 @@ export function FoodLogPage() {
   const noteEditor = noteSheet.value
   const [settings] = useFoodLogSettings()
   // Giờ hiện tại cho chấm "Now" trên timeline: chốt lúc mở trang (đổi giờ thì lần mở sau sẽ cập nhật).
-  const [currentHour] = useState(() => new Date().getHours())
+  const [currentHour] = useState(() => Number(nowClockIso().slice(0, 2)))
 
   const day = useDayLog(date)
   // Các tuần đã hiện trên thanh tuần / lịch (chỉ thêm, không bớt) để vòng kcal không mất khi cuộn qua lại.
   const [viewedWeeks, setViewedWeeks] = useState<readonly string[]>([])
-  const { weekStartDay } = useUnits()
+  const { weekStartDay, energy } = useUnits()
   const viewWeeks = (weekStarts: readonly string[]) =>
     setViewedWeeks((seen) =>
       weekStarts.every((start) => seen.includes(start))
@@ -177,7 +202,7 @@ export function FoodLogPage() {
   const weekDays = useWeekDays(
     date ? [...new Set([weekStartOf(date, weekStartDay), ...viewedWeeks])] : viewedWeeks
   )
-  const debouncedSearch = useDebounce(search.trim(), 300)
+  const debouncedSearch = useDebounce(search.trim(), SEARCH_DEBOUNCE_MS)
   // Lazy: chỉ tìm khi sheet mở ở tab tìm món
   const foods = useFoodSearch(
     {
@@ -312,6 +337,9 @@ export function FoodLogPage() {
     when?: { readonly date: string; readonly time: string }
   ) => {
     if (!date || items.length === 0) return false
+    // Khoá đồng bộ (state `isLoggingPlate` cập nhật trễ một nhịp): hai lần bấm Log nối tiếp không bao giờ chạy hai vòng ghi song song trên cùng một ngày
+    if (loggingPlate.current) return false
+    loggingPlate.current = true
     const targetDate = when?.date ?? logDate ?? date
     const targetTime = when?.time ?? eatenAt
     const targetMeal = when ? mealForTime(when.time) : meal
@@ -363,9 +391,11 @@ export function FoodLogPage() {
       }, 600)
       return true
     } catch {
-      // lỗi hiện inline trong sheet (addEntry.error); các món chưa log vẫn nằm trong plate để thử lại
+      // Lỗi đã được báo: toast "Couldn't add food" của `useAddEntry` / `useQuickAdd` (luôn có, kể cả khi bảng đã đóng) và inline trong bảng khi đang mở.
+      // Các món chưa log vẫn nằm trong plate để thử lại.
       return false
     } finally {
+      loggingPlate.current = false
       setIsLoggingPlate(false)
     }
   }
@@ -379,27 +409,52 @@ export function FoodLogPage() {
 
   /** "To Custom": mở trang Create Food điền sẵn từ món này (sửa tuỳ ý rồi Create / Create & Add). */
   const copyToCustom = (food: FoodDetail) => {
-    setAddOpen(false)
+    // KHÔNG đóng bảng trước khi chuyển trang: Dialog đóng thì ở khung hình kế tiếp tự `history.back()` bỏ mục lịch sử của nó (use-back-to-close), mà `router.push` của Next chạy
+    // bất đồng bộ nên lệnh lùi đó huỷ luôn lần chuyển trang và user bị đẩy về nhật ký (lỗi "To Custom văng ra Food Log"). Cứ chuyển trang: bảng gỡ cùng trang, cờ mở bảng trong store
+    // được tắt ở cleanup bên dưới SAU khi route đã đổi.
+    setDetailReturn(food.id)
     router.push(`${routePath.foodNew}?from=${food.id}`)
+  }
+  // Rời trang nhật ký (To Custom, link tạo món / recipe…) thì tắt cờ "bảng Thêm món" trong store để quay lại không tự bật bảng. Chỉ khi route THẬT SỰ đã đổi (StrictMode gỡ rồi
+  // gắn lại effect ngay lúc mount thì pathname vẫn là /food-log nên không tắt nhầm bảng vừa mở từ thanh Search của Dashboard).
+  useEffect(
+    () => () => {
+      if (window.location.pathname !== routePath.foodLog) setAddOpen(false)
+    },
+    [setAddOpen]
+  )
+
+  /**
+   * "+" chỉ ĐƯA món vào plate, chưa ghi vào nhật ký: báo ngay bằng toast (một toast duy nhất, cập nhật số món) kèm Undo, để user biết còn bước Log Foods và gỡ nhầm được.
+   */
+  const addToPlate = (item: PlateItem) => {
+    setPlate((current) => [...current, item])
+    toast(`${item.name} added to plate`, {
+      id: 'plate-add',
+      description: `${plate.length + 1} on your plate · tap Log Foods to save`,
+      duration: 3000,
+      action: {
+        label: 'Undo',
+        onClick: () =>
+          setPlate((current) => current.filter((candidate) => candidate.key !== item.key)),
+      },
+    })
   }
 
   /** Quick Add thêm vào plate (như món khác); ghi vào nhật ký khi bấm Log Foods (món không có foodItemId log bằng Quick Add). */
   const onQuickAdd = (values: QuickAddValues) =>
-    setPlate((current) => [
-      ...current,
-      {
-        key: `quick-${Date.now()}`,
-        foodItemId: null,
-        name: values.name ?? 'Quick add',
-        foodServingId: null,
-        servingLabel: 'Quick add',
-        quantity: 1,
-        calories: values.calories,
-        protein: values.protein,
-        carbs: values.carbs,
-        fat: values.fat,
-      },
-    ])
+    addToPlate({
+      key: `quick-${Date.now()}`,
+      foodItemId: null,
+      name: values.name ?? 'Quick add',
+      foodServingId: null,
+      servingLabel: 'Quick add',
+      quantity: 1,
+      calories: values.calories,
+      protein: values.protein,
+      carbs: values.carbs,
+      fat: values.fat,
+    })
 
   // Một lần sửa chỉ gửi MỘT PUT: hai nút Done (hàng trên và thanh đáy) cùng gọi hàm này, bấm nối tiếp trước khi `isPending` kịp render sẽ gửi hai PUT cùng món
   // và PUT thứ hai có thể bị BE từ chối. Khoá theo ref (đồng bộ), mở lại khi PUT xong (thành công hay lỗi).
@@ -534,7 +589,18 @@ export function FoodLogPage() {
         setCalendarOpen(false)
       }}
       // Ngày mới chưa tải xong thì lấy tổng từ dữ liệu tuần (đã có cho thanh tuần) để số không nháy về 0
-      totals={day.data?.totals ?? weekDays[date]?.totals ?? EMPTY_TOTALS}
+      totals={
+        day.data
+          ? shownTotals(day.data)
+          : weekDays[date]
+            ? shownTotals(weekDays[date])
+            : EMPTY_TOTALS
+      }
+      overrideCaption={overrideCaption(
+        day.data?.effective ?? weekDays[date]?.effective,
+        day.data?.entries.length ?? 0,
+        (kcal) => energy.text(kcal)
+      )}
       target={day.data?.target ?? weekDays[date]?.target ?? null}
       targetUnverified={day.data?.targetUnverified ?? weekDays[date]?.targetUnverified ?? false}
       showOverages={settings.overages === 'ShowOverages'}
@@ -555,8 +621,24 @@ export function FoodLogPage() {
 
       <FormErrorAlert
         title="Couldn't delete"
-        message={deleteError ? getFormErrorMessage(deleteError) : null}
+        message={deleteError ? ndmErrorMessage(deleteError, getFormErrorMessage) : null}
       />
+
+      {!addOpen && plate.length > 0 && (
+        <PendingPlateBar
+          items={plate}
+          isLogging={isLoggingPlate}
+          onLog={() => void logPlate()}
+          onReview={() => openAdd()}
+          onDiscard={() => {
+            const snapshot = plate
+            setPlate([])
+            toast('Plate cleared', {
+              action: { label: 'Undo', onClick: () => setPlate(snapshot) },
+            })
+          }}
+        />
+      )}
 
       {calendarMounted && date && (
         <CalendarSheet
@@ -828,6 +910,7 @@ export function FoodLogPage() {
         plate={plate}
         previewItems={aiPreviewItems}
         totals={day.data?.totals}
+        effective={day.data?.effective}
         target={day.data?.target}
         settings={settings}
         isLogging={isLoggingPlate}
@@ -874,7 +957,6 @@ export function FoodLogPage() {
             onRemoveIngredient={aiPlate.removeIngredient}
             onReplaceIngredient={aiPlate.replaceIngredient}
             onSetDishScale={aiPlate.setDishScale}
-            dayTotals={day.data?.totals}
             target={day.data?.target}
             onAnalyze={aiPlate.analyze}
             onRetryIngredient={aiPlate.retryIngredient}
@@ -912,12 +994,13 @@ export function FoodLogPage() {
             tileOptions={loggerTileOptions(settings)}
             createFoodHref={routePath.foodNew}
             createRecipeHref={routePath.recipeNew}
-            onNavigate={() => setAddOpen(false)}
+            // Link tới trang tạo món / recipe: cùng lý do với copyToCustom — không đóng bảng trước khi chuyển trang (cleanup khi rời trang sẽ tắt cờ)
+            onNavigate={() => undefined}
             onPickFood={(food) => {
               setPickedId(food.id)
               setTab('search')
             }}
-            onAddToPlate={(item) => setPlate((current) => [...current, item])}
+            onAddToPlate={addToPlate}
           />
         ) : tab === 'search' ? (
           <FoodSearchPanel
@@ -928,9 +1011,12 @@ export function FoodLogPage() {
             }}
             items={foods.data?.items ? [...foods.data.items] : []}
             totalCount={foods.data?.totalCount ?? null}
-            // Đang gõ (chưa qua debounce) hoặc đang tải kết quả của từ khoá mới: skeleton, không hiện danh sách của lần trước
-            isLoading={foods.isLoading || search.trim() !== debouncedSearch}
-            isFetching={foods.isFetching}
+            // Skeleton chỉ ở lần tải đầu của một từ khoá khi CHƯA có kết quả nào để giữ (từ History sang từ khoá có chữ). Gõ tiếp từ một từ khoá có chữ thì giữ kết quả cũ, mờ đi
+            // ở `isFetching` (không nháy skeleton mỗi phím).
+            isLoading={
+              foods.isLoading || (search.trim() !== debouncedSearch && debouncedSearch === '')
+            }
+            isFetching={foods.isFetching || search.trim() !== debouncedSearch}
             onLoadMore={() => setTop((current) => current + SEARCH_PAGE)}
             pickedId={pickedId}
             picked={picked.data ?? undefined}
@@ -944,9 +1030,11 @@ export function FoodLogPage() {
             onRemoveFavorite={(id) => removeFavorite.mutate(id)}
             tileOptions={loggerTileOptions(settings)}
             onAddToPlate={(item) => {
-              setPlate((current) => [...current, item])
+              addToPlate(item)
               setPickedId(null)
             }}
+            onOpenQuickAdd={() => setTab('quick')}
+            createFoodHref={routePath.foodNew}
             detail={{
               goals: goalsByKey(foodNutrients.data?.items),
               isTargetsLoading: foodNutrients.isLoading,
@@ -970,6 +1058,7 @@ export function FoodLogPage() {
         isPending={updateEntry.isPending}
         error={updateEntry.error ? entryEditErrorOf(updateEntry.error) : null}
         totals={day.data?.totals}
+        effective={day.data?.effective}
         target={day.data?.target}
         banner={settings}
         today={date ?? ''}
@@ -1020,12 +1109,8 @@ export function FoodLogPage() {
       <ConfirmDialog
         open={clearOpen}
         onOpenChange={setClearOpen}
-        title="Delete this day's log?"
-        description={
-          date
-            ? `Delete all foods logged on ${formatDate(date)}. The algorithm will treat this day as not logged.`
-            : ''
-        }
+        title={CLEAR_FOOD_LOG_TITLE}
+        description={date ? clearFoodLogDescription(formatDate(date)) : ''}
         confirmLabel="Delete day"
         pendingLabel="Deleting..."
         isPending={clearDay.isPending}

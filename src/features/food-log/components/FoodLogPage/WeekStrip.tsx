@@ -6,6 +6,7 @@ import { useUnits } from '@/features/users/hooks/use-units'
 import { addDaysIso, daysBetween } from '@/lib/date'
 import { DAYS_PER_WEEK, dayOfWeekOf, weekDates, weekdayIndex, weekStartOf } from '@/lib/week'
 import { cn } from '@/lib/utils'
+import { shownTotals } from '../../effective'
 import type { WeekDay } from '../../types/food-log.types'
 
 /** Số tuần trước/sau tuần hôm nay mà thanh tuần và lịch dựng sẵn. */
@@ -27,9 +28,17 @@ export const weeksAround = (anchor: string, include: string) => {
 /** % kcal đã ăn / mục tiêu kcal của ngày (chặn 100); null = không vẽ vòng (ngày tương lai, chưa log, chưa có mục tiêu). */
 export const kcalPercent = (day: WeekDay | undefined, today: string | null) => {
   const goal = day?.target?.caloriesTarget ?? 0
-  if (!day?.isLogged || !today || day.logDate > today || goal <= 0 || day.totals.calories <= 0)
+  const calories = day ? shownTotals(day).calories : null
+  if (
+    !day?.isLogged ||
+    !today ||
+    day.logDate > today ||
+    goal <= 0 ||
+    calories === null ||
+    calories <= 0
+  )
     return null
-  return Math.min(100, (day.totals.calories / goal) * 100)
+  return Math.min(100, (calories / goal) * 100)
 }
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches

@@ -8,7 +8,8 @@ import { useUnits } from '@/features/users/hooks/use-units'
 import { formatDate } from '@/lib/date'
 import { dayLetterOfDate, dayOfWeekOf } from '@/lib/week'
 import { cn } from '@/lib/utils'
-import type { MacroTotals, WeekDay } from '@/features/food-log/types/food-log.types'
+import { shownTotals } from '@/features/food-log/effective'
+import type { ShownTotals, WeekDay } from '@/features/food-log/types/food-log.types'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 
 export type NutritionMode = 'consumed' | 'remaining'
@@ -29,6 +30,9 @@ const ROWS: readonly Row[] = [
 ]
 // Mỗi hàng chỉ số cao bằng nhau ở lưới và cột tổng bên phải để các số thẳng hàng với cột của nó.
 const ROW = 'h-12'
+// Provenance của thanh ngày cũ: thước đo tham khảo, không vào goal / remaining chính thức (quyết định 2026-10-26)
+const REFERENCE_NOTE =
+  'Past bars use a historical target that is not verified; it is not counted in goal or remaining.'
 // Thanh đổi chiều cao 400ms ease-out khi đổi Consumed ↔ Remaining (mép trên trượt trong ô, nắp đi theo)
 const BAR_MOTION =
   'transition-[height,opacity] duration-[400ms] ease-out motion-reduce:transition-none'
@@ -47,7 +51,7 @@ interface WeekMatrixProps {
   readonly today: string | null
 }
 
-const consumedOf = (totals: MacroTotals, key: Row['key']) => totals[key]
+const consumedOf = (totals: ShownTotals, key: Row['key']) => totals[key]
 
 /** Lưới 7 ngày × 4 chỉ số (kiểu "Nutrition & Targets"): cột thanh dọc theo % target, chạm cột để xem số của ngày đó. */
 export function WeekMatrix({
@@ -64,12 +68,31 @@ export function WeekMatrix({
   const shown = (row: Row, value: number) =>
     Math.round(row.key === 'calories' ? energy.convert(value) : value)
 
-  const progressOf = (day: WeekDay, row: Row) =>
-    weekBarProgress(consumedOf(day.totals, row.key), day.target ? row.goal(day.target) : 0, mode)
+  // Ngày đã ăn nhưng target cũ chưa xác minh (BE LEGACY_UNVERIFIED) vẫn có thanh: dùng target đó làm thước đo, KHÔNG nắp "vượt target" (không kết luận đạt / không đạt)
+  const progressOf = (day: WeekDay, row: Row) => {
+    const scale = day.target ?? day.referenceTarget ?? null
+    const { progress, over } = weekBarProgress(
+      consumedOf(shownTotals(day), row.key),
+      scale ? row.goal(scale) : 0,
+      mode
+    )
+    return { progress, over: over && Boolean(day.target) }
+  }
 
   // Cả tuần: cộng đã ăn của 7 ngày so với tổng target các ngày đã có target; số còn lại tính bằng quy tắc chung (`weekSummary` → `shownProgress`)
+  // Cột đang xem có ngày dùng target cũ chưa xác minh làm thước đo: nói rõ thay vì im lặng
+  const usesUnverified = (current ? [current] : days).some(
+    (day) => !day.target && Boolean(day.referenceTarget)
+  )
   const summary = (row: Row) =>
-    weekSummary(current ? [current] : days, row.key, row.goal, mode, (value) => shown(row, value))
+    weekSummary(
+      current ? [current] : days,
+      row.key,
+      row.goal,
+      mode,
+      (value) => shown(row, value),
+      today
+    )
 
   return (
     <div className="flex flex-1 flex-col justify-between gap-3">
@@ -84,7 +107,7 @@ export function WeekMatrix({
                 key={day.logDate}
                 type="button"
                 aria-pressed={active}
-                aria-label={`${dayOfWeekOf(day.logDate)} ${formatDate(day.logDate)}: ${energy.text(day.totals.calories)}`}
+                aria-label={`${dayOfWeekOf(day.logDate)} ${formatDate(day.logDate)}: ${energy.text(shownTotals(day).calories)}`}
                 onClick={() => onSelect(active ? null : day.logDate)}
                 className={cn(
                   'focus-visible:ring-ring/50 flex min-w-0 flex-1 flex-col rounded-xl border-[1.5px] transition-colors focus-visible:ring-1 focus-visible:outline-none',
@@ -160,7 +183,7 @@ export function WeekMatrix({
               <div key={row.key} className={cn('flex flex-col justify-center', ROW)}>
                 <dt className="sr-only">{row.key === 'calories' ? energy.unit : row.label}</dt>
                 <dd className="flex items-center gap-1 text-lg leading-none tabular-nums">
-                  {value}
+                  {value ?? '—'}
                   {row.key === 'calories' ? (
                     <Flame aria-hidden="true" className="size-4" />
                   ) : (
@@ -175,6 +198,12 @@ export function WeekMatrix({
           })}
         </dl>
       </div>
+
+      {usesUnverified && (
+        <p data-unverified-note="" className="text-muted-foreground text-center text-xs">
+          {REFERENCE_NOTE}
+        </p>
+      )}
 
       <ModeToggle
         value={mode}

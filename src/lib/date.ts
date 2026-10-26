@@ -25,6 +25,33 @@ export const todayIso = (): string => {
   return toIsoDate(new Date())
 }
 
+/** HH:mm:ss của thời điểm `now` trong múi giờ IANA `zone` (cùng múi với `isoInZone`, nên ngày và giờ của một thời điểm luôn khớp nhau). */
+export const clockInZone = (now: Date, zone: string): string =>
+  new Intl.DateTimeFormat('sv', {
+    timeZone: zone,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).format(now)
+
+/**
+ * Giờ hiện tại HH:mm:ss theo múi giờ NGHIỆP VỤ của user (cùng múi với `todayIso`): giờ ăn mặc định, "To Now", bữa mặc định. Trước đây dùng giờ MÁY trong khi ngày lấy theo múi giờ hồ sơ
+ * nên máy và hồ sơ khác múi thì giờ / bữa lệch (quanh nửa đêm còn thuộc ngày khác). Chưa biết múi giờ hồ sơ (hoặc id lạ) thì dùng giờ máy như `todayIso`.
+ */
+export const nowClockIso = (): string => {
+  if (effectiveZone !== null) {
+    try {
+      return clockInZone(new Date(), effectiveZone)
+    } catch {
+      // id múi giờ trình duyệt không hiểu: dùng giờ máy
+    }
+  }
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+}
+
 /** yyyy-MM-dd → Date lúc 0h giờ máy: MỘT cách đọc ngày cho mọi phép tính và định dạng ngày của app (không nơi nào tự ghép `T00:00:00`). */
 export const parseIso = (iso: string): Date => new Date(`${iso}T00:00:00`)
 

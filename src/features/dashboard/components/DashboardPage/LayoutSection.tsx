@@ -16,7 +16,6 @@ import { SECTIONS, type NutrientDisplay, type SectionKey } from '../../dashboard
 import type { DashboardData } from '../../hooks/use-dashboard-data'
 import { NUTRIENT_GROUPS } from '../../nutrient-catalog'
 import { routePath } from '@/config/route-path'
-import { DerivedFailed } from '@/features/derived-data/components/DerivedFailed'
 import { useDerivedGate } from '@/features/derived-data/hooks/use-derived-data'
 import { useUnits, type UnitsView } from '@/features/users/hooks/use-units'
 
@@ -54,21 +53,19 @@ function renderTile(
         />
       )
     case 'foodLogging':
-      // Đếm từ snapshot từng ngày (`GET /expenditure/daily`, BE dựng lại) nên như các ô dẫn xuất: Failed = thẻ "Try again", Updating = mờ, tải lại lỗi = "---"
-      // (không hiện số TanStack còn giữ, có thể là số trước khi BE dựng lại)
-      if (derived.gate === 'failed')
-        return <DerivedFailed onRetry={derived.retry} isRetrying={derived.isRetrying} />
+      // Đếm từ snapshot từng ngày (`GET /expenditure/daily`, BE dựng lại) nên như các ô dẫn xuất: Updating = mờ, Failed / tải lại lỗi = "---" (không hiện số TanStack
+      // còn giữ, có thể là số trước khi BE dựng lại). Ô giữ tên + liên kết: trang Habits (food logging) có thẻ "Try again" khi Failed, nên vẫn tới được
       return (
         <MetricTile
           title="Food Logging"
           subtitle="Last 30 Days"
           href={routePath.habitsFoodLogging}
           visual={
-            data.loggingError ? undefined : (
+            data.loggingError || derived.gate === 'failed' ? undefined : (
               <HabitGrid cells={data.logging.cells} tone="bg-mf-tile-carbs" />
             )
           }
-          value={data.loggingError ? '---' : `${data.logging.week}/7`}
+          value={data.loggingError || derived.gate === 'failed' ? '---' : `${data.logging.week}/7`}
           unit="this week"
           loading={tilePending(key, data.pending)}
           className={derived.gate === 'updating' ? 'opacity-60 transition-opacity' : undefined}
@@ -136,7 +133,11 @@ function renderTile(
               subtitle="Last 7 Days"
               href={routePath.dashboardMacros}
               visual={<MacroStack days={data.macrosWeek} />}
-              value={units.energy.format(nutrientValue(data.nutrientsToday, 'macros').value)}
+              value={
+                nutrientValue(data.nutrientsToday, 'macros').known === false
+                  ? '---'
+                  : units.energy.format(nutrientValue(data.nutrientsToday, 'macros').value)
+              }
               unit={units.energy.unit}
               loading={tilePending(key, data.pending)}
             />

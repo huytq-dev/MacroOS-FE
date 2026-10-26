@@ -107,9 +107,7 @@ function HourPill({
         type="button"
         aria-pressed={filled}
         aria-label={
-          onLongPress
-            ? `Select foods at ${label}, hold to add food`
-            : `Select foods at ${label}`
+          onLongPress ? `Select foods at ${label}, hold to add food` : `Select foods at ${label}`
         }
         {...longPress}
         onClick={() => {

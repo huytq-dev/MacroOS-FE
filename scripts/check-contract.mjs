@@ -1039,14 +1039,20 @@ await check(
     for (const [file, pattern] of [
       ['features/dashboard/components/DashboardPage/WeekMatrix.tsx', /weekSummary\(/],
       ['features/dashboard/dashboard.utils.ts', /shownProgress\(/],
-      ['features/dashboard/components/DashboardPage/DailyNutritionCard.tsx', /shownProgress\(/],
+      [
+        'features/dashboard/components/DashboardPage/DailyNutritionCard.tsx',
+        /shownProgressOrUnknown\(/,
+      ],
       ['features/dashboard/components/DashboardPage/NutrientTile.tsx', /shownProgress\(/],
-      ['features/food-log/components/FoodLogPage/MacroSummary.tsx', /shownProgress\(/],
+      ['features/food-log/components/FoodLogPage/MacroSummary.tsx', /shownProgressOrUnknown\(/],
       ['features/food-log/food-log-settings.ts', /shownProgress\(/],
     ])
       assert.match(source(file), pattern, file)
     const daily = source('features/dashboard/components/DashboardPage/DailyNutritionCard.tsx')
-    assert.ok((daily.match(/shownProgress\(/g) ?? []).length >= 2, 'calories and the three macros')
+    assert.ok(
+      (daily.match(/shownProgressOrUnknown\(/g) ?? []).length >= 2,
+      'calories and the three macros'
+    )
     assert.match(
       source('features/food-log/components/FoodLogPage/AddFoodProgress.tsx'),
       /bannerValue\(\s*display,\s*cell\.goal,[^)]*toShown/,
@@ -1720,8 +1726,9 @@ await check(
       marker: status === 'Updating' ? 'circle' : 'square',
       change: 0,
     })
-    assert.deepEqual(expLegend([]), { line: false, holding: false, updating: false })
+    assert.deepEqual(expLegend([]), { flux: false, line: false, holding: false, updating: false })
     assert.deepEqual(expLegend([day('Updating')]), {
+      flux: false,
       line: true,
       holding: false,
       updating: true,
@@ -1768,20 +1775,58 @@ await check(
 )
 
 await check(
-  "V5 the Expenditure Flux band is not drawn anywhere (BE formula is not MacroFactor's); the axis fits the line only",
+  'V5 the Expenditure Flux band is OFF in the shipped build (user has not approved the new Flux); the dormant code draws only a BE band (low ≤ line ≤ high), under the line; the axis fits line AND band; null band changes nothing',
   async () => {
-    for (const file of [
-      'features/dashboard/components/ExpenditurePage/ExpenditureChart.tsx',
-      'features/dashboard/components/DashboardPage/InsightCharts.tsx',
-      'features/dashboard/pages/ExpenditurePage.tsx',
-      'features/dashboard/expenditure-series.ts',
-    ])
-      assert.ok(
-        !/flux-band|Flux Range|FluxMini|fluxLow|\.low\b|\.high\b/.test(codeOf(source(file))),
-        `${file} still draws or reads the Flux band`
-      )
-    assert.ok(!/flux-band/.test(source('app/theme.css') + source('app/index.css')), 'dead token')
+    const chart = source('features/dashboard/components/ExpenditurePage/ExpenditureChart.tsx')
+    const code = codeOf(chart)
+    assert.match(code, /fluxSegments\(shown\)/, 'band is built from the visible days')
+    assert.match(code, /fill-mf-flux-band/, 'band uses the Flux token')
+    assert.ok(
+      code.indexOf('data-flux-band') > 0 &&
+        code.indexOf('data-flux-band') < code.indexOf('<polyline'),
+      'band is drawn UNDER the line'
+    )
+    assert.match(chart, /Flux range is not a confidence interval\./)
+    assert.match(code, /Flux Lower/)
+    assert.match(
+      code,
+      /selected\.fluxLow !== null && selected\.fluxHigh !== null/,
+      'tooltip only with a band'
+    )
+    assert.ok(
+      !/fluxLow|fluxHigh/.test(
+        codeOf(source('features/dashboard/components/DashboardPage/InsightCharts.tsx'))
+      ),
+      'the Dashboard tile keeps the plain line (G10)'
+    )
+    const css = source('app/theme.css')
+    assert.equal((css.match(/--mf-flux-band:/g) ?? []).length, 2, 'token in light AND dark')
+    assert.match(source('app/index.css'), /--color-mf-flux-band: var\(--mf-flux-band\)/)
     const exp = await load('../src/features/dashboard/expenditure-series.ts')
+    // SHIPPED BEHAVIOUR: the band is OFF until the user approves the new Flux, even though the BE sends the fields
+    assert.equal(exp.FLUX_BAND_ENABLED, false, 'Flux switch must stay off until approved')
+    const sent = need(
+      exp,
+      'toExpDay'
+    )({
+      date: '2026-10-20',
+      expenditureKcal: 2400,
+      fluxLowKcal: 2300,
+      fluxHighKcal: 2500,
+      status: 'Updating',
+      changeKcal: null,
+    })
+    assert.deepEqual(
+      [sent.fluxLow, sent.fluxHigh],
+      [null, null],
+      'BE band must not reach the chart'
+    )
+    assert.equal(need(exp, 'expLegend')([sent]).flux, false, 'no Flux legend entry while off')
+    assert.match(
+      codeOf(source('features/dashboard/hooks/use-expenditure-detail.ts')),
+      /toExpDay\(day\)/,
+      'the hook must not pass a second argument (.map(toExpDay) would turn the Flux switch on)'
+    )
     const expAxis = need(exp, 'expAxis')
     const at = (...kcal) =>
       kcal.map((value, i) => ({ date: `2026-10-${10 + i}`, kcal: value, holding: false }))
@@ -1791,16 +1836,38 @@ await check(
     assert.ok(flat.max - flat.min >= 2429 * 0.04 - 1, 'a flat line is squashed to a hair')
     assert.ok(flat.max - flat.min < 2429 * 0.5, 'a flat line gets a huge axis')
     assert.ok(expAxis(at(2429)).ticks.length >= 3, 'a single point has no axis')
+    // band: axis contains every low / high with padding, a null band does not move it
+    const banded = at(2420, 2425, 2430).map((day, i) => ({
+      ...day,
+      fluxLow: day.kcal - 30 - i * 5,
+      fluxHigh: day.kcal + 40,
+    }))
+    const axis = expAxis(banded)
+    assert.ok(axis.min <= 2420 - 30 && axis.max >= 2430 + 40, 'axis does not contain the band')
     assert.ok(
-      /fluxLowKcal\?: number \| null/.test(
-        source('features/dashboard/types/expenditure-series.types.ts')
-      ),
-      'the BE type was changed (it must keep the fields)'
+      axis.max - axis.min >= 2430 + 40 - (2420 - 40) + 20,
+      'axis hugs the band with no padding'
+    )
+    assert.ok(axis.max - axis.min < 400, 'band axis is far wider than the band')
+    const tall = expAxis(
+      banded.map((day, i) => (i === 1 ? { ...day, fluxHigh: 2700, fluxLow: 2100 } : day))
+    )
+    assert.ok(tall.max >= 2700 && tall.min <= 2100, 'axis must reach each band edge on its own')
+    const nulled = banded.map((day) => ({ ...day, fluxLow: null, fluxHigh: null }))
+    assert.deepEqual(
+      expAxis(nulled),
+      expAxis(at(2420, 2425, 2430)),
+      'null band must not move the axis'
+    )
+    assert.ok(
+      expAxis(banded.slice(0, 1).map((day) => ({ ...day, fluxLow: 2300, fluxHigh: 2600 }))).ticks
+        .length >= 3,
+      'a single banded point has no axis'
     )
   }
 )
 await check(
-  'V5b Flux fields are optional / nullable; null Flux changes nothing: no band, no legend entry, nothing generated from the line',
+  'V5b Flux fields are optional / nullable: only a valid BE band (low ≤ kcal ≤ high, both present) is kept; null / missing / broken = no band, no legend entry, nothing generated from the line',
   async () => {
     const types = source('features/dashboard/types/expenditure-series.types.ts')
     assert.match(types, /fluxLowKcal\?: number \| null/)
@@ -1808,30 +1875,242 @@ await check(
     const exp = await load('../src/features/dashboard/expenditure-series.ts')
     const toExpDay = need(exp, 'toExpDay')
     const expLegend = need(exp, 'expLegend')
+    const fluxSegments = need(exp, 'fluxSegments')
     const base = { date: '2026-10-20', expenditureKcal: 2400, status: 'Updating', changeKcal: null }
-    const withNull = toExpDay({ ...base, fluxLowKcal: null, fluxHighKcal: null })
-    const without = toExpDay(base)
-    const withValues = toExpDay({ ...base, fluxLowKcal: 2300, fluxHighKcal: 2500 })
-    assert.deepEqual(withNull, without, 'null / missing Flux gives the same chart day')
+    const band = (low, high) => {
+      const day = toExpDay({ ...base, fluxLowKcal: low, fluxHighKcal: high }, true)
+      return [day.fluxLow, day.fluxHigh]
+    }
+    assert.deepEqual(band(2300, 2500), [2300, 2500], 'BE band is copied as is')
+    assert.deepEqual(band(2400, 2400), [2400, 2400], 'a zero-width band is still a band')
+    assert.deepEqual(band(null, null), [null, null])
+    assert.deepEqual(toExpDay(base, true).fluxLow, null, 'missing fields = no band')
+    assert.deepEqual(band(2300, null), [null, null], 'one-sided band is dropped')
     assert.deepEqual(
-      withValues,
-      without,
-      'Flux values are not read yet (hidden until the formula is approved)'
+      band(2450, 2500),
+      [null, null],
+      'line below the band: contract broken, not drawn'
     )
+    assert.deepEqual(
+      band(2300, 2350),
+      [null, null],
+      'line above the band: contract broken, not drawn'
+    )
+    assert.deepEqual(band(Number.NaN, 2500), [null, null])
+    const withNull = toExpDay({ ...base, fluxLowKcal: null, fluxHighKcal: null }, true)
+    assert.deepEqual(withNull, toExpDay(base, true), 'null / missing Flux gives the same chart day')
+    const day = (date, low, high) =>
+      toExpDay({ ...base, date, fluxLowKcal: low, fluxHighKcal: high }, true)
+    // legend: Flux Range listed only while a band is in the view
     assert.deepEqual(
       Object.keys(expLegend([withNull])).sort(),
-      ['holding', 'line', 'updating'],
-      'no Flux legend entry'
+      ['flux', 'holding', 'line', 'updating'],
+      'legend keys'
     )
-    for (const file of [
-      'features/dashboard/expenditure-series.ts',
-      'features/dashboard/components/ExpenditurePage/ExpenditureChart.tsx',
-      'features/dashboard/pages/ExpenditurePage.tsx',
-    ])
-      assert.ok(
-        !/fluxLow|fluxHigh|Flux Range/.test(codeOf(source(file))),
-        file + ' reads or labels Flux'
+    assert.equal(expLegend([withNull]).flux, false, 'no band, no Flux legend entry')
+    assert.equal(expLegend([withNull, day('2026-10-21', 2300, 2500)]).flux, true)
+    // segments: ONE path per continuous run; null or a missing day splits, never joins across
+    const d = (date, ok = true) => day(date, ok ? 2300 : null, ok ? 2500 : null)
+    const names = (segments) => segments.map((segment) => segment.map((item) => item.date.slice(8)))
+    assert.deepEqual(names(fluxSegments([])), [])
+    assert.deepEqual(names(fluxSegments([d('2026-10-20', false), d('2026-10-21', false)])), [])
+    assert.deepEqual(
+      names(fluxSegments([d('2026-10-20'), d('2026-10-21'), d('2026-10-22')])),
+      [['20', '21', '22']],
+      'continuous run is one path'
+    )
+    assert.deepEqual(
+      names(fluxSegments([d('2026-10-20'), d('2026-10-21', false), d('2026-10-22')])),
+      [['20'], ['22']],
+      'a null day splits the band'
+    )
+    assert.deepEqual(
+      names(fluxSegments([d('2026-10-20'), d('2026-10-21'), d('2026-10-24'), d('2026-10-25')])),
+      [
+        ['20', '21'],
+        ['24', '25'],
+      ],
+      'a gap of missing days splits the band (no false join)'
+    )
+    assert.deepEqual(
+      names(fluxSegments([d('2026-10-20', false), d('2026-10-21'), d('2026-10-22', false)])),
+      [['21']],
+      'a lone banded day stays a segment'
+    )
+  }
+)
+await check(
+  'V5c W / M bucket band = the BE policy (Average ± mean half-width of the days WITH a band, floor / ceil); no banded day = no band; low ≤ average ≤ high',
+  async () => {
+    const exp = await load('../src/features/dashboard/expenditure-series.ts')
+    const toExpDay = need(exp, 'toExpDay')
+    const averageExpDays = need(exp, 'averageExpDays')
+    const mk = (date, kcal, low, high, status = 'Updating') =>
+      toExpDay(
+        {
+          date,
+          expenditureKcal: kcal,
+          fluxLowKcal: low,
+          fluxHighKcal: high,
+          status,
+          changeKcal: null,
+        },
+        true
       )
+    // Mon 19 … Wed 21: a day without a band (Calibrating) mixed with banded Updating days
+    const week = [
+      mk('2026-10-19', 2000, null, null, 'Calibrating'),
+      mk('2026-10-20', 2400, 2300, 2450),
+      mk('2026-10-21', 2420, 2390, 2500),
+      mk('2026-10-22', 2440, 2380, 2480),
+    ]
+    const [bucket] = averageExpDays(week, 'weekly', 'Monday')
+    const average = (2000 + 2400 + 2420 + 2440) / 4
+    const down = (100 + 30 + 60) / 3
+    const up = (50 + 80 + 40) / 3
+    assert.equal(bucket.fluxLow, Math.floor(average - down), 'BE floor(avg − mean(kcal − low))')
+    assert.equal(bucket.fluxHigh, Math.ceil(average + up), 'BE ceil(avg + mean(high − kcal))')
+    assert.ok(bucket.fluxLow <= bucket.kcal && bucket.kcal <= bucket.fluxHigh, 'low ≤ avg ≤ high')
+    // no banded day in the bucket = no band (never a fake one)
+    const none = averageExpDays(
+      [mk('2026-10-19', 2000, null, null), mk('2026-10-20', 2100, null, null)],
+      'weekly',
+      'Monday'
+    )
+    assert.deepEqual([none[0].fluxLow, none[0].fluxHigh], [null, null])
+    // daily is the BE band untouched; mixed-status buckets still get a band
+    assert.equal(averageExpDays(week, 'daily', 'Monday')[1].fluxHigh, 2450)
+    const mixed = averageExpDays(
+      [mk('2026-10-20', 2400, 2300, 2450), mk('2026-10-21', 2400, 2350, 2500, 'Holding')],
+      'weekly',
+      'Monday'
+    )[0]
+    assert.equal(mixed.status, 'Mixed')
+    assert.deepEqual([mixed.fluxLow, mixed.fluxHigh], [2325, 2475])
+    // month buckets: separate buckets, separate answers
+    const months = averageExpDays(
+      [mk('2026-09-30', 2400, null, null), mk('2026-10-01', 2400, 2380, 2430)],
+      'monthly',
+      'Monday'
+    )
+    assert.deepEqual(
+      months.map((m) => [m.fluxLow, m.fluxHigh]),
+      [
+        [null, null],
+        [2380, 2430],
+      ]
+    )
+  }
+)
+await check(
+  'V10 Holding is explained where the user looks: reasons come from the BE codes (never inferred from counts), notice sits above the chart with a 44px action, the Dashboard tile says why in one line',
+  async () => {
+    const exp = await load('../src/features/dashboard/expenditure-series.ts')
+    const holdingNoticeOf = need(exp, 'holdingNoticeOf')
+    const base = {
+      strategy: 'Holding',
+      holdingReasonCodes: [],
+      loggedDaysLast7: 6,
+      weighInDaysLast7: 0,
+      resumeInDays: null,
+      resumeConsecutiveDays: null,
+    }
+    const notice = (patch) => holdingNoticeOf({ ...base, ...patch })
+    assert.equal(holdingNoticeOf(null), null, 'no insights')
+    assert.equal(notice({ strategy: 'Updating', holdingReasonCodes: ['NoRecentWeighIn'] }), null)
+    assert.equal(notice({ strategy: null, holdingReasonCodes: ['MissingLogs'] }), null)
+    // BE fills codes for Calibrating too (InitialCalibration); new BE codes 2026-10-26
+    const cal = notice({
+      strategy: 'Calibrating',
+      holdingReasonCodes: ['InitialCalibration'],
+      calibratingDaysLeft: 13,
+    })
+    assert.equal(cal.kind, 'Calibrating')
+    assert.equal(cal.summary, 'Calibrating, 13 days left')
+    assert.deepEqual(cal.actions, [], 'calibration is waiting, nothing to fix')
+    assert.match(cal.reasons[0], /13 days left/)
+    const two = notice({ holdingReasonCodes: ['NeedsTwoWeighIns'] })
+    assert.equal(two.kind, 'Holding')
+    assert.equal(two.summary, 'Needs 2 weigh-ins')
+    assert.deepEqual(two.actions, ['weigh-in'])
+    assert.match(two.reasons[0], /at least 2 weigh-ins in the last 21 days/)
+    const between = notice({ holdingReasonCodes: ['NoLogsBetweenWeighIns'] })
+    assert.deepEqual(between.actions, ['food'])
+    assert.match(between.reasons[0], /no valid nutrition logs between your first and last weigh-in/)
+    assert.deepEqual(
+      notice({ holdingReasonCodes: ['NeedsTwoWeighIns', 'NoRecentWeighIn'] }).actions,
+      ['weigh-in'],
+      'one button per action'
+    )
+    assert.equal(
+      notice({}),
+      null,
+      'Holding without a code: no guessed reason (counts are not read)'
+    )
+    assert.equal(notice({ holdingReasonCodes: ['SomethingNew'] }), null, 'unknown code is ignored')
+    const weigh = notice({ holdingReasonCodes: ['NoRecentWeighIn'], minWeighInDaysPer7: 2 })
+    assert.equal(weigh.summary, 'No weigh-in in 7 days')
+    assert.deepEqual(weigh.actions, ['weigh-in'])
+    assert.match(weigh.reasons[0], /No weigh-in in the last 7 days\. Updating needs at least 2\./)
+    const logs = notice({
+      holdingReasonCodes: ['MissingLogs'],
+      loggedDaysLast7: 2,
+      minLoggedDaysPer7: 5,
+    })
+    assert.equal(logs.summary, '2 of 7 days logged')
+    assert.deepEqual(logs.actions, ['food'])
+    assert.match(logs.reasons[0], /Only 2 of the last 7 days .* at least 5\./)
+    assert.match(
+      notice({ holdingReasonCodes: ['MissingLogs'] }).reasons[0],
+      /at least 4\./,
+      'older BE without the minimum keeps the documented 4'
+    )
+    const both = notice({
+      holdingReasonCodes: ['NoRecentWeighIn', 'MissingLogs'],
+      loggedDaysLast7: 3,
+    })
+    assert.equal(both.summary, 'No weigh-in in 7 days · 3 of 7 days logged')
+    assert.deepEqual(both.actions, ['weigh-in', 'food'])
+    const resuming = notice({ holdingReasonCodes: ['RecoveringLogs'] })
+    assert.deepEqual(resuming.actions, ['food'])
+    assert.deepEqual(resuming.reasons, [], 'no numbers from the BE = no sentence (nothing guessed)')
+    assert.ok(resuming.summary.length > 0, 'the tile / notice still say something')
+    // the resolver reads the BE codes only, never the counts
+    const code = codeOf(source('features/dashboard/expenditure-series.ts'))
+    const fn = code.slice(code.indexOf('export function holdingNoticeOf'))
+    assert.ok(
+      !/weighInDaysLast7\s*(===|==|<|>|!==)|loggedDaysLast7\s*(===|==|<|>|!==)/.test(
+        fn.slice(0, 1200)
+      )
+    )
+    // wiring
+    const page = source('features/dashboard/pages/ExpenditurePage.tsx')
+    assert.ok(
+      page.indexOf('<HoldingNotice') > 0 &&
+        page.indexOf('<HoldingNotice') < page.indexOf('<ExpandableChart'),
+      'the notice is above the chart'
+    )
+    assert.match(page, /data\.holdingNotice && <HoldingNotice notice=\{data\.holdingNotice\} \/>/)
+    const notice_ = source('features/dashboard/components/ExpenditurePage/HoldingNotice.tsx')
+    assert.match(notice_, /routePath\.weight/)
+    assert.match(notice_, /routePath\.foodLog/)
+    assert.match(notice_, /h-11/, 'actions are 44px')
+    assert.match(notice_, /role="status"/)
+    assert.match(
+      source('features/dashboard/hooks/use-expenditure-detail.ts'),
+      /holdingNotice: holdingNoticeOf\(info \?\? null\)/
+    )
+    const tiles = source('features/dashboard/components/DashboardPage/DashboardTiles.tsx')
+    assert.match(
+      tiles,
+      /note=\{\s*exp\.holdingNotice\s*\?/,
+      'tile note comes from the BE-code notice'
+    )
+    assert.match(tiles, /`On hold: \$\{exp\.holdingNotice\.summary\}`/)
+    assert.match(
+      source('features/dashboard/components/DashboardPage/MetricTile.tsx'),
+      /data-tile-note/
+    )
   }
 )
 await check(
@@ -3311,7 +3590,7 @@ await check(
     assert.match(gateHook, /const derived = useDerivedGate\(\)/, 'observes the live state')
     assert.match(
       gateHook,
-      /checkInAcceptGate\(\s*session\.data\?\.preview,\s*session\.dataUpdatedAt,\s*derived,\s*session\.isFetching\s*\)/
+      /checkInAcceptGate\(\s*session\.data\?\.preview,\s*session\.dataUpdatedAt,\s*derived,[\s\S]*?session\.fetchStatus !== 'idle'\s*\)/
     )
     assert.match(
       gateHook,
@@ -3542,6 +3821,8 @@ await check(
     const sessionHook = bodyOf(hooks, 'export const useCheckInSession', '\n}\n')
     assert.match(sessionHook, /queryClient\.getQueryData<DerivedStatus>\(derivedStatusKey\)/)
     assert.match(sessionHook, /previewPollInterval\(query\.state\.data\?\.preview/)
+    // the live-state inputs of the poll: the real gate of the cached status, and "known" only once a status was read (an unreadable status is NOT live Ready)
+    assert.match(sessionHook, /gate: gateOf\(status\),\s*known: status !== undefined,?\s*\}/)
     // opt-in only: off by default, so the hub (which never reads the live status) never polls
     assert.match(sessionHook, /useCheckInSession = \(\{ pollBlockedPreview = false \} = \{\}\)/)
     assert.match(sessionHook, /refetchInterval: pollBlockedPreview\s*\?/)
@@ -3908,57 +4189,61 @@ await check(
   'E4 a derived tile / page whose series OR insights refetch failed is in error ("---" / ErrorState), never the retained pre-rebuild number',
   async () => {
     const pairStatus = need(dashboardUtils, 'pairStatus')
-    const client = dClient()
-    let fail = false
-    const series = new DQueryObserver(client, {
-      queryKey: ['expenditure', 'series', 'history'],
-      queryFn: async () => ({ days: [] }),
-    })
-    const insights = new DQueryObserver(client, {
-      queryKey: ['expenditure', 'insights'],
-      queryFn: async () => {
-        if (fail) throw new Error('500')
-        return { currentKcal: 2400 }
-      },
-    })
-    const stops = [series.subscribe(() => {}), insights.subscribe(() => {})]
-    await dSleep(30)
-    assert.deepEqual(pairStatus(series.getCurrentResult(), insights.getCurrentResult()), {
-      isLoading: false,
-      isError: false,
-      isFetching: false,
-    })
-    // a Ready cycle refetches both: the series succeeds, the insights GET fails — TanStack keeps the old number with status 'error'
-    fail = true
-    await client.invalidateQueries({ queryKey: ['expenditure'] })
-    await dSleep(30)
-    assert.equal(
-      insights.getCurrentResult().data.currentKcal,
-      2400,
-      'the retained number (the trap)'
-    )
-    assert.equal(
-      pairStatus(series.getCurrentResult(), insights.getCurrentResult()).isError,
-      true,
-      'an insights error is invisible'
-    )
-    stops.forEach((stop) => stop())
-    // only insights still pending → loading (skeleton), not a "---" flash
-    assert.equal(
-      pairStatus(
-        { isPending: false, isError: false, isFetching: false },
-        { isPending: true, isError: false, isFetching: true }
-      ).isLoading,
-      true
-    )
-    // a refetch of either in flight (after Try again) → isFetching, so ErrorState locks its button instead of cancelling the request
-    assert.equal(
-      pairStatus(
-        { isPending: false, isError: true, isFetching: false },
-        { isPending: false, isError: false, isFetching: true }
-      ).isFetching,
-      true
-    )
+    const ok = { isPending: false, isError: false, isFetching: false }
+    // EITHER query failing / pending / fetching must show: run both argument orders (a pairStatus that only reads one operand must fail)
+    for (const [label, pair] of [
+      ['series', (x) => pairStatus(x, ok)],
+      ['insights', (x) => pairStatus(ok, x)],
+    ]) {
+      assert.equal(pair({ ...ok, isError: true }).isError, true, `${label} error is invisible`)
+      assert.equal(
+        pair({ ...ok, isPending: true }).isLoading,
+        true,
+        `${label} pending flashes "---"`
+      )
+      assert.equal(
+        pair({ ...ok, isFetching: true }).isFetching,
+        true,
+        `${label} refetch: ErrorState would re-enable "Try again"`
+      )
+      assert.deepEqual(pair(ok), { isLoading: false, isError: false, isFetching: false }, label)
+    }
+    // real TanStack: a Ready cycle refetches both; one GET fails and TanStack keeps the old data with status 'error' (the trap)
+    for (const failing of ['series', 'insights']) {
+      const client = dClient()
+      let fail = false
+      const observer = (key, value, name) =>
+        new DQueryObserver(client, {
+          queryKey: key,
+          queryFn: async () => {
+            if (fail && failing === name) throw new Error('500')
+            return value
+          },
+        })
+      const series = observer(['expenditure', 'series', 'history'], { days: [] }, 'series')
+      const insights = observer(['expenditure', 'insights'], { currentKcal: 2400 }, 'insights')
+      const stops = [series.subscribe(() => {}), insights.subscribe(() => {})]
+      await dSleep(30)
+      assert.deepEqual(pairStatus(series.getCurrentResult(), insights.getCurrentResult()), {
+        isLoading: false,
+        isError: false,
+        isFetching: false,
+      })
+      fail = true
+      await client.invalidateQueries({ queryKey: ['expenditure'] })
+      await dSleep(30)
+      const failed = failing === 'series' ? series : insights
+      assert.ok(
+        failed.getCurrentResult().data !== undefined,
+        `${failing}: retained data (the trap)`
+      )
+      assert.equal(
+        pairStatus(series.getCurrentResult(), insights.getCurrentResult()).isError,
+        true,
+        `${failing} error is invisible`
+      )
+      stops.forEach((stop) => stop())
+    }
     for (const hook of [
       'use-expenditure-detail',
       'use-weight-trend-detail',
@@ -4145,7 +4430,7 @@ await check(
     )
     assert.match(
       source('features/program/hooks/use-check-in.ts'),
-      /checkInAcceptGate\(\s*session\.data\?\.preview,\s*session\.dataUpdatedAt,\s*derived,\s*session\.isFetching\s*\)/
+      /checkInAcceptGate\(\s*session\.data\?\.preview,\s*session\.dataUpdatedAt,\s*derived,[\s\S]*?session\.fetchStatus !== 'idle'\s*\)/
     )
   }
 )
@@ -4194,12 +4479,11 @@ await check(
       "case 'foodLogging':",
       'case '
     )
-    assert.match(
-      food,
-      /if \(derived\.gate === 'failed'\)\s*return <DerivedFailed onRetry=\{derived\.retry\}/
-    )
-    assert.match(food, /value=\{data\.loggingError \? '---'/)
-    assert.match(food, /data\.loggingError \? undefined/)
+    // the tile KEEPS its title and link on Failed ("---", no grid): the Habits page carries the Failed "Try again", so a bare Failed card here would cut the only in-app way to it
+    assert.ok(!/DerivedFailed/.test(food), 'a bare Failed card replaces the tile')
+    assert.match(food, /href=\{routePath\.habitsFoodLogging\}/)
+    assert.match(food, /value=\{\s*data\.loggingError \|\| derived\.gate === 'failed' \? '---'/)
+    assert.match(food, /data\.loggingError \|\| derived\.gate === 'failed' \? undefined/)
     assert.match(food, /className=\{derived\.gate === 'updating' \? 'opacity-60/)
     assert.match(food, /busy=\{derived\.gate === 'updating'\}/)
     assert.match(data, /loggingError: enabled && dailyQuery\.isError/)
@@ -4212,6 +4496,9 @@ await check(
       /derivedGate === 'failed' && \(\s*<DerivedFailed onRetry=\{derived\.retry\}/
     )
     assert.ok(habitFailed > 0, 'Habits shows no "Try again" on Failed')
+    // the page-level ErrorState locks "Try again" while the refetch runs
+    assert.match(habits, /isRetrying=\{summary\.isFetching\}/)
+    assert.match(source('features/habits/hooks/use-habit-days.ts'), /isFetching: query\.isFetching/)
     assert.ok(habitDim > habitFailed, 'the Retry card sits inside the dimmed block')
     // Strategy: Failed card, dial dims while not Ready, no retained goal % after a failed refetch
     const strategy = source('features/program/pages/ProgramPage.tsx')
@@ -4232,10 +4519,12 @@ await check(
       checkIn,
       /loadError=\{\s*session\.isError\s*\?\s*\{[\s\S]*?onRetry: \(\) => void session\.refetch\(\),\s*isRetrying: session\.isFetching,/
     )
-    assert.match(checkIn, /disabled=\{session\.isFetching\}/)
+    // (the no-data error shell has no locked state: a refetch there turns the query 'pending', which swaps in the skeleton)
+    assert.ok(!/disabled=\{session\.isFetching\}/.test(checkIn), 'dead locked-button code is back')
     const updateModule = source('features/program/components/CheckInPage/ProgramUpdateModule.tsx')
     assert.match(updateModule, /const notReady = acceptGate !== 'open' \|\| loadError !== null/)
     assert.match(updateModule, /disabled=\{loadError\.isRetrying\}/)
+    assert.match(updateModule, /onClick=\{loadError\.onRetry\}/)
     // ErrorStates of the derived detail pages and the carousel card lock "Try again" while the refetch runs
     for (const page of ['Expenditure', 'WeightTrend', 'EnergyBalance'])
       assert.match(
@@ -4265,6 +4554,107 @@ await check(
       /if \(client\.isMutating\(\{ mutationKey: derivedRetryKey \}\) === 0\) retry\.mutate\(\)/
     )
     assert.match(gateHook, /isRetrying: retrying/)
+  }
+)
+await check(
+  'F8 a stale in-flight status read cannot pay the confirmation owed by a header-less write (cleared only by a read that started after it)',
+  async () => {
+    const client = dClient()
+    client.setQueryData(F_KEY, status('Updating'))
+    const goals = await dWatch(client, ['goals', 'progress'], () => dSleep(80).then(() => ({})))
+    nDerived.applyDerivedState(client, 'Ready') // cycle running
+    await dSleep(10)
+    // a status GET that started BEFORE the write is still in flight…
+    let release
+    const stale = nDerived.readDerivedStatus(client, {
+      status: () => new Promise((resolve) => (release = resolve)),
+      retry: async () => null,
+    })
+    const staleResult = stale.then(
+      () => 'applied',
+      (error) => error.message
+    )
+    nDerived.applyDerivedHeader(client, undefined) // …the header-less write lands: its confirmation is owed
+    release(status('Ready')) // the old read answers (it predates the write)
+    assert.match(await staleResult, /Superseded/)
+    await dSleep(250) // the refresh lands, the cycle settles
+    assert.equal(eGate(client), 'updating', 'a read that predates the write confirmed it')
+    assert.equal(nDerived.pollInterval(client.getQueryData(F_KEY)), constant(nDerived, 'POLL_MS'))
+    await fConfirm()
+    goals.stop()
+  }
+)
+await check(
+  'F9 a Ready header, or a Retry answered Ready, after a header-less write pays the owed confirmation (gate opens when the cycle settles)',
+  async () => {
+    const settle = async (answer) => {
+      const client = dClient()
+      client.setQueryData(F_KEY, status('Updating'))
+      const goals = await dWatch(client, ['goals', 'progress'], () => dSleep(80).then(() => ({})))
+      nDerived.applyDerivedState(client, 'Ready')
+      await dSleep(10)
+      nDerived.applyDerivedHeader(client, undefined)
+      await answer(client)
+      await dSleep(250)
+      assert.equal(eGate(client), 'ready', 'stuck dimmed: the confirmation was never paid')
+      assert.equal(nDerived.pollInterval(client.getQueryData(F_KEY)), false)
+      goals.stop()
+    }
+    await settle(async (client) => nDerived.applyDerivedState(client, 'Ready'))
+    await settle(async (client) =>
+      nDerived.retryDerived(client, {
+        status: async () => null,
+        retry: async () => status('Ready'),
+      })
+    )
+    await fConfirm()
+  }
+)
+await check(
+  'F10 Try again: a header-less write during the POST (cache object unchanged) skips the apply; an older status read cannot overwrite the Retry answer',
+  async () => {
+    // (1) Failed cache, POST in flight, header-less write → the re-read counter moved though the cache did not: skip, no refresh cycle
+    const client = fakeClient(status('Failed'))
+    let answer
+    const posted = nDerived.retryDerived(client, {
+      status: async () => null,
+      retry: () => new Promise((resolve) => (answer = resolve)),
+    })
+    nDerived.applyDerivedHeader(client, undefined)
+    client.invalidated.length = 0
+    answer(status('Ready'))
+    await posted
+    assert.equal(
+      client.getQueryData(F_KEY).state,
+      'Failed',
+      'the Retry reply (maybe older than the write) was applied'
+    )
+    assert.deepEqual(client.invalidated, [], 'a refresh cycle started on a possibly older reply')
+    // (2) a status read started before the Retry answer lands after it → superseded, the Retry state stays
+    const held = fakeClient(status('Failed'))
+    let release
+    const old = nDerived
+      .readDerivedStatus(held, {
+        status: () => new Promise((resolve) => (release = resolve)),
+        retry: async () => null,
+      })
+      .then(
+        () => 'applied',
+        (error) => error.message
+      )
+    await nDerived.retryDerived(held, {
+      status: async () => null,
+      retry: async () => status('Updating'),
+    })
+    release(status('Failed'))
+    assert.match(await old, /Superseded/)
+    assert.equal(held.getQueryData(F_KEY).state, 'Updating')
+    // (3) the retry mutation stays pending until the status re-read that decides the result has landed (one Retry at a time, buttons stay locked)
+    assert.match(
+      source('features/derived-data/hooks/use-derived-data.ts'),
+      /onSettled: \(\) => client\.invalidateQueries\(\{ queryKey: derivedStatusKey \}\)/
+    )
+    await fConfirm()
   }
 )
 await check(
@@ -4302,6 +4692,1520 @@ await check(
     await dSleep(250)
     assert.equal(eGate(client), 'ready', 'never stuck')
     goals.stop()
+  }
+)
+
+// ── ND: Nutrition Data Manager on Contract v2 (BE/Docs/Design/Ops/NDM_Contract_V2_Examples.md; rounds 1–3 of the user decisions) ────────────────────
+const ndUtils = await load('../src/features/nutrition-data/nutrition-data.utils.ts')
+const foodEffective = await load('../src/features/food-log/effective.ts')
+const macrosDetail = await load('../src/features/dashboard/macros-detail.ts')
+const ndDay = (extra = {}) => ({
+  date: '2026-10-20',
+  calories: 2200,
+  proteinG: null,
+  fatG: null,
+  carbsG: null,
+  source: 'Manual',
+  isFasting: false,
+  isIncomplete: false,
+  entryCount: 0,
+  hasOverride: true,
+  manualCaloriesKcal: 2200,
+  manualProteinG: null,
+  manualFatG: null,
+  manualCarbsG: null,
+  foodLogCalories: 0,
+  foodLogProteinG: 0,
+  foodLogFatG: 0,
+  foodLogCarbsG: 0,
+  isValidForAlgorithms: true,
+  conflict: null,
+  ...extra,
+})
+/** A Food Log day without an override: effective = the foods. */
+const ndFoodDay = (extra = {}) =>
+  ndDay({
+    calories: 1800,
+    proteinG: 30,
+    fatG: 15,
+    carbsG: 60,
+    source: 'FoodLog',
+    entryCount: 3,
+    hasOverride: false,
+    manualCaloriesKcal: null,
+    foodLogCalories: 1800,
+    foodLogProteinG: 30,
+    foodLogFatG: 15,
+    foodLogCarbsG: 60,
+    ...extra,
+  })
+const ndFastingDay = (extra = {}) =>
+  ndDay({
+    calories: 0,
+    proteinG: 0,
+    fatG: 0,
+    carbsG: 0,
+    source: 'Fasting',
+    isFasting: true,
+    hasOverride: false,
+    manualCaloriesKcal: null,
+    ...extra,
+  })
+const ndSave = (existing, over = {}) => {
+  const { texts, fasting, incomplete, ...rest } = over
+  return need(
+    ndUtils,
+    'buildSavePayload'
+  )({
+    date: '2026-10-20',
+    texts: texts ?? need(ndUtils, 'initialTexts')(existing),
+    fasting: fasting ?? existing?.isFasting ?? false,
+    incomplete: incomplete ?? existing?.isIncomplete ?? false,
+    existing,
+    ...rest,
+  })
+}
+const ND_NO_NUMBERS = { calories: null, proteinG: null, fatG: null, carbsG: null }
+const ndTexts = (calories = '', protein = '', fat = '', carbs = '') => ({
+  calories,
+  protein,
+  fat,
+  carbs,
+})
+const ndErr = (out) => (out.ok ? null : out.error)
+
+await check(
+  'ND1 opening Edit Day and saving without changing a number sends NO numbers (no override is created or rewritten), for every kind of day',
+  () => {
+    for (const [label, existing] of [
+      ['calories-only override', ndDay()],
+      ['override with macros', ndDay({ manualProteinG: 140, manualFatG: 60.5, manualCarbsG: 190 })],
+      [
+        'macro-only override (calories null)',
+        ndDay({ calories: null, manualCaloriesKcal: null, manualProteinG: 90, proteinG: 90 }),
+      ],
+      ['manual zero', ndDay({ calories: 0, manualCaloriesKcal: 0, isValidForAlgorithms: false })],
+      ['fasting day', ndFastingDay()],
+      ['Food Log day without override', ndFoodDay()],
+      ['incomplete override', ndDay({ isIncomplete: true })],
+    ]) {
+      const out = ndSave(existing)
+      assert.ok(out.ok, label)
+      assert.deepEqual(
+        { ...out.payload, isFasting: undefined, isIncomplete: undefined },
+        { date: '2026-10-20', ...ND_NO_NUMBERS, isFasting: undefined, isIncomplete: undefined },
+        `${label}: numbers were re-sent`
+      )
+      assert.equal(out.payload.isFasting, existing.isFasting, label)
+      assert.equal(out.payload.isIncomplete, existing.isIncomplete, label)
+      assert.equal(
+        need(ndUtils, 'isNoChange')(out.payload, existing),
+        true,
+        `${label}: not "no change"`
+      )
+    }
+    // only the incomplete switch flipped: still no numbers
+    assert.deepEqual(ndSave(ndDay(), { incomplete: true }).payload, {
+      date: '2026-10-20',
+      ...ND_NO_NUMBERS,
+      isFasting: false,
+      isIncomplete: true,
+    })
+    // a real edit sends exactly the typed values; an empty field stays null (never 0), an explicit 0 stays 0
+    assert.deepEqual(ndSave(ndDay(), { texts: ndTexts('2300', '', '0', '') }).payload, {
+      date: '2026-10-20',
+      calories: 2300,
+      proteinG: null,
+      fatG: 0,
+      carbsG: null,
+      isFasting: false,
+      isIncomplete: false,
+    })
+  }
+)
+await check(
+  'ND2 the sheet starts from what the user ENTERED (manual*), never from the effective / Food Log numbers; a Food Log day can take an override that copies nothing from the foods',
+  () => {
+    const initial = need(ndUtils, 'initialTexts')
+    assert.deepEqual(initial(ndFoodDay()), ndTexts(), 'Food Log numbers leaked into the fields')
+    assert.deepEqual(initial(ndFastingDay()), ndTexts())
+    assert.deepEqual(initial(undefined), ndTexts())
+    assert.deepEqual(
+      initial(
+        ndDay({ manualCaloriesKcal: 0, manualProteinG: 0, manualFatG: null, manualCarbsG: 12.5 })
+      ),
+      ndTexts('0', '0', '', '12.5'),
+      'null and 0 are different'
+    )
+    // calories typed over a day with foods: only what was typed is sent (macros are NOT taken from the foods)
+    const out = ndSave(ndFoodDay(), { texts: ndTexts('2200') })
+    assert.deepEqual(out.payload, {
+      date: '2026-10-20',
+      calories: 2200,
+      proteinG: null,
+      fatG: null,
+      carbsG: null,
+      isFasting: false,
+      isIncomplete: false,
+    })
+  }
+)
+await check(
+  'ND3 validation (v2): macro-only / calories-only / partial are valid, null ≠ 0, limits, fasting conflict, clearing every field never deletes',
+  () => {
+    // macro-only: calories stay empty (null) — no "enter calories" rule and no kcal computed from macros
+    assert.deepEqual(ndSave(undefined, { texts: ndTexts('', '90') }).payload, {
+      date: '2026-10-20',
+      calories: null,
+      proteinG: 90,
+      fatG: null,
+      carbsG: null,
+      isFasting: false,
+      isIncomplete: false,
+    })
+    assert.equal(ndSave(undefined, { texts: ndTexts('', '', '40', '') }).payload.fatG, 40)
+    assert.equal(ndSave(undefined, { texts: ndTexts('', '', '', '5.5') }).payload.carbsG, 5.5)
+    assert.equal(ndSave(undefined, { texts: ndTexts('2200') }).payload.calories, 2200)
+    assert.equal(
+      ndSave(undefined, { texts: ndTexts('0') }).payload.calories,
+      0,
+      'an explicit 0 is a number'
+    )
+    assert.equal(ndSave(undefined, { texts: ndTexts('.') }).ok, false, '"." is not a number')
+    // limits
+    assert.equal(ndSave(undefined, { texts: ndTexts('10000') }).ok, true)
+    assert.match(ndErr(ndSave(undefined, { texts: ndTexts('10001') })), /at most 10000/)
+    assert.equal(ndSave(undefined, { texts: ndTexts('100', '1000') }).ok, true)
+    assert.match(ndErr(ndSave(undefined, { texts: ndTexts('100', '1000.5') })), /at most 1000/)
+    assert.match(ndErr(ndSave(undefined, { texts: ndTexts('', '', '', '1001') })), /at most 1000/)
+    // fasting: blank or zero is fine and sends no numbers; any value above zero is a conflict the user must fix (nothing is dropped silently)
+    assert.deepEqual(ndSave(undefined, { texts: ndTexts(''), fasting: true }).payload, {
+      date: '2026-10-20',
+      ...ND_NO_NUMBERS,
+      isFasting: true,
+      isIncomplete: false,
+    })
+    assert.equal(ndSave(undefined, { texts: ndTexts('0', '0'), fasting: true }).ok, true)
+    assert.match(
+      ndErr(ndSave(undefined, { texts: ndTexts('500'), fasting: true })),
+      /fasting day can't also have manual nutrition above zero/
+    )
+    assert.match(
+      ndErr(ndSave(undefined, { texts: ndTexts('', '10'), fasting: true })),
+      /Turn fasting off or set the values to zero/
+    )
+    // round 4 D3, same rule as the BE: calories null + ANY single macro above zero is a conflict; null / explicit 0 everywhere is not
+    for (const [name, texts] of [
+      ['protein', ndTexts('', '1')],
+      ['fat', ndTexts('', '', '1')],
+      ['carbs', ndTexts('', '', '', '1')],
+      ['decimal protein', ndTexts('', '0.5')],
+      ['calories', ndTexts('1')],
+    ]) {
+      const blocked = ndSave(undefined, { texts, fasting: true })
+      assert.equal(blocked.ok, false, `fasting + ${name} > 0 must be blocked`)
+      assert.match(ndErr(blocked), /Turn fasting off or set the values to zero/)
+    }
+    for (const texts of [
+      ndTexts(),
+      ndTexts('0'),
+      ndTexts('', '0', '0', '0'),
+      ndTexts('0', '0', '0', '0'),
+    ]) {
+      const allowed = ndSave(undefined, { texts, fasting: true })
+      assert.equal(allowed.ok, true, 'fasting + null / 0 fields is allowed')
+      assert.deepEqual(allowed.payload, {
+        date: '2026-10-20',
+        ...ND_NO_NUMBERS,
+        isFasting: true,
+        isIncomplete: false,
+      })
+    }
+    // E2E finding: turning fasting on over a day that HAS manual values — the user lowers them to 0 as the error says; the zeros must be SENT (a flags-only request leaves the old
+    // manual values in the BE, which rejects it again with the same message = a loop). Without an override nothing is sent but the flags.
+    const manualDay = ndDay({
+      manualCaloriesKcal: 1800,
+      manualProteinG: 100,
+      manualFatG: 60,
+      manualCarbsG: 180,
+    })
+    assert.deepEqual(
+      ndSave(manualDay, { texts: ndTexts('0', '0', '0', '0'), fasting: true }).payload,
+      {
+        date: '2026-10-20',
+        calories: 0,
+        proteinG: 0,
+        fatG: 0,
+        carbsG: 0,
+        isFasting: true,
+        isIncomplete: false,
+      }
+    )
+    // blank fields stay unknown (null), typed zeros stay zero
+    assert.deepEqual(ndSave(manualDay, { texts: ndTexts('0'), fasting: true }).payload, {
+      date: '2026-10-20',
+      calories: 0,
+      proteinG: null,
+      fatG: null,
+      carbsG: null,
+      isFasting: true,
+      isIncomplete: false,
+    })
+    // still blocked while any value is above zero
+    assert.equal(ndSave(manualDay, { texts: ndTexts('1800'), fasting: true }).ok, false)
+    // no override on the day: flags only, as before
+    assert.deepEqual(
+      ndSave(ndDay({ hasOverride: false }), { texts: ndTexts('0', '0'), fasting: true }).payload,
+      { date: '2026-10-20', ...ND_NO_NUMBERS, isFasting: true, isIncomplete: false }
+    )
+    // clearing EVERY field of a day that has an override deletes nothing and says how to remove it
+    const cleared = ndSave(ndDay(), { texts: ndTexts() })
+    assert.equal(cleared.ok, false)
+    assert.match(ndErr(cleared), /Use Remove manual entry/)
+    // a new day with nothing typed has nothing to save
+    assert.match(
+      ndErr(ndSave(undefined, { texts: ndTexts() })),
+      /Enter calories or macros, or turn on fasting/
+    )
+    // decimals: macros take one decimal, calories are whole numbers
+    const pattern = constant(ndUtils, 'FIELD_PATTERN')
+    assert.ok(pattern.protein.test('12.5') && pattern.fat.test('0.') && pattern.carbs.test('.5'))
+    assert.ok(!pattern.protein.test('12.55') && !pattern.calories.test('12.5'))
+    assert.equal(need(ndUtils, 'toNumber')('12.5'), 12.5)
+    assert.equal(need(ndUtils, 'toNumber')(''), null)
+  }
+)
+await check(
+  'ND4 [wiring] the sheet saves through buildSavePayload only (no inline parsing, no lock on Food Log days); list shows the BE source and eligibility; Save / Delete refresh the log, derived numbers and the day list',
+  () => {
+    const sheet = source('features/nutrition-data/components/NutritionDaySheet.tsx')
+    assert.match(sheet, /buildSavePayload\(\{ date, texts, fasting, incomplete, existing \}\)/)
+    assert.ok(
+      !/toNumber\(|calories: toText/.test(sheet),
+      'inline number parsing is back in the sheet'
+    )
+    assert.ok(
+      !/readOnly=\{locked|existing\?\.source === 'App'/.test(sheet),
+      'Food Log days are locked again'
+    )
+    const page = source('features/nutrition-data/pages/NutritionDataPage.tsx')
+    assert.match(page, /sourceSrText\(day\)/)
+    assert.match(page, /notUsedForExpenditure\(day\)[\s\S]{0,200}Not used for Expenditure/)
+    assert.match(page, /<Energy kcal=\{day\.calories\} \/>/, 'effective kcal (null prints "—")')
+    const hooks = source('features/nutrition-data/hooks/use-nutrition-data.ts')
+    assert.match(hooks, /invalidateLogData\(queryClient\)/)
+    assert.match(hooks, /\[KEY, \['weights'\]\]/)
+    // …and every Food Log write refreshes the Data Manager list (the other direction of the sync)
+    assert.match(
+      source('features/food-log/hooks/use-food-log.ts'),
+      /LOG_DERIVED_KEYS = \[[\s\S]*?\['nutrition-data'\],\s*\] as const/
+    )
+  }
+)
+await check(
+  'ND5 no fake success / no FE arithmetic on BE totals: an unchanged save is not sent and not toasted; deleting a food does not edit the day totals; unknown calories stay null ("—")',
+  () => {
+    const isNoChange = need(ndUtils, 'isNoChange')
+    const flags = (isFasting, isIncomplete) => ({
+      date: '2026-10-20',
+      ...ND_NO_NUMBERS,
+      isFasting,
+      isIncomplete,
+    })
+    const day = ndDay({ isIncomplete: true })
+    assert.equal(isNoChange(flags(false, true), day), true)
+    assert.equal(isNoChange(flags(false, false), day), false, 'a flag change is a real save')
+    assert.equal(isNoChange(flags(true, true), day), false)
+    assert.equal(
+      isNoChange({ ...flags(false, true), calories: 0 }, day),
+      false,
+      'an explicit 0 is a number'
+    )
+    assert.equal(
+      isNoChange(flags(false, false), undefined),
+      false,
+      'a new day is never "no change"'
+    )
+    // an omitted flag (null) keeps the stored one
+    assert.equal(
+      isNoChange({ ...flags(false, true), isFasting: null, isIncomplete: null }, day),
+      true
+    )
+    const page = source('features/nutrition-data/pages/NutritionDataPage.tsx')
+    assert.match(
+      page,
+      /if \(isNoChange\(payload, existing\)\) \{\s*sheet\.hide\(\)\s*return\s*\}\s*save\.mutate\(/
+    )
+    // success toasts only inside onSuccess (a failed save / delete shows its error, never "saved")
+    const hooks = source('features/nutrition-data/hooks/use-nutrition-data.ts')
+    for (const [name, message] of [
+      ['useSaveNutritionDay', 'Nutrition saved'],
+      ['useDeleteNutritionDay', 'Nutrition deleted'],
+    ]) {
+      const body = bodyOf(hooks, `export const ${name}`, '\n}\n')
+      assert.match(
+        body,
+        new RegExp(`onSuccess: \\(\\) => \\{\\s*toast\\.success\\('${message}'\\)`)
+      )
+    }
+    // optimistic delete: the entry leaves the list at once, the day totals stay the BE's until the refetch
+    const food = source('features/food-log/hooks/use-food-log.ts')
+    const optimistic = bodyOf(food, 'export const useDeleteEntry', 'export const useQuickAdd')
+    assert.match(optimistic, /entries: day\.entries\.filter\(\(entry\) => entry\.id !== id\)/)
+    assert.ok(!/totals|minus\(/.test(optimistic.replace(/\/\/.*$/gm, '')), 'the FE edits BE totals')
+    // unknown calories: the type allows null, the sheet starts blank (not "0"), the list prints "—"
+    const types = source('features/nutrition-data/types/nutrition-data.types.ts')
+    assert.match(interfaceOf(types, 'NutritionDay'), /calories: number \| null/)
+    assert.match(interfaceOf(types, 'NutritionDay'), /manualCaloriesKcal: number \| null/)
+    assert.equal(need(ndUtils, 'initialTexts')(ndDay({ manualCaloriesKcal: null })).calories, '')
+    assert.equal(need(units, 'energyMeasure')('kcal').format(null), '—')
+  }
+)
+
+// ── Errors and endpoints (P0 contract, still in force under v2) ───────────────────────────────────────────────────────────────────────────────────────
+const apiError = (status, errors = null, message = 'BE message') => ({
+  response: { status, data: { message, errors } },
+})
+await check(
+  'ND6 error fixtures: keyed on errors.reasonCode (any key case) — 409 CONCURRENT / FASTING_NEEDS_EMPTY_DAY, 400 USE_REMOVE_OVERRIDE / NOTHING_TO_SAVE / FASTING_WITH_MANUAL_NUTRITION — never reads as success',
+  () => {
+    const reasonOf = need(ndUtils, 'ndmReasonOf')
+    const message = need(ndUtils, 'ndmErrorMessage')
+    const fallback = () => 'FALLBACK'
+    // exact JSON shape of the BE: ApiResponse.Fail(message, status, { reasonCode: [code] })
+    const cases = [
+      [409, 'CONCURRENT', /^This day was just updated somewhere else, so nothing was changed/],
+      [
+        409,
+        'FASTING_NEEDS_EMPTY_DAY',
+        /Remove them \(or the manual entry\) before marking it as a fasting day\. Nothing was changed\.$/,
+      ],
+      [400, 'USE_REMOVE_OVERRIDE', /Use Remove manual entry to do that\. Nothing was changed\.$/],
+      [
+        400,
+        'NOTHING_TO_SAVE',
+        /^There is nothing to save\. To clear manual values use Remove manual entry\.$/,
+      ],
+      [
+        400,
+        'FASTING_WITH_MANUAL_NUTRITION',
+        /marked as fasting, so it can't also have manual nutrition above zero\. Remove the fasting mark or lower the values\. Nothing was changed\.$/,
+      ],
+    ]
+    for (const [status, code, text] of cases) {
+      const error = apiError(status, { reasonCode: [code] }, 'Dữ liệu BE bằng tiếng Việt')
+      assert.equal(reasonOf(error), code, code)
+      assert.equal(reasonOf(apiError(status, { ReasonCode: [code] })), code, `${code}: key case`)
+      assert.match(message(error, fallback), text, code)
+      assert.ok(!/Dữ liệu/.test(message(error, fallback)), `${code}: raw BE message leaked`)
+    }
+    // a code-less 409 is still the concurrent loser; other statuses / unknown 400s are not NDM reasons
+    assert.equal(reasonOf(apiError(409)), 'CONCURRENT')
+    assert.equal(reasonOf(apiError(409, {})), 'CONCURRENT')
+    assert.equal(reasonOf(apiError(409, { reasonCode: ['SOMETHING_NEW'] })), 'CONCURRENT')
+    for (const other of [
+      apiError(400),
+      apiError(400, { reasonCode: ['SOMETHING_NEW'] }),
+      apiError(404),
+      apiError(500),
+      new Error('Network Error'),
+      null,
+      undefined,
+    ]) {
+      assert.equal(reasonOf(other), null)
+      assert.equal(message(other, fallback), 'FALLBACK')
+    }
+  }
+)
+await check(
+  'ND7 four intents, four endpoints: numbers → ONE PUT /nutrition-data; flag-only saves → PUT /{date}/fasting and /{date}/incomplete (one flag each, fasting first)',
+  () => {
+    const plan = need(ndUtils, 'planSave')
+    const flags = (isFasting, isIncomplete) => ({
+      date: '2026-10-20',
+      ...ND_NO_NUMBERS,
+      isFasting,
+      isIncomplete,
+    })
+    const withNumbers = { ...flags(false, true), calories: 2200 }
+    assert.deepEqual(plan(withNumbers, ndDay()), [{ kind: 'save', payload: withNumbers }])
+    const macroOnly = { ...flags(false, false), proteinG: 90 }
+    assert.deepEqual(plan(macroOnly, undefined), [{ kind: 'save', payload: macroOnly }])
+    // a new day marked fasting
+    assert.deepEqual(plan(flags(true, false), undefined), [
+      { kind: 'fasting', date: '2026-10-20', isFasting: true },
+    ])
+    // a new day both fasting and incomplete: fasting first so the day exists for the incomplete flag
+    assert.deepEqual(plan(flags(true, true), undefined), [
+      { kind: 'fasting', date: '2026-10-20', isFasting: true },
+      { kind: 'incomplete', date: '2026-10-20', isIncomplete: true },
+    ])
+    // only the incomplete switch on an override / Food Log day
+    for (const day of [ndDay(), ndFoodDay()])
+      assert.deepEqual(plan(flags(false, true), day), [
+        { kind: 'incomplete', date: '2026-10-20', isIncomplete: true },
+      ])
+    // clearing the fasting mark of a fasting day
+    assert.deepEqual(plan(flags(false, false), ndFastingDay()), [
+      { kind: 'fasting', date: '2026-10-20', isFasting: false },
+    ])
+    // nothing changed → nothing is sent; an omitted flag (null) is "keep"
+    assert.deepEqual(plan(flags(false, false), ndDay()), [])
+    assert.deepEqual(
+      plan({ ...flags(false, false), isFasting: null, isIncomplete: null }, ndDay()),
+      []
+    )
+    // wiring: routes, service, hooks
+    const routes = source('config/api-routes.ts')
+    assert.match(routes, /override: \(date: string\) => `\/nutrition-data\/\$\{date\}\/override`/)
+    assert.match(routes, /fasting: \(date: string\) => `\/nutrition-data\/\$\{date\}\/fasting`/)
+    assert.match(
+      routes,
+      /incomplete: \(date: string\) => `\/nutrition-data\/\$\{date\}\/incomplete`/
+    )
+    const service = source('features/nutrition-data/services/nutrition-data.service.ts')
+    assert.match(
+      service,
+      /apiCall\.delete\(apiRoutes\.nutritionData\.root, \{ params: \{ date \} \}\)/
+    )
+    assert.match(
+      service,
+      /apiCall\.delete<NutritionDay>\(apiRoutes\.nutritionData\.override\(date\)\)/
+    )
+    assert.match(
+      service,
+      /apiCall\.put<NutritionDay>\(apiRoutes\.nutritionData\.fasting\(date\), \{ isFasting \}\)/
+    )
+    assert.match(
+      service,
+      /apiCall\.put<NutritionDay>\(apiRoutes\.nutritionData\.incomplete\(date\), \{ isIncomplete \}\)/
+    )
+    const hooks = source('features/nutrition-data/hooks/use-nutrition-data.ts')
+    assert.match(hooks, /for \(const op of planSave\(payload, existing\)\) await runOp\(op\)/)
+    // an error never toasts a success: every success toast sits inside onSuccess
+    for (const name of [
+      'useSaveNutritionDay',
+      'useDeleteNutritionDay',
+      'useRemoveManualOverride',
+    ]) {
+      const body = bodyOf(hooks, `export const ${name}`, '\n}\n')
+      const onError = body.slice(body.indexOf('onError'))
+      assert.ok(!/toast\.success/.test(onError), `${name}: success toast in onError`)
+      assert.match(body, /onSuccess: \(\) => \{\s*toast\.success\(/, name)
+    }
+    // the page sends { payload, existing } and shows the reason-keyed sentence; "Remove manual entry" is a real button
+    const page = source('features/nutrition-data/pages/NutritionDataPage.tsx')
+    assert.match(page, /save\.mutate\(\{ payload, existing \}/)
+    assert.match(page, /ndmErrorMessage\(save\.error, getFormErrorMessage\)/)
+    const sheet = source('features/nutrition-data/components/NutritionDaySheet.tsx')
+    assert.match(
+      sheet,
+      /existing\?\.hasOverride && \([\s\S]{0,300}onClick=\{onRemoveOverride\}[\s\S]{0,200}Remove manual entry/
+    )
+    assert.match(page, /removeOverride\.mutate\(target\.date/)
+  }
+)
+await check(
+  'ND8 each destructive intent has its own exact confirmation text (what is deleted AND what is kept)',
+  () => {
+    const kept = 'Foods logged in the Food Log, water and notes are kept.'
+    assert.equal(constant(ndUtils, 'DELETE_NUTRITION_TITLE'), "Delete this day's nutrition data?")
+    const del = need(ndUtils, 'deleteNutritionDescription')
+    assert.equal(
+      del({ isFasting: false, hasOverride: true }, 'Oct 20, 2026'),
+      `Deletes the manual calories and macros you entered for Oct 20, 2026. ${kept}`
+    )
+    assert.equal(
+      del({ isFasting: true, hasOverride: false }, 'Oct 20, 2026'),
+      `Deletes the fasting mark from Oct 20, 2026. ${kept}`
+    )
+    assert.equal(
+      del({ isFasting: true, hasOverride: true }, 'Oct 20, 2026'),
+      `Deletes the manual calories and macros you entered for Oct 20, 2026 and the fasting mark. ${kept}`
+    )
+    assert.equal(constant(ndUtils, 'REMOVE_OVERRIDE_TITLE'), 'Remove the manual entry?')
+    const remove = need(ndUtils, 'removeOverrideDescription')
+    assert.equal(
+      remove('Oct 20, 2026', true),
+      'Removes only the manual calories and macros for Oct 20, 2026. Foods, water, notes and the fasting mark are kept, and the day goes back to the foods logged in the Food Log.'
+    )
+    assert.equal(
+      remove('Oct 20, 2026', false),
+      'Removes only the manual calories and macros for Oct 20, 2026. Water, notes and the fasting mark are kept. No foods are logged on this day, so it will have no nutrition data.'
+    )
+    assert.equal(constant(ndUtils, 'CLEAR_FOOD_LOG_TITLE'), "Delete this day's foods?")
+    assert.equal(
+      need(ndUtils, 'clearFoodLogDescription')('Oct 20, 2026'),
+      'Deletes all foods logged on Oct 20, 2026. Manual calories and macros, water, notes and the fasting mark are kept.'
+    )
+    // the screens use exactly these (no second, divergent text) and the old claims are gone
+    const ndmPage = source('features/nutrition-data/pages/NutritionDataPage.tsx')
+    assert.match(ndmPage, /title=\{DELETE_NUTRITION_TITLE\}/)
+    assert.match(
+      ndmPage,
+      /description=\{deleteNutritionDescription\(existing, formatDate\(target\.date\)\)\}/
+    )
+    assert.match(ndmPage, /title=\{REMOVE_OVERRIDE_TITLE\}/)
+    assert.match(
+      ndmPage,
+      /removeOverrideDescription\(\s*formatDate\(target\.date\),\s*\(existing\?\.entryCount \?\? 0\) > 0\s*\)/
+    )
+    assert.ok(!/will be deleted\. Foods logged/.test(ndmPage), 'old NDM delete text')
+    const foodPage = source('features/food-log/pages/FoodLogPage.tsx')
+    assert.match(foodPage, /title=\{CLEAR_FOOD_LOG_TITLE\}/)
+    assert.match(foodPage, /clearFoodLogDescription\(formatDate\(date\)\)/)
+    assert.ok(!/treat this day as not logged/.test(foodPage), 'old Clear Day claim')
+    const foodHooks = source('features/food-log/hooks/use-food-log.ts')
+    assert.match(
+      bodyOf(foodHooks, 'export const useClearDay', '\n\n'),
+      /Day's foods deleted[\s\S]*Couldn't delete the day's foods/
+    )
+    // Clear Day failures (incl. the concurrent 409) read in English, never as a success
+    assert.match(foodHooks, /if \(failureTitle\) return reportLogError\(error, failureTitle\)/)
+    assert.match(foodPage, /ndmErrorMessage\(deleteError, getFormErrorMessage\)/)
+    // Remove Override refreshes everything that reads effective intake
+    assert.match(
+      bodyOf(
+        source('features/nutrition-data/hooks/use-nutrition-data.ts'),
+        'export const useRemoveManualOverride',
+        '\n}\n'
+      ),
+      /onSuccess: \(\) => \{\s*toast\.success\('Manual entry removed'\)\s*void invalidate\(\)/
+    )
+  }
+)
+await check(
+  'ND9 BE flags drive the notices (never inferred from 0): conflict notice, "manual takes priority", eligibility line, source text; manual 0 + foods is informational and never becomes Fasting',
+  () => {
+    const conflict = need(ndUtils, 'conflictNotice')
+    const override = need(ndUtils, 'overrideNotice')
+    const eligibility = need(ndUtils, 'eligibilityNotice')
+    const notUsed = need(ndUtils, 'notUsedForExpenditure')
+    const zeroWithFoods = ndDay({
+      calories: 0,
+      manualCaloriesKcal: 0,
+      entryCount: 3,
+      foodLogCalories: 1800,
+      isValidForAlgorithms: false,
+      conflict: 'MANUAL_ZERO_WITH_FOOD_LOG',
+    })
+    assert.equal(
+      conflict(zeroWithFoods),
+      'Manual data takes priority. Foods logged in the Food Log are kept.'
+    )
+    assert.equal(override(zeroWithFoods), conflict(zeroWithFoods))
+    assert.match(
+      conflict(ndDay({ conflict: 'FASTING_WITH_MANUAL_NUTRITION' })),
+      /marked as fasting and also has manual values above zero\. Remove the fasting mark or lower the values\./
+    )
+    // an override over foods without a conflict still says the manual numbers win; no override / no foods → no notice
+    assert.equal(
+      override(ndDay({ entryCount: 2 })),
+      'Manual data takes priority. Foods logged in the Food Log are kept.'
+    )
+    assert.equal(override(ndDay()), null)
+    assert.equal(override(ndFoodDay()), null)
+    // eligibility: only the BE flag decides; a 0 kcal day that the BE marks valid (fasting) gets no line
+    assert.equal(eligibility(zeroWithFoods), "This day isn't used for Expenditure.")
+    assert.equal(eligibility(ndFastingDay({ isValidForAlgorithms: true })), null)
+    assert.equal(
+      eligibility(ndDay({ calories: 0, manualCaloriesKcal: 0, isValidForAlgorithms: true })),
+      null
+    )
+    assert.equal(
+      eligibility(ndDay({ isIncomplete: true, isValidForAlgorithms: false })),
+      'This day is marked incomplete, so Expenditure skips it.'
+    )
+    assert.equal(notUsed(zeroWithFoods), true)
+    assert.equal(
+      notUsed(ndDay({ isIncomplete: true, isValidForAlgorithms: false })),
+      false,
+      'incomplete has its own icon'
+    )
+    assert.equal(
+      notUsed(ndDay({ calories: 0, manualCaloriesKcal: 0, isValidForAlgorithms: true })),
+      false,
+      'a 0 the BE accepts is not flagged'
+    )
+    const srText = need(ndUtils, 'sourceSrText')
+    assert.equal(srText({ source: 'Manual' }), ', entered manually')
+    assert.equal(srText({ source: 'FoodLog' }), ', logged in Food Log')
+    assert.equal(srText({ source: 'Fasting' }), ', fasting day')
+    assert.deepEqual(
+      { ...constant(ndUtils, 'SOURCE_LABEL') },
+      { Manual: 'Manual', FoodLog: 'Food Log', Fasting: 'Fasting' }
+    )
+    // the sheet shows Effective / Food Log total / Data source for an override over foods, from the BE fields only, with no auto-fix (the save never flips fasting)
+    const sheet = source('features/nutrition-data/components/NutritionDaySheet.tsx')
+    assert.match(sheet, /Effective calories[\s\S]*Food Log total[\s\S]*Data source/)
+    assert.match(sheet, /existing\.calories === null \? '—' : energy\.text\(existing\.calories\)/)
+    assert.match(sheet, /energy\.text\(existing\.foodLogCalories\)/)
+    assert.match(sheet, /SOURCE_LABEL\[existing\.source\]/)
+    assert.match(sheet, /placeholder="—"/)
+    assert.match(sheet, /unknownHint="no macro data"/)
+    // the fasting switch is locked while foods are logged (BE would 409) instead of letting the user hit the error
+    assert.match(sheet, /const fastingBlocked = hasFoods && !existing\?\.isFasting/)
+  }
+)
+await check(
+  'ND10 paging: 90 is a page size, not a history limit — cursor pages, one row per day, newest first, older days stay reachable, an older picked date is looked up on its own',
+  () => {
+    const merge = need(ndUtils, 'mergePages')
+    const d = (date) => ndDay({ date })
+    // pages arrive newest first; a refetch can make them overlap or arrive out of order
+    const merged = merge([
+      [d('2026-10-25'), d('2026-10-24'), d('2026-10-23')],
+      [d('2026-10-23'), d('2026-10-22')],
+      [d('2026-10-24'), d('2026-10-21')],
+    ])
+    assert.deepEqual(
+      merged.map((day) => day.date),
+      ['2026-10-25', '2026-10-24', '2026-10-23', '2026-10-22', '2026-10-21']
+    )
+    // the earlier page wins for a duplicated day
+    assert.equal(
+      merge([[d('2026-10-23')], [{ ...d('2026-10-23'), calories: 1 }]])[0].calories,
+      2200
+    )
+    assert.deepEqual(merge([]), [])
+    assert.deepEqual(merge([[], []]), [])
+    // wiring
+    const service = source('features/nutrition-data/services/nutrition-data.service.ts')
+    assert.match(service, /export const PAGE_SIZE = 90/)
+    assert.match(service, /params: \{ limit: PAGE_SIZE, \.\.\.\(before \? \{ before \} : \{\}\) \}/)
+    assert.match(service, /params: \{ from: date, to: date, limit: 1 \}/)
+    const hooks = source('features/nutrition-data/hooks/use-nutrition-data.ts')
+    assert.match(hooks, /useInfiniteQuery\(\{/)
+    assert.match(hooks, /initialPageParam: null as string \| null/)
+    assert.match(
+      hooks,
+      /getNextPageParam: \(last\) => \(last\?\.hasMore \? \(last\.nextBefore \?\? undefined\) : undefined\)/
+    )
+    assert.match(
+      hooks,
+      /select: \(data\) => mergePages\(data\.pages\.map\(\(page\) => page\?\.items \?\? \[\]\)\)/
+    )
+    assert.match(hooks, /queryKey: \[\.\.\.KEY, 'day', date\]/)
+    const page = source('features/nutrition-data/pages/NutritionDataPage.tsx')
+    assert.match(page, /query\.hasNextPage && \(/)
+    assert.match(page, /onClick=\{\(\) => void query\.fetchNextPage\(\)\}/)
+    assert.match(page, /'Load earlier'/)
+    assert.match(page, /target\.date < oldest/)
+    assert.match(page, /useNutritionDayLookup\(target\.date, Boolean\(needsLookup\)\)/)
+    assert.match(page, /key=\{`\$\{sheet\.id\}-\$\{target\.date\}-\$\{loadingExisting\}`\}/)
+    assert.match(
+      source('features/nutrition-data/components/NutritionDaySheet.tsx'),
+      /if \(isPending \|\| loadingExisting\) return/
+    )
+  }
+)
+await check(
+  'ND11 effective totals come from the BE (`effective`), null stays null: shownTotals, weekly sums, bars, progress, macro chart — no fake 0, no Other = total, no macro taken from the foods',
+  () => {
+    const shown = need(foodEffective, 'shownTotals')
+    const raw = { calories: 1800, protein: 30, carbs: 60, fat: 15, fiber: 7 }
+    // no `effective` (older BE): the raw totals as before
+    assert.deepEqual(shown({ totals: raw }), raw)
+    // calories-only override over foods: kcal 2200, macros null (NOT the foods' 30 / 60 / 15), fiber stays the foods'
+    const calOnly = {
+      calories: 2200,
+      proteinG: null,
+      carbsG: null,
+      fatG: null,
+      source: 'Manual',
+      hasOverride: true,
+      manualCaloriesKcal: 2200,
+      manualProteinG: null,
+      manualCarbsG: null,
+      manualFatG: null,
+      foodLogCalories: 1800,
+      foodLogProteinG: 30,
+      foodLogCarbsG: 60,
+      foodLogFatG: 15,
+      isValidForAlgorithms: true,
+      conflict: null,
+    }
+    assert.deepEqual(shown({ totals: raw, effective: calOnly }), {
+      calories: 2200,
+      protein: null,
+      carbs: null,
+      fat: null,
+      fiber: 7,
+    })
+    // explicit zero stays zero; a macro-only day has null kcal
+    assert.equal(
+      shown({ totals: raw, effective: { ...calOnly, calories: 0, proteinG: 0 } }).protein,
+      0
+    )
+    assert.equal(
+      shown({ totals: raw, effective: { ...calOnly, calories: null, proteinG: 90 } }).calories,
+      null
+    )
+    // caption: only for an override, with the BE raw Food Log total
+    const caption = need(foodEffective, 'overrideCaption')
+    assert.equal(
+      caption(calOnly, 3, (kcal) => `${kcal} kcal`),
+      'Manual entry · Food Log 1800 kcal'
+    )
+    assert.equal(
+      caption(calOnly, 0, (kcal) => `${kcal} kcal`),
+      'Manual entry'
+    )
+    assert.equal(
+      caption({ ...calOnly, hasOverride: false }, 3, () => 'x'),
+      null
+    )
+    assert.equal(
+      caption(undefined, 3, () => 'x'),
+      null
+    )
+    // progress with an unknown eaten value: "—" and an empty bar, never 0
+    const progress = need(remaining, 'shownProgressOrUnknown')
+    assert.deepEqual(progress(null, 150, Math.round), {
+      consumed: null,
+      goal: 150,
+      remaining: null,
+    })
+    assert.deepEqual(progress(null, null, Math.round), {
+      consumed: null,
+      goal: null,
+      remaining: null,
+    })
+    assert.deepEqual(progress(90, 150, Math.round), { consumed: 90, goal: 150, remaining: 60 })
+    assert.deepEqual(need(goal, 'weekBarProgress')(null, 150, 'consumed'), {
+      progress: 0,
+      over: false,
+    })
+    assert.deepEqual(need(goal, 'weekBarProgress')(null, 150, 'remaining'), {
+      progress: 0,
+      over: false,
+    })
+    // weekly sum: unknown days do not count as 0; no known day → null ("—")
+    const week = need(dashboardUtils, 'weekSummary')
+    const day = (date, protein) => ({
+      logDate: date,
+      isLogged: true,
+      totals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+      effective: { ...calOnly, calories: 2200, proteinG: protein },
+      target: null,
+    })
+    const goalOf = () => 150
+    const round = (value) => Math.round(value)
+    assert.equal(
+      week([day('a', 90), day('b', null), day('c', 60)], 'protein', goalOf, 'consumed', round)
+        .value,
+      150
+    )
+    assert.equal(
+      week([day('a', null), day('b', null)], 'protein', goalOf, 'consumed', round).value,
+      null
+    )
+    assert.equal(week([day('a', null)], 'calories', goalOf, 'consumed', round).value, 2200)
+    // macro series: a calories-only day draws NO column and has NO fake Other / macros; it stays in the history with the BE numbers
+    const macros = macrosDetail
+    const full = {
+      date: '2026-10-21',
+      isLogged: true,
+      isFasting: false,
+      isIncomplete: false,
+      caloriesKcal: 2000,
+      proteinG: 100,
+      fatG: 70,
+      carbsG: 250,
+      proteinKcal: 400,
+      fatKcal: 630,
+      carbsKcal: 1000,
+      otherKcal: -30,
+    }
+    const calOnlyDay = {
+      date: '2026-10-22',
+      isLogged: true,
+      isFasting: false,
+      isIncomplete: false,
+      caloriesKcal: 2200,
+      proteinG: null,
+      fatG: null,
+      carbsG: null,
+      proteinKcal: null,
+      fatKcal: null,
+      carbsKcal: null,
+      otherKcal: null,
+    }
+    const macroOnlyDay = {
+      ...calOnlyDay,
+      date: '2026-10-24',
+      caloriesKcal: null,
+      proteinG: 90,
+      proteinKcal: 360,
+    }
+    const unlogged = { ...calOnlyDay, date: '2026-10-23', isLogged: false, caloriesKcal: null }
+    const series = {
+      from: '2026-10-21',
+      to: '2026-10-24',
+      days: [full, calOnlyDay, unlogged, macroOnlyDay],
+      summary: {},
+      buckets: [],
+    }
+    assert.deepEqual(
+      macros.macroBarsOf(series, 'daily').map((bar) => bar.date),
+      ['2026-10-21']
+    )
+    assert.equal(macros.macroBarOn(series, '2026-10-22'), null)
+    const partial = need(macros, 'partialDaysOf')(series)
+    assert.deepEqual(
+      partial.map((p) => p.date),
+      ['2026-10-22', '2026-10-24']
+    )
+    assert.equal(partial[0].caloriesKcal, 2200, 'the calories are kept')
+    assert.equal(partial[0].proteinG, null)
+    assert.equal(partial[1].caloriesKcal, null)
+    assert.equal(partial[1].proteinG, 90)
+    // wiring: the screens read the shared helper and print "—"
+    const dashData = source('features/dashboard/hooks/use-dashboard-data.ts')
+    assert.match(dashData, /const totals = dayLog\.data \? shownTotals\(dayLog\.data\) : undefined/)
+    assert.match(dashData, /known: value !== null/)
+    assert.match(source('features/food-log/pages/FoodLogPage.tsx'), /shownTotals\(day\.data\)/)
+    assert.match(
+      source('features/food-log/components/FoodLogPage/MacroSummary.tsx'),
+      /\$\{value \?\? '—'\}/
+    )
+    // screen readers get words for the dash (E2E finding: "F —/68" alone says nothing)
+    assert.match(
+      source('features/food-log/components/FoodLogPage/MacroSummary.tsx'),
+      /value === null && <span className="sr-only">, no data<\/span>/
+    )
+    assert.match(
+      source('features/dashboard/components/DashboardPage/WeekMatrix.tsx'),
+      /\{value \?\? '—'\}/
+    )
+    assert.match(source('features/dashboard/pages/MacrosDetailPage.tsx'), /partial=\{partialDays\}/)
+    assert.match(
+      source('features/dashboard/components/MacrosPage/MacrosBreakdownList.tsx'),
+      /Breakdown unavailable/
+    )
+    assert.match(
+      source('features/dashboard/components/DashboardPage/LayoutSection.tsx'),
+      /nutrientValue\(data\.nutrientsToday, 'macros'\)\.known === false\s*\? '---'/
+    )
+  }
+)
+await check(
+  'ND12 round 4 D1: the Add / Edit Food strip shows the BE effective day (override wins, unknown = "—", plate never added), with the Food Log subtotal on its own line',
+  () => {
+    const strip = source('features/food-log/components/FoodLogPage/AddFoodProgress.tsx')
+    // override → main value from the BE effective fields, never the foods; PlateOnly keeps showing the plate
+    assert.match(
+      strip,
+      /const overridden = effective\?\.hasOverride === true && display !== 'PlateOnly'/
+    )
+    assert.match(strip, /effective\?\.calories/)
+    assert.match(strip, /effective\?\.proteinG/)
+    assert.match(strip, /effective\?\.fatG/)
+    assert.match(strip, /effective\?\.carbsG/)
+    // an unknown (null) effective value is "—" with words for screen readers — never 0, never filled from the foods
+    assert.match(
+      strip,
+      /const day = overridden \? effectiveOf\(cell\.key\) : \(totals\?\.\[cell\.key\] \?\? 0\)/
+    )
+    assert.match(strip, /const value = unknown\s*\? null/)
+    assert.match(strip, /unknown && <span className="sr-only">, no data<\/span>/)
+    // the plate does not change an override: nothing of it is added to the effective value
+    assert.match(strip, /overridden \? 0 : plate\[cell\.key\]/)
+    // the Food Log subtotal is the BE raw foodLogCalories (+ the plate preview), on its own line
+    assert.match(
+      strip,
+      /Food Log \$\{energy\.text\(\(effective\?\.foodLogCalories \?\? 0\) \+ plate\.calories\)\}/
+    )
+    // wiring: both dialogs and the page pass the BE effective day through
+    for (const file of [
+      'features/food-log/components/FoodLogPage/AddFoodDialog.tsx',
+      'features/food-log/components/FoodLogPage/EntryEditDialog.tsx',
+    ]) {
+      const text = source(file)
+      assert.match(text, /readonly effective\?: EffectiveNutrition \| null/)
+      assert.match(text, /effective=\{effective\}/)
+    }
+    const page = source('features/food-log/pages/FoodLogPage.tsx')
+    assert.equal((page.match(/effective=\{day\.data\?\.effective\}/g) ?? []).length, 2)
+  }
+)
+await check(
+  'ND13 round 4 D1 on the Plate | Day view: macro cards = the BE `effective` of plate/nutrients (override wins, null stays "---", no override = foods + plate from the BE), `day` rows only for micronutrients; plate / entry rows never show the day effective',
+  () => {
+    const breakdown = need(foodEffective, 'dayBreakdown')
+    const effective = {
+      calories: 2000,
+      proteinG: null,
+      carbsG: null,
+      fatG: 12,
+      source: 'Manual',
+      hasOverride: true,
+      manualCaloriesKcal: 2000,
+      manualProteinG: null,
+      manualCarbsG: null,
+      manualFatG: 12,
+      foodLogCalories: 400,
+      foodLogProteinG: 20,
+      foodLogCarbsG: 40,
+      foodLogFatG: 8,
+      isValidForAlgorithms: true,
+      conflict: null,
+    }
+    // override: the BE value as is (NOT foods + plate); the BE Food Log subtotal already includes the plate; the plate stays its own preview number
+    assert.deepEqual(breakdown(effective, 'calories', 100), {
+      main: 2000,
+      foodLog: 400,
+      plate: 100,
+      overridden: true,
+    })
+    // unknown macros stay null — never the foods' 20 / 40, never 0
+    assert.equal(breakdown(effective, 'protein', 7).main, null)
+    assert.equal(breakdown(effective, 'carbs', 0).main, null)
+    assert.equal(breakdown(effective, 'fat', 3).main, 12)
+    // explicit 0 is a known value
+    assert.equal(breakdown({ ...effective, proteinG: 0 }, 'protein', 1).main, 0)
+    // no override: the BE effective is foods + plate; no extra "Food Log … incl. Plate" line
+    const plain = { ...effective, hasOverride: false, source: 'FoodLog', calories: 400 }
+    assert.deepEqual(breakdown(plain, 'calories', 100), {
+      main: 400,
+      foodLog: 400,
+      plate: 100,
+      overridden: false,
+    })
+    // BE without `effective` (older BE) or an empty day + empty plate (null): the raw `day` row is used by the view, never a guess
+    assert.equal(breakdown(null, 'calories', 100), null)
+    assert.equal(breakdown(undefined, 'calories', 100), null)
+    const view = source('features/food-log/components/FoodLogPage/PlatePanel/PlateNutrition.tsx')
+    // Day mode, four macros only, from the plate/nutrients answer
+    assert.match(
+      view,
+      /view === 'day' && MACRO_CARDS\.some\(\(card\) => card\.key === key\)\s*\? dayBreakdown\(remote\.data\?\.effectiveDay, key as MacroKey, platePreviewOf\(key as MacroKey\)\)/
+    )
+    // the plate share of the "incl. Plate" line is the BE plate row (same snapshot rounding as the Food Log subtotal beside it); the local sum only while the BE has not answered
+    assert.match(
+      view,
+      /remote\.data\?\.plate\.find\(\(row\) => row\.key === key\)\?\.amount \?\? plateTotals\[key\]/
+    )
+    assert.match(view, /const card = dayCard\(key\)\s*if \(card\) return card\.main/)
+    assert.match(
+      view,
+      /Food Log \{format\(day\.foodLog\)\} · incl\. Plate \+\{format\(day\.plate\)\}/
+    )
+    // no local workaround: nothing of the day log (totals / effective) reaches the Plate | Day view, and an unknown day is "---" — not foods + plate guessed in the browser
+    assert.doesNotMatch(view, /dayTotals|dayEffective/)
+    assert.match(
+      view,
+      /view === 'plate' && MACRO_CARDS\.some\(\(card\) => card\.key === key\)\s*\? plateTotals\[key as keyof MacroTotals\]\s*: null/
+    )
+    for (const file of [
+      'features/food-log/components/FoodLogPage/PlatePanel/PlatePanel.tsx',
+      'features/food-log/components/FoodLogPage/AiPlateView.tsx',
+      'features/food-log/components/FoodLogPage/AiPanel.tsx',
+    ])
+      assert.doesNotMatch(source(file), /dayTotals|dayEffective/)
+    // the Plate view and the selection summary (entry rows) read the plate / selection rows only, never the day's effective
+    assert.match(
+      view,
+      /const rows = view === 'plate' \? remote\.data\?\.plate : remote\.data\?\.day/
+    )
+    assert.equal((view.match(/remote\.data\?\.effectiveDay/g) ?? []).length, 1)
+    assert.doesNotMatch(
+      source('features/food-log/components/FoodLogPage/SelectionSummarySheet.tsx'),
+      /effective/
+    )
+    // the response type carries the BE `effective` (additive, absent on an older BE)
+    assert.match(
+      interfaceOf(source('features/food-log/types/food-log.types.ts'), 'PlateNutrientsResponse'),
+      /effectiveDay\?: EffectiveNutrition \| null/
+    )
+  }
+)
+
+const plateStorage = await load('../src/features/food-log/plate-storage.ts')
+await check(
+  'PL1 P0 "logged 4 foods, gone on return": the plate (foods staged with "+") survives leaving the page / reload, expires after 12 h, and a corrupt store never throws',
+  () => {
+    const parse = need(plateStorage, 'parseStoredPlate')
+    const serialize = need(plateStorage, 'serializePlate')
+    const ttl = constant(plateStorage, 'PLATE_TTL_MS')
+    const item = (n) => ({
+      key: `k${n}`,
+      foodItemId: `f${n}`,
+      name: `Food ${n}`,
+      foodServingId: null,
+      servingLabel: '1 piece',
+      quantity: 1,
+      calories: 100 + n,
+      protein: 1,
+      carbs: 2,
+      fat: 3,
+    })
+    const four = [1, 2, 3, 4].map(item)
+    const now = 1_000_000_000_000
+    // round trip: all four come back, in order (nothing dropped, nothing duplicated)
+    assert.deepEqual(parse(serialize(four, now), now + 60_000), four)
+    // expired (older than the TTL) → empty, so yesterday's foods do not follow the user into today
+    assert.deepEqual(parse(serialize(four, now), now + ttl + 1), [])
+    assert.equal(parse(serialize(four, now), now + ttl).length, 4)
+    // a clock that went backwards (savedAt in the future) is not trusted
+    assert.deepEqual(parse(serialize(four, now), now - 1), [])
+    // corrupt / foreign values never throw and never produce a half plate
+    for (const raw of [
+      null,
+      '',
+      'not json',
+      '{}',
+      '{"savedAt":1}',
+      '{"savedAt":"x","items":[]}',
+      '[]',
+      'null',
+    ])
+      assert.deepEqual(parse(raw, now), [])
+    // items of the wrong shape are dropped, valid ones kept
+    const mixed = JSON.stringify({ savedAt: now, items: [item(1), { key: 5 }, null, 'x', item(2)] })
+    assert.deepEqual(parse(mixed, now), [item(1), item(2)])
+
+    // wiring: the plate lives in the store (not in the page state), is written on every change and read back after mount
+    const store = source('stores/ui.store.ts')
+    assert.match(store, /plate: PlateItem\[\]/)
+    assert.match(store, /savePlate\(plate\)/)
+    assert.match(
+      store,
+      /hydratePlate: \(\) => set\(\(state\) => \(state\.plate\.length > 0 \? state : \{ plate: loadPlate\(\) \}\)\)/
+    )
+    const page = source('features/food-log/pages/FoodLogPage.tsx')
+    assert.doesNotMatch(page, /useState<PlateItem\[\]>/)
+    assert.match(page, /const plate = useUiStore\(\(state\) => state\.plate\)/)
+    assert.match(page, /useEffect\(\(\) => hydratePlate\(\), \[hydratePlate\]\)/)
+    // every "+" path goes through addToPlate (toast with Undo), none appends silently
+    // (only addToPlate itself and the Food Detail "Log Foods", which logs right away, append directly)
+    assert.equal(
+      (page.match(/setPlate\(\(current\) => \[\.\.\.current, item\]\)/g) ?? []).length,
+      2
+    )
+    assert.equal((page.match(/addToPlate/g) ?? []).length >= 4, true)
+    assert.match(page, /id: 'plate-add'/)
+    assert.match(page, /label: 'Undo'/)
+    // closed sheet + pending foods → the banner with Discard / Review / Log foods
+    assert.match(page, /\{!addOpen && plate\.length > 0 && \(\s*<PendingPlateBar/)
+    // Back closing the sheet is the shared Dialog's job (ui/dialog.tsx → use-back-to-close); the page does not add a second hook (it pushed two history entries)
+    assert.doesNotMatch(page, /useBackToClose/)
+    assert.match(
+      source('components/ui/dialog.tsx'),
+      /useBackToClose\(open, \(\) => change\(false\)\)/
+    )
+    // a failed add is a toast on every path (MOS-BE: parallel writes / 409 CONCURRENT used to be invisible: logger.error only)
+    const logHooks = source('features/food-log/hooks/use-food-log.ts')
+    assert.match(
+      logHooks,
+      /export const useAddEntry = \(\) =>\s*useLogMutation\(\s*\(payload: AddEntryRequest\) => foodLogService\.addEntry\(payload\),\s*undefined,\s*"Couldn't add food"\s*\)/
+    )
+    assert.match(
+      logHooks,
+      /\(payload: QuickAddRequest\) => foodLogService\.quickAdd\(payload\),\s*'Added',\s*"Couldn't add food"/
+    )
+    // two Log taps never run two write loops at once (a ref, because the state flag updates one render late)
+    assert.match(page, /if \(loggingPlate\.current\) return false\s*loggingPlate\.current = true/)
+    assert.match(page, /\} finally \{\s*loggingPlate\.current = false/)
+    // the logged item leaves the plate only after ITS request succeeded (a failure keeps the rest for a retry)
+    const logBody = page.slice(
+      page.indexOf('const logPlate = async'),
+      page.indexOf('const logFromDetail')
+    )
+    const removeAt = logBody.indexOf('current.filter((candidate) => candidate.key !== item.key)')
+    assert.ok(
+      removeAt > logBody.lastIndexOf('await quickAdd.mutateAsync'),
+      'removed after the request'
+    )
+    assert.ok(
+      removeAt > logBody.lastIndexOf('await addEntry.mutateAsync'),
+      'removed after the request'
+    )
+  }
+)
+await check(
+  'TC1 "To Custom" opens Create Food prefilled and is not undone: the Add Food sheet is NOT closed before router.push (the Dialog closes with the page; its rAF history.back() raced the push), the store flag is cleared on real leave, a failed source load is visible',
+  () => {
+    const page = source('features/food-log/pages/FoodLogPage.tsx')
+    const body = page.slice(
+      page.indexOf('const copyToCustom'),
+      page.indexOf('// Rời trang nhật ký')
+    )
+    assert.match(body, /router\.push\(`\$\{routePath\.foodNew\}\?from=\$\{food\.id\}`\)/)
+    assert.doesNotMatch(body, /setAddOpen\(false\)\s*\n\s*router\.push/)
+    assert.doesNotMatch(body.replace(/\/\/[^\n]*/g, ''), /setAddOpen/)
+    // the Library "create food / recipe" links navigate the same way
+    assert.match(page, /onNavigate=\{\(\) => undefined\}/)
+    // leaving the page for real turns the store flag off (StrictMode's mount-time cleanup keeps pathname = /food-log, so it does not close a sheet just opened from the Dashboard bar)
+    assert.match(
+      page,
+      /useEffect\(\s*\(\) => \(\) => \{\s*if \(window\.location\.pathname !== routePath\.foodLog\) setAddOpen\(false\)\s*\},\s*\[setAddOpen\]\s*\)/
+    )
+    // the source food is fetched by id and a failure is shown with Try again (it used to leave a silent blank form)
+    const create = source('features/food-log/pages/CreateFoodPage.tsx')
+    assert.match(create, /const source = useFoodDetail\(fromFoodId \?\? null\)/)
+    assert.match(create, /\{fromFoodId && source\.isError && \(/)
+    assert.match(create, /Couldn't load this food/)
+    assert.match(create, /onClick=\{\(\) => void source\.refetch\(\)\}/)
+    // the route passes `from` to the page
+    const route = source('app/(protected)/foods/new/page.tsx')
+    assert.match(route, /<CreateFoodPage fromFoodId=\{from\} seed=\{seed\} \/>/)
+  }
+)
+
+const foodSearch = await load('../src/features/foods/food-search.utils.ts')
+await check(
+  'FS1 Food Search: type-ahead keeps the previous results (never History into a keyword list), recent searches are bounded and de-duplicated, stale requests are aborted, no-results offers a way forward, paging past the BE top=100 clamp, auto-load at the footer',
+  async () => {
+    const keeps = need(foodSearch, 'keepsPreviousResults')
+    // same keyword (Load more) and keyword → longer keyword keep the old rows; History (empty) <-> keyword does not
+    assert.equal(keeps({ search: 'app', top: 25 }, { search: 'app', top: 50 }), true)
+    assert.equal(keeps({ search: 'app' }, { search: 'apple' }), true)
+    assert.equal(keeps({ search: ' app ' }, { search: 'apple' }), true)
+    assert.equal(keeps({ search: undefined }, { search: 'apple' }), false)
+    assert.equal(keeps({ search: '' }, { search: 'apple' }), false)
+    assert.equal(keeps({ search: 'apple' }, { search: undefined }), false)
+    assert.equal(keeps({ search: undefined }, { search: undefined }), true)
+    // another scope (Mine / Recipes) never borrows rows
+    assert.equal(
+      keeps({ search: 'app', scope: 'Mine' }, { search: 'app', scope: undefined }),
+      false
+    )
+    assert.equal(keeps(undefined, { search: 'app' }), false)
+
+    const add = need(foodSearch, 'addRecentSearch')
+    const parse = need(foodSearch, 'parseRecentSearches')
+    const max = constant(foodSearch, 'RECENT_SEARCH_MAX')
+    assert.deepEqual(add([], '  Chicken   breast '), ['Chicken breast'])
+    // newest first, case-insensitive de-duplication moves the old entry to the front
+    assert.deepEqual(add(['rice', 'Apple'], 'apple'), ['apple', 'rice'])
+    // too short is ignored (a half typed word is not a search)
+    assert.deepEqual(add(['rice'], 'a'), ['rice'])
+    assert.deepEqual(add(['rice'], '   '), ['rice'])
+    // bounded
+    let list = []
+    for (let i = 0; i < max + 4; i += 1) list = add(list, `food ${i}`)
+    assert.equal(list.length, max)
+    assert.equal(list[0], `food ${max + 3}`)
+    // corrupt storage never throws
+    for (const raw of [null, '', 'oops', '{}', '"x"', '[1,2]', 'null'])
+      assert.deepEqual(parse(raw), [])
+    assert.deepEqual(parse('["apple","",5,"rice"]'), ['apple', 'rice'])
+
+    // wiring: the BE call receives the TanStack abort signal, the hook uses the pure rule, the page debounces 250 ms
+    assert.match(
+      source('features/foods/services/food.service.ts'),
+      /search: \(params: FoodSearchParams, signal\?: AbortSignal\) =>\s*apiCall\.get<QueryResult<FoodSummary>>\(apiRoutes\.foods\.root, \{ params, signal \}\)/
+    )
+    const hook = source('features/foods/hooks/use-foods.ts')
+    assert.match(hook, /queryFn: \(\{ signal \}\) => foodService\.searchUpTo\(params, signal\)/)
+    // paging: BE clamps top to 100, so more than 100 rows are read as skip / top<=100 pages (the old "Load more" top 125 returned the same 100 rows forever)
+    const collect = need(foodSearch, 'collectFoodPages')
+    const total = 250
+    const make = () => {
+      const calls = []
+      const fetchPage = async ({ top, skip }) => {
+        calls.push({ top, skip })
+        const n = Math.max(0, Math.min(top, 100, total - skip))
+        return { items: Array.from({ length: n }, (_, i) => skip + i), totalCount: total }
+      }
+      return { calls, fetchPage }
+    }
+    let t = make()
+    let res = await collect(t.fetchPage, 125)
+    assert.deepEqual(t.calls, [
+      { top: 100, skip: 0 },
+      { top: 25, skip: 100 },
+    ])
+    assert.equal(res.items.length, 125)
+    assert.deepEqual(
+      res.items,
+      Array.from({ length: 125 }, (_, i) => i)
+    ) // in order, no gaps, no duplicates
+    assert.equal(res.totalCount, total)
+    t = make()
+    res = await collect(t.fetchPage, 400) // more than exist: stops at the end instead of looping
+    assert.equal(res.items.length, total)
+    assert.equal(t.calls.length, 3)
+    t = make()
+    res = await collect(t.fetchPage, 20)
+    assert.deepEqual(t.calls, [{ top: 20, skip: 0 }])
+    t = make()
+    res = await collect(t.fetchPage, 50, 240) // skip past most of it
+    assert.equal(res.items.length, 10)
+    res = await collect(async () => null, 30)
+    assert.deepEqual(res, { items: [], totalCount: 0 })
+    assert.match(
+      source('features/foods/services/food.service.ts'),
+      /searchUpTo: \(params: FoodSearchParams, signal\?: AbortSignal\) =>\s*collectFoodPages\(/
+    )
+    // scrolling to the footer loads the next page (the button stays as the keyboard / screen reader path); only while a page is not already loading
+    assert.match(
+      source('features/foods/components/FoodList.tsx'),
+      /useAutoLoadMore\(hasMore && !isFetching && !isLoading, onLoadMore\)/
+    )
+    assert.match(
+      source('features/food-log/components/FoodLogPage/FoodSearchPanel.tsx'),
+      /<div ref=\{loadMoreRef\} className="border-t p-2">/
+    )
+    assert.match(source('hooks/use-auto-load-more.ts'), /new IntersectionObserver\(/)
+    assert.match(
+      hook,
+      /keepsPreviousResults\(previous, params\) \? keepPreviousData\(previousData\) : undefined/
+    )
+    const page = source('features/food-log/pages/FoodLogPage.tsx')
+    assert.match(page, /const SEARCH_DEBOUNCE_MS = 250/)
+    assert.match(page, /useDebounce\(search\.trim\(\), SEARCH_DEBOUNCE_MS\)/)
+    // skeleton only while there is nothing to keep (History → keyword), typing over keyword results just dims them
+    assert.match(
+      page,
+      /foods\.isLoading \|\| \(search\.trim\(\) !== debouncedSearch && debouncedSearch === ''\)/
+    )
+    assert.match(page, /isFetching=\{foods\.isFetching \|\| search\.trim\(\) !== debouncedSearch\}/)
+    // no results → Quick Add / Create a food / Clear search (44 px buttons), recent searches when nothing is typed
+    const panel = source('features/food-log/components/FoodLogPage/FoodSearchPanel.tsx')
+    assert.match(panel, /Quick Add calories/)
+    assert.match(panel, /Create a food/)
+    assert.match(panel, /!isSearching && \(\s*<RecentSearches/)
+    // only a keyword that led to a food is remembered (select or "+")
+    assert.equal((panel.match(/recent\.remember\(query\)/g) ?? []).length, 2)
+    // the add button says how many foods are waiting
+    const dialog = source('features/food-log/components/FoodLogPage/AddFoodDialog.tsx')
+    assert.match(dialog, /`Log \$\{plate\.length\} \$\{plate\.length === 1 \? 'food' : 'foods'\}`/)
+    assert.equal((dialog.match(/isLogging \? 'Logging\.\.\.' : logLabel/g) ?? []).length, 2)
+  }
+)
+
+await check(
+  'WN1 Weekly Nutrition: past days of the week keep their bars and the whole-week total when their old target is unverified (was: only today); tap focuses a day, tapping it again shows the whole week',
+  async () => {
+    const provenance = await load('../src/features/nutrition/target-provenance.ts')
+    const utils = await load('../src/features/dashboard/dashboard.utils.ts')
+    const weekSummary = need(utils, 'weekSummary')
+    const target = { caloriesTarget: 2000, proteinTarget: 150, fatTarget: 60, carbsTarget: 200 }
+    const day = (logDate, calories, provenanceFlag) => ({
+      logDate,
+      isLogged: true,
+      totals: { calories, protein: calories / 10, fat: 0, carbs: 0 },
+      effective: null,
+      target: { ...target, targetProvenance: provenanceFlag },
+    })
+    const today = '2026-10-28' // Wednesday
+    const week = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29'].map((d, i) =>
+      provenance.withoutUnverifiedTarget(
+        day(d, [1800, 2100, 500, 0][i], i < 2 ? 'LEGACY_UNVERIFIED' : 'CURRENT_ACTIVE'),
+        today
+      )
+    )
+    // the stripped target is kept ONLY as a bar scale
+    assert.equal(week[0].target, null)
+    assert.equal(week[0].targetUnverified, true)
+    assert.equal(week[0].referenceTarget.caloriesTarget, 2000)
+    assert.equal(week[2].referenceTarget, undefined, 'today keeps its real target, no reference')
+    const total = weekSummary(
+      week,
+      'calories',
+      (t) => t.caloriesTarget,
+      'consumed',
+      (v) => v
+    )
+    assert.equal(total.value, 1800 + 2100 + 500, 'whole week = every logged day, not only today')
+    assert.equal(
+      total.goal,
+      null,
+      'consumed that includes unverified days has no official goal beside it'
+    )
+    const left = weekSummary(
+      week,
+      'calories',
+      (t) => t.caloriesTarget,
+      'remaining',
+      (v) => v
+    )
+    assert.equal(left.goal, 2 * 2000, 'official goal = days with an official target only')
+    assert.equal(left.value, 2 * 2000 - 500, 'Remaining ignores the unverified days')
+    const focused = weekSummary(
+      [week[0]],
+      'calories',
+      (t) => t.caloriesTarget,
+      'consumed',
+      (v) => v
+    )
+    assert.deepEqual(
+      [focused.value, focused.goal],
+      [1800, null],
+      'a past day shows its own eaten number and no official goal'
+    )
+    // wiring: bar scale + no "over target" cap on unverified days + the note
+    const matrix = codeOf(source('features/dashboard/components/DashboardPage/WeekMatrix.tsx'))
+    assert.match(matrix, /day\.target \?\? day\.referenceTarget/)
+    assert.match(
+      matrix,
+      /over && Boolean\(day\.target\)/,
+      'no pass / fail cap on an unverified target'
+    )
+    assert.match(matrix, /{REFERENCE_NOTE}/, 'the provenance note is rendered')
+    // MF behaviour (help article 225): today in focus by default, tap another day to focus it, tap the selected day again = whole week
+    assert.match(matrix, /onSelect\(active \? null : day\.logDate\)/)
+    assert.match(matrix, /weekSummary\(\s*current \? \[current\] : days/)
+    const page = codeOf(source('features/dashboard/pages/DashboardPage.tsx'))
+    assert.match(page, /weekIncludesToday\s*\?\s*today\s*:\s*null/, 'default focus = today')
+    assert.match(page, /onSelect=\{setSelectedDate\}/)
+  }
+)
+
+await check(
+  'TC2 Back from Create Food (opened by To Custom) returns to the SAME Food Detail; Create clears the return; To Custom copies every nutrient the source food has',
+  async () => {
+    const store = codeOf(source('stores/ui.store.ts'))
+    assert.match(store, /detailReturn:\s*null/)
+    assert.match(
+      store,
+      /setDetailReturn:\s*\(foodId\)\s*=>\s*set\(\{\s*detailReturn:\s*\{\s*foodId,\s*at:\s*Date\.now\(\)/
+    )
+    const log = codeOf(source('features/food-log/pages/FoodLogPage.tsx'))
+    assert.ok(
+      log.indexOf('setDetailReturn(food.id)') > 0 &&
+        log.indexOf('setDetailReturn(food.id)') <
+          log.indexOf('router.push(`${routePath.foodNew}?from=${food.id}`)'),
+      'the return is remembered before leaving'
+    )
+    assert.match(
+      log,
+      /Date\.now\(\) - back\.at <= DETAIL_RETURN_WINDOW_MS/,
+      'only a fresh return reopens the detail'
+    )
+    assert.match(log, /useState<string \| null>\(detailBackId\)/, 'the sheet starts on that food')
+    assert.match(log, /if \(detailBackId\) setAddOpen\(true\)/)
+    assert.match(
+      codeOf(source('features/food-log/pages/CreateFoodPage.tsx')),
+      /useEffect\(\(\) => stampDetailReturn, \[stampDetailReturn\]\)/
+    )
+    assert.match(
+      codeOf(source('features/food-log/hooks/use-create-food-form.ts')),
+      /await createFood\.mutateAsync\(result\.request\)[\s\S]*clearDetailReturn\(\)/,
+      'a created food does not bounce back to the source detail'
+    )
+    // every nutrient the BE returns for the source food is prefilled (scaled to the serving)
+    const utils = await load('../src/features/food-log/create-food.utils.ts')
+    const config = await load('../src/features/food-log/create-food.config.ts')
+    const per100g = Object.fromEntries(
+      Object.keys(config.NUTRIENT_ROWS).map((key, i) => [key, i + 1])
+    )
+    const state = need(
+      utils,
+      'initialState'
+    )({
+      name: 'Source',
+      brand: null,
+      iconKey: null,
+      category: 'Other',
+      servings: [{ servingName: '100 g', weightInGrams: 100, isDefault: true }],
+      nutrientsPer100g: per100g,
+      nutrition: {},
+    })
+    assert.deepEqual(
+      Object.keys(config.NUTRIENT_ROWS).filter((key) => !(key in state.values)),
+      [],
+      'a nutrient of the source food was not copied'
+    )
+  }
+)
+
+await check(
+  'FL1 future food logs (allowed) are not completed days: Weekly Nutrition whole-week and focused-day numbers ignore consumption on days after today (user timezone), the week goal keeps their targets',
+  async () => {
+    const utils = await load('../src/features/dashboard/dashboard.utils.ts')
+    const weekSummary = need(utils, 'weekSummary')
+    const target = { caloriesTarget: 2000, proteinTarget: 150, fatTarget: 60, carbsTarget: 200 }
+    const day = (logDate, calories) => ({
+      logDate,
+      isLogged: true,
+      totals: { calories, protein: 0, fat: 0, carbs: 0 },
+      effective: null,
+      target,
+    })
+    const today = '2026-10-28'
+    const week = [day('2026-10-27', 1800), day('2026-10-28', 500), day('2026-10-29', 900)]
+    const goal = (t) => t.caloriesTarget
+    const sum = (scope, mode = 'consumed') =>
+      weekSummary(scope, 'calories', goal, mode, (v) => v, today)
+    assert.equal(sum(week).value, 1800 + 500, 'a log planned for tomorrow is not eaten yet')
+    assert.equal(sum(week).goal, 3 * 2000, 'the full-week target still counts')
+    assert.equal(sum(week, 'remaining').value, 3 * 2000 - (1800 + 500))
+    assert.equal(sum([week[2]]).value, null, 'a focused future day has nothing consumed')
+    assert.equal(sum([week[2]]).goal, 2000)
+    assert.equal(sum([week[1]]).value, 500, 'today counts')
+    // without a known today nothing is hidden (before the client mounts)
+    assert.equal(weekSummary(week, 'calories', goal, 'consumed', (v) => v).value, 1800 + 500 + 900)
+    assert.match(
+      codeOf(source('features/dashboard/components/DashboardPage/WeekMatrix.tsx')),
+      /\(value\) => shown\(row, value\),\s*today/,
+      'WeekMatrix passes today'
+    )
+  }
+)
+
+await check(
+  'TZ1 the default eaten-at time, "To Now" and the default meal follow the PROFILE time zone like the day key (not the device clock)',
+  async () => {
+    const date = await load('../src/lib/date.ts')
+    const at = new Date('2026-10-26T20:00:00Z')
+    // same instant, three zones: day key and clock always agree
+    for (const [zone, day, clock] of [
+      ['Asia/Tokyo', '2026-10-27', '05:00:00'],
+      ['America/New_York', '2026-10-26', '16:00:00'],
+      ['Pacific/Auckland', '2026-10-27', '09:00:00'],
+      ['UTC', '2026-10-26', '20:00:00'],
+    ]) {
+      assert.equal(date.isoInZone(at, zone), day, zone + ' day')
+      assert.equal(date.clockInZone(at, zone), clock, zone + ' clock')
+    }
+    assert.equal(
+      date.clockInZone(new Date('2026-10-26T00:05:09Z'), 'UTC'),
+      '00:05:09',
+      'midnight is 00, never 24'
+    )
+    // nowClockIso() uses the profile zone once it is known
+    const before = Date.now
+    try {
+      Date.now = () => at.getTime()
+      date.setEffectiveTimeZone('Asia/Tokyo')
+      const realNow = globalThis.Date
+      const Fixed = class extends realNow {
+        constructor(...args) {
+          super(...(args.length ? args : [at.getTime()]))
+        }
+      }
+      globalThis.Date = Fixed
+      try {
+        assert.equal(date.nowClockIso(), '05:00:00')
+        assert.equal(date.todayIso(), '2026-10-27', 'clock and day key come from the same zone')
+        date.setEffectiveTimeZone('America/New_York')
+        assert.equal(date.nowClockIso(), '16:00:00')
+      } finally {
+        globalThis.Date = realNow
+      }
+    } finally {
+      Date.now = before
+      date.setEffectiveTimeZone(null)
+    }
+    // no device-clock reads left outside lib/date.ts
+    const { readdirSync, readFileSync, statSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const walk = (dir) =>
+      readdirSync(dir).flatMap((name) => {
+        const full = join(dir, name)
+        return statSync(full).isDirectory() ? walk(full) : [full]
+      })
+    const offenders = walk(
+      new URL('../src', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
+    )
+      .filter(
+        (file) => /\.(ts|tsx)$/.test(file) && !file.replaceAll('\\', '/').endsWith('/lib/date.ts')
+      )
+      .filter((file) => /\.(getHours|getMinutes|getSeconds)\(/.test(readFileSync(file, 'utf8')))
+    assert.deepEqual(offenders, [], 'device clock used for time of day: ' + offenders.join(', '))
   }
 )
 

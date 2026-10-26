@@ -1,4 +1,5 @@
 import type { WeekDay } from '@/features/food-log/types/food-log.types'
+import { shownTotals } from '@/features/food-log/effective'
 import { shownProgress } from '@/features/nutrition/remaining'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { addDaysIso } from '@/lib/date'
@@ -76,30 +77,46 @@ export const weekCount = (done: ReadonlySet<string>, today: string) =>
   lastDays(today, DAYS_PER_WEEK).filter((date) => done.has(date)).length
 
 /**
- * Số lớn ở cột tổng bên phải lưới Weekly Nutrition cho MỘT chất: cả tuần hoặc một ngày đang chọn (`scope`). Consumed = tổng đã ăn; Remaining =
- * tổng target các ngày CÓ target − tổng đã ăn, tính bằng quy tắc chung `shownProgress` (làm tròn ở đơn vị đang hiện TRƯỚC rồi mới trừ) nên cùng một
- * ngày khớp từng số với Daily Nutrition. Chưa có target thì `goal` null và Remaining vẫn hiện số đã ăn. `shown` đổi + làm tròn một số của BE.
+ * Số lớn ở cột tổng bên phải lưới Weekly Nutrition cho MỘT chất: cả tuần hoặc một ngày đang chọn (`scope`). Consumed = tổng đã ăn của MỌI ngày đã qua (kể cả ngày có target cũ chưa xác minh:
+ * trước đây các ngày đó bị loại nên tổng cả tuần chỉ còn hôm nay); mục tiêu / Remaining CHỈ tính các ngày có target chính thức (`day.target`): target cũ chưa xác minh
+ * (BE LEGACY_UNVERIFIED, `referenceTarget`) chỉ để tham khảo ở độ cao thanh, KHÔNG vào goal / remaining / tuân thủ. Remaining = tổng target các ngày chính thức − tổng đã ăn của CHÍNH các ngày đó,
+ * tính bằng quy tắc chung `shownProgress` (làm tròn ở đơn vị đang hiện TRƯỚC rồi mới trừ). Ngày chưa chính thức có đã ăn > 0 thì Consumed không đi kèm "of goal" (goal null: không so tổng
+ * có cả món của ngày chưa xác minh với mục tiêu chỉ của ngày chính thức). Chưa có target chính thức thì `goal` null và Remaining vẫn hiện số đã ăn. `shown` đổi + làm tròn một số của BE.
  */
 export function weekSummary(
   scope: readonly WeekDay[],
   key: 'calories' | 'protein' | 'fat' | 'carbs',
   goalOf: (target: ProgramWeek) => number,
   mode: 'consumed' | 'remaining',
-  shown: (value: number) => number
+  shown: (value: number) => number,
+  /** Hôm nay (múi giờ user): ngày SAU hôm nay (log tương lai được phép) không tính là đã ăn, chỉ target của nó vẫn nằm trong cả tuần. */
+  today: string | null = null
 ) {
-  // Đã ăn và target cùng MỘT tập ngày: chỉ các ngày CÓ target (ngày lịch sử chưa xác minh đã bị bỏ target) nên Consumed / Remaining / tiến độ khớp nhau;
-  // chưa ngày nào có target thì goal null và vẫn hiện số đã ăn của cả khung
-  const withTarget = scope.filter((day) => day.target)
-  const basis = withTarget.length > 0 ? withTarget : scope
-  const consumed = basis.reduce((sum, day) => sum + day.totals[key], 0)
-  const goals = withTarget.map((day) => goalOf(day.target as ProgramWeek))
-  const goal = goals.length > 0 ? goals.reduce((sum, item) => sum + item, 0) : null
-  const progress = shownProgress(consumed, goal, shown)
-  return {
-    value:
-      mode === 'remaining' && progress.remaining !== null ? progress.remaining : progress.consumed,
-    goal: progress.goal,
+  // Số hiệu lực của BE: ngày CHƯA BIẾT số này (macro chưa nhập, null) không góp vào tổng (không coi là 0); không ngày nào biết thì "chưa biết"
+  const knownOf = (days: readonly WeekDay[]) =>
+    days.flatMap((day) => {
+      if (today !== null && day.logDate > today) return []
+      const value = shownTotals(day)[key]
+      return value === null ? [] : [value]
+    })
+  const total = (values: readonly number[]) => values.reduce((sum, value) => sum + value, 0)
+  const official = scope.filter((day) => day.target)
+  const eatenAll = knownOf(scope)
+  const eatenOfficial = knownOf(official)
+  const goals = official.map((day) => goalOf(day.target as ProgramWeek))
+  const goal = goals.length > 0 ? total(goals) : null
+  if (mode === 'remaining') {
+    const progress = shownProgress(total(eatenOfficial), goal, shown)
+    if (progress.remaining === null)
+      return {
+        value: eatenAll.length === 0 ? null : shown(total(eatenAll)),
+        goal: progress.goal,
+      }
+    return { value: eatenOfficial.length === 0 ? null : progress.remaining, goal: progress.goal }
   }
+  const unofficialEaten = knownOf(scope.filter((day) => !day.target)).some((value) => value > 0)
+  const progress = shownProgress(total(eatenAll), unofficialEaten ? null : goal, shown)
+  return { value: eatenAll.length === 0 ? null : progress.consumed, goal: progress.goal }
 }
 
 export type BalanceMode = 'targets' | 'expenditure'

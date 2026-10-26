@@ -26,7 +26,6 @@ import type {
   AiDish,
   AiIngredient,
   IngredientState,
-  MacroTotals,
   PlateItem,
   ResolvedIngredient,
 } from '../../types/food-log.types'
@@ -353,8 +352,7 @@ interface AiPlateViewProps {
   readonly dishes: AiDish[]
   readonly states: Record<string, IngredientState>
   readonly edits: AiPlateEdits
-  /** Tổng đã log trong ngày và mục tiêu, cho chế độ Day của phần Nutrition. */
-  readonly dayTotals?: MacroTotals
+  /** Mục tiêu, cho chế độ Day của phần Nutrition. */
   readonly target?: ProgramWeek | null
   readonly tileOptions: TileOptions
   readonly onRetry: (ingredient: AiIngredient) => void
@@ -398,7 +396,6 @@ export function AiPlateView({
   dishes,
   states,
   edits,
-  dayTotals,
   target,
   tileOptions,
   onRetry,
@@ -535,7 +532,6 @@ export function AiPlateView({
               date={date}
               plate={plateItems}
               plateTotals={totalsOf(live)}
-              dayTotals={dayTotals}
               target={target}
             />
           </div>

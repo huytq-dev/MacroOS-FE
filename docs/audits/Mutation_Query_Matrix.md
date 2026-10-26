@@ -168,3 +168,29 @@ Vòng review 6 (F2 – F7, E4, G4, G6, G8):
 | Tải lại session lỗi tháo module (chạy lại animation), "Try again" không khoá                     | module giữ nguyên, khoá Accept, lỗi + "Try again" ngay trong module; nút khoá khi đang tải                                            |
 | Vòng Strategy / Food Logging / Habits: Failed không có "Try again", tải lại lỗi hiện số cũ       | `DerivedFailed`; `goalPercent` null khi lỗi; ô Food Logging "---" khi `loggingError`                                                  |
 | ErrorState của trang chi tiết / thẻ carousel: bấm "Try again" lần nữa huỷ request đang chạy      | `isRetrying` (đang tải lại)                                                                                                           |
+
+Vòng review 7 (F8 – F10, E4, G8, F6):
+
+| Vấn đề                                                                                                                | Sửa                                                                |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Retry trả nợ xác nhận bằng câu trả lời có thể cũ hơn một lần ghi không header (cache không đổi đối tượng)             | so bộ đếm `statusReads` trước / sau POST, đổi thì bỏ qua           |
+| Mutation retry xong trước lần đọc status quyết định kết quả (nút bật lại, POST thứ hai)                               | `onSettled` trả promise của `invalidateQueries`                    |
+| Tải lại preview bị tạm dừng (offline) coi như không tải: Accept mở trên preview cũ                                    | `previewRefreshing = fetchStatus !== 'idle'`                       |
+| Ô Food Logging Failed mất tên + liên kết tới trang Habits (nơi có "Try again")                                        | giữ ô, "---" và không lưới; Habits `isRetrying`                    |
+| Test: E4 chỉ thử insights lỗi; F7 / Retry thiếu ca đọc cũ, nợ xác nhận qua header / Retry; G8 không ghim đầu vào poll | E4 hai chiều; F8 – F10; regex G8; bỏ ca khoá nút vô hiệu của shell |
+
+Vòng 8 — NDM Contract v2 (Nutrition Data Manager ↔ Food Log ↔ Dashboard), kiểm bằng E2E thật trên LocalDB (`ndm-e2e/NDM_E2E_Log.md`, S1 – S27):
+
+| Mutation (FE)                                   | Endpoint                                                      | Khoá làm mới                                                       | Màn bị ảnh hưởng                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| Save (kcal / macro / cờ)                        | `PUT /nutrition-data` (số) hoặc `PUT /{date}/fasting`, `/incomplete` (chỉ cờ) | `invalidateLogData` + nutrition-data + weights                      | NDM, Food Log (header, tuần), Dashboard (Weekly, Macros), Expenditure   |
+| Remove manual entry                             | `DELETE /nutrition-data/{date}/override`                      | như trên                                                           | quay về số của Food Log; toast "Manual entry removed"                    |
+| Delete Nutrition Data                           | `DELETE /nutrition-data?date=`                                | như trên                                                           | giữ món ăn / nước / ghi chú                                             |
+| Clear Food Log Day                              | `DELETE /food-logs/{date}`                                    | `invalidateLogData` + nutrition-data                               | giữ số nhập tay; toast "Day's foods deleted"                             |
+| Thêm / sửa / xoá món dưới override              | `/food-logs/entries*`                                         | `invalidateLogData` (FE KHÔNG cộng / trừ vào tổng hiển thị)        | số hiệu lực của BE giữ nguyên; chú thích "Food Log N kcal" đổi theo raw |
+| Load earlier (paging)                           | `GET /nutrition-data?limit=90&before=`                        | cùng khoá infinite; `mergePages` khử trùng theo ngày               | NDM                                                                      |
+| Chọn ngày cũ hơn trang đã tải                   | `GET /nutrition-data?from=&to=&limit=1`                       | `[nutrition-data,'day',date]`                                      | sheet không hiện form rỗng sai                                          |
+
+Test chống hồi quy (mutation-tested, `scripts/check-contract.mjs`, 145 test): ND1 – ND11 + wiring MacroSummary (`sr-only ", no data"`, tìm ra ở E2E: "F —/68" không có nghĩa với screen reader) — bỏ dòng đó thì ND11 FAIL (144 / 1), khôi phục thì 145 / 0.
+
+Vòng 8b — kết quả E2E thật cuối (NDM_E2E_Log.md, F1 – F13): Plate | Day đọc `effectiveDay` của `POST /food-logs/plate/nutrients` (và `entries/nutrients`), dòng `day` thô chỉ cho vi chất; phần plate trong dòng "Food Log … incl. Plate" lấy từ hàng `plate` của BE; bật nhịn ăn trên ngày CÓ số nhập tay thì gửi đúng các số 0 user đã gõ (`PUT /nutrition-data` số + cờ), không còn chỉ gửi `PUT /{date}/fasting` (BE báo lỗi lần nữa). Test: ND3 (D3 + số 0), ND12 (strip), ND13 (Plate | Day) — 147 / 0, mỗi quy tắc đều có mutation làm FAIL.

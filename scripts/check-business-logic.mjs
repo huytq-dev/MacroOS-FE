@@ -427,7 +427,7 @@ check(
   }
 )
 check(
-  '(1) tuần chạy từ trước S26, mọi ngày LEGACY: hôm nay + tương lai vẫn có target ("0 of <target>", không "—")',
+  '(1) tuần chạy từ trước S26, mọi ngày LEGACY: hôm nay + tương lai có target, ba ngày lịch sử chỉ giữ referenceTarget (target = null, targetUnverified)',
   () => {
     const today = '2026-10-22'
     const days = applyBoundary(
@@ -439,11 +439,19 @@ check(
     assert.equal(todayDay.targetUnverified, undefined)
     const { goal } = weekSum(days)
     assert.notEqual(goal, null)
-    assert.equal(goal, 4 * 2000, 'Thu–Sun (4 ngày) còn target, ba ngày lịch sử bị bỏ')
+    for (const day of days.filter((d) => d.logDate < today)) {
+      assert.equal(day.target, null, 'không kết luận đạt / không đạt trên target cũ')
+      assert.equal(day.referenceTarget?.caloriesTarget, 2000, 'nhưng giữ làm thước đo thanh')
+    }
+    assert.equal(
+      goal,
+      4 * 2000,
+      'goal chính thức = chỉ ngày có target chính thức (Thu–Sun); target cũ không vào goal'
+    )
   }
 )
 check(
-  '(2) tuần hiện tại trộn ngày legacy lịch sử + hôm nay: Consumed / goal / tiến độ cùng một tập ngày',
+  '(2) tuần hiện tại trộn ngày legacy lịch sử + hôm nay: tổng cả tuần gồm các ngày đã qua (không chỉ hôm nay); Consumed / goal / Remaining cùng một tập ngày',
   () => {
     const today = '2026-10-22'
     const days = applyBoundary(
@@ -458,17 +466,30 @@ check(
     )
     const consumed = weekSum(days, 'consumed')
     const remaining = weekSum(days, 'remaining')
-    assert.equal(consumed.goal, 8000)
+    assert.equal(
+      consumed.goal,
+      null,
+      'Consumed có món của ngày chưa xác minh thì không đi kèm "of goal"'
+    )
     assert.equal(
       consumed.value,
-      500,
-      'chỉ ăn của các ngày CÓ target (không trộn 5800 kcal ngày lịch sử vào target 4 ngày)'
+      1900 + 2100 + 1800 + 500,
+      'ngày đã qua của tuần vẫn được cộng (lỗi "chỉ hiện đúng hôm nay")'
     )
-    assert.equal(remaining.value, 8000 - 500)
+    assert.equal(remaining.goal, 4 * 2000, 'goal chính thức: hôm nay + 3 ngày tương lai')
+    assert.equal(
+      remaining.value,
+      4 * 2000 - 500,
+      'Remaining chính thức không bị ngày cũ chưa xác minh kéo xuống'
+    )
+    // ngày được chọn riêng cũng khớp: một ngày lịch sử hiện số đã ăn của chính nó
+    const monday = weekSum([days[0]], 'consumed')
+    assert.equal(monday.value, 1900)
+    assert.equal(monday.goal, null, 'ngày cũ chưa xác minh: không có goal chính thức')
   }
 )
 check(
-  '(3) tuần lịch sử không có snapshot (mọi ngày LEGACY, < hôm nay): không target, cờ targetUnverified; "—" đúng chỗ',
+  '(3) tuần lịch sử không có snapshot (mọi ngày LEGACY, < hôm nay): target = null + cờ targetUnverified, referenceTarget làm thước đo tuần',
   () => {
     const days = applyBoundary(
       WEEK_DATES.map((d) => wk(d, 1800, LEGACY)),
@@ -479,8 +500,8 @@ check(
       assert.equal(day.targetUnverified, true)
     }
     const { goal, value } = weekSum(days)
-    assert.equal(goal, null)
-    assert.equal(value, 7 * 1800, 'chưa có target thì vẫn hiện số đã ăn của cả tuần')
+    assert.equal(goal, null, 'target cũ chưa xác minh không phải goal chính thức')
+    assert.equal(value, 7 * 1800, 'số đã ăn của cả tuần')
   }
 )
 check('(4) tuần lịch sử có snapshot (VERIFIED): giữ nguyên, tổng target đủ bảy ngày', () => {

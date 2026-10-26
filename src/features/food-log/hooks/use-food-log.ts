@@ -36,7 +36,9 @@ import type {
   WeekDay,
   WeekLog,
 } from '../types/food-log.types'
+import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import { refreshDerivedStatus } from '@/features/derived-data/derived-data.utils'
+import { ndmErrorMessage, ndmReasonOf } from '@/features/nutrition-data/nutrition-data.utils'
 import { reportMutationError } from '@/lib/mutation-feedback'
 import { logger } from '@/lib/api'
 import { weekBlocksOf, weekDates } from '@/lib/week'
@@ -215,6 +217,16 @@ export const useWeekLog = (weekStart: string | null) => {
  */
 export const useWeekDays = (weekStarts: readonly string[]) => useWeekBlocks(weekStarts).days
 
+/**
+ * Lỗi xoá / ghi log hiện bằng toast: 409 của BE (hai yêu cầu ghi chồng lên cùng một ngày, không kèm mã) hiện câu rõ ràng bằng tiếng Anh của FE thay vì
+ * thông điệp thô; lỗi khác giữ `reportMutationError`.
+ */
+function reportLogError(error: unknown, title: string) {
+  if (ndmReasonOf(error) === null) return reportMutationError(error, title)
+  logger.error(error)
+  toast.error(title, { description: ndmErrorMessage(error, getFormErrorMessage) })
+}
+
 /** Mọi thay đổi log ảnh hưởng tổng ngày của nhiều ngày (copy) → invalidate cả nhóm. */
 const useLogMutation = <TVariables, TResult = unknown>(
   mutationFn: (variables: TVariables) => Promise<TResult>,
@@ -230,7 +242,7 @@ const useLogMutation = <TVariables, TResult = unknown>(
       invalidateLogData(queryClient)
     },
     onError: (error) => {
-      if (failureTitle) return reportMutationError(error, failureTitle)
+      if (failureTitle) return reportLogError(error, failureTitle)
       logger.error(error)
       // lỗi nghiệp vụ hiện inline ở dialog/trang (UI.md mục 10), không toast
     },
@@ -249,8 +261,14 @@ export const useBulkDelete = () =>
     "Couldn't delete the selected foods"
   )
 
+// Lỗi thêm món luôn báo bằng toast (BE: ghi song song / quá hạn chờ trả 409 CONCURRENT, 400…): trước đây chỉ `logger.error` nên một lần thêm thất bại không ai biết. Lỗi vẫn hiện
+// inline trong bảng khi bảng đang mở.
 export const useAddEntry = () =>
-  useLogMutation((payload: AddEntryRequest) => foodLogService.addEntry(payload))
+  useLogMutation(
+    (payload: AddEntryRequest) => foodLogService.addEntry(payload),
+    undefined,
+    "Couldn't add food"
+  )
 export const useUpdateEntry = () =>
   useLogMutation(
     ({ id, payload }: { id: string; payload: UpdateEntryRequest }) =>
@@ -258,8 +276,9 @@ export const useUpdateEntry = () =>
     'Saved'
   )
 /**
- * Xoá món không hỏi lại: gỡ món khỏi cache ngày ngay (timeline chạy hoạt ảnh biến mất, tổng ngày trừ luôn) rồi mới gọi BE;
- * lỗi thì trả lại cache cũ. Xong thì tải lại để khớp số liệu BE.
+ * Xoá món không hỏi lại: gỡ món khỏi cache ngày ngay (timeline chạy hoạt ảnh biến mất) rồi mới gọi BE; lỗi thì trả lại cache cũ. Xong thì tải lại để
+ * khớp số liệu BE. Tổng ngày KHÔNG bị FE trừ trước: tổng hiệu lực do BE quyết (ngày có manual override thì xoá món không đổi tổng; số "đang trừ dở" sẽ là
+ * số BE không bao giờ trả), nên giữ tổng BE tới khi tải lại.
  */
 export const useDeleteEntry = () => {
   const queryClient = useQueryClient()
@@ -270,20 +289,8 @@ export const useDeleteEntry = () => {
       await queryClient.cancelQueries({ queryKey: dayKey })
       const snapshot = queryClient.getQueriesData<DayLog>({ queryKey: dayKey })
       queryClient.setQueriesData<DayLog>({ queryKey: dayKey }, (day) => {
-        const gone = day?.entries.find((entry) => entry.id === id)
-        if (!day || !gone) return day
-        const minus = (total: number, value: number | null) => Math.max(0, total - (value ?? 0))
-        return {
-          ...day,
-          entries: day.entries.filter((entry) => entry.id !== id),
-          totals: {
-            calories: minus(day.totals.calories, gone.calories),
-            protein: minus(day.totals.protein, gone.protein),
-            carbs: minus(day.totals.carbs, gone.carbs),
-            fat: minus(day.totals.fat, gone.fat),
-            fiber: minus(day.totals.fiber, gone.fiber),
-          },
-        }
+        if (!day?.entries.some((entry) => entry.id === id)) return day
+        return { ...day, entries: day.entries.filter((entry) => entry.id !== id) }
       })
       return { snapshot }
     },
@@ -296,14 +303,18 @@ export const useDeleteEntry = () => {
   })
 }
 export const useQuickAdd = () =>
-  useLogMutation((payload: QuickAddRequest) => foodLogService.quickAdd(payload), 'Added')
+  useLogMutation(
+    (payload: QuickAddRequest) => foodLogService.quickAdd(payload),
+    'Added',
+    "Couldn't add food"
+  )
 export const useCopyLog = () =>
   useLogMutation((payload: CopyRequest) => foodLogService.copy(payload))
 export const useClearDay = () =>
   useLogMutation(
     (date: string) => foodLogService.clearDay(date),
-    "Day's log deleted",
-    "Couldn't delete the day's log"
+    "Day's foods deleted",
+    "Couldn't delete the day's foods"
   )
 
 /** Ghi chú không đổi con số nào: chỉ nhật ký (ngày + tuần) làm mới, không đụng Nutrition / Expenditure / Goals (tránh tải lại thừa). */

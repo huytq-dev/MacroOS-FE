@@ -14,7 +14,6 @@ import type {
   AiDish,
   AiIngredient,
   IngredientState,
-  MacroTotals,
   PlateItem,
   ResolvedIngredient,
 } from '../../types/food-log.types'
@@ -60,7 +59,6 @@ interface AiPanelProps {
   readonly onRemoveIngredient: (ingredientId: string) => void
   readonly onReplaceIngredient: (ingredientId: string, data: ResolvedIngredient) => void
   readonly onSetDishScale: (dishId: string, scale: number) => void
-  readonly dayTotals?: MacroTotals
   readonly target?: ProgramWeek | null
   readonly onAnalyze: (input: AiAnalyzeInput) => void
   readonly onRetryIngredient: (ingredient: AiIngredient) => void
@@ -117,7 +115,6 @@ export function AiPanel({
   onRemoveIngredient,
   onReplaceIngredient,
   onSetDishScale,
-  dayTotals,
   target,
   onAnalyze,
   onRetryIngredient,
@@ -189,7 +186,6 @@ export function AiPanel({
         dishes={dishes}
         states={states}
         edits={edits}
-        dayTotals={dayTotals}
         target={target}
         tileOptions={tileOptions}
         onSetGrams={onSetGrams}

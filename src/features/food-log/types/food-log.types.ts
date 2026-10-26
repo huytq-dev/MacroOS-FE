@@ -13,6 +13,38 @@ export interface MacroTotals {
   fiber: number
 }
 
+/**
+ * Dinh dưỡng HIỆU LỰC của một ngày do BE quyết (Contract v2): override nhập tay thắng Food Log, trường nhập tay null giữ null (KHÔNG lấy từ món, KHÔNG đổi thành 0).
+ * `totals` của cùng ngày vẫn là tổng THÔ của các món. Tuỳ chọn để tương thích bản BE chưa có (khi đó dùng `totals`).
+ */
+export interface EffectiveNutrition {
+  calories: number | null
+  proteinG: number | null
+  carbsG: number | null
+  fatG: number | null
+  source: 'Manual' | 'FoodLog' | 'Fasting'
+  hasOverride: boolean
+  manualCaloriesKcal: number | null
+  manualProteinG: number | null
+  manualCarbsG: number | null
+  manualFatG: number | null
+  foodLogCalories: number
+  foodLogProteinG: number
+  foodLogCarbsG: number
+  foodLogFatG: number
+  isValidForAlgorithms: boolean
+  conflict: 'MANUAL_ZERO_WITH_FOOD_LOG' | 'FASTING_WITH_MANUAL_NUTRITION' | null
+}
+
+/** Số của một ngày để HIỆN: hiệu lực của BE; null = chưa biết (hiện "—"), không phải 0. `fiber` luôn từ các món (vi chất chỉ có ở món). */
+export interface ShownTotals {
+  calories: number | null
+  protein: number | null
+  carbs: number | null
+  fat: number | null
+  fiber: number
+}
+
 /** quantity = số khẩu phần nếu có foodServingId, ngược lại là gram. */
 export interface FoodLogEntry {
   id: string
@@ -49,10 +81,14 @@ export interface WeekDay {
   logDate: string
   /** Ngày có nhật ký (BE `IsLogged`); false thì không vẽ vòng kcal. */
   isLogged: boolean
+  /** Tổng THÔ của các món. Số hiển thị lấy từ `effective` (xem `shownTotals`). */
   totals: MacroTotals
+  effective?: EffectiveNutrition | null
   target: ProgramWeek | null
   /** BE đánh dấu target ngày này LEGACY_UNVERIFIED: `target` bị bỏ (chỉ để tham khảo, không vẽ đạt / không đạt), hiện "Historical target not verified". */
   targetUnverified?: boolean
+  /** Target đã bị bỏ ở trên, giữ lại CHỈ làm thước đo chiều cao thanh Weekly Nutrition (không kết luận đạt / không đạt). */
+  referenceTarget?: ProgramWeek | null
 }
 
 export interface WeekLog {
@@ -82,7 +118,9 @@ export interface DayLog {
   notes: FoodLogNote[]
   /** Số ghi chú tối đa mỗi ngày (BE = 5) cho nhãn "n / 5". */
   notesMaxPerDay: number
+  /** Tổng THÔ của các món (không đổi khi có override). Số hiển thị lấy từ `effective` (xem `shownTotals`). */
   totals: MacroTotals
+  effective?: EffectiveNutrition | null
   target: ProgramWeek | null
   /** BE đánh dấu target ngày này LEGACY_UNVERIFIED: `target` bị bỏ (chỉ để tham khảo, không vẽ đạt / không đạt), hiện "Historical target not verified". */
   targetUnverified?: boolean
@@ -397,11 +435,16 @@ export interface PlateNutrientsRequest {
   items: PlateNutrientsItem[]
 }
 
-/** `plate` = tổng riêng plate, `day` = đã log của ngày cộng plate; cả hai đủ chất core (amount null = chưa có dữ liệu). */
+/**
+ * `plate` = tổng riêng plate; `day` = các món đã log của ngày cộng plate (THÔ: không áp override, vi chất chỉ từ món); cả hai đủ chất core (amount null = chưa có dữ liệu).
+ * `effectiveDay` = ngày hiệu lực CỦA CẢ NGÀY sau khi log plate (không phải của plate / các món đã chọn) (override thắng, macro null giữ null; `foodLog*` = tổng Food Log thô gồm cả plate). null khi ngày chưa có dữ liệu và plate trống;
+ * vắng mặt ở BE cũ. Tên `effectiveDay` (không phải `effective`) để không ai đọc nhầm là số của plate.
+ */
 export interface PlateNutrientsResponse {
   date: string
   plate: NutrientAmount[]
   day: NutrientAmount[]
+  effectiveDay?: EffectiveNutrition | null
 }
 
 /** Món chờ trong plate trước khi log. foodItemId null: ước lượng của AI (log bằng Quick Add) hoặc recipe (có `recipeId`). */

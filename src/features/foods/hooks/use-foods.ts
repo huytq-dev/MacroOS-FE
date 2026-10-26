@@ -9,6 +9,7 @@ import {
   type QueryClient,
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { keepsPreviousResults } from '../food-search.utils'
 import { foodService } from '../services/food.service'
 import type { CustomFoodRequest, FoodDetail, FoodSearchParams } from '../types/food.types'
 import { favoriteKeys } from './use-favorites'
@@ -26,16 +27,14 @@ export const foodKeys = {
 export const useFoodSearch = (params: FoodSearchParams, enabled = true) =>
   useQuery({
     queryKey: foodKeys.search(params),
-    queryFn: () => foodService.search(params),
+    queryFn: ({ signal }) => foodService.searchUpTo(params, signal),
     enabled,
-    // Giữ kết quả cũ khi chỉ đổi trang / số lượng (Load more) của CÙNG từ khoá cho khỏi nháy; đổi từ khoá thì bỏ để hiện skeleton
-    // thay vì danh sách của từ khoá khác (gõ "apple" mà vẫn thấy "Abalone, Acerola…" của danh sách trước).
+    // Giữ kết quả cũ (mờ đi, không nháy) khi chỉ đổi trang / số lượng của CÙNG từ khoá, hoặc khi gõ tiếp từ khoá có chữ sang từ khoá có chữ khác. Từ khoá rỗng (History) ↔ từ khoá
+    // có chữ thì bỏ: skeleton thay vì danh sách History lạc vào kết quả tìm (xem `keepsPreviousResults`).
     placeholderData: (previousData, previousQuery) => {
       // queryKey của useFoodSearch luôn là ['foods', 'search', params] nên phần tử thứ ba chính là FoodSearchParams
       const previous = previousQuery?.queryKey[2] as FoodSearchParams | undefined
-      return previous?.search === params.search && previous?.scope === params.scope
-        ? keepPreviousData(previousData)
-        : undefined
+      return keepsPreviousResults(previous, params) ? keepPreviousData(previousData) : undefined
     },
     staleTime: 60 * 1000,
   })

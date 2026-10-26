@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   averageExpDays,
   expHistory,
+  holdingNoticeOf,
   holdingReasonsOf,
   recentExp,
   toExpDay,
@@ -57,7 +58,7 @@ export function useExpenditureDetail(averaging: Averaging) {
 
   if (!today) return { ready: false as const, isLoading: true, isError: false }
 
-  const daily = (series.data?.days ?? []).map(toExpDay)
+  const daily = (series.data?.days ?? []).map((day) => toExpDay(day))
   const info = insights.data
 
   const status = pairStatus(series, insights)
@@ -80,6 +81,8 @@ export function useExpenditureDetail(averaging: Averaging) {
     current: info?.currentKcal ?? null,
     strategy: info?.strategy ?? null,
     holdingReasons: holdingReasonsOf(info ?? null),
+    /** Vì sao đang Holding (từ mã của BE) + hành động sửa; null = không Holding hoặc không có mã FE biết. */
+    holdingNotice: holdingNoticeOf(info ?? null),
     changes: CHANGE_DAYS.map((span) => {
       const found = info?.changes.find((item) => item.days === span)
       return {

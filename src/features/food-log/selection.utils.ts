@@ -1,5 +1,6 @@
 import { servingAmountLabel } from '@/features/foods/types/food.types'
 import type { FoodLogEntry, MacroTotals, PlateItem } from './types/food-log.types'
+import { nowClockIso } from '@/lib/date'
 
 /** Dòng nhật ký → dòng plate (để dùng lại thẻ Nutrition / Create Recipe của plate): khoá là id entry, lượng và khẩu phần giữ nguyên. */
 export const entryToPlateItem = (entry: FoodLogEntry): PlateItem => ({
@@ -33,9 +34,5 @@ export const totalsOfEntries = (entries: readonly FoodLogEntry[]): MacroTotals =
 /** "3 Foods" / "1 Food". */
 export const foodsLabel = (count: number) => `${count} ${count === 1 ? 'Food' : 'Foods'}`
 
-/** HH:mm:ss của giờ máy lúc gọi (To Now); chỉ gọi trong sự kiện bấm. */
-export const nowClock = () => {
-  const now = new Date()
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
-}
+/** HH:mm:ss theo múi giờ hồ sơ lúc gọi (To Now); chỉ gọi trong sự kiện bấm. */
+export const nowClock = nowClockIso

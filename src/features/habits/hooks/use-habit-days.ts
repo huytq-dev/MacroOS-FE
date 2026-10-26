@@ -46,6 +46,8 @@ export function useHabitDays(kind: HabitKind, year: number, today: string | null
     streak,
     isLoading: query.isLoading,
     isError: query.isError,
+    // Đang tải lại (sau "Try again"): ErrorState khoá nút, không huỷ request đang chạy để gửi request khác
+    isFetching: query.isFetching,
     error: query.error,
     refetch: () => void query.refetch(),
   }

@@ -289,14 +289,16 @@ export async function readDerivedStatus(client: StatusClient, api: DerivedDataAp
  */
 export async function retryDerived(client: StatusClient, api: DerivedDataApi) {
   const before = client.getQueryData<DerivedStatus>(derivedStatusKey)
+  const reads = statusReads
   const next = await api.retry()
   if (!next) throw new Error('Empty derived-data status')
+  // Trong lúc POST chờ, một lần đọc / header / lần ghi không header khác đã xảy ra: bộ đếm đổi (kể cả khi `rereadStatus` để nguyên đối tượng cache) hoặc cache
+  // đổi → không biết câu trả lời nào mới hơn → không ghi đè, không trả nợ xác nhận, không mở lượt làm mới thứ hai; lần đọc status sau Retry (onSettled của hook) quyết định
+  const raced = statusReads !== reads
   // Trạng thái của Retry mới hơn mọi lần đọc status đang bay: lần đọc đó trả về muộn thì bị bỏ
   statusReads += 1
-  // Trong lúc POST chờ, một lần đọc / header khác đã đổi cache: không biết câu trả lời nào mới hơn → không ghi đè, không mở lượt làm mới thứ hai; lần đọc
-  // status sau Retry (onSettled của hook) quyết định
   const previous = client.getQueryData<DerivedStatus>(derivedStatusKey)
-  if (previous !== before) return next
+  if (raced || previous !== before) return next
   rereadOwed = false
   const cycle = onStatusChange(client, previous, next)
   client.setQueryData(derivedStatusKey, settlingOf(previous, next, cycle))

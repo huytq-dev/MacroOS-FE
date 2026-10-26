@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import type { AddTab } from '@/features/food-log/components/FoodLogPage/AddFoodDialog'
 import type { LibraryView } from '@/features/food-log/components/FoodLogPage/LibraryPanel'
 import type { ShortcutSheetKind } from '@/features/shortcuts/types/shortcuts.types'
+import { loadPlate, savePlate } from '@/features/food-log/plate-storage'
+import type { PlateItem } from '@/features/food-log/types/food-log.types'
 
 /** Yêu cầu mở bảng Thêm món ở một tab cụ thể (từ shortcut / toolbar); màn Nhật ký đọc rồi xoá. */
 export interface AddFoodRequest {
@@ -25,12 +27,28 @@ interface UiStore {
   /** Bảng "Thêm món": mở được từ shortcut / toolbar ở mọi trang, màn Nhật ký lắng nghe để hiện bảng. */
   addFoodOpen: boolean
   setAddFoodOpen: (open: boolean) => void
+  /**
+   * Plate: món đã bấm "+" nhưng chưa ghi vào nhật ký. Nằm trong store (không phải state của trang) và được giữ trong sessionStorage để rời trang / tải lại không làm mất món
+   * đã chọn. `hydratePlate` đọc lại sau khi mount (tránh lệch HTML server / client).
+   */
+  plate: PlateItem[]
+  setPlate: (update: PlateItem[] | ((current: PlateItem[]) => PlateItem[])) => void
+  hydratePlate: () => void
   /** Tab (và ngăn Library) bảng Thêm món cần mở sẵn; null = giữ tab đang có. */
   addFoodRequest: AddFoodRequest | null
   /** Yêu cầu mở bảng Thêm món ở một tab (mở luôn bảng). */
   requestAddFood: (request: AddFoodRequest) => void
   /** Màn Nhật ký đã áp dụng yêu cầu: xoá nó nhưng KHÔNG đóng bảng. */
   clearAddFoodRequest: () => void
+  /**
+   * "To Custom" mở Create Food từ Food Detail: nhớ món nguồn để Back từ Create Food quay về ĐÚNG Food Detail đó (như MacroFactor). `at` = lúc bắt đầu, rồi lúc rời Create Food;
+   * Nhật ký chỉ mở lại Food Detail nếu vừa rời Create Food trong vài giây (Back), nếu không thì bỏ cờ (không bật Food Detail bất ngờ sau khi đã đi chỗ khác).
+   */
+  detailReturn: { readonly foodId: string; readonly at: number } | null
+  setDetailReturn: (foodId: string) => void
+  /** Rời Create Food: đóng dấu lúc rời (không đổi gì nếu không có cờ). */
+  stampDetailReturn: () => void
+  clearDetailReturn: () => void
   /** Nguyên liệu điền sẵn cho trang Create Recipe (Create Recipe từ các món đã chọn trên timeline); trang đọc rồi xoá. */
   recipeDraft: readonly RecipeDraftLine[] | null
   setRecipeDraft: (lines: readonly RecipeDraftLine[]) => void
@@ -52,9 +70,24 @@ interface UiStore {
 export const useUiStore = create<UiStore>()((set) => ({
   addFoodOpen: false,
   setAddFoodOpen: (open) => set({ addFoodOpen: open }),
+  plate: [],
+  setPlate: (update) =>
+    set((state) => {
+      const plate = typeof update === 'function' ? update(state.plate) : update
+      savePlate(plate)
+      return { plate }
+    }),
+  hydratePlate: () => set((state) => (state.plate.length > 0 ? state : { plate: loadPlate() })),
   addFoodRequest: null,
   requestAddFood: (addFoodRequest) => set({ addFoodRequest, addFoodOpen: true }),
   clearAddFoodRequest: () => set({ addFoodRequest: null }),
+  detailReturn: null,
+  setDetailReturn: (foodId) => set({ detailReturn: { foodId, at: Date.now() } }),
+  stampDetailReturn: () =>
+    set((state) =>
+      state.detailReturn ? { detailReturn: { ...state.detailReturn, at: Date.now() } } : state
+    ),
+  clearDetailReturn: () => set({ detailReturn: null }),
   recipeDraft: null,
   setRecipeDraft: (recipeDraft) => set({ recipeDraft }),
   clearRecipeDraft: () => set({ recipeDraft: null }),

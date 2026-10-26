@@ -5,10 +5,17 @@ import {
   percentText,
   stackTotal,
   type MacroBar,
+  type MacroPartialDay,
 } from '../../macros-detail'
 import { groupByMonth } from '@/features/weight/body-metric.utils'
 import { formatWeekdayMonthDay } from '@/lib/week'
 import { cn } from '@/lib/utils'
+import { useUnits } from '@/features/users/hooks/use-units'
+
+type Row =
+  (MacroBar & { readonly partial?: false }) | (MacroPartialDay & { readonly partial: true })
+
+const gramOrDash = (value: number | null) => (value === null ? '—' : `${Math.round(value)} g`)
 
 /** Ba chữ cái cạnh phần trăm (Other không có chữ, chỉ là phần còn lại của thanh), như MacroFactor "7% P • 6% F • 37% C". */
 const PERCENT_LABEL = [
@@ -46,8 +53,17 @@ export function MacrosLegend() {
  * Lịch sử từng ngày đã ghi theo tháng (mới trước) như MacroFactor: ngày "Wed, Oct 21", "7% P • 6% F • 37% C" bên phải (phần trăm CALO của ngày) và thanh
  * ngang xếp Carbs / Fat / Protein / Other theo đúng tỉ lệ; ngày tổng 0 thì thanh để trống và 0%.
  */
-export function MacrosBreakdownList({ days }: { readonly days: readonly MacroBar[] }) {
-  const months = groupByMonth(days)
+export function MacrosBreakdownList({
+  days,
+  partial = [],
+}: {
+  readonly days: readonly MacroBar[]
+  /** Ngày đã log nhưng thiếu phân tích macro (calories-only / macro-only): hiện số BE có, "Breakdown unavailable", không thanh giả. */
+  readonly partial?: readonly MacroPartialDay[]
+}) {
+  const { energy } = useUnits()
+  const rows: Row[] = [...days, ...partial.map((day) => ({ ...day, partial: true as const }))]
+  const months = groupByMonth(rows)
   if (months.length === 0) return null
   return (
     <div className="space-y-6">
@@ -56,6 +72,32 @@ export function MacrosBreakdownList({ days }: { readonly days: readonly MacroBar
           <h2 className="text-xl font-bold">{month.label}</h2>
           <ul className="bg-card divide-foreground/10 divide-y overflow-hidden rounded-xl">
             {month.items.map((day, index) => {
+              if (day.partial)
+                return (
+                  <li
+                    key={day.date}
+                    className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:animation-duration-300 space-y-2 px-4 py-3 [animation-fill-mode:backwards]"
+                    style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-lg font-medium">{formatWeekdayMonthDay(day.date)}</p>
+                      <p className="text-muted-foreground text-base whitespace-nowrap tabular-nums">
+                        {day.caloriesKcal === null ? '—' : energy.text(day.caloriesKcal)}
+                      </p>
+                    </div>
+                    <p className="text-muted-foreground text-sm tabular-nums">
+                      P {gramOrDash(day.proteinG)} • F {gramOrDash(day.fatG)} • C{' '}
+                      {gramOrDash(day.carbsG)}
+                      <span className="sr-only">, no macro breakdown</span>
+                    </p>
+                    <div
+                      role="img"
+                      aria-label="Macro breakdown unavailable"
+                      className="bg-foreground/10 h-1.5 rounded-full"
+                    />
+                    <p className="text-muted-foreground text-xs">Breakdown unavailable</p>
+                  </li>
+                )
               const total = stackTotal(day)
               return (
                 <li

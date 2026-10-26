@@ -109,7 +109,10 @@ const useDecision = (decide: () => Promise<unknown>) => {
  * khi Updating) và lý do chặn trong preview. Hai nguồn lệch nhau thì đọc lại nguồn cũ hơn (tối đa `MAX_GATE_SYNCS` lần). Ready thì chỉ mở nút, KHÔNG tự Accept.
  */
 export function useCheckInAcceptGate(
-  session: Pick<ReturnType<typeof useCheckInSession>, 'dataUpdatedAt' | 'isFetching'> & {
+  session: Pick<
+    ReturnType<typeof useCheckInSession>,
+    'dataUpdatedAt' | 'isFetching' | 'fetchStatus'
+  > & {
     readonly data?: CheckInSession
   },
   // Chỉ module có nút Accept (Program Update) đọc lại các nguồn; module khác chỉ cần đọc cổng (không gửi request)
@@ -121,7 +124,9 @@ export function useCheckInAcceptGate(
     session.data?.preview,
     session.dataUpdatedAt,
     derived,
-    session.isFetching
+    // 'paused' (offline) cũng là chưa tải xong: `isFetching` chỉ đúng khi 'fetching', nên một lần tải lại bị tạm dừng sẽ mở Accept trên preview cũ, và Accept xếp hàng
+    // được gửi lúc có mạng TRƯỚC khi preview tải lại
+    session.fetchStatus !== 'idle'
   )
   const syncs = useRef(0)
   const target = sync === 'refetch-preview' ? session.isFetching : derived.isFetching

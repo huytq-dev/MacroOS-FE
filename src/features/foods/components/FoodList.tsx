@@ -2,6 +2,7 @@ import { Loader2, SearchX, Apple } from 'lucide-react'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAutoLoadMore } from '@/hooks/use-auto-load-more'
 import { FoodRow } from './FoodRow'
 import type { FoodSummary } from '../types/food.types'
 
@@ -34,6 +35,9 @@ export function FoodList({
   renderRow,
   onLoadMore,
 }: FoodListProps) {
+  const hasMore = totalCount !== null && items.length < totalCount
+  // Cuộn tới chân danh sách thì tự tải trang kế; nút "Load more" bên dưới vẫn dùng được
+  const footerRef = useAutoLoadMore(hasMore && !isFetching && !isLoading, onLoadMore)
   if (isLoading)
     return (
       <div className="space-y-1 p-3" aria-busy="true">
@@ -64,7 +68,6 @@ export function FoodList({
       />
     )
 
-  const hasMore = totalCount !== null && items.length < totalCount
   return (
     <div className={isFetching ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
       <p className="text-muted-foreground px-4 pt-3 pb-1 text-xs tabular-nums">
@@ -80,7 +83,7 @@ export function FoodList({
         )}
       </div>
       {hasMore && (
-        <div className="border-t p-2">
+        <div ref={footerRef} className="border-t p-2">
           <Button
             variant="ghost"
             className="w-full"

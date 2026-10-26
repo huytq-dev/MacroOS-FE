@@ -5,7 +5,7 @@ import { ChartAxes, PlotClip } from '../../chart/ChartAxes'
 import { PAD, PLOT_W, WIDTH, agoOf, showMarkers, visibleAgo, xOfAgo } from '../../chart/geometry'
 import type { useChartPan } from '../../chart/use-chart-pan'
 import { useTween } from '../../chart/use-tween'
-import { expAxis, type ExpDay } from '../../expenditure-series'
+import { expAxis, fluxSegments, type ExpDay } from '../../expenditure-series'
 import { bucketLabel } from '../../expenditure.utils'
 import { cn } from '@/lib/utils'
 
@@ -26,11 +26,15 @@ interface ExpenditureChartProps {
 
 const kcal = (value: number) => Math.round(value).toLocaleString('en-US')
 
+/** Nửa bề rộng (đơn vị viewBox) của dải khi một đoạn chỉ có MỘT nhóm: vẫn thấy được thay vì mất hẳn. */
+const LONE_BAND_HALF_WIDTH = 3
+
 /**
- * Biểu đồ Expenditure kiểu MacroFactor: đường Expenditure màu cam (từ ước lượng từng ngày của BE) có marker mỗi ngày (ô vuông rỗng = Holding /
- * Calibrating, vòng tròn rỗng = Updating, theo trạng thái của BE). KHÔNG vẽ dải Flux (công thức của BE không phải của MacroFactor, docs/UI.md).
- * Kéo ngang để xem các ngày trước (quán tính, bám theo ngày); đổi kỳ thì trục x giãn / co mượt, trục y luôn vừa khít đường trong khung (chạy mượt khi
- * kéo / đổi kỳ); chạm một ngày để xem kcal và trạng thái.
+ * Biểu đồ Expenditure kiểu MacroFactor: dải Flux Range cam mờ của BE (chỉ ở ngày BE trả dải, không nối qua chỗ thiếu; vẽ DƯỚI đường), đường
+ * Expenditure màu cam (từ ước lượng từng ngày của BE) có marker mỗi ngày (ô vuông rỗng = Holding / Calibrating, vòng tròn rỗng = Updating, theo
+ * trạng thái của BE). Dải là "ước lượng bất đồng giữa các độ nhạy" của MacroOS, KHÔNG phải khoảng tin cậy (tooltip ghi rõ).
+ * Kéo ngang để xem các ngày trước (quán tính, bám theo ngày); đổi kỳ thì trục x giãn / co mượt, trục y luôn vừa khít đường VÀ dải trong khung (chạy mượt khi
+ * kéo / đổi kỳ); chạm một ngày để xem kcal, Flux Lower / Upper và trạng thái.
  */
 export function ExpenditureChart({
   days,
@@ -63,6 +67,21 @@ export function ExpenditureChart({
   const markers = showMarkers(slots, shown.length)
 
   const line = shown.map((day) => `${x(day.date)},${y(day.kcal)}`).join(' ')
+  // Mỗi đoạn liên tục có dải là MỘT path khép kín (mép trên đi, mép dưới về)
+  const bands = fluxSegments(shown).map((segment) => {
+    if (segment.length === 1) {
+      const [day] = segment
+      const [left, right] = [x(day.date) - LONE_BAND_HALF_WIDTH, x(day.date) + LONE_BAND_HALF_WIDTH]
+      const [top, bottom] = [y(day.fluxHigh ?? day.kcal), y(day.fluxLow ?? day.kcal)]
+      return {
+        key: day.date,
+        d: `M${left},${top}L${right},${top}L${right},${bottom}L${left},${bottom}Z`,
+      }
+    }
+    const upper = segment.map((day) => `${x(day.date)},${y(day.fluxHigh ?? day.kcal)}`)
+    const lower = segment.map((day) => `${x(day.date)},${y(day.fluxLow ?? day.kcal)}`).reverse()
+    return { key: segment[0].date, d: `M${upper.join('L')}L${lower.join('L')}Z` }
+  })
 
   const pick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (pan.wasDragged()) return
@@ -115,6 +134,14 @@ export function ExpenditureChart({
               strokeDasharray="3 3"
             />
           )}
+          {bands.map((band) => (
+            <path
+              key={band.key}
+              d={band.d}
+              data-flux-band=""
+              className="fill-mf-flux-band/30 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-500"
+            />
+          ))}
           {shown.length > 1 && (
             <polyline
               points={line}
@@ -173,6 +200,16 @@ export function ExpenditureChart({
             {kcal(selected.kcal)} {unit}
             {selected.status === 'Mixed' || selected.holding ? ` · ${selected.status}` : ''}
           </p>
+          {selected.fluxLow !== null && selected.fluxHigh !== null && (
+            <>
+              <p className="text-muted-foreground text-xs tabular-nums">
+                Flux Lower {kcal(selected.fluxLow)} · Upper {kcal(selected.fluxHigh)}
+              </p>
+              <p className="text-muted-foreground/80 text-[11px]">
+                Flux range is not a confidence interval.
+              </p>
+            </>
+          )}
           {selected.status === 'Mixed' && (
             <p className="text-muted-foreground text-xs tabular-nums">
               {selected.updatingDays} Updating · {selected.otherDays} Holding / Calibrating

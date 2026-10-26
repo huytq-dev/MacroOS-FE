@@ -131,7 +131,10 @@ export const apiRoutes = {
     progress: '/goals/progress', // GET → { goalType, startDate, startWeightKg, targetWeightKg, currentTrendKg, ... }
   },
   nutritionData: {
-    root: '/nutrition-data', // GET ?all → { items[{ date, calories, proteinG, fatG, carbsG, source, isFasting, isIncomplete }] }, PUT { date, calories, proteinG, fatG, carbsG, isFasting, isIncomplete }, DELETE ?date= (đề xuất, chờ MOS-BE chốt)
+    root: '/nutrition-data', // GET → { items[{ date, calories, proteinG, fatG, carbsG, source, isFasting, isIncomplete, entryCount }] }, PUT { date, calories, proteinG, fatG, carbsG, isFasting, isIncomplete } (409 MANUAL_OVERRIDE_UNAVAILABLE | FASTING_NEEDS_EMPTY_DAY), DELETE ?date= = Delete Nutrition Data (tổng nhập tay + cờ nhịn ăn; KHÔNG xoá món / nước / ghi chú / cờ chưa đủ)
+    override: (date: string) => `/nutrition-data/${date}/override`, // DELETE = Remove Manual Override (chỉ tổng nhập tay) → ngày sau khi gỡ
+    fasting: (date: string) => `/nutrition-data/${date}/fasting`, // PUT { isFasting } = chỉ cờ nhịn ăn (bật trên ngày đã có entry → 409 FASTING_NEEDS_EMPTY_DAY)
+    incomplete: (date: string) => `/nutrition-data/${date}/incomplete`, // PUT { isIncomplete } = chỉ cờ chưa đủ, ngày đã có dữ liệu
   },
   weights: {
     root: '/weights', // GET ?from&to, POST

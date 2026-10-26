@@ -20,7 +20,6 @@ interface PlatePanelProps {
   readonly date: string
   readonly plate: readonly PlateItem[]
   readonly plateTotals: MacroTotals
-  readonly dayTotals?: MacroTotals
   readonly target?: ProgramWeek | null
   readonly isLogging: boolean
   readonly onRemove: (key: string) => void
@@ -42,7 +41,6 @@ export function PlatePanel({
   date,
   plate,
   plateTotals,
-  dayTotals,
   target,
   isLogging,
   onRemove,
@@ -134,13 +132,7 @@ export function PlatePanel({
           )}
         </section>
 
-        <PlateNutrition
-          date={date}
-          plate={plate}
-          plateTotals={plateTotals}
-          dayTotals={dayTotals}
-          target={target}
-        />
+        <PlateNutrition date={date} plate={plate} plateTotals={plateTotals} target={target} />
 
         {!editing && (
           <div className="sticky bottom-0 -mx-4 flex justify-end px-4 pt-6 pb-4">

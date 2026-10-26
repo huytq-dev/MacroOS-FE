@@ -4,13 +4,18 @@ import type { ProgramWeek } from '@/features/program/types/program.types'
 import { targetRatio } from '@/features/nutrition/goal-progress'
 import { useUnits } from '@/features/users/hooks/use-units'
 import { bannerValue } from '../../food-log-settings'
-import type { MacroTotals } from '../../types/food-log.types'
+import type { EffectiveNutrition, MacroTotals } from '../../types/food-log.types'
 
 export type BannerDisplay = 'PlateOnly' | 'AllDayAndPlate' | 'RemainingAfterPlate'
 
 interface AddFoodProgressProps {
   /** Tổng đã log trong ngày; chưa tải xong thì hiện 0. */
   readonly totals?: MacroTotals
+  /**
+   * Ngày hiệu lực của BE. Có override (`hasOverride`) thì số chính là số hiệu lực (null = "—", không điền từ món, không cộng plate) và tổng
+   * Food Log hiện riêng ở dòng nhỏ bên dưới; không có override thì như cũ (số các món + plate).
+   */
+  readonly effective?: EffectiveNutrition | null
   readonly target?: ProgramWeek | null
   /** Món đang nằm trong plate: cộng vào để xem trước ngày sẽ thế nào sau khi log. */
   readonly plate: MacroTotals
@@ -37,6 +42,7 @@ const STUB = ' '
  */
 export function AddFoodProgress({
   totals,
+  effective,
   target,
   plate,
   show,
@@ -74,7 +80,22 @@ export function AddFoodProgress({
   ]
   const cells = all.filter((cell) => cell.on)
   const single = cells.length === 1
-  return (
+  // Ngày có override: số chính là số hiệu lực của BE (macro null = "—"; plate không đổi override nên không cộng); PlateOnly vẫn chỉ là plate
+  const overridden = effective?.hasOverride === true && display !== 'PlateOnly'
+  const effectiveOf = (key: keyof MacroTotals): number | null | undefined =>
+    key === 'calories'
+      ? effective?.calories
+      : key === 'protein'
+        ? effective?.proteinG
+        : key === 'fat'
+          ? effective?.fatG
+          : key === 'carbs'
+            ? effective?.carbsG
+            : undefined
+  const foodLogLine = overridden
+    ? `Food Log ${energy.text((effective?.foodLogCalories ?? 0) + plate.calories)}`
+    : null
+  const grid = (
     <dl
       style={
         layout === 'row'
@@ -82,7 +103,8 @@ export function AddFoodProgress({
           : undefined
       }
       className={cn(
-        'grid min-w-0 flex-1 gap-x-3 gap-y-1.5 transition-[grid-template-columns] duration-300',
+        // Điện thoại hẹp (≤375px): cột sát nhau hơn và chữ 11px để "1085 / 2034" không bị cắt thành "1085 / 2…" trong thanh đầu bảng Thêm món
+        'grid min-w-0 flex-1 gap-x-1 gap-y-1.5 transition-[grid-template-columns] duration-300 sm:gap-x-3',
         layout === 'row' ? 'grid-flow-row grid-rows-1' : 'grid-flow-col grid-rows-2',
         single && 'grid-rows-1'
       )}
@@ -92,13 +114,11 @@ export function AddFoodProgress({
         const toShown = shownOf(cell)
         const goal = cell.goal ? toShown(cell.goal) : null
         // null = "còn lại" mà chưa có target: hiện "—" và không có thanh (không suy ra số âm từ target 0)
-        const value = bannerValue(
-          display,
-          cell.goal,
-          totals?.[cell.key] ?? 0,
-          plate[cell.key],
-          toShown
-        )
+        const day = overridden ? effectiveOf(cell.key) : (totals?.[cell.key] ?? 0)
+        const unknown = day === null || day === undefined
+        const value = unknown
+          ? null
+          : bannerValue(display, cell.goal, day, overridden ? 0 : plate[cell.key], toShown)
         const used = display === 'RemainingAfterPlate' ? (goal ?? 0) - (value ?? 0) : (value ?? 0)
         const percent = goal && value !== null ? targetRatio(used, goal).progress * 100 : 0
         const text =
@@ -117,7 +137,12 @@ export function AddFoodProgress({
           >
             <dt className="sr-only">{cell.key}</dt>
             <dd
-              className={cn('truncate tabular-nums', single ? 'text-center text-base' : 'text-xs')}
+              className={cn(
+                'truncate tabular-nums',
+                single
+                  ? 'text-center text-base'
+                  : 'text-[10.5px] min-[390px]:text-[11px] sm:text-xs'
+              )}
             >
               {/* Hàng ngang (màn sửa món): ký hiệu đứng trước số, calo là ngọn lửa; hai hàng (thanh Thêm món): chữ đứng sau */}
               {layout === 'row' &&
@@ -131,6 +156,7 @@ export function AddFoodProgress({
                   <span className="mr-1 font-bold">{cell.suffix}</span>
                 ))}
               <span className="font-medium">{text}</span>
+              {unknown && <span className="sr-only">, no data</span>}
               {layout !== 'row' && cell.suffix && (
                 <span className="text-muted-foreground">
                   {STUB}
@@ -157,5 +183,15 @@ export function AddFoodProgress({
         )
       })}
     </dl>
+  )
+  if (!foodLogLine) return grid
+  // Dòng riêng cho tổng Food Log (món đã log, không phải số đang tính): thêm / sửa / xoá món đổi dòng này, không đổi override
+  return (
+    <div className="min-w-0 flex-1">
+      {grid}
+      <p className="text-muted-foreground mt-1 text-center text-[11px] leading-tight tabular-nums">
+        {foodLogLine}
+      </p>
+    </div>
   )
 }

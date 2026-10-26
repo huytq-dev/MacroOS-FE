@@ -40,8 +40,9 @@ export function useDerivedGate() {
   const retry = useMutation({
     mutationKey: derivedRetryKey,
     mutationFn: () => retryDerived(client, derivedDataService),
-    // Đọc lại trạng thái thật sau khi thử lại (thành công hay lỗi): nguồn sự thật vẫn là GET status
-    onSettled: () => void client.invalidateQueries({ queryKey: derivedStatusKey }),
+    // Đọc lại trạng thái thật sau khi thử lại (thành công hay lỗi): nguồn sự thật vẫn là GET status. Trả promise: nút "Try again" (`isRetrying`, khoá một Retry một lúc)
+    // giữ nguyên tới khi lần đọc quyết định kết quả đã về, kể cả khi `retryDerived` bỏ qua việc ghi vì cache đã đổi trong lúc POST chờ
+    onSettled: () => client.invalidateQueries({ queryKey: derivedStatusKey }),
   })
   // Một màn có nhiều nút "Try again" (mỗi ô một hook): đang thử lại ở BẤT KỲ nút nào thì mọi nút cùng khoá, không gửi POST thứ hai
   const retrying = useIsMutating({ mutationKey: derivedRetryKey }) > 0

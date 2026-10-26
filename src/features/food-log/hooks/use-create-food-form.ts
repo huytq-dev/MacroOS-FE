@@ -6,7 +6,8 @@ import { mealForTime } from '@/config/enums'
 import { routePath } from '@/config/route-path'
 import { useCreateFood } from '@/features/foods/hooks/use-foods'
 import type { FoodDetail } from '@/features/foods/types/food.types'
-import { todayIso } from '@/lib/date'
+import { nowClockIso, todayIso } from '@/lib/date'
+import { useUiStore } from '@/stores/ui.store'
 import { getFormErrorMessage } from '@/features/auth/auth.utils'
 import {
   buildRequest,
@@ -84,9 +85,10 @@ export function useCreateFoodForm(source?: FoodDetail, seed?: MacroSeed) {
     setErrors({})
     try {
       const id = (await createFood.mutateAsync(result.request)) as string
+      // Đã tạo món: không quay về Food Detail của món nguồn nữa
+      useUiStore.getState().clearDetailReturn()
       if (andAdd) {
-        const now = new Date()
-        const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+        const time = nowClockIso().slice(0, 5)
         // Khẩu phần vừa tạo chưa có id ở FE nên ghi theo gram (BE: foodServingId null → quantity là gram)
         await addEntry.mutateAsync({
           logDate: todayIso(),

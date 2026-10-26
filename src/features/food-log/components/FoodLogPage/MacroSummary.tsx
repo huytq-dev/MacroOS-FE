@@ -6,14 +6,15 @@ import type { ProgramWeek } from '@/features/program/types/program.types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { targetRatio } from '@/features/nutrition/goal-progress'
-import { shownProgress } from '@/features/nutrition/remaining'
+import { shownProgressOrUnknown } from '@/features/nutrition/remaining'
 import { useUnits } from '@/features/users/hooks/use-units'
-import type { MacroTotals } from '../../types/food-log.types'
+import type { ShownTotals } from '../../types/food-log.types'
 
 interface MacroSummaryProps {
   /** Đổi ngày thì số liệu hiện dần (thanh vẫn chạy bằng transition riêng). */
   readonly date: string
-  readonly totals: MacroTotals
+  /** Số hiệu lực của BE; null = chưa biết (hiện "—"), không phải 0. */
+  readonly totals: ShownTotals
   readonly target: ProgramWeek | null
   /** Nutrient Reporting: true thì vượt mục tiêu hiện số âm ("-120 left"), false thì dừng ở 0. */
   readonly showOverages: boolean
@@ -79,14 +80,14 @@ export function MacroSummary({
                 consumed: value,
                 goal,
                 remaining: left,
-              } = shownProgress(
+              } = shownProgressOrUnknown(
                 totals[key],
                 targetOf(target, key),
                 (amount) => shown(key, amount),
                 showOverages
               )
               const filled =
-                goal === null
+                goal === null || value === null
                   ? 0
                   : targetRatio(mode === 'consumed' ? value : goal - value, goal).progress * 100
               // Cỡ chữ theo bề rộng cột (15cqi, tối đa 16px) để "2861/2880" + icon luôn vừa một cột kể cả ở 320px
@@ -106,10 +107,11 @@ export function MacroSummary({
                       />
                     )}
                     {mode === 'consumed'
-                      ? `${value}/${goal === null ? '--' : goal}`
+                      ? `${value ?? '—'}/${goal === null ? '--' : goal}`
                       : left === null
                         ? '--'
                         : `${left} left`}
+                    {value === null && <span className="sr-only">, no data</span>}
                   </p>
                   <div className="bg-foreground/15 mt-1.5 h-1 overflow-hidden rounded-full">
                     <div

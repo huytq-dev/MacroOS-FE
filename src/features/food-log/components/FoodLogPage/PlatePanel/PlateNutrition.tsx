@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import type { ProgramWeek } from '@/features/program/types/program.types'
 import { usePlateNutrients } from '../../../hooks/use-food-log'
 import { programGoals } from '../../../nutrition-overview.utils'
+import { dayBreakdown, type MacroKey } from '../../../effective'
 import type { MacroTotals, PlateItem, PlateNutrientsItem } from '../../../types/food-log.types'
 import { NutrientCard } from '../../NutritionOverviewPage'
 import { SECTION_GROUPS } from '../FoodDetail'
@@ -42,8 +43,6 @@ interface PlateNutritionProps {
   readonly date: string
   readonly plate: readonly PlateItem[]
   readonly plateTotals: MacroTotals
-  /** Tổng đã log trong ngày (không gồm plate); chưa tải xong thì thiếu. */
-  readonly dayTotals?: MacroTotals
   readonly target?: ProgramWeek | null
   /** false = chỉ xem phần của `plate` (ẩn công tắc Plate | Day): dùng cho View của các món đã chọn trên timeline. */
   readonly allowDay?: boolean
@@ -66,14 +65,14 @@ const toRequestItem = (item: PlateItem): PlateNutrientsItem =>
 /**
  * Mục Nutrition của Your Plate: công tắc Plate | Day, bốn thẻ Calories / Protein / Fat / Carbs (số, thanh với vạch mục tiêu) và
  * "Show all nutrients" mở đủ các nhóm chất. Số liệu đủ chất (kể cả vi chất của recipe và tổng ngày) lấy từ BE
- * `POST /food-logs/plate/nutrients` theo ngày đang ghi; trong lúc tải hoặc khi lỗi thì bốn macro dùng số cộng tại chỗ (số thật, chưa làm tròn
- * từng dòng), các chất khác "---".
+ * `POST /food-logs/plate/nutrients` theo ngày đang ghi. Chế độ Plate: trong lúc tải hoặc khi lỗi thì bốn macro dùng số cộng tại chỗ của plate (số thật, chưa làm tròn
+ * từng dòng), các chất khác "---". Chế độ Day: bốn macro là `effective` của BE (ngày hiệu lực sau khi log plate: override thắng, null giữ null) — hàng `day` thô chỉ cho vi
+ * chất (và cho bốn macro khi BE chưa gửi `effective`); chưa có câu trả lời thì "---", không đoán từ món + plate vì có thể đang có override.
  */
 export function PlateNutrition({
   date,
   plate,
   plateTotals,
-  dayTotals,
   target,
   allowDay = true,
 }: PlateNutritionProps) {
@@ -91,15 +90,25 @@ export function PlateNutrition({
   for (const row of rows ?? [])
     if (row.key) remoteByKey[row.key] = { amount: row.amount, goal: goalOfModel(row) }
 
-  // Số tạm trong lúc BE chưa trả: chỉ bốn macro (có số thật ở từng dòng); chất khác chưa biết thì null ("---"), không bịa 0
-  const localValue = (key: string): number | null => {
-    if (!MACRO_CARDS.some((card) => card.key === key)) return null
-    const plateValue = plateTotals[key as keyof MacroTotals]
-    return view === 'plate' ? plateValue : (dayTotals?.[key as keyof MacroTotals] ?? 0) + plateValue
+  // Số tạm trong lúc BE chưa trả: chỉ bốn macro của plate (có số thật ở từng dòng); chất khác, và cả ngày (có thể đang có override), chưa biết thì null ("---"), không bịa
+  const localValue = (key: string): number | null =>
+    view === 'plate' && MACRO_CARDS.some((card) => card.key === key)
+      ? plateTotals[key as keyof MacroTotals]
+      : null
+  // Phần plate trong dòng "incl. Plate": số của BE (cùng làm tròn snapshot với tổng Food Log nằm cạnh nó), chưa có thì số cộng tại chỗ
+  const platePreviewOf = (key: MacroKey): number =>
+    remote.data?.plate.find((row) => row.key === key)?.amount ?? plateTotals[key]
+  // Chế độ Day, bốn macro:`effective` của BE (override thắng, null giữ null); hàng `day` của BE là món + plate THÔ nên không dùng cho chúng khi đã có `effective`
+  const dayCard = (key: string) =>
+    view === 'day' && MACRO_CARDS.some((card) => card.key === key)
+      ? dayBreakdown(remote.data?.effectiveDay, key as MacroKey, platePreviewOf(key as MacroKey))
+      : null
+  // Số từ BE khi có (amount null = chưa có dữ liệu → "---"), không thì số của plate tại chỗ
+  const valueOf = (key: string): number | null => {
+    const card = dayCard(key)
+    if (card) return card.main
+    return key in remoteByKey ? remoteByKey[key].amount : localValue(key)
   }
-  // Số từ BE khi có (amount null = chưa có dữ liệu → "---"), không thì số cộng tại chỗ
-  const valueOf = (key: string): number | null =>
-    key in remoteByKey ? remoteByKey[key].amount : localValue(key)
   // Mục tiêu từ BE nguyên vẹn; chưa có thì calo / macro lấy từ chương trình, chất khác không có mục tiêu
   const goalOf = (key: string): NutrientGoal =>
     remoteByKey[key]?.goal ?? macroGoals[key as keyof typeof macroGoals] ?? NO_GOAL
@@ -138,6 +147,9 @@ export function PlateNutrition({
                 : Number(amount.toFixed(1))
           const shownReference =
             reference === null ? null : Math.round(isEnergy ? energy.convert(reference) : reference)
+          const day = dayCard(card.key)
+          const format = (n: number) =>
+            isEnergy ? Math.round(energy.convert(n)) : Number(n.toFixed(1))
           return (
             <li key={card.key} className="bg-card rounded-xl px-4 py-4">
               <p className="text-base font-medium">{card.label}</p>
@@ -145,7 +157,13 @@ export function PlateNutrition({
                 {view === 'plate'
                   ? `${shown} ${unit} in plate`
                   : `${shown}${shownReference !== null ? ` / ${shownReference}` : ''} ${unit}`}
+                {amount === null && view === 'day' && <span className="sr-only">, no data</span>}
               </p>
+              {day?.overridden && (
+                <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                  Food Log {format(day.foodLog)} · incl. Plate +{format(day.plate)} {unit}
+                </p>
+              )}
               <div className="mt-4">
                 <NutrientGoalBar
                   goal={goal}

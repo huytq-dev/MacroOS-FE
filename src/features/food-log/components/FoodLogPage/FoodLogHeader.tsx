@@ -8,7 +8,7 @@ import { routePath } from '@/config/route-path'
 import { relativeDayLabel } from '@/lib/week'
 import { cn } from '@/lib/utils'
 import type { FoodLogSettings } from '../../food-log-settings'
-import type { MacroTotals, WeekDay } from '../../types/food-log.types'
+import type { ShownTotals, WeekDay } from '../../types/food-log.types'
 import { UNVERIFIED_TARGET_NOTE } from '@/features/nutrition/target-provenance'
 import { MacroSummary } from './MacroSummary'
 import { WeekStrip } from './WeekStrip'
@@ -49,7 +49,9 @@ interface FoodLogHeaderProps {
   readonly date: string
   readonly today: string | null
   readonly onDateChange: (date: string) => void
-  readonly totals: MacroTotals
+  readonly totals: ShownTotals
+  /** Ngày có số nhập tay (BE `hasOverride`): chú thích nhỏ "Manual entry · Food Log N kcal" dưới tóm tắt macro; null = không có override. */
+  readonly overrideCaption?: string | null
   readonly target: ProgramWeek | null
   /** BE đánh dấu target của ngày LEGACY_UNVERIFIED: `target` đã bỏ (không đạt / không đạt), hiện câu "Historical target not verified". */
   readonly targetUnverified?: boolean
@@ -78,6 +80,7 @@ export function FoodLogHeader({
   today,
   onDateChange,
   totals,
+  overrideCaption = null,
   target,
   targetUnverified = false,
   showOverages,
@@ -158,6 +161,9 @@ export function FoodLogHeader({
               showOverages={showOverages}
               pending={summaryPending}
             />
+            {overrideCaption && !summaryPending && (
+              <p className="text-muted-foreground pt-2 text-center text-xs">{overrideCaption}</p>
+            )}
             {targetUnverified && !summaryPending && (
               <p className="text-muted-foreground pt-2 text-center text-xs">
                 {UNVERIFIED_TARGET_NOTE}

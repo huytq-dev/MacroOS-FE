@@ -27,7 +27,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MEAL_TYPE, type MealType } from '@/config/enums'
 import type { ProgramWeek } from '@/features/program/types/program.types'
-import type { MacroTotals, PlateItem } from '../../types/food-log.types'
+import type { EffectiveNutrition, MacroTotals, PlateItem } from '../../types/food-log.types'
 import { SearchInput } from '@/components/shared/SearchInput'
 import type { FoodLogSettings } from '../../food-log-settings'
 import { cn } from '@/lib/utils'
@@ -70,6 +70,8 @@ interface AddFoodDialogProps {
   /** Món đang xem nhưng chưa vào plate (kết quả AI Plate): chỉ cộng vào tổng ở thanh trên cùng. */
   readonly previewItems?: readonly PlateItem[]
   readonly totals?: MacroTotals
+  /** Ngày hiệu lực của BE: có override thì thanh trên cùng hiện số hiệu lực + tổng Food Log riêng (plate không đổi override). */
+  readonly effective?: EffectiveNutrition | null
   readonly target?: ProgramWeek | null
   /** Cài đặt Logger Banner (chất hiện trên banner và cách tính). */
   readonly settings: Pick<
@@ -109,6 +111,7 @@ export function AddFoodDialog({
   plate,
   previewItems = [],
   totals,
+  effective,
   target,
   settings,
   isLogging,
@@ -127,6 +130,11 @@ export function AddFoodDialog({
     setWasOpen(open)
     if (!open) setPlateOpen(false)
   }
+  // "+" chỉ đưa món vào plate: nút ghi nói rõ đang chờ ghi bao nhiêu món ("Log 4 foods"), không còn là "Log Foods" chung chung
+  const logLabel =
+    plate.length === 0
+      ? 'Log Foods'
+      : `Log ${plate.length} ${plate.length === 1 ? 'food' : 'foods'}`
   const counted = [...plate, ...previewItems]
   const plateKcal = counted.reduce((sum, item) => sum + item.calories, 0)
   const plateTotals: MacroTotals = {
@@ -162,6 +170,7 @@ export function AddFoodDialog({
             <MealTimePill time={eatenAt} mealLabel={MEAL_TYPE[meal]} onClick={onTimeClick} />
             <AddFoodProgress
               totals={totals}
+              effective={effective}
               target={target}
               plate={plateTotals}
               show={{
@@ -172,13 +181,13 @@ export function AddFoodDialog({
               }}
               display={settings.loggerBannerDisplay}
             />
-            <div className="bg-secondary flex h-11 shrink-0 items-center rounded-full pl-3">
+            <div className="bg-secondary flex h-11 shrink-0 items-center rounded-full pl-1">
               <button
                 type="button"
                 aria-label={`${plate.length} ${plate.length === 1 ? 'item' : 'items'} in plate`}
                 aria-expanded={plateOpen}
                 onClick={() => setPlateOpen((current) => !current)}
-                className="focus-visible:ring-ring/50 h-11 rounded-full focus-visible:ring-1 focus-visible:outline-none"
+                className="focus-visible:ring-ring/50 h-11 min-w-11 rounded-full focus-visible:ring-1 focus-visible:outline-none"
               >
                 {/* key = số món: thêm món thì viên thuốc dựng lại và nảy lên một nhịp (tắt khi giảm chuyển động) */}
                 <span
@@ -198,7 +207,7 @@ export function AddFoodDialog({
                 aria-label={plateOpen ? 'Hide plate' : 'Show plate'}
                 aria-expanded={plateOpen}
                 onClick={() => setPlateOpen((current) => !current)}
-                className="bg-foreground/15 focus-visible:ring-ring/50 active:bg-foreground/25 ml-2 flex size-11 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
+                className="bg-foreground/15 focus-visible:ring-ring/50 active:bg-foreground/25 flex size-11 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
               >
                 <ArrowDown
                   aria-hidden="true"
@@ -229,7 +238,6 @@ export function AddFoodDialog({
             date={logDate}
             plate={plate}
             plateTotals={plateTotals}
-            dayTotals={totals}
             target={target}
             isLogging={isLogging}
             onRemove={onRemoveFromPlate}
@@ -333,7 +341,7 @@ export function AddFoodDialog({
                         {isLogging && (
                           <Loader2 aria-hidden="true" className="size-4 animate-spin" />
                         )}
-                        {isLogging ? 'Logging...' : 'Log Foods'}
+                        {isLogging ? 'Logging...' : logLabel}
                       </Button>
                     </>
                   ) : (
@@ -376,7 +384,7 @@ export function AddFoodDialog({
                           {isLogging && (
                             <Loader2 aria-hidden="true" className="size-4 animate-spin" />
                           )}
-                          {isLogging ? 'Logging...' : 'Log Foods'}
+                          {isLogging ? 'Logging...' : logLabel}
                         </Button>
                       )}
                     </div>

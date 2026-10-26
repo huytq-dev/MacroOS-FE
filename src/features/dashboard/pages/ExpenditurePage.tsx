@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { GraduationCap } from 'lucide-react'
+import { GraduationCap, Mountain } from 'lucide-react'
 import { SubPageHeader } from '../components/DashboardPage'
 import { ExpenditureChart } from '../components/ExpenditurePage/ExpenditureChart'
 import { ExpenditureInsights } from '../components/ExpenditurePage/ExpenditureInsights'
+import { HoldingNotice } from '../components/ExpenditurePage/HoldingNotice'
 import { MonthlyList } from '../components/ExpenditurePage/MonthlyList'
 import { RangeBar, StatBlock, TutorialCard } from '../components/DetailPage'
 import { EXPENDITURE_TUTORIAL } from '../components/ExpenditurePage/expenditure-tutorial-steps'
@@ -32,9 +33,9 @@ import { cn } from '@/lib/utils'
 const TUTORIAL_CHOICES = ['show', 'hidden'] as const
 
 /**
- * Chi tiết "Expenditure" (bấm ô Expenditure ở Dashboard): Average / Difference của khoảng đang xem, biểu đồ đường Expenditure (không dải Flux)
- * có marker mỗi ngày KÉO NGANG được để xem các ngày trước, chọn kỳ 1W…All (luôn kết thúc hôm nay, đổi kỳ thì biểu
- * đồ giãn / co mượt) và D/W/M, nút phóng to (biểu đồ cao gần hết màn hình, chiều cao chạy mượt; trục y luôn vừa khít đường), chú giải, hướng dẫn, Insights & Data, Data
+ * Chi tiết "Expenditure" (bấm ô Expenditure ở Dashboard): Average / Difference của khoảng đang xem, biểu đồ đường Expenditure + dải Flux Range của BE
+ * (chỉ khi BE trả dải) có marker mỗi ngày KÉO NGANG được để xem các ngày trước, chọn kỳ 1W…All (luôn kết thúc hôm nay, đổi kỳ thì biểu
+ * đồ giãn / co mượt) và D/W/M, nút phóng to (biểu đồ cao gần hết màn hình, chiều cao chạy mượt; trục y luôn vừa khít đường và dải), chú giải, hướng dẫn, Insights & Data, Data
  * Sources và lịch sử theo tháng.
  */
 export function ExpenditurePage() {
@@ -80,6 +81,8 @@ export function ExpenditurePage() {
     ? data.days.map((day) => ({
         ...day,
         kcal: day.kcal * factor,
+        fluxLow: day.fluxLow === null ? null : day.fluxLow * factor,
+        fluxHigh: day.fluxHigh === null ? null : day.fluxHigh * factor,
       }))
     : []
 
@@ -128,6 +131,8 @@ export function ExpenditurePage() {
           </div>
           <p className="text-muted-foreground -mt-3 text-lg">{rangeLabel(win.from, win.to)}</p>
 
+          {data.holdingNotice && <HoldingNotice notice={data.holdingNotice} />}
+
           <ExpandableChart expand={expand}>
             <ExpenditureChart
               // Đổi D / W / M thì dữ liệu đổi hình: vẽ lại và hiện dần thay vì nhảy cục
@@ -153,6 +158,16 @@ export function ExpenditurePage() {
 
           <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
             <div className="bg-card text-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-xl px-3 py-4 text-base min-[360px]:gap-x-6">
+              {legend.flux && (
+                <span className="flex items-center gap-2">
+                  <Mountain
+                    aria-hidden="true"
+                    data-flux-legend=""
+                    className="text-mf-flux-band fill-mf-flux-band/50 size-4"
+                  />
+                  Flux Range
+                </span>
+              )}
               {legend.line && (
                 <span className="flex items-center gap-2">
                   <span aria-hidden="true" className="relative flex h-4 w-6 items-center">

@@ -1,7 +1,11 @@
 import { roundAway } from '@/features/weight/body-metric.utils'
 import { daysBetween } from '@/lib/date'
 import type { Averaging } from './expenditure.utils'
-import type { MacroAverages, MacroSeriesResponse } from './types/macros-series.types'
+import type {
+  MacroAverages,
+  MacroSeriesDay,
+  MacroSeriesResponse,
+} from './types/macros-series.types'
 
 /** Thứ tự xếp chồng từ đáy lên (cột) và từ trái sang phải (thanh ngang): Carbs, Fat, Protein, Other, như MacroFactor. */
 export const MACRO_PARTS = ['carbs', 'fat', 'protein', 'other'] as const
@@ -114,3 +118,39 @@ export const macroBarOn = (series: MacroSeriesResponse, date: string): MacroBar 
     ? (barOf(day.date, day, { isIncomplete: day.isIncomplete })[0] ?? null)
     : null
 }
+
+/**
+ * Ngày ĐÃ LOG mà BE không có đủ phân tích macro (chỉ calories, chỉ macro, hoặc thiếu một macro): không vẽ cột (không có Other = tổng kcal, không có P / F / C = 0) nhưng vẫn
+ * phải thấy trong lịch sử với số BE có (null = "—"). `isLogged` false (chưa log) không thuộc nhóm này.
+ */
+export interface MacroPartialDay {
+  readonly date: string
+  readonly caloriesKcal: number | null
+  readonly proteinG: number | null
+  readonly fatG: number | null
+  readonly carbsG: number | null
+  readonly isIncomplete: boolean
+}
+
+const hasFullBreakdown = (day: MacroSeriesDay) =>
+  day.carbsKcal !== null &&
+  day.fatKcal !== null &&
+  day.proteinKcal !== null &&
+  day.otherKcal !== null &&
+  day.caloriesKcal !== null
+
+export const partialDaysOf = (series: MacroSeriesResponse): MacroPartialDay[] =>
+  series.days.flatMap((day) =>
+    day.isLogged && !hasFullBreakdown(day)
+      ? [
+          {
+            date: day.date,
+            caloriesKcal: day.caloriesKcal,
+            proteinG: day.proteinG,
+            fatG: day.fatG,
+            carbsG: day.carbsG,
+            isIncomplete: day.isIncomplete,
+          },
+        ]
+      : []
+  )

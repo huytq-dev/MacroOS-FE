@@ -20,6 +20,8 @@ interface MetricTileProps {
   /** Số đang được BE dựng lại (ô mờ): báo cho trình đọc màn hình (`aria-busy`), không chỉ dựa vào độ mờ. */
   readonly busy?: boolean
   readonly className?: string
+  /** Dòng ngắn dưới kỳ (vd. vì sao Expenditure đang Holding); không bấm riêng, cả ô đã dẫn tới trang chi tiết có hành động. */
+  readonly note?: string
 }
 
 /** Ô số liệu kiểu MacroFactor: tên + kỳ, hình nhỏ, đường kẻ, giá trị + đơn vị, chevron. Cả ô là một liên kết khi có `href`. */
@@ -34,6 +36,7 @@ export function MetricTile({
   loading,
   busy,
   className,
+  note,
 }: MetricTileProps) {
   const body = (
     <>
@@ -45,6 +48,14 @@ export function MetricTile({
           {title}
         </h3>
         <p className="text-muted-foreground truncate text-sm leading-snug">{subtitle}</p>
+        {note && (
+          <p
+            data-tile-note=""
+            className="text-mf-tile-fat-text mt-1 line-clamp-2 text-xs leading-snug font-medium"
+          >
+            {note}
+          </p>
+        )}
       </div>
       <div className="flex min-h-14 flex-1 flex-col justify-end">
         {loading ? <Skeleton className="h-14 w-full rounded-lg" aria-busy="true" /> : visual}

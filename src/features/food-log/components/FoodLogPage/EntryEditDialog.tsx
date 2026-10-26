@@ -19,7 +19,12 @@ import type { ProgramWeek } from '@/features/program/types/program.types'
 import { useSheet } from '@/hooks/use-sheet'
 import type { FoodLogSettings } from '../../food-log-settings'
 import type { NutrientGoal } from '@/features/nutrition/goal-progress'
-import type { FoodLogEntry, MacroTotals, UpdateEntryRequest } from '../../types/food-log.types'
+import type {
+  EffectiveNutrition,
+  FoodLogEntry,
+  MacroTotals,
+  UpdateEntryRequest,
+} from '../../types/food-log.types'
 import { AddFoodProgress } from './AddFoodProgress'
 import { DateTimeSheet } from './DateTimeSheet'
 import { FoodDetailView, type FoodDetailEdit } from './FoodDetail'
@@ -34,6 +39,8 @@ interface EntryEditDialogProps {
   readonly error: string | null
   /** Tổng ngày + mục tiêu cho thanh tiến độ trên cùng, và cờ chất nào hiện (Logger Banner). */
   readonly totals?: MacroTotals
+  /** Ngày hiệu lực của BE: có override thì thanh tiến độ hiện số hiệu lực + tổng Food Log riêng. */
+  readonly effective?: EffectiveNutrition | null
   readonly target?: ProgramWeek | null
   readonly banner: Pick<
     FoodLogSettings,
@@ -117,6 +124,7 @@ function EditBody({
   isPending,
   error,
   totals,
+  effective,
   target,
   banner,
   today,
@@ -174,6 +182,7 @@ function EditBody({
           <AddFoodProgress
             layout="row"
             totals={totals}
+            effective={effective}
             target={target}
             plate={{ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }}
             show={{

@@ -9,27 +9,25 @@ import { SheetFrame } from '@/components/shared/SheetFrame'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { routePath } from '@/config/route-path'
+import { useUnits } from '@/features/users/hooks/use-units'
 import { SelectDateSheet } from '@/features/weight/components/BodyMetricPage/SelectDateSheet'
 import { useCoarsePointer } from '@/hooks/use-coarse-pointer'
 import { formatDate } from '@/lib/date'
 import { cn, normalizeDecimal } from '@/lib/utils'
 import { useUiStore } from '@/stores/ui.store'
+import {
+  buildSavePayload,
+  eligibilityNotice,
+  FIELD_PATTERN,
+  initialTexts,
+  overrideNotice,
+  SOURCE_LABEL,
+  type FieldKey,
+  type FieldTexts,
+} from '../nutrition-data.utils'
 import type { NutritionDay, SaveNutritionDayRequest } from '../types/nutrition-data.types'
 
-type FieldKey = 'calories' | 'protein' | 'fat' | 'carbs'
-
-/** Energy là số nguyên ≤ 99999; macro tối đa 4 chữ số nguyên và 1 số lẻ ("," được đổi thành "."). */
-const PATTERN: Record<FieldKey, RegExp> = {
-  calories: /^\d{0,5}$/,
-  protein: /^\d{0,4}(\.\d?)?$/,
-  fat: /^\d{0,4}(\.\d?)?$/,
-  carbs: /^\d{0,4}(\.\d?)?$/,
-}
 const SWITCH = 'h-7! w-12! [&_[data-slot=switch-thumb]]:size-6'
-
-const toText = (value: number | null | undefined) =>
-  value === null || value === undefined ? '' : String(value)
-const toNumber = (text: string) => (text === '' || text === '.' ? null : Number(text))
 
 interface NutritionDaySheetProps {
   readonly open: boolean
@@ -37,15 +35,20 @@ interface NutritionDaySheetProps {
   readonly date: string
   readonly today: string
   readonly onDateChange: (date: string) => void
-  /** Dữ liệu đã có của ngày (đang sửa); thiếu = ngày mới, không có thùng rác. Trang đặt `key` theo ngày + dữ liệu. */
+  /** Dữ liệu đã có của ngày (đang sửa); thiếu = ngày mới. Trang đặt `key` theo ngày + trạng thái tải của ngày đó. */
   readonly existing: NutritionDay | undefined
+  /** Đang hỏi riêng ngày này (ngày cũ hơn các trang đã tải): chưa biết ngày đã có số nhập tay hay chưa nên chưa cho sửa / lưu. */
+  readonly loadingExisting: boolean
+  /** Delete Nutrition Data (số nhập tay + cờ nhịn ăn). */
   readonly onDelete: () => void
+  /** Remove Manual Override (chỉ số nhập tay). */
+  readonly onRemoveOverride: () => void
   readonly isPending: boolean
   readonly error: string | null
   readonly onSave: (payload: SaveNutritionDayRequest) => void
 }
 
-/** Ô số có nhãn, đơn vị ở bên phải; ô đang nhập viền trắng (như MacroFactor). */
+/** Ô số có nhãn, đơn vị ở bên phải; ô đang nhập viền trắng (như MacroFactor). Ô macro trống hiện "—" (chưa có dữ liệu, không phải 0). */
 function NumberField({
   label,
   unit,
@@ -57,6 +60,7 @@ function NumberField({
   tall = false,
   autoFocus = false,
   disabled = false,
+  unknownHint,
 }: {
   readonly label: string
   readonly unit: string
@@ -67,8 +71,9 @@ function NumberField({
   readonly onFocus: () => void
   readonly tall?: boolean
   readonly autoFocus?: boolean
-  /** Ngày đã log từ Food Log: chỉ đọc (sửa món ở Food Log). */
   readonly disabled?: boolean
+  /** Có = ô trống được đọc là "chưa có dữ liệu" (macro): trình đọc màn hình nghe câu này thay vì một ô trống. */
+  readonly unknownHint?: string
 }) {
   return (
     <label className="block min-w-0 space-y-1.5">
@@ -89,10 +94,11 @@ function NumberField({
           readOnly={disabled}
           aria-disabled={disabled || undefined}
           value={value}
+          placeholder="—"
           onChange={(event) => onChange(event.target.value)}
           onFocus={onFocus}
-          aria-label={`${label} (${unit})`}
-          className="w-0 min-w-0 flex-1 bg-transparent text-lg tabular-nums outline-none"
+          aria-label={`${label} (${unit})${value === '' && unknownHint ? `, ${unknownHint}` : ''}`}
+          className="placeholder:text-muted-foreground w-0 min-w-0 flex-1 bg-transparent text-lg tabular-nums outline-none"
         />
         <span className="text-muted-foreground text-base">{unit}</span>
       </span>
@@ -101,9 +107,10 @@ function NumberField({
 }
 
 /**
- * Bảng nhập dinh dưỡng một ngày của Nutrition Data Manager (như MacroFactor): ✕, ngày ▾ mở "Select Date", phụ đề "Nutrition", thùng
- * rác khi ngày đã có dữ liệu; Energy (kcal), Protein / Fat / Carbs (g), công tắc "Are you fasting?" (bật thì hiện khung xanh giải
- * thích) và "Is this day incomplete?", nút Save và bàn phím số riêng trên màn cảm ứng.
+ * Bảng nhập dinh dưỡng một ngày của Nutrition Data Manager (như MacroFactor): ✕, ngày ▾ mở "Select Date", phụ đề "Nutrition", thùng rác khi ngày có số nhập tay hoặc
+ * nhịn ăn; Energy (kcal), Protein / Fat / Carbs (g) — số user ĐÃ NHẬP, ô trống = chưa nhập (không phải 0), cho nhập chỉ macro hoặc chỉ calories, kể cả ngày đã có món
+ * (override không đụng món) —, công tắc "Are you fasting?" và "Is this day incomplete?", Save, "Remove manual entry", bàn phím số riêng trên màn cảm ứng. Số hiệu lực, nguồn và
+ * điều kiện thuật toán là của BE, hiện đúng như BE trả.
  */
 export function NutritionDaySheet({
   open,
@@ -112,89 +119,44 @@ export function NutritionDaySheet({
   today,
   onDateChange,
   existing,
+  loadingExisting,
   onDelete,
+  onRemoveOverride,
   isPending,
   error,
   onSave,
 }: NutritionDaySheetProps) {
   const coarse = useCoarsePointer()
+  const { energy } = useUnits()
   const openFoodLogDate = useUiStore((state) => state.openFoodLogDate)
-  // Ngày có món trong Food Log (source App): BE không cho đổi kcal / macro / fasting, chỉ cờ incomplete
-  const locked = existing?.source === 'App'
-  const [texts, setTexts] = useState<Record<FieldKey, string>>({
-    calories: toText(existing?.calories),
-    protein: toText(existing?.proteinG),
-    fat: toText(existing?.fatG),
-    carbs: toText(existing?.carbsG),
-  })
+  const [texts, setTexts] = useState<FieldTexts>(() => initialTexts(existing))
   const [fasting, setFasting] = useState(existing?.isFasting ?? false)
   const [incomplete, setIncomplete] = useState(existing?.isIncomplete ?? false)
   const [active, setActive] = useState<FieldKey>('calories')
   const [localError, setLocalError] = useState<string | null>(null)
   const [dateOpen, setDateOpen] = useState(false)
 
+  const hasFoods = (existing?.entryCount ?? 0) > 0
+  // Bật nhịn ăn cần ngày KHÔNG có món (BE trả 409 nếu không): công tắc khoá, không để user bấm rồi mới nhận lỗi
+  const fastingBlocked = hasFoods && !existing?.isFasting
+  const notice = existing ? overrideNotice(existing) : null
+  const eligibility = existing ? eligibilityNotice(existing) : null
+
   const set = (key: FieldKey, raw: string) => {
     const next = normalizeDecimal(raw)
-    if (!PATTERN[key].test(next)) return
+    if (!FIELD_PATTERN[key].test(next)) return
     setLocalError(null)
     setTexts((current) => ({ ...current, [key]: next }))
   }
 
   const submit = () => {
-    if (isPending) return
-    const values = {
-      calories: toNumber(texts.calories),
-      proteinG: toNumber(texts.protein),
-      fatG: toNumber(texts.fat),
-      carbsG: toNumber(texts.carbs),
-    }
-    const flags = { isFasting: fasting, isIncomplete: incomplete }
-    const none = { calories: null, proteinG: null, fatG: null, carbsG: null }
-    if (locked) {
-      onSave({ date, ...none, isFasting: false, isIncomplete: incomplete })
+    if (isPending || loadingExisting) return
+    const outcome = buildSavePayload({ date, texts, fasting, incomplete, existing })
+    if (!outcome.ok) {
+      setLocalError(outcome.error)
       return
     }
-    const typed = Object.values(values).filter((value) => value !== null)
-
-    if (fasting) {
-      if (typed.some((value) => value !== 0)) {
-        setLocalError(
-          "A fasting day can't have calories or macros. Clear them or turn fasting off."
-        )
-        return
-      }
-      onSave({ date, ...none, ...flags })
-      return
-    }
-    if (values.calories === null && typed.length > 0) {
-      setLocalError('Enter calories to save macros')
-      return
-    }
-    if (values.calories !== null && values.calories > 10000) {
-      setLocalError('Calories are at most 10000')
-      return
-    }
-    if ([values.proteinG, values.fatG, values.carbsG].some((value) => (value ?? 0) > 1000)) {
-      setLocalError('Macros are at most 1000 g')
-      return
-    }
-    if (typed.length === 0) {
-      // Không nhập số: chỉ đổi cờ của ngày đã có dữ liệu (ngày trống thì BE từ chối)
-      if (!existing) {
-        setLocalError('Enter calories, or turn on fasting')
-        return
-      }
-      onSave({ date, ...none, ...flags })
-      return
-    }
-    // Số không đổi thì chỉ gửi cờ (khỏi tạo lại món nhập tay)
-    const unchanged =
-      existing &&
-      values.calories === existing.calories &&
-      values.proteinG === (existing.proteinG ?? null) &&
-      values.fatG === (existing.fatG ?? null) &&
-      values.carbsG === (existing.carbsG ?? null)
-    onSave({ date, ...(unchanged ? none : values), ...flags })
+    onSave(outcome.payload)
   }
 
   return (
@@ -208,10 +170,10 @@ export function NutritionDaySheet({
         showDone={false}
         headerAction={
           existing &&
-          !locked && (
+          (existing.hasOverride || existing.isFasting) && (
             <button
               type="button"
-              aria-label="Delete this day's nutrition"
+              aria-label="Delete this day's nutrition data"
               onClick={onDelete}
               className="focus-visible:ring-ring/50 active:bg-foreground/10 flex size-11 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
             >
@@ -227,27 +189,47 @@ export function NutritionDaySheet({
             submit()
           }}
           className="space-y-4 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          aria-busy={loadingExisting || undefined}
         >
           <FormErrorAlert title="Couldn't save" message={localError ?? error} />
-          {locked && (
+          {existing && (hasFoods || notice || eligibility) && (
             <div
               role="note"
-              className="bg-secondary motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-300 flex items-center justify-between gap-3 rounded-lg px-4 py-3"
+              className="bg-secondary motion-safe:animate-in motion-safe:fade-in-0 motion-safe:animation-duration-300 space-y-2 rounded-lg px-4 py-3"
             >
-              <div className="min-w-0">
-                <p className="text-base font-semibold">Logged in Food Log</p>
-                <p className="text-muted-foreground text-sm leading-snug">
-                  Calories and macros come from your foods, so edit them there. You can still mark
-                  the day incomplete.
+              {notice && <p className="text-sm leading-snug">{notice}</p>}
+              {hasFoods && existing.hasOverride && (
+                <dl className="text-muted-foreground grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 text-sm tabular-nums">
+                  <dt>Effective calories</dt>
+                  <dd className="text-foreground text-right">
+                    {existing.calories === null ? '—' : energy.text(existing.calories)}
+                  </dd>
+                  <dt>Food Log total</dt>
+                  <dd className="text-foreground text-right">
+                    {energy.text(existing.foodLogCalories)}
+                  </dd>
+                  <dt>Data source</dt>
+                  <dd className="text-foreground text-right">{SOURCE_LABEL[existing.source]}</dd>
+                </dl>
+              )}
+              {hasFoods && !existing.hasOverride && (
+                <p className="text-muted-foreground text-sm leading-snug tabular-nums">
+                  Food Log total: {energy.text(existing.foodLogCalories)}. Entering values here
+                  replaces it for this day; your foods are kept.
                 </p>
-              </div>
-              <Link
-                href={routePath.foodLog}
-                onClick={() => openFoodLogDate(date)}
-                className="bg-background focus-visible:ring-ring/50 min-h-11 shrink-0 rounded-full px-4 text-sm leading-[2.75rem] whitespace-nowrap transition-transform duration-100 focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100"
-              >
-                Open Food Log
-              </Link>
+              )}
+              {eligibility && (
+                <p className="text-muted-foreground text-sm leading-snug">{eligibility}</p>
+              )}
+              {hasFoods && (
+                <Link
+                  href={routePath.foodLog}
+                  onClick={() => openFoodLogDate(date)}
+                  className="bg-background focus-visible:ring-ring/50 inline-flex min-h-11 items-center rounded-full px-4 text-sm whitespace-nowrap transition-transform duration-100 focus-visible:ring-1 focus-visible:outline-none active:scale-95 motion-reduce:active:scale-100"
+                >
+                  Open Food Log
+                </Link>
+              )}
             </div>
           )}
 
@@ -280,8 +262,8 @@ export function NutritionDaySheet({
             onChange={(text) => set('calories', text)}
             onFocus={() => setActive('calories')}
             tall
-            autoFocus={!locked}
-            disabled={locked}
+            autoFocus
+            disabled={loadingExisting}
           />
           <div className="grid grid-cols-3 gap-3">
             <NumberField
@@ -292,7 +274,8 @@ export function NutritionDaySheet({
               coarse={coarse}
               onChange={(text) => set('protein', text)}
               onFocus={() => setActive('protein')}
-              disabled={locked}
+              disabled={loadingExisting}
+              unknownHint="no macro data"
             />
             <NumberField
               label="Fat"
@@ -302,7 +285,8 @@ export function NutritionDaySheet({
               coarse={coarse}
               onChange={(text) => set('fat', text)}
               onFocus={() => setActive('fat')}
-              disabled={locked}
+              disabled={loadingExisting}
+              unknownHint="no macro data"
             />
             <NumberField
               label="Carbs"
@@ -312,17 +296,28 @@ export function NutritionDaySheet({
               coarse={coarse}
               onChange={(text) => set('carbs', text)}
               onFocus={() => setActive('carbs')}
-              disabled={locked}
+              disabled={loadingExisting}
+              unknownHint="no macro data"
             />
           </div>
 
           <label className="flex min-h-12 items-center justify-between gap-3 text-base">
-            Are you fasting?
+            <span className="min-w-0">
+              Are you fasting?
+              {fastingBlocked && (
+                <span className="text-muted-foreground block text-sm leading-snug">
+                  Not available while foods are logged on this day.
+                </span>
+              )}
+            </span>
             <Switch
               checked={fasting}
-              onCheckedChange={setFasting}
+              onCheckedChange={(next) => {
+                setLocalError(null)
+                setFasting(next)
+              }}
               aria-label="Are you fasting?"
-              disabled={locked}
+              disabled={loadingExisting || fastingBlocked}
               className={SWITCH}
             />
           </label>
@@ -332,6 +327,7 @@ export function NutritionDaySheet({
               checked={incomplete}
               onCheckedChange={setIncomplete}
               aria-label="Is this day incomplete?"
+              disabled={loadingExisting}
               className={SWITCH}
             />
           </label>
@@ -339,13 +335,26 @@ export function NutritionDaySheet({
           <Button
             type="submit"
             className="bg-foreground text-background h-14 w-full rounded-lg text-base transition-transform duration-100 active:scale-[0.98] motion-reduce:active:scale-100"
-            disabled={isPending}
-            aria-busy={isPending}
+            disabled={isPending || loadingExisting}
+            aria-busy={isPending || loadingExisting}
           >
-            {isPending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+            {(isPending || loadingExisting) && (
+              <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+            )}
             Save
           </Button>
-          {coarse && !locked && (
+          {existing?.hasOverride && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-12 w-full rounded-lg text-base"
+              disabled={isPending}
+              onClick={onRemoveOverride}
+            >
+              Remove manual entry
+            </Button>
+          )}
+          {coarse && (
             <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:animation-duration-300">
               <NumericKeypad
                 allowFraction={false}

@@ -59,6 +59,8 @@
   --mf-tile-carbs: #5dba85;
   --mf-tile-calories-text: #2f62c9;
   --mf-tile-protein-text: #d4491f;
+  /* Dải Flux Range của biểu đồ Expenditure (cam mờ, dùng với độ trong suốt) */
+  --mf-flux-band: #ff8261;
   --mf-tile-fat-text: #946a00;
   --mf-tile-carbs-text: #2c8a57;
   /* Hồng của Period (vòng ngày đã đánh dấu, ô Period), đo từ ảnh MacroFactor */
@@ -140,6 +142,7 @@
   --mf-tile-carbs: #5dbb86;
   --mf-tile-calories-text: #5c8def;
   --mf-tile-protein-text: #ff8660;
+  --mf-flux-band: #ff8660;
   --mf-tile-fat-text: #ffd35a;
   --mf-tile-carbs-text: #5dbb86;
   --mf-warning-bg: var(--mf-pastel-yellow);

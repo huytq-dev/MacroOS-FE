@@ -81,7 +81,8 @@ export function ServingSection({ state, errors, onBasisChange, onChange }: Servi
                 inputMode="decimal"
                 autoComplete="off"
                 onChange={(event) => onChange({ servingQty: event.target.value })}
-                className={`${FIELD_CLASS} w-24 shrink-0`}
+                // `w-24!`: FIELD_CLASS có `w-full` thắng `w-24` nên ô số lượng chiếm cả hàng và ô tên khẩu phần bị ép còn 32px ở màn 375px
+                className={`${FIELD_CLASS} w-24! shrink-0`}
               />
               <input
                 id="create-serving-name"
@@ -91,7 +92,7 @@ export function ServingSection({ state, errors, onBasisChange, onChange }: Servi
                 placeholder='e.g. cup, slice, large - 3" diameter'
                 aria-invalid={Boolean(errors.serving) && state.servingName.trim() === ''}
                 onChange={(event) => onChange({ servingName: event.target.value })}
-                className={FIELD_CLASS}
+                className={`${FIELD_CLASS} min-w-0 flex-1`}
               />
             </div>
             <p className={HELP}>

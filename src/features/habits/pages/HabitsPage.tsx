@@ -53,7 +53,10 @@ function HabitsContent({ kind, today }: { readonly kind: HabitKind; readonly tod
   const derived = useDerivedGate()
   const derivedGate = kind === 'food-logging' ? derived.gate : 'ready'
 
-  if (summary.isError) return <ErrorState error={summary.error} onRetry={summary.refetch} />
+  if (summary.isError)
+    return (
+      <ErrorState error={summary.error} onRetry={summary.refetch} isRetrying={summary.isFetching} />
+    )
 
   const onSelect = (iso: string) => {
     if (kind === 'weigh-in') {

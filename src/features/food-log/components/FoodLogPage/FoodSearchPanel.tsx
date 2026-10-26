@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronLeft, Flame, Loader2, Plus } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronLeft, Clock, Flame, Loader2, Plus, SearchX } from 'lucide-react'
+import { useRecentSearches } from '@/features/foods/hooks/use-recent-searches'
+import { useAutoLoadMore } from '@/hooks/use-auto-load-more'
 import { Energy } from '@/components/shared/Energy'
 import { FoodIcon } from '@/components/shared/FoodIcon'
 import { HighlightedText } from '@/lib/search-highlight'
@@ -88,7 +91,9 @@ function ResultGroup({
       </div>
       <div className="divide-border divide-y">
         {foods.slice(0, GROUP_LIMIT).map((food) => (
-          <div key={food.id}>{renderRow(food)}</div>
+          <div key={food.id} className={ROW_CV}>
+            {renderRow(food)}
+          </div>
         ))}
       </div>
     </section>
@@ -127,7 +132,9 @@ function GroupFullList({
       </div>
       <div className="divide-border divide-y">
         {foods.map((food) => (
-          <div key={food.id}>{renderRow(food)}</div>
+          <div key={food.id} className={ROW_CV}>
+            {renderRow(food)}
+          </div>
         ))}
       </div>
       {footer}
@@ -226,6 +233,84 @@ function SearchResultRow({
 /** Khoá dòng plate phải khác nhau mỗi lần thêm (cùng món thêm nhiều lần); chỉ gọi trong sự kiện bấm. */
 const newPlateKey = (id: string) => `${id}-${Date.now()}`
 
+/** Bỏ qua việc vẽ dòng nằm ngoài màn hình (danh sách dài vẫn cuộn mượt trên điện thoại); 46px là chiều cao dòng kết quả. */
+const ROW_CV = '[contain-intrinsic-size:auto_46px] [content-visibility:auto]'
+
+/** Từ khoá gần đây (chưa gõ gì): nút tròn cao 44px, chạm để tìm lại; "Clear" xoá cả danh sách. */
+function RecentSearches({
+  items,
+  onPick,
+  onClear,
+}: {
+  readonly items: readonly string[]
+  readonly onPick: (query: string) => void
+  readonly onClear: () => void
+}) {
+  if (items.length === 0) return null
+  return (
+    <section aria-label="Recent searches" className="px-4 pt-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-xl leading-tight font-bold">Recent searches</h3>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-muted-foreground active:text-foreground focus-visible:ring-ring/50 relative text-sm underline underline-offset-2 transition-colors before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] focus-visible:ring-1 focus-visible:outline-none"
+        >
+          Clear
+        </button>
+      </div>
+      <ul className="mt-2 flex flex-wrap gap-2">
+        {items.map((query) => (
+          <li key={query}>
+            <button
+              type="button"
+              onClick={() => onPick(query)}
+              className="bg-secondary active:bg-muted focus-visible:ring-ring/50 inline-flex h-11 max-w-full items-center gap-1.5 rounded-full px-4 text-[15px] transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            >
+              <Clock aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
+              <span className="truncate">{query}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** Không có món nào khớp: nói rõ và đưa hai lối đi (Quick Add calo, hoặc tạo món của riêng mình) thay vì ngõ cụt. */
+function NoResults({
+  query,
+  onOpenQuickAdd,
+  createFoodHref,
+  onClear,
+}: {
+  readonly query: string
+  readonly onOpenQuickAdd: () => void
+  readonly createFoodHref: string
+  readonly onClear: () => void
+}) {
+  return (
+    <div className="px-6 py-10 text-center" role="status">
+      <SearchX aria-hidden="true" className="text-muted-foreground mx-auto size-10" />
+      <p className="mt-3 text-base font-medium break-words">No foods match &ldquo;{query}&rdquo;</p>
+      <p className="text-muted-foreground mt-1 text-sm">
+        Check the spelling, try a shorter word, or add it yourself.
+      </p>
+      <div className="mx-auto mt-5 flex max-w-xs flex-col gap-2">
+        <Button className="h-11 rounded-full" onClick={onOpenQuickAdd}>
+          Quick Add calories
+        </Button>
+        <Button asChild variant="secondary" className="h-11 rounded-full">
+          <Link href={createFoodHref}>Create a food</Link>
+        </Button>
+        <Button variant="ghost" className="h-11 rounded-full" onClick={onClear}>
+          Clear search
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 interface FoodSearchPanelProps {
   readonly search: string
   readonly onSearchChange: (value: string) => void
@@ -248,6 +333,9 @@ interface FoodSearchPanelProps {
   readonly onRemoveFavorite: (id: string) => void
   /** Phần của màn Food Detail do trang quyết định (mục tiêu, ghi log ngay, sao chép thành món tự tạo). */
   readonly detail: FoodDetailExtras
+  /** "Không có kết quả": chuyển sang tab Quick Add / mở trang tạo món. */
+  readonly onOpenQuickAdd: () => void
+  readonly createFoodHref: string
 }
 
 /**
@@ -274,10 +362,23 @@ export function FoodSearchPanel({
   onAddFavorite,
   onRemoveFavorite,
   detail,
+  onOpenQuickAdd,
+  createFoodHref,
 }: FoodSearchPanelProps) {
   // Nhóm đang mở danh sách đầy đủ ("See N More"); `cameBack` để lần quay về trượt từ trái thay vì từ phải
   const [openGroup, setOpenGroup] = useState<ResultGroupName | null>(null)
   const [cameBack, setCameBack] = useState(false)
+  const recent = useRecentSearches()
+  // Cuộn tới chân danh sách kết quả thì tự tải trang kế (tính trước các return sớm bên dưới); nút "Load more" vẫn dùng được
+  const loadMoreRef = useAutoLoadMore(
+    search.trim() !== '' &&
+      !pickedId &&
+      !isLoading &&
+      !isFetching &&
+      totalCount !== null &&
+      items.length < totalCount,
+    onLoadMore
+  )
 
   if (pickedId) {
     if (!picked) return <Skeleton className="m-4 h-56 rounded-2xl" aria-busy="true" />
@@ -324,14 +425,22 @@ export function FoodSearchPanel({
       : null
   const hasMore = totalCount !== null && items.length < totalCount
   const query = search.trim()
+  const noResults = isSearching && !isLoading && !isFetching && items.length === 0
   const renderRow = (food: FoodSummary) =>
     isSearching ? (
       <SearchResultRow
         food={food}
         query={query}
         showAdd={tileOptions.highlight === 'MultiAdd'}
-        onSelect={() => onPick(food)}
-        onAdd={() => onAddToPlate(plateItemOfFood(food))}
+        // Từ khoá chỉ được nhớ khi nó thật sự dẫn tới một món (chọn xem hoặc "+"), không nhớ từng bước gõ dở
+        onSelect={() => {
+          recent.remember(query)
+          onPick(food)
+        }}
+        onAdd={() => {
+          recent.remember(query)
+          onAddToPlate(plateItemOfFood(food))
+        }}
       />
     ) : (
       <FoodTile
@@ -344,7 +453,7 @@ export function FoodSearchPanel({
     )
 
   const loadMore = hasMore && (
-    <div className="border-t p-2">
+    <div ref={loadMoreRef} className="border-t p-2">
       <Button
         variant="ghost"
         className="w-full"
@@ -382,7 +491,17 @@ export function FoodSearchPanel({
       )}
     >
       {!isSearching && <FavoritesBar favorites={favorites} onQuickAdd={quickAddFavorite} />}
-      {noHistory ? (
+      {!isSearching && (
+        <RecentSearches items={recent.list} onPick={onSearchChange} onClear={recent.clear} />
+      )}
+      {noResults ? (
+        <NoResults
+          query={query}
+          onOpenQuickAdd={onOpenQuickAdd}
+          createFoodHref={createFoodHref}
+          onClear={() => onSearchChange('')}
+        />
+      ) : noHistory ? (
         <div className="bg-card mx-4 mt-4 rounded-xl px-4 py-4">
           <p className="text-base font-medium">No history yet</p>
           <p className="text-muted-foreground text-sm">Search for foods below</p>

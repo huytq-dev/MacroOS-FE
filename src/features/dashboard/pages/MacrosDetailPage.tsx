@@ -16,7 +16,7 @@ import {
 import { useTween } from '../chart/use-tween'
 import { rangeLabel, type Averaging, type RangeKey } from '../expenditure.utils'
 import { useMacrosSeries } from '../hooks/use-dashboard'
-import { gramText, historyDayCount, macroBarsOf } from '../macros-detail'
+import { gramText, historyDayCount, macroBarsOf, partialDaysOf } from '../macros-detail'
 import type { MacroGranularity } from '../types/macros-series.types'
 import { useUnits } from '@/features/users/hooks/use-units'
 import { ErrorState } from '@/components/shared/ErrorState'
@@ -79,6 +79,7 @@ export function MacrosDetailPage() {
   const averages = (range === 'All' ? series.summary : windowSummary.data?.summary)?.averages
   const chartSeries = averaging === 'daily' ? series : (buckets.data ?? series)
   const dayBars = macroBarsOf(series, 'daily')
+  const partialDays = partialDaysOf(series)
 
   return (
     <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 md:pb-0">
@@ -119,7 +120,13 @@ export function MacrosDetailPage() {
 
       <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-300 flex flex-col gap-5">
         <MacrosLegend />
-        <MacrosBreakdownList days={dayBars} />
+        {partialDays.length > 0 && (
+          <p className="text-muted-foreground text-sm">
+            Days with only calories or only some macros have no breakdown, so they aren&apos;t drawn
+            in the chart.
+          </p>
+        )}
+        <MacrosBreakdownList days={dayBars} partial={partialDays} />
       </div>
     </div>
   )
