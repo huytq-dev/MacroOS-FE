@@ -15,7 +15,7 @@ interface ShortcutToolbarContentProps {
 }
 
 const CIRCLE =
-  'focus-visible:ring-ring/50 flex size-12 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100'
+  'focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100'
 
 /**
  * Phần ruột của toolbar phía trên thanh tab, theo Toolbar Style: Search and Barcode (ô tìm + mã vạch), Search, Barcode, and Custom
@@ -66,7 +66,7 @@ export function ShortcutToolbarContent({
   const third = style === 'SearchBarcodeCustom' ? enabled[2] : undefined
   return (
     <>
-      <div className="bg-foreground/12 flex h-12 min-w-0 flex-1 items-center rounded-full">
+      <div className="bg-foreground/12 flex h-11 min-w-0 flex-1 items-center rounded-full">
         <button
           type="button"
           onClick={onSearch}
@@ -83,7 +83,7 @@ export function ShortcutToolbarContent({
           type="button"
           aria-label="Scan barcode"
           onClick={onScan}
-          className="focus-visible:ring-ring/50 flex size-12 shrink-0 items-center justify-center rounded-full focus-visible:ring-1 focus-visible:outline-none"
+          className="focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded-full focus-visible:ring-1 focus-visible:outline-none"
         >
           <ScanBarcode aria-hidden="true" className="size-6" strokeWidth={1.8} />
         </button>

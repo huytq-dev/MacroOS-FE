@@ -107,11 +107,8 @@ export function weekSummary(
   const goal = goals.length > 0 ? total(goals) : null
   if (mode === 'remaining') {
     const progress = shownProgress(total(eatenOfficial), goal, shown)
-    if (progress.remaining === null)
-      return {
-        value: eatenAll.length === 0 ? null : shown(total(eatenAll)),
-        goal: progress.goal,
-      }
+    // Không có target chính thức thì KHÔNG có "còn lại": hiện "—", không đổi sang số đã ăn (Remaining bật mà hiện số đã ăn gây hiểu nhầm)
+    if (progress.remaining === null) return { value: null, goal: progress.goal }
     return { value: eatenOfficial.length === 0 ? null : progress.remaining, goal: progress.goal }
   }
   const unofficialEaten = knownOf(scope.filter((day) => !day.target)).some((value) => value > 0)

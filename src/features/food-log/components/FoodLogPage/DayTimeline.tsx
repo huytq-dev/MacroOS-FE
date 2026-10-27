@@ -265,7 +265,7 @@ const tileDataOf = (entry: FoodLogEntry): FoodTileData => {
 }
 
 /**
- * Dòng thời gian trong ngày: mỗi giờ một viên thuốc giờ (không có đường dọc nối), nút + để thêm món vào đúng giờ đó, các món đã
+ * Dòng thời gian trong ngày: MỖI giờ một viên thuốc giờ (kể cả giờ đã có món), nút + để thêm món vào đúng giờ đó, các món đã
  * log hiện bên phải giờ của chúng (chạm để sửa). Khoảng giờ, mốc giờ ăn và tổng macro theo giờ theo cài đặt Food Log.
  */
 export function DayTimeline({
@@ -314,11 +314,8 @@ export function DayTimeline({
         const here = hereRows.filter((row) => !row.leaving).map((row) => row.item)
         if (hideEmptyHours && hereRows.length === 0 && hour !== currentHour && hour !== last)
           return null
-        // Giờ chỉ có một món thì món đứng riêng trên đường dọc (như MacroFactor); viên thuốc giờ và tổng chỉ hiện ở giờ trống,
-        // giờ hiện tại (để còn chỗ thêm món) hoặc giờ có từ hai món trở lên.
-        // Đang chọn: giờ có món nào cũng hiện viên thuốc để chọn / bỏ chọn cả giờ.
-        const showHeader =
-          here.length === 0 || here.length >= 2 || hour === currentHour || selecting
+        // MỌI giờ đều có hàng viên thuốc giờ + nút + (+ tổng macro của giờ khi bật Hourly Totals), kể cả giờ chỉ có một món: trước đây giờ một món bị bỏ hàng này nên
+        // user không thêm được món vào giờ đã ăn ("7h tôi ăn rồi sao log thêm được"). Viên thuốc cũng là chỗ chọn / bỏ chọn cả giờ khi đang chọn.
         const hereIds = here.map((entry) => entry.id)
         const allSelected =
           selecting && hereIds.length > 0 && hereIds.every((id) => selection?.selected.has(id))
@@ -326,52 +323,50 @@ export function DayTimeline({
           Math.round(here.reduce((total, entry) => total + pick(entry), 0))
         return (
           <li key={hour} id={`timeline-hour-${hour}`}>
-            {showHeader && (
-              <div className={cn('flex items-center gap-3 py-2', alignRight && 'flex-row-reverse')}>
-                <HourPill
-                  label={`${pad(hour)}:00`}
-                  now={hour === currentHour}
-                  onLongPress={longPressToAdd ? () => onAddAt(`${pad(hour)}:00`) : undefined}
-                  onPress={
-                    selection && hereIds.length > 0
-                      ? () =>
-                          selecting ? selection.onToggleHour(hereIds) : selection.onStart(hereIds)
-                      : undefined
-                  }
-                  filled={allSelected}
-                />
-                {pasteMode && selection ? (
+            <div className={cn('flex items-center gap-3 py-2', alignRight && 'flex-row-reverse')}>
+              <HourPill
+                label={`${pad(hour)}:00`}
+                now={hour === currentHour}
+                onLongPress={longPressToAdd ? () => onAddAt(`${pad(hour)}:00`) : undefined}
+                onPress={
+                  selection && hereIds.length > 0
+                    ? () =>
+                        selecting ? selection.onToggleHour(hereIds) : selection.onStart(hereIds)
+                    : undefined
+                }
+                filled={allSelected}
+              />
+              {pasteMode && selection ? (
+                <button
+                  type="button"
+                  aria-label={`Paste foods at ${pad(hour)}:00`}
+                  onClick={() => selection.onPaste(`${pad(hour)}:00`)}
+                  className="bg-secondary active:bg-muted focus-visible:ring-ring/50 motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in-0 relative flex size-9 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 before:absolute before:-inset-1 before:content-[''] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
+                >
+                  <ClipboardPaste aria-hidden="true" className="size-5" />
+                </button>
+              ) : (
+                !longPressToAdd && (
                   <button
                     type="button"
-                    aria-label={`Paste foods at ${pad(hour)}:00`}
-                    onClick={() => selection.onPaste(`${pad(hour)}:00`)}
-                    className="bg-secondary active:bg-muted focus-visible:ring-ring/50 motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in-0 relative flex size-9 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 before:absolute before:-inset-1 before:content-[''] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
+                    aria-label={`Add food at ${pad(hour)}:00`}
+                    onClick={() => onAddAt(`${pad(hour)}:00`)}
+                    className="bg-secondary active:bg-muted focus-visible:ring-ring/50 relative flex size-9 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 before:absolute before:-inset-1 before:content-[''] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
                   >
-                    <ClipboardPaste aria-hidden="true" className="size-5" />
+                    <Plus aria-hidden="true" className="size-5" />
                   </button>
-                ) : (
-                  !longPressToAdd && (
-                    <button
-                      type="button"
-                      aria-label={`Add food at ${pad(hour)}:00`}
-                      onClick={() => onAddAt(`${pad(hour)}:00`)}
-                      className="bg-secondary active:bg-muted focus-visible:ring-ring/50 relative flex size-9 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-200 before:absolute before:-inset-1 before:content-[''] focus-visible:ring-1 focus-visible:outline-none active:scale-90 motion-reduce:active:scale-100"
-                    >
-                      <Plus aria-hidden="true" className="size-5" />
-                    </button>
-                  )
-                )}
-                {here.length > 0 && showHourlyTotals && (
-                  <HourTotals
-                    calories={sum((entry) => entry.calories)}
-                    protein={sum((entry) => entry.protein)}
-                    fat={sum((entry) => entry.fat)}
-                    carbs={sum((entry) => entry.carbs)}
-                    className="min-w-0 flex-1 px-1"
-                  />
-                )}
-              </div>
-            )}
+                )
+              )}
+              {here.length > 0 && showHourlyTotals && (
+                <HourTotals
+                  calories={sum((entry) => entry.calories)}
+                  protein={sum((entry) => entry.protein)}
+                  fat={sum((entry) => entry.fat)}
+                  carbs={sum((entry) => entry.carbs)}
+                  className="min-w-0 flex-1 px-1"
+                />
+              )}
+            </div>
             {hereRows.length > 0 && (
               <ul>
                 {hereRows.map(({ item: entry, key, entering, leaving }) => (

@@ -1020,13 +1020,23 @@ await check(
       weekSummary(week, 'calories', (t) => t.caloriesTarget, 'remaining', Math.round),
       { value: 7 * 2861 - 65, goal: 7 * 2861 }
     )
-    // Chưa có target ngày nào: Remaining vẫn hiện số đã ăn, không có mục tiêu
+    // Chưa có target CHÍNH THỨC: không có "còn lại" ("—"), KHÔNG đổi sang số đã ăn (Remaining bật mà hiện số đã ăn gây hiểu nhầm); Consumed vẫn hiện số đã ăn
     assert.deepEqual(
       weekSummary(
         [{ ...day, target: null }],
         'calories',
         (t) => t.caloriesTarget,
         'remaining',
+        Math.round
+      ),
+      { value: null, goal: null }
+    )
+    assert.deepEqual(
+      weekSummary(
+        [{ ...day, target: null }],
+        'calories',
+        (t) => t.caloriesTarget,
+        'consumed',
         Math.round
       ),
       { value: 65, goal: null }
@@ -6206,6 +6216,44 @@ await check(
       )
       .filter((file) => /\.(getHours|getMinutes|getSeconds)\(/.test(readFileSync(file, 'utf8')))
     assert.deepEqual(offenders, [], 'device clock used for time of day: ' + offenders.join(', '))
+  }
+)
+
+await check(
+  'DT1 every hour with entries keeps its hour pill, "+" and hourly totals (a single-entry hour used to lose them, so nothing could be added at 7:00); the bottom search bar is 44 px tall with a 16 px font',
+  async () => {
+    const timeline = codeOf(source('features/food-log/components/FoodLogPage/DayTimeline.tsx'))
+    assert.doesNotMatch(timeline, /showHeader/, 'the per-hour header must not be conditional')
+    assert.doesNotMatch(
+      timeline,
+      /here\.length >= 2/,
+      'no "two or more entries" rule for the header'
+    )
+    // header row (pill + add / paste button + totals) is rendered for each hour, before the entries
+    const header = timeline.indexOf('<HourPill')
+    const add = timeline.indexOf('Add food at')
+    const totals = timeline.indexOf('<HourTotals')
+    const entries = timeline.indexOf('hereRows.map(({ item: entry')
+    assert.ok(header > 0 && add > header && totals > add && entries > totals, 'header order')
+    assert.match(
+      timeline,
+      /<li key=\{hour\} id=\{`timeline-hour-\$\{hour\}`\}>\s*<div className=\{cn\('flex items-center gap-3 py-2'/,
+      'the header row is unconditional inside each hour'
+    )
+    assert.match(timeline, /here\.length > 0 && showHourlyTotals/, 'totals follow the setting only')
+    // search bar: slim but still a 44 px target, 16 px text (no iOS zoom)
+    const bar = codeOf(source('features/shortcuts/components/ShortcutToolbarContent.tsx'))
+    assert.match(bar, /flex h-11 min-w-0 flex-1 items-center rounded-full/)
+    assert.match(
+      bar,
+      /flex size-11 shrink-0 items-center justify-center rounded-full focus-visible/
+    )
+    assert.match(bar, /text-base font-normal/)
+    assert.doesNotMatch(bar, /\b(h|size)-(12|10|9)\b/, 'toolbar controls must stay 44 px')
+    assert.match(
+      codeOf(source('features/dashboard/components/DashboardPage/DashboardSearchBar.tsx')),
+      /border-t px-4 py-2 transition/
+    )
   }
 )
 
