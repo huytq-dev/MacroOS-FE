@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ChartAxes, PlotClip } from '../../chart/ChartAxes'
 import { PAD, PLOT_W, WIDTH, agoOf, showMarkers, visibleAgo, xOfAgo } from '../../chart/geometry'
 import type { useChartPan } from '../../chart/use-chart-pan'
+import { bandPath } from '../../chart/smooth-path'
 import { useTween } from '../../chart/use-tween'
 import { expAxis, fluxSegments, type ExpDay } from '../../expenditure-series'
 import { bucketLabel } from '../../expenditure.utils'
@@ -25,6 +26,26 @@ interface ExpenditureChartProps {
 }
 
 const kcal = (value: number) => Math.round(value).toLocaleString('en-US')
+
+/** Trạng thái của điểm bằng chữ: Calibrating = ước tính ban đầu (Initial), đóng băng theo thiết kế; nhóm W / M lẫn trạng thái = Mixed. */
+export const statusLabel = (
+  status: ExpDay['status'],
+  activeSource: ExpDay['activeSource'] = null
+) =>
+  activeSource === 'Static'
+    ? 'Static (set by you)'
+    : status === 'Calibrating'
+      ? 'Initial estimate (calibrating)'
+      : status
+
+const DIRECTION: Record<'Up' | 'Down' | 'Stable', string> = {
+  Up: 'rising',
+  Down: 'falling',
+  Stable: 'stable',
+}
+
+/** Độ dày tối thiểu (đơn vị viewBox) của dải: Stable = độ rộng ≤ 1 kcal nên vẽ như một đường mảnh nhìn thấy được (chỉ là nét vẽ, số của BE giữ nguyên). */
+const MIN_BAND_THICKNESS = 2
 
 /** Nửa bề rộng (đơn vị viewBox) của dải khi một đoạn chỉ có MỘT nhóm: vẫn thấy được thay vì mất hẳn. */
 const LONE_BAND_HALF_WIDTH = 3
@@ -67,21 +88,21 @@ export function ExpenditureChart({
   const markers = showMarkers(slots, shown.length)
 
   const line = shown.map((day) => `${x(day.date)},${y(day.kcal)}`).join(' ')
-  // Mỗi đoạn liên tục có dải là MỘT path khép kín (mép trên đi, mép dưới về)
-  const bands = fluxSegments(shown).map((segment) => {
-    if (segment.length === 1) {
-      const [day] = segment
-      const [left, right] = [x(day.date) - LONE_BAND_HALF_WIDTH, x(day.date) + LONE_BAND_HALF_WIDTH]
-      const [top, bottom] = [y(day.fluxHigh ?? day.kcal), y(day.fluxLow ?? day.kcal)]
-      return {
-        key: day.date,
-        d: `M${left},${top}L${right},${top}L${right},${bottom}L${left},${bottom}Z`,
-      }
-    }
-    const upper = segment.map((day) => `${x(day.date)},${y(day.fluxHigh ?? day.kcal)}`)
-    const lower = segment.map((day) => `${x(day.date)},${y(day.fluxLow ?? day.kcal)}`).reverse()
-    return { key: segment[0].date, d: `M${upper.join('L')}L${lower.join('L')}Z` }
-  })
+  // Mỗi đoạn liên tục có dải là MỘT path khép kín; mép trên / dưới là đường cong mượt đi qua ĐÚNG fluxHigh / fluxLow của BE ở từng điểm (không có hình chữ nhật hay ±N cố định)
+  const bands = fluxSegments(shown).map((segment) => ({
+    key: segment[0].date,
+    d: bandPath(
+      segment.map((day) => ({
+        x: x(day.date),
+        y: Math.min(y(day.fluxHigh ?? day.kcal), y(day.kcal) - MIN_BAND_THICKNESS / 2),
+      })),
+      segment.map((day) => ({
+        x: x(day.date),
+        y: Math.max(y(day.fluxLow ?? day.kcal), y(day.kcal) + MIN_BAND_THICKNESS / 2),
+      })),
+      LONE_BAND_HALF_WIDTH
+    ),
+  }))
 
   const pick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (pan.wasDragged()) return
@@ -146,7 +167,7 @@ export function ExpenditureChart({
             <polyline
               points={line}
               fill="none"
-              strokeWidth="1.5"
+              strokeWidth="2"
               strokeLinejoin="round"
               pathLength={1}
               className="stroke-mf-tile-protein motion-safe:animate-chart-draw"
@@ -155,7 +176,7 @@ export function ExpenditureChart({
           {markers &&
             shown.map((day) => {
               if (day.marker === null) return null
-              const size = picked !== null && agoOf(today, day.date) === picked ? 5 : 3.5
+              const size = picked !== null && agoOf(today, day.date) === picked ? 5.5 : 4
               const common = {
                 strokeWidth: 1.5,
                 className: 'fill-background stroke-mf-tile-protein',
@@ -190,7 +211,7 @@ export function ExpenditureChart({
       {selected && selectedVisible && (
         <div
           role="status"
-          style={{ left: `${Math.min(78, Math.max(22, (selectedX / WIDTH) * 100))}%` }}
+          style={{ left: `${Math.min(74, Math.max(26, (selectedX / WIDTH) * 100))}%` }}
           className="bg-popover border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:animation-duration-200 pointer-events-none absolute top-0 -translate-x-1/2 rounded-lg border px-3 py-2 text-center whitespace-nowrap shadow-md"
         >
           <p className="text-muted-foreground text-xs">
@@ -198,16 +219,19 @@ export function ExpenditureChart({
           </p>
           <p className="text-sm font-medium tabular-nums">
             {kcal(selected.kcal)} {unit}
-            {selected.status === 'Mixed' || selected.holding ? ` · ${selected.status}` : ''}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            {statusLabel(selected.status, selected.activeSource)}
           </p>
           {selected.fluxLow !== null && selected.fluxHigh !== null && (
             <>
               <p className="text-muted-foreground text-xs tabular-nums">
-                Flux Lower {kcal(selected.fluxLow)} · Upper {kcal(selected.fluxHigh)}
+                MacroOS Flux
+                {selected.fluxDirection ? ` · ${DIRECTION[selected.fluxDirection]}` : ''}
+                <br />
+                {kcal(selected.fluxLow)} – {kcal(selected.fluxHigh)} {unit}
               </p>
-              <p className="text-muted-foreground/80 text-[11px]">
-                Flux range is not a confidence interval.
-              </p>
+              <p className="text-muted-foreground/80 text-[11px]">Not a confidence interval.</p>
             </>
           )}
           {selected.status === 'Mixed' && (

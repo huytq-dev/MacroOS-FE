@@ -3,7 +3,11 @@ import { NextResponse } from 'next/server'
 import { routePath } from '@/config/route-path'
 
 // Mở cho cả người chưa và đã đăng nhập: link xác thực email bấm từ hộp thư (tài khoản chưa xác thực thì chưa đăng nhập được)
-const PUBLIC_PATHS = [routePath.confirmEmail]
+const PUBLIC_PATHS = [
+  routePath.confirmEmail,
+  // Trang xem trước Expenditure (dữ liệu mô phỏng, không API): CHỈ khi build bật cờ; production không có và trang tự trả 404
+  ...(process.env.NEXT_PUBLIC_EXPENDITURE_PREVIEW === '1' ? ['/expenditure-preview'] : []),
+]
 
 const AUTH_PATHS = [
   routePath.login,

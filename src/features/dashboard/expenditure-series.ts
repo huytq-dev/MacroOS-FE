@@ -3,6 +3,8 @@ import { bucketEnd, bucketKey, type Averaging } from './expenditure.utils'
 import { daysBetween } from '@/lib/date'
 import type {
   ExpenditureDayStatus,
+  ExpenditureSeriesBucket,
+  FluxReasonCode,
   ExpenditureInsightsResponse,
   ExpenditureSeriesDay,
 } from './types/expenditure-series.types'
@@ -23,6 +25,12 @@ export interface ExpDay {
   /** Biên dưới / trên của dải Flux (cùng đơn vị với `kcal`); cả hai null = không có dải. Luôn `fluxLow ≤ kcal ≤ fluxHigh` khi có. */
   readonly fluxLow: number | null
   readonly fluxHigh: number | null
+  /** Trạng thái dải theo BE (Available = có dải; null = BE cũ không gửi), lý do khi không có, và hướng (Up / Down / Stable). Chỉ để giải thích; biểu đồ vẽ theo fluxLow / fluxHigh. */
+  readonly fluxStatus: 'Available' | 'Unavailable' | null
+  readonly fluxReason: FluxReasonCode | null
+  readonly fluxDirection: 'Up' | 'Down' | 'Stable' | null
+  /** Static = số do user đặt (không học, không Flux); null = BE cũ không gửi. */
+  readonly activeSource: 'Learned' | 'Static' | null
   /** Ô vuông (Holding / Calibrating)? Chỉ để vẽ danh sách từng ngày; biểu đồ đọc `marker`. */
   readonly holding: boolean
   /** Trạng thái của BE; nhóm W / M có các ngày KHÁC trạng thái nhau là 'Mixed' (Calibrating hiện nhãn riêng nhưng vẫn là ô vuông như Holding). */
@@ -72,7 +80,11 @@ export const FLUX_BAND_ENABLED = false
 
 /** Ngày của BE → điểm biểu đồ (D). `showFlux` chỉ để test mã dải đang tắt. */
 export function toExpDay(day: ExpenditureSeriesDay, showFlux = FLUX_BAND_ENABLED): ExpDay {
-  const band = showFlux ? fluxBandOf(day.expenditureKcal, day.fluxLowKcal, day.fluxHighKcal) : null
+  // Chỉ vẽ khi BE nói Available (BE cũ không có cờ: dựa vào số hợp lệ); Unavailable thì không bao giờ có dải, kể cả khi số còn sót
+  const band =
+    showFlux && day.fluxStatus !== 'Unavailable'
+      ? fluxBandOf(day.expenditureKcal, day.fluxLowKcal, day.fluxHighKcal)
+      : null
   return {
     date: day.date,
     end: day.date,
@@ -80,6 +92,10 @@ export function toExpDay(day: ExpenditureSeriesDay, showFlux = FLUX_BAND_ENABLED
     kcal: day.expenditureKcal,
     fluxLow: band?.[0] ?? null,
     fluxHigh: band?.[1] ?? null,
+    fluxStatus: day.fluxStatus ?? null,
+    fluxReason: day.fluxReasonCode ?? null,
+    fluxDirection: band ? (day.fluxDirection ?? null) : null,
+    activeSource: day.activeSource ?? null,
     holding: day.status !== 'Updating',
     status: day.status,
     marker: markerOf(day.status),
@@ -104,6 +120,49 @@ function bucketBand(group: readonly ExpDay[], average: number): [number, number]
   }
   if (down.length === 0) return null
   return [Math.floor(average - mean(down)), Math.ceil(average + mean(up))]
+}
+
+/**
+ * Nhóm Tuần / Tháng của BE → điểm biểu đồ. Số kcal và dải Flux là của BE (`average`, `fluxLowKcal`, `fluxHighKcal`): FE KHÔNG tính trung bình hay dải. Chỉ marker / trạng thái được suy từ
+ * các ngày nằm trong nhóm (cùng một trạng thái hợp lệ thì có marker, lẫn nhau là 'Mixed' không marker), đúng quy tắc của `averageExpDays`.
+ */
+export function bucketsToExpDays(
+  buckets: readonly ExpenditureSeriesBucket[],
+  daily: readonly ExpDay[],
+  showFlux = FLUX_BAND_ENABLED
+): ExpDay[] {
+  return buckets.map((bucket) => {
+    const group = daily.filter((day) => day.date >= bucket.start && day.date <= bucket.end)
+    const same = group.length > 0 && group.every((day) => day.status === group[0].status)
+    const status = same ? group[0].status : 'Mixed'
+    const band = showFlux
+      ? fluxBandOf(bucket.average, bucket.fluxLowKcal, bucket.fluxHighKcal)
+      : null
+    return {
+      date: bucket.start,
+      end: bucket.end,
+      days: bucket.count,
+      kcal: bucket.average,
+      fluxLow: band?.[0] ?? null,
+      fluxHigh: band?.[1] ?? null,
+      fluxStatus: band
+        ? ('Available' as const)
+        : group.some((day) => day.fluxStatus === 'Unavailable')
+          ? ('Unavailable' as const)
+          : null,
+      fluxReason: [...group].reverse().find((day) => day.fluxReason !== null)?.fluxReason ?? null,
+      fluxDirection: null,
+      activeSource: group.some((day) => day.activeSource === 'Static')
+        ? ('Static' as const)
+        : (group[0]?.activeSource ?? null),
+      holding: same && markerOf(status) === 'square',
+      status,
+      marker: same ? markerOf(status) : null,
+      updatingDays: group.filter((day) => day.status === 'Updating').length,
+      otherDays: group.filter((day) => day.status !== 'Updating').length,
+      change: null,
+    }
+  })
 }
 
 /**
@@ -135,6 +194,16 @@ export function averageExpDays(
       kcal,
       fluxLow: band?.[0] ?? null,
       fluxHigh: band?.[1] ?? null,
+      fluxStatus: band
+        ? ('Available' as const)
+        : group.some((day) => day.fluxStatus === 'Unavailable')
+          ? ('Unavailable' as const)
+          : null,
+      fluxReason: [...group].reverse().find((day) => day.fluxReason !== null)?.fluxReason ?? null,
+      fluxDirection: null,
+      activeSource: group.some((day) => day.activeSource === 'Static')
+        ? ('Static' as const)
+        : (group[0].activeSource ?? null),
       holding: same && markerOf(status) === 'square',
       status,
       marker: same ? markerOf(status) : null,
@@ -315,6 +384,22 @@ export function holdingNoticeOf(
   }
 }
 
+/** Câu trung thực khi khung KHÔNG có dải (theo mã lý do của BE): nói vì sao chưa có, không dựng số cho đầy giao diện. Mã lạ = chưa đủ bằng chứng. */
+export function fluxEmptyNote(reason: string | null | undefined): string {
+  switch (reason) {
+    case 'CALIBRATING':
+      return 'No Flux range yet: Expenditure is still calibrating, there is not enough evidence.'
+    case 'NO_OBSERVATIONS':
+      return 'No Flux range yet: there are no valid weight and nutrition observations.'
+    case 'STATIC_OVERRIDE':
+      return 'No Flux range: Static Expenditure is a number you set.'
+    case 'FLUX_DISABLED':
+      return 'The Flux range is not enabled.'
+    default:
+      return 'No Flux range yet: there is not enough evidence.'
+  }
+}
+
 /**
  * Chú giải chỉ liệt kê lớp ĐANG vẽ trong khung: dải Flux chỉ khi có ngày có dải, đường theo các ngày đang xem, ô vuông Holding chỉ khi có ngày
  * Holding / Calibrating (trạng thái của BE), vòng tròn Updating chỉ khi có ngày Updating.
@@ -323,6 +408,9 @@ export const expLegend = (inView: readonly ExpDay[]) => ({
   flux: inView.some((day) => isNum(day.fluxLow) && isNum(day.fluxHigh)),
   line: inView.length > 0,
   holding: inView.some((day) => day.marker === 'square'),
+  /** Ô vuông do ngày Holding (giữ số cũ) và do ngày Calibrating (ước tính ban đầu, đóng băng theo thiết kế) là HAI chú giải khác nhau dù cùng hình. */
+  holdingDays: inView.some((day) => day.status === 'Holding'),
+  calibrating: inView.some((day) => day.status === 'Calibrating'),
   updating: inView.some((day) => day.marker === 'circle'),
 })
 

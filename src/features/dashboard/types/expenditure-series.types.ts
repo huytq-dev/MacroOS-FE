@@ -3,6 +3,10 @@
 /** Calibrating và Holding đều vẽ ô vuông; chỉ Updating là vòng tròn. */
 export type ExpenditureDayStatus = 'Calibrating' | 'Updating' | 'Holding'
 
+/** Vì sao một ngày không có dải Flux (BE); mã lạ được FE coi như "chưa đủ bằng chứng". */
+export type FluxReasonCode =
+  'FLUX_DISABLED' | 'CALIBRATING' | 'NO_OBSERVATIONS' | 'INSUFFICIENT_EVIDENCE' | 'STATIC_OVERRIDE'
+
 export interface ExpenditureSeriesDay {
   /** yyyy-MM-dd; LIÊN TỤC từ ngày có dữ liệu đầu tới hôm nay (BE đã fill-forward). */
   date: string
@@ -13,11 +17,31 @@ export interface ExpenditureSeriesDay {
    */
   fluxLowKcal?: number | null
   fluxHighKcal?: number | null
+  /** Bản học được (= expenditureKcal) và bản đang dùng (khác nhau chỉ ở chế độ Static); thiếu ở BE cũ. Strategy / Check-in vẫn đọc bản HỌC ĐƯỢC (chưa nối với Active), nên FE không gọi Active là "số Strategy dùng". */
+  learnedExpenditureKcal?: number
+  activeExpenditureKcal?: number
+  activeSource?: 'Learned' | 'Static'
+  /** Available = ngày CÓ dải hợp lệ (chỉ khi đó mới vẽ); Unavailable thì fluxLow / fluxHigh luôn null, kèm `fluxReasonCode`. */
+  fluxStatus?: 'Available' | 'Unavailable'
+  fluxReasonCode?: FluxReasonCode | null
+  /** Up = [TDEE, upper], Down = [lower, TDEE], Stable = độ rộng ≤ 1 kcal (vẽ như một đường mảnh); null khi không có dải. */
+  fluxDirection?: 'Up' | 'Down' | 'Stable' | null
   status: ExpenditureDayStatus
   /** TDEE hôm nay − hôm qua (làm tròn); null ở ngày đầu. */
   changeKcal: number | null
 }
 
+/** Một nhóm Tuần / Tháng của BE: average = trung bình kcal học được của các ngày trong nhóm (tuần theo cài đặt user, tháng theo lịch); dải = average ± nửa độ rộng trung bình của các ngày CÓ dải (floor / ceil), luôn low ≤ average ≤ high, null nếu không ngày nào có dải. */
+export interface ExpenditureSeriesBucket {
+  start: string
+  end: string
+  count: number
+  average: number
+  fluxLowKcal?: number | null
+  fluxHighKcal?: number | null
+}
+
+/** Thống kê của BE trên kcal học được của các ngày nằm trong [from, to] đã gửi: average = trung bình, difference = ngày cuối − ngày đầu (null nếu < 2 ngày); count 0 thì mọi giá trị null. */
 export interface ExpenditureSeriesSummary {
   from: string
   to: string
@@ -36,9 +60,16 @@ export interface ExpenditureSeriesResponse {
   /** Tăng dần theo ngày; rỗng khi chưa có snapshot. */
   days: ExpenditureSeriesDay[]
   summary: ExpenditureSeriesSummary
-  buckets?: { start: string; end: string; count: number; average: number }[] | null
+  /** Chỉ có khi gửi `granularity`; do BE tính (trung bình kcal học được + dải Flux gộp theo chính sách của BE). FE KHÔNG tự lấy trung bình. */
+  buckets?: ExpenditureSeriesBucket[] | null
   /** Phiên bản chính sách Flux (`MACROOS_FLUX_V1`); null khi không ngày nào có dải. Dải là "ước lượng bất đồng giữa các độ nhạy", không phải khoảng tin cậy. */
   fluxModel?: string | null
+  fluxModelVersion?: string | null
+  /** true CHỈ ở DB cô lập / dev bật Algorithm__FluxPreviewEnabled: dải là bản XEM TRƯỚC chưa được duyệt, nhãn "MacroOS Flux V1 (preview, unapproved)", KHÔNG gọi là live. */
+  fluxIsPreview?: boolean
+  calculationRevision?: number
+  /** "Available" hoặc một mã lý do (vd. CALIBRATING). */
+  fluxOverallStatus?: string | null
 }
 
 export type ExpenditureChangeStatus = 'Decrease' | 'Increase' | 'NoChange' | 'Waiting'

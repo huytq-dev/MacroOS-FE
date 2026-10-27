@@ -56,7 +56,13 @@ const checkInUtils = await load('../src/features/program/utils/check-in.utils.ts
 const calorieShift = await load('../src/features/program/utils/calorie-shift.ts')
 
 const SRC = fileURLToPath(new URL('../src', import.meta.url))
-const source = (file) => readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8')
+const readSource = (file) => readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8')
+// The Expenditure page is a thin wrapper (live data); its screen lives in ExpenditureScreen.tsx (shared with the preview page): checks about "the page" read both
+const source = (file) =>
+  file === 'features/dashboard/pages/ExpenditurePage.tsx'
+    ? readSource(file) +
+      readSource('features/dashboard/components/ExpenditurePage/ExpenditureScreen.tsx')
+    : readSource(file)
 const walk = (dir) =>
   readdirSync(dir).flatMap((name) => {
     const file = `${dir}/${name}`
@@ -544,11 +550,8 @@ await check(
 await check(
   'W [wiring] every D/W/M screen hands the user week start to its bucketing, nothing calls weekStart() with a default',
   () => {
+    // Expenditure W / M is grouped by the BE (`granularity` → `buckets`, week start per the user's locale): the FE neither averages nor needs the start day there (check EX3)
     const expected = [
-      [
-        'features/dashboard/hooks/use-expenditure-detail.ts',
-        /averageExpDays\(\s*daily,\s*averaging,\s*weekStartDay\s*\)/,
-      ],
       [
         'features/dashboard/hooks/use-weight-trend-detail.ts',
         /averageTrendDays\(\s*daily,\s*averaging,\s*weekStartDay\s*\)/,
@@ -1736,13 +1739,31 @@ await check(
       marker: status === 'Updating' ? 'circle' : 'square',
       change: 0,
     })
-    assert.deepEqual(expLegend([]), { flux: false, line: false, holding: false, updating: false })
+    assert.deepEqual(expLegend([]), {
+      flux: false,
+      line: false,
+      holding: false,
+      holdingDays: false,
+      calibrating: false,
+      updating: false,
+    })
     assert.deepEqual(expLegend([day('Updating')]), {
       flux: false,
       line: true,
       holding: false,
+      holdingDays: false,
+      calibrating: false,
       updating: true,
     })
+    // Holding and Calibrating squares are two separate legend entries (Holding / Initial estimate)
+    assert.deepEqual(
+      [expLegend([day('Holding')]).holdingDays, expLegend([day('Holding')]).calibrating],
+      [true, false]
+    )
+    assert.deepEqual(
+      [expLegend([day('Calibrating')]).holdingDays, expLegend([day('Calibrating')]).calibrating],
+      [false, true]
+    )
     assert.equal(
       expLegend([day('Calibrating')]).holding,
       true,
@@ -1779,7 +1800,8 @@ await check(
     assert.ok(/Average and Difference of Trend Weight/.test(wt) && /legend\.scale &&/.test(wt))
     const ex = source('features/dashboard/pages/ExpenditurePage.tsx')
     assert.ok(
-      /Average and Difference of the Expenditure line/.test(ex) && /legend\.holding &&/.test(ex)
+      /Average and Difference of the Expenditure line/.test(ex) &&
+        /<ExpenditureLegend\s+legend=\{legend\}/.test(ex)
     )
   }
 )
@@ -1796,8 +1818,8 @@ await check(
         code.indexOf('data-flux-band') < code.indexOf('<polyline'),
       'band is drawn UNDER the line'
     )
-    assert.match(chart, /Flux range is not a confidence interval\./)
-    assert.match(code, /Flux Lower/)
+    assert.match(chart, /Not a confidence interval\./)
+    assert.match(code, /MacroOS Flux/, 'tooltip labels the band as MacroOS Flux')
     assert.match(
       code,
       /selected\.fluxLow !== null && selected\.fluxHigh !== null/,
@@ -1832,10 +1854,38 @@ await check(
       'BE band must not reach the chart'
     )
     assert.equal(need(exp, 'expLegend')([sent]).flux, false, 'no Flux legend entry while off')
+    // The Flux switch can only be turned on by the labelled PREVIEW path: never by `.map(toExpDay)` (the index would be passed as `showFlux`), never by the shipped callers
+    const hook = codeOf(source('features/dashboard/hooks/use-expenditure-detail.ts'))
+    assert.match(hook, /toExpDay\(day, showFlux\)/)
+    assert.doesNotMatch(hook, /\.map\(toExpDay\)/)
+    const preview = codeOf(source('features/dashboard/expenditure-preview.ts'))
     assert.match(
-      codeOf(source('features/dashboard/hooks/use-expenditure-detail.ts')),
-      /toExpDay\(day\)/,
-      'the hook must not pass a second argument (.map(toExpDay) would turn the Flux switch on)'
+      preview,
+      /EXPENDITURE_PREVIEW = process\.env\.NEXT_PUBLIC_EXPENDITURE_PREVIEW === '1'/,
+      'preview is a build flag, off by default'
+    )
+    assert.match(
+      preview,
+      /EXPENDITURE_PREVIEW &&\s*new URLSearchParams/,
+      'URL alone cannot enable it'
+    )
+    const livePage = codeOf(source('features/dashboard/pages/ExpenditurePage.tsx'))
+    assert.match(livePage, /useExpenditureDetail\(averaging, preview \? true : undefined\)/)
+    assert.doesNotMatch(
+      codeOf(source('features/dashboard/components/DashboardPage/DashboardTiles.tsx')),
+      /useExpenditureDetail\([^)]*,/,
+      'the Dashboard tile never enables the band'
+    )
+    // the synthetic page and route exist only behind the flag and are labelled
+    assert.match(
+      codeOf(source('app/(preview)/expenditure-preview/page.tsx')),
+      /if \(!EXPENDITURE_PREVIEW\) notFound\(\)/
+    )
+    assert.match(preview, /Preview — MacroOS Flux V1 \(test data\)/)
+    assert.match(preview, /synthetic demonstration data/)
+    assert.match(
+      source('../middleware.ts'),
+      /NEXT_PUBLIC_EXPENDITURE_PREVIEW === '1' \? \['\/expenditure-preview'\]/
     )
     const expAxis = need(exp, 'expAxis')
     const at = (...kcal) =>
@@ -1914,7 +1964,7 @@ await check(
     // legend: Flux Range listed only while a band is in the view
     assert.deepEqual(
       Object.keys(expLegend([withNull])).sort(),
-      ['flux', 'holding', 'line', 'updating'],
+      ['calibrating', 'flux', 'holding', 'holdingDays', 'line', 'updating'],
       'legend keys'
     )
     assert.equal(expLegend([withNull]).flux, false, 'no band, no Flux legend entry')
@@ -6254,6 +6304,301 @@ await check(
       codeOf(source('features/dashboard/components/DashboardPage/DashboardSearchBar.tsx')),
       /border-t px-4 py-2 transition/
     )
+  }
+)
+
+await check(
+  'EX1 Expenditure chart: the Flux band edges are smooth curves through the BE numbers (no rectangle, no ±N), the legend lists only drawn layers in MF order, About explains Initial / Learned / Holding / Static and Flux is "not a confidence interval"',
+  async () => {
+    const smooth = await load('../src/features/dashboard/chart/smooth-path.ts')
+    const { bandPath, monotoneBeziers } = smooth
+    const knots = [
+      { x: 0, y: 100 },
+      { x: 10, y: 96 },
+      { x: 20, y: 90 },
+      { x: 30, y: 91 },
+      { x: 40, y: 99 },
+      { x: 50, y: 99 },
+    ]
+    const beziers = monotoneBeziers(knots)
+    assert.equal(beziers.length, knots.length - 1)
+    beziers.forEach((b, k) => {
+      assert.deepEqual(b.to, knots[k + 1], 'the curve passes through every BE point')
+      const lo = Math.min(knots[k].y, knots[k + 1].y)
+      const hi = Math.max(knots[k].y, knots[k + 1].y)
+      // monotone: no overshoot between two neighbours (no fake wave)
+      for (const c of [b.c1, b.c2]) assert.ok(c.y >= lo - 1e-9 && c.y <= hi + 1e-9, 'overshoot')
+    })
+    // band: closed, smooth (cubic segments), one path; single point = bar, not a fixed band
+    const upper = knots.map((p) => ({ x: p.x, y: p.y - 10 }))
+    const path = bandPath(upper, knots, 3)
+    assert.match(path, /^M[\d.,-]+C/)
+    assert.ok(path.endsWith('Z'))
+    assert.equal((path.match(/C/g) ?? []).length, 2 * (knots.length - 1), 'both edges are curves')
+    assert.equal(
+      (path.match(/L/g) ?? []).length,
+      1,
+      'only the vertical join between the edges is straight'
+    )
+    const lone = bandPath([{ x: 20, y: 80 }], [{ x: 20, y: 120 }], 3)
+    assert.equal(lone, 'M17,80L23,80L23,120L17,120Z')
+    assert.equal(bandPath([], [], 3), '')
+    // the chart builds bands only from the BE numbers per point
+    const chart = source('features/dashboard/components/ExpenditurePage/ExpenditureChart.tsx')
+    assert.match(chart, /bandPath\(/)
+    assert.doesNotMatch(codeOf(chart), /<rect[^>]*flux-band/, 'the band is never a rectangle')
+    assert.match(
+      chart,
+      /y\(day\.fluxHigh \?\? day\.kcal\)/,
+      'edges come from fluxHigh / fluxLow per day'
+    )
+    assert.match(chart, /y\(day\.fluxLow \?\? day\.kcal\)/)
+    // legend: order Flux Range, Updating, Holding, Initial estimate; Flux only when valid
+    const legend = codeOf(
+      source('features/dashboard/components/ExpenditurePage/ExpenditureLegend.tsx')
+    )
+    const at = (text) => legend.indexOf(text)
+    assert.ok(at('Flux Range') > 0 && at('Updating') > at('Flux Range'), 'order')
+    assert.ok(at('Holding') > at('Updating') && at('Initial estimate') > at('Holding'), 'order')
+    assert.match(legend, /legend\.flux &&/, 'Flux Range only when valid')
+    // About Expenditure
+    const about = source('features/dashboard/components/ExpenditurePage/AboutExpenditure.tsx')
+    for (const word of ['Initial estimate', 'Learned', 'Holding', 'Static'])
+      assert.ok(about.includes(word), word)
+    assert.match(about, /not a statistical\s+confidence\s+interval/)
+    assert.match(about, /not MacroFactor/)
+    assert.match(about, /\{showFlux && \(/, 'Flux explanation only when a band can be shown')
+    assert.match(about, /routePath\.moreExpenditure/, 'links only to existing pages')
+    const screen = codeOf(
+      source('features/dashboard/components/ExpenditurePage/ExpenditureScreen.tsx')
+    )
+    assert.match(screen, /<AboutExpenditure showFlux=\{legend\.flux\} \/>/)
+    assert.match(screen, /title="Expenditure"/)
+    assert.match(screen, /max-\[359px\]/, 'the header row fits at 320 px')
+  }
+)
+
+await check(
+  'EX2 BE Flux contract: a band is drawn only for fluxStatus Available (Up = [TDEE, upper], Down = [lower, TDEE], Stable = thin line), Unavailable never has one, reasons give an honest empty state, BE preview rows are labelled "preview, unapproved" (checked against the BE synthetic fixtures)',
+  async () => {
+    const exp = await load('../src/features/dashboard/expenditure-series.ts')
+    const toExpDay = need(exp, 'toExpDay')
+    const fluxEmptyNote = need(exp, 'fluxEmptyNote')
+    const { readdirSync, readFileSync } = await import('node:fs')
+    const dir = new URL('../dev-fixtures/expenditure-flux/', import.meta.url)
+    const files = readdirSync(dir).filter((name) => name.endsWith('.json'))
+    assert.ok(files.length >= 5, 'fixtures present')
+    for (const file of files) {
+      const fixture = JSON.parse(readFileSync(new URL(file, dir), 'utf8'))
+      assert.equal(fixture.dataSource, 'SYNTHETIC', file)
+      assert.equal(fixture.fluxIsPreview, true, file + ' must be labelled preview')
+      assert.ok(!('truthKcal' in fixture), 'debug ground truth is not shipped')
+      let available = 0
+      for (const day of fixture.days) {
+        const mapped = toExpDay(day, true)
+        if (day.fluxStatus === 'Available') {
+          available += 1
+          assert.ok(
+            day.fluxLowKcal <= day.expenditureKcal && day.expenditureKcal <= day.fluxHighKcal,
+            `${file} ${day.date} band must contain the learned TDEE`
+          )
+          assert.deepEqual(
+            [mapped.fluxLow, mapped.fluxHigh],
+            [day.fluxLowKcal, day.fluxHighKcal],
+            'copied as is'
+          )
+          // Up = [TDEE, upper], Down = [lower, TDEE], to within the BE's floor / ceil rounding (≤ 1 kcal)
+          if (day.fluxDirection === 'Up')
+            assert.ok(day.expenditureKcal - day.fluxLowKcal <= 1, 'Up = [TDEE, upper]')
+          if (day.fluxDirection === 'Down')
+            assert.ok(day.fluxHighKcal - day.expenditureKcal <= 1, 'Down = [lower, TDEE]')
+          if (day.fluxDirection === 'Stable')
+            assert.ok(day.fluxHighKcal - day.fluxLowKcal <= 1, 'Stable = width ≤ 1 kcal')
+          assert.equal(mapped.fluxDirection, day.fluxDirection ?? null)
+        } else {
+          assert.equal(day.fluxStatus, 'Unavailable', file)
+          assert.deepEqual(
+            [day.fluxLowKcal, day.fluxHighKcal],
+            [null, null],
+            'Unavailable has no numbers'
+          )
+          assert.ok(day.fluxReasonCode, 'Unavailable carries a reason')
+          assert.deepEqual([mapped.fluxLow, mapped.fluxHigh], [null, null])
+        }
+        assert.equal(day.learnedExpenditureKcal, day.expenditureKcal, 'learned = expenditureKcal')
+      }
+      assert.equal(
+        available > 0,
+        fixture.fluxOverallStatus === 'Available',
+        file + ' overall status'
+      )
+    }
+    // Unavailable wins even if numbers were left behind; a missing flag (older BE) falls back to the numbers
+    const base = { date: '2026-10-20', expenditureKcal: 2400, status: 'Updating', changeKcal: null }
+    assert.deepEqual(
+      (({ fluxLow, fluxHigh }) => [fluxLow, fluxHigh])(
+        toExpDay(
+          { ...base, fluxStatus: 'Unavailable', fluxLowKcal: 2390, fluxHighKcal: 2410 },
+          true
+        )
+      ),
+      [null, null]
+    )
+    assert.deepEqual(
+      (({ fluxLow, fluxHigh }) => [fluxLow, fluxHigh])(
+        toExpDay({ ...base, fluxLowKcal: 2390, fluxHighKcal: 2410 }, true)
+      ),
+      [2390, 2410]
+    )
+    assert.equal(toExpDay({ ...base, activeSource: 'Static' }, true).activeSource, 'Static')
+    // honest empty state per reason (never a made-up number)
+    for (const code of [
+      'CALIBRATING',
+      'NO_OBSERVATIONS',
+      'INSUFFICIENT_EVIDENCE',
+      'STATIC_OVERRIDE',
+      'FLUX_DISABLED',
+      'SOMETHING_NEW',
+      null,
+    ])
+      assert.match(fluxEmptyNote(code), /Flux/)
+    assert.match(fluxEmptyNote('CALIBRATING'), /calibrating/)
+    assert.match(fluxEmptyNote('STATIC_OVERRIDE'), /Static/)
+    // wiring: preview rows are labelled; Stable is a visible thin line; Active is never presented as the Strategy's number
+    const preview = codeOf(source('features/dashboard/expenditure-preview.ts'))
+    assert.match(preview, /FLUX_PREVIEW_LABEL = 'MacroOS Flux V1 \(preview, unapproved\)'/)
+    const live = codeOf(source('features/dashboard/pages/ExpenditurePage.tsx'))
+    assert.match(live, /data\.flux\.isPreview/)
+    assert.match(
+      codeOf(source('features/dashboard/components/ExpenditurePage/ExpenditureScreen.tsx')),
+      /fluxLabel=\{data\.flux\.isPreview \? FLUX_PREVIEW_LABEL : undefined\}/
+    )
+    const chart = codeOf(
+      source('features/dashboard/components/ExpenditurePage/ExpenditureChart.tsx')
+    )
+    assert.match(chart, /MIN_BAND_THICKNESS = [1-9]/, 'Stable (≤ 1 kcal) stays a visible thin line')
+    assert.match(chart, /Static \(set by you\)/)
+    assert.doesNotMatch(
+      source('features/dashboard/components/ExpenditurePage/AboutExpenditure.tsx') + chart,
+      /Strategy uses|used by Strategy/i
+    )
+  }
+)
+
+await check(
+  'EX3 Expenditure W / M and Average / Difference come from the BE (granularity buckets, series summary for the exact from / to): the FE does no averaging on the live page',
+  async () => {
+    const exp = await load('../src/features/dashboard/expenditure-series.ts')
+    const toExpDay = need(exp, 'toExpDay')
+    const bucketsToExpDays = need(exp, 'bucketsToExpDays')
+    const day = (date, status = 'Updating') =>
+      toExpDay({ date, expenditureKcal: 2400, status, changeKcal: null }, true)
+    const days = [
+      day('2026-10-19'),
+      day('2026-10-20'),
+      day('2026-10-21', 'Holding'),
+      day('2026-10-26'),
+    ]
+    const out = bucketsToExpDays(
+      [
+        {
+          start: '2026-10-19',
+          end: '2026-10-25',
+          count: 3,
+          average: 2417.4,
+          fluxLowKcal: 2380,
+          fluxHighKcal: 2460,
+        },
+        {
+          start: '2026-10-26',
+          end: '2026-11-01',
+          count: 1,
+          average: 2400,
+          fluxLowKcal: null,
+          fluxHighKcal: null,
+        },
+      ],
+      days,
+      true
+    )
+    // the numbers are the BE's, untouched
+    assert.deepEqual(
+      [out[0].kcal, out[0].fluxLow, out[0].fluxHigh, out[0].days],
+      [2417.4, 2380, 2460, 3]
+    )
+    assert.deepEqual([out[0].date, out[0].end], ['2026-10-19', '2026-10-25'])
+    // only the marker is derived: mixed statuses inside the bucket = no marker, one status = that marker
+    assert.deepEqual([out[0].status, out[0].marker], ['Mixed', null])
+    assert.deepEqual([out[1].status, out[1].marker], ['Updating', 'circle'])
+    // a bucket without a band has none; a broken bucket (low > average) is dropped, not drawn
+    assert.deepEqual([out[1].fluxLow, out[1].fluxHigh], [null, null])
+    const broken = bucketsToExpDays(
+      [
+        {
+          start: '2026-10-19',
+          end: '2026-10-25',
+          count: 3,
+          average: 2400,
+          fluxLowKcal: 2450,
+          fluxHighKcal: 2500,
+        },
+      ],
+      days,
+      true
+    )
+    assert.deepEqual([broken[0].fluxLow, broken[0].fluxHigh], [null, null])
+    // flux off: no band even if the BE sent one
+    assert.deepEqual(
+      (({ fluxLow, fluxHigh }) => [fluxLow, fluxHigh])(
+        bucketsToExpDays(
+          [
+            {
+              start: '2026-10-19',
+              end: '2026-10-25',
+              count: 3,
+              average: 2417,
+              fluxLowKcal: 2380,
+              fluxHighKcal: 2460,
+            },
+          ],
+          days
+        )[0]
+      ),
+      [null, null]
+    )
+    // wiring: granularity per averaging, buckets from the response, summary request for the exact window, no FE arithmetic on the live path
+    const hook = codeOf(source('features/dashboard/hooks/use-expenditure-detail.ts'))
+    assert.match(hook, /daily: 'Day', weekly: 'Week', monthly: 'Month'/)
+    assert.match(hook, /params: \{ all: true, to: today, granularity \}/)
+    assert.match(hook, /buckets: series\.data\?\.buckets/)
+    assert.match(hook, /params: \{ from: start, to: end \}/, 'summary asks for the exact window')
+    assert.match(hook, /useDebounce\(/)
+    assert.doesNotMatch(hook, /averageExpDays|\.reduce\(/, 'the live hook never averages')
+    const screen = codeOf(
+      source('features/dashboard/components/ExpenditurePage/ExpenditureScreen.tsx')
+    )
+    assert.match(
+      screen,
+      /summary\?\.average == null \? null : Math\.round\(energy\.convert\(summary\.average\)\)/
+    )
+    assert.doesNotMatch(screen, /\.reduce\(/, 'Average / Difference are not computed here')
+    assert.match(
+      codeOf(source('features/dashboard/pages/ExpenditurePage.tsx')),
+      /useSummary=\{useExpenditureWindowSummary\}/
+    )
+    // the offline preview mirrors the BE rule (mean of the learned kcal, last − first, null with < 2 days)
+    const preview = await load('../src/features/dashboard/expenditure-preview.ts')
+    const sum = need(preview, 'syntheticSummary')
+    const series = [2400, 2410, 2430].map((kcal, i) => ({
+      date: `2026-10-0${i + 1}`,
+      expenditureKcal: kcal,
+    }))
+    assert.deepEqual(sum(series, '2026-10-01', '2026-10-03'), {
+      average: (2400 + 2410 + 2430) / 3,
+      difference: 30,
+    })
+    assert.deepEqual(sum(series, '2026-10-02', '2026-10-02'), { average: 2410, difference: null })
+    assert.deepEqual(sum(series, '2026-11-01', '2026-11-02'), { average: null, difference: null })
   }
 )
 
